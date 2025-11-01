@@ -10,9 +10,9 @@
 ../rtl/video_sys/ov5640/ov5640_icb_top.v
 ../rtl/video_sys/ov5640/icb2dcmi.v
 ../rtl/video_sys/ov5640/ov5640_y8_top.v
-../../e203_soc_ip/general/sirv_gnrl_bufs.v
-../../e203_soc_ip/general/sirv_gnrl_dffs.v
-../../e203_soc_ip/general/sirv_gnrl_xchecker.v
-../../e203_soc_ip/general/sirv_gnrl_ram.v
-../../e203_soc_ip/general/sirv_sim_ram.v
-../../e203_soc_ip/core/e203_clkgate.v
+../rtl/video_sys/general/sirv_gnrl_bufs.v
+../rtl/video_sys/general/sirv_gnrl_dffs.v
+../rtl/video_sys/general/sirv_gnrl_xchecker.v
+../rtl/video_sys/general/sirv_gnrl_ram.v
+../rtl/video_sys/general/sirv_sim_ram.v
+../rtl/video_sys/general/e203_clkgate.v
