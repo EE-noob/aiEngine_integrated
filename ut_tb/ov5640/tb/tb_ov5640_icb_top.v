@@ -1,3 +1,5 @@
+// Include the SRAM macro wrapper so the unit test can compile standalone
+`include "../../../rtl/video_sys/sram/sram_4096x8_macro_wrap.v"
 `include "ov5640_icb_top.v"
 
 

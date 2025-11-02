@@ -30,6 +30,7 @@
 ../rtl/nice_coprocessor/wbu.v
 
 ../rtl/video_sys/sram/sram.v
+../rtl/video_sys/sram/sram_4096x8_macro_wrap.v
 ../rtl/video_sys/video_sys_top.sv
 ../rtl/video_sys/ov5640/ov5640_icb_top.v
 ../rtl/video_sys/ov5640/icb2dcmi.v
