@@ -1,3 +1,4 @@
+
 module ov5640_icb_top #(
     parameter ADDR_WIDTH = 12,
     parameter IMAGE_SIZE = 1 << ADDR_WIDTH,
@@ -9,7 +10,7 @@ module ov5640_icb_top #(
     
     // 摄像头时钟域
     input  wire             cam_pclk,
-    input  wire             cam_rst_n,
+    output wire             cam_rst_n,
     
     // ICB 接口
     input  wire             dcmi_icb_cmd_valid,
@@ -25,15 +26,17 @@ module ov5640_icb_top #(
     // 摄像头接口
     input  wire             cam_vsync,
     input  wire             cam_href,
-    input  wire [7:0]       cam_data
+    input  wire [7:0]       cam_data,
+    output wire             cam_pwdn,        //cmos 电源休眠模式选择信号
+    output wire             cam_scl,         //cmos SCCB_SCL线
+    inout  wire             cam_sda,        //cmos SCCB_SDA线
+    input  wire             clk_50M
 );
 
+    assign cam_rst_n = 1'b1; // 摄像头复位信号，常高保持工作状态
     // =========================================
     // 内部信号定义
     // =========================================
-    // CAM时钟域：同步req信号并产生脉冲
-    reg start_req_sync_ff1, start_req_sync_ff2, start_req_sync_ff3;
-    reg start_ack_cam;
     
     // 控制信号（跨时钟域同步）
     wire start_capture_icb;
@@ -65,6 +68,8 @@ module ov5640_icb_top #(
     wire [11:0] sram_rd_addr;
     wire        sram_rd_en;
 
+    wire        cam_init_done;
+
     // =========================================
     // 跨时钟域同步：start_capture (icb_clk -> cam_pclk)
     // 使用电平同步 + 握手协议，避免快到慢时钟域的脉冲丢失
@@ -73,7 +78,7 @@ module ov5640_icb_top #(
     // ICB时钟域：将脉冲转换为电平
     reg start_req_icb;
     reg start_ack_sync_ff1, start_ack_sync_ff2;
-    
+    reg start_ack_cam;
     always @(posedge icb_clk or negedge icb_rst_n) begin
         if (!icb_rst_n) begin
             start_req_icb <= 1'b0;
@@ -95,9 +100,12 @@ module ov5640_icb_top #(
         end
     end
     
+    // CAM时钟域：同步req信号并产生脉冲
+    reg start_req_sync_ff1, start_req_sync_ff2, start_req_sync_ff3;
+
     
-    always @(posedge cam_pclk or negedge cam_rst_n) begin
-        if (!cam_rst_n) begin
+    always @(posedge cam_pclk or negedge icb_rst_n) begin
+        if (!icb_rst_n) begin
             start_req_sync_ff1 <= 1'b0;
             start_req_sync_ff2 <= 1'b0;
             start_req_sync_ff3 <= 1'b0;
@@ -318,7 +326,7 @@ module ov5640_icb_top #(
     ov5640_y8_top #(
         .WAIT_FRAME(WAIT_FRAME)
     ) u_ov5640_y8_top (
-        .rst_n          (cam_rst_n),
+        .rst_n          (icb_rst_n),
         .cam_pclk       (cam_pclk),
         .cam_vsync      (cam_vsync),
         .cam_href       (cam_href),
@@ -328,6 +336,15 @@ module ov5640_icb_top #(
         .sram_wdata     (sram_wr_data_cam),
         .sram_we        (sram_wr_en_cam),
         .frame_done     (frame_done_cam)
+    );
+
+    ov5640_dri u_ov5640_dri (
+        .clk        (clk_50M ),
+        .rst_n      (icb_rst_n),
+        .cam_pwdn   (cam_pwdn),
+        .cam_scl    (cam_scl  ),
+        .cam_sda    (cam_sda  ),
+        .cam_init_done(cam_init_done)
     );
 
 endmodule

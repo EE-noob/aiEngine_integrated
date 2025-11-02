@@ -1,5 +1,4 @@
 +incdir+../include
-+incdir+../rtl/video_sys/ov5640
 ../rtl/nice_coprocessor/MMA/accumulator_array.sv
 ../rtl/nice_coprocessor/MMA/bias_loader.sv
 ../rtl/nice_coprocessor/MMA/compute_core.sv
@@ -31,9 +30,6 @@
 
 ../rtl/video_sys/sram/sram.v
 ../rtl/video_sys/video_sys_top.sv
-../rtl/video_sys/ov5640/ov5640_icb_top.v
-../rtl/video_sys/ov5640/icb2dcmi.v
-../rtl/video_sys/ov5640/ov5640_y8_top.v
 ../rtl/video_sys/general/sirv_gnrl_bufs.v
 ../rtl/video_sys/general/sirv_gnrl_dffs.v
 ../rtl/video_sys/general/sirv_gnrl_xchecker.v
@@ -42,3 +38,11 @@
 ../rtl/video_sys/general/e203_clkgate.v
 
 ../rtl/top_ai_engine.sv
+../rtl/video_sys/ov5640/i2c_dri.v
+../rtl/video_sys/ov5640/i2c_ov5640_rgb565_cfg.v
+../rtl/video_sys/ov5640/icb2dcmi.v
+../rtl/video_sys/ov5640/ov5640_dri.v
+../rtl/video_sys/ov5640/ov5640_icb_top.v
+../rtl/video_sys/ov5640/ov5640_y8_top.v
+../rtl/video_sys/ov5640/ov5640_dcmi_y8_if.v
+../rtl/video_sys/ov5640/y8_crop960_down64_to_sram.v

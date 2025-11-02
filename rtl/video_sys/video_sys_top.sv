@@ -32,12 +32,15 @@ module video_sys_top #(
     
     // 摄像头时钟域
     input  wire             cam_pclk,
-    input  wire             cam_rst_n,
+    output  wire             cam_rst_n,
 
     // 摄像头接口
     input  wire             cam_vsync,
     input  wire             cam_href,
-    input  wire [7:0]       cam_data
+    input  wire [7:0]       cam_data,
+    output wire             cam_pwdn,        
+    output wire             cam_scl,         
+    input  wire             clk_50M
     //,
 
     // // SRAM ICB 接口
@@ -59,15 +62,15 @@ module video_sys_top #(
 );
 
 
- wire sram_icb_cmd_valid;
- wire sram_icb_cmd_ready;
- wire [31:0] sram_icb_cmd_addr;
- wire sram_icb_cmd_read;
- wire [`E203_XLEN-1:0] sram_icb_cmd_wdata;
- wire [`E203_XLEN/8-1:0] sram_icb_cmd_wmask;
- wire sram_icb_rsp_valid;
- wire sram_icb_rsp_ready;
- wire [`E203_XLEN-1:0] sram_icb_rsp_rdata;
+ //wire sram_icb_cmd_valid;
+ //wire sram_icb_cmd_ready;
+ //wire [31:0] sram_icb_cmd_addr;
+ //wire sram_icb_cmd_read;
+ //wire [`E203_XLEN-1:0] sram_icb_cmd_wdata;
+ //wire [`E203_XLEN/8-1:0] sram_icb_cmd_wmask;
+ //wire sram_icb_rsp_valid;
+ //wire sram_icb_rsp_ready;
+ //wire [`E203_XLEN-1:0] sram_icb_rsp_rdata;
 
 
 
@@ -89,7 +92,11 @@ module video_sys_top #(
 
    .cam_vsync          (cam_vsync),
    .cam_href           (cam_href),
-   .cam_data           (cam_data)
+   .cam_data           (cam_data),
+   .cam_pwdn           (cam_pwdn),
+   .cam_scl            (cam_scl),
+   .clk_50M            (clk_50M)
+
  );
 
   //  sram_icb #(

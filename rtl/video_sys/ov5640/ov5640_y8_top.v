@@ -1,5 +1,3 @@
-`include "ov5640_dcmi_y8_if.v"
-`include "y8_crop960_down64_to_sram.v"
 
 module ov5640_y8_top #(
     parameter WAIT_FRAME = 4'd10
