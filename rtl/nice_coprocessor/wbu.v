@@ -1,5 +1,5 @@
 /* verilator lint_off TIMESCALEMOD */
-`timescale 1ns / 1ps
+
 /* verilator lint_on TIMESCALEMOD */
 
 `include "e203_defines.v"

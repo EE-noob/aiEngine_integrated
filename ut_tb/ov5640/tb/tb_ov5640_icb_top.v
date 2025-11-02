@@ -1,5 +1,5 @@
 `include "ov5640_icb_top.v"
-`timescale 1ns/1ps
+
 
 module tb_ov5640_icb_top;
     // =========================================

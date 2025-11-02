@@ -1,4 +1,4 @@
-`timescale 1ns/1ps
+
 
 // Integration TB: vec_s8_to_fifo <-> oa_writer
 // - Feeds a single 16x16 tile into FIFO

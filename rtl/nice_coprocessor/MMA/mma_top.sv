@@ -1,4 +1,5 @@
-`include "define.svh"
+ //`include "define.svh"
+ `include "e203_defines.v"
 `include "icb_types.svh"
 
 // 矩阵乘累加(MMA)顶层模块
@@ -318,6 +319,33 @@ module mma_top #(
         .wb_ready             (wb_ready),
         .err_code             (err_code)
     );
+    reg                         icb_cmd_valid;     // 命令有效
+    logic                        icb_cmd_ready;     // 命令就绪
+    reg                         icb_cmd_read;      // 读操作标志
+    reg  [REG_WIDTH-1:0]        icb_cmd_addr;      // 命令地址
+    logic [3:0]                  icb_cmd_len;       // Burst长度-1
+    logic                        icb_rsp_valid;     // 响应有效
+    reg                         icb_rsp_ready;     // 响应就绪
+    logic [BUS_WIDTH-1:0]        icb_rsp_rdata;     // 读数据
+    logic                        icb_rsp_err;       // 错误标志
+    // -------------------- 打包命令通道（Master→Slave） --------------------
+always_comb begin
+    ia_loader_cmd.valid = icb_cmd_valid;
+    ia_loader_cmd.addr  = icb_cmd_addr;
+    ia_loader_cmd.read  = icb_cmd_read;
+    ia_loader_cmd.len   = icb_cmd_len[2:0]; // 低3位表示burst长度(0~7)
+end
+
+// -------------------- 解包命令就绪（Slave→Master） --------------------
+assign icb_cmd_ready = ia_loader_cmd_ready.ready;
+
+// -------------------- 解包响应通道（Slave→Master） --------------------
+assign icb_rsp_valid = ia_loader_rsp.rsp_valid;
+assign icb_rsp_rdata = ia_loader_rsp.rsp_rdata;
+assign icb_rsp_err   = ia_loader_rsp.rsp_err;
+
+// -------------------- 打包响应就绪（Master→Slave） --------------------
+assign ia_loader_rsp_ready.rsp_ready = icb_rsp_ready;
 
     // IA Loader
     ia_loader #(
@@ -339,10 +367,23 @@ module mma_top #(
         .lhs_row_stride_b(lhs_row_stride_b),
         .lhs_base        (lhs_base),
         .use_16bits      (use_16bits),
-        .icb_cmd_m       (ia_loader_cmd),
-        .icb_cmd_s       (ia_loader_cmd_ready),
-        .icb_rsp_s       (ia_loader_rsp),
-        .icb_rsp_m       (ia_loader_rsp_ready),
+
+        
+        // .icb_cmd_m       (ia_loader_cmd),
+        // .icb_cmd_s       (ia_loader_cmd_ready),
+        // .icb_rsp_s       (ia_loader_rsp),
+        // .icb_rsp_m       (ia_loader_rsp_ready),
+        .icb_cmd_valid(icb_cmd_valid),
+        .icb_cmd_ready(icb_cmd_ready),
+        .icb_cmd_read(icb_cmd_read),
+        .icb_cmd_addr(icb_cmd_addr),
+        .icb_cmd_len(icb_cmd_len),
+        .icb_rsp_valid(icb_rsp_valid),
+        .icb_rsp_ready(icb_rsp_ready),
+        .icb_rsp_rdata(icb_rsp_rdata),
+        .icb_rsp_err(icb_rsp_err),
+
+
         .ia_sending_done (ia_sending_done),
         .ia_row_valid    (ia_row_valid),
         .ia_is_init_data (ia_is_init_data),
@@ -350,7 +391,33 @@ module mma_top #(
         .ia_out          (ia_out),
         .ia_data_valid   (ia_data_valid)
     );
+    reg                         kernel_loader_icb_cmd_valid;     // 命令有效
+    logic                        kernel_loader_icb_cmd_ready;     // 命令就绪
+    reg                         kernel_loader_icb_cmd_read;      // 读操作标志
+    reg  [REG_WIDTH-1:0]        kernel_loader_icb_cmd_addr;      // 命令地址
+    logic [3:0]                  kernel_loader_icb_cmd_len;       // Burst长度-1
+    logic                        kernel_loader_icb_rsp_valid;     // 响应有效
+    reg                         kernel_loader_icb_rsp_ready;     // 响应就绪
+    logic [BUS_WIDTH-1:0]        kernel_loader_icb_rsp_rdata;     // 读数据
+    logic                        kernel_loader_icb_rsp_err;       // 错误标志
+    // -------------------- 打包命令通道（Master→Slave） --------------------
+always_comb begin
+    kernel_loader_cmd.valid = kernel_loader_icb_cmd_valid;
+    kernel_loader_cmd.addr  = kernel_loader_icb_cmd_addr;
+    kernel_loader_cmd.read  = kernel_loader_icb_cmd_read;
+    kernel_loader_cmd.len   = kernel_loader_icb_cmd_len[2:0]; // 低3位表示burst长度(0~7)
+end
 
+// -------------------- 解包命令就绪（Slave→Master） --------------------
+assign kernel_loader_icb_cmd_ready = kernel_loader_cmd_ready.ready;
+
+// -------------------- 解包响应通道（Slave→Master） --------------------
+assign kernel_loader_icb_rsp_valid = kernel_loader_rsp.rsp_valid;
+assign kernel_loader_icb_rsp_rdata = kernel_loader_rsp.rsp_rdata;
+assign kernel_loader_icb_rsp_err   = kernel_loader_rsp.rsp_err;
+
+// -------------------- 打包响应就绪（Master→Slave） --------------------
+assign kernel_loader_rsp_ready.rsp_ready = kernel_loader_icb_rsp_ready;
     // Kernel Loader
     kernel_loader #(
         .DATA_WIDTH(WEIGHT_WIDTH),
@@ -369,13 +436,25 @@ module mma_top #(
         .m                  (m),
         .rhs_zp             (rhs_zp),
         .rhs_base           (rhs_base),
-        .rhs_row_stride_b   (rhs_row_stride_b),
-        .icb_cmd_m          (kernel_loader_cmd),
-        .icb_cmd_s          (kernel_loader_cmd_ready),
-        .icb_rsp_s          (kernel_loader_rsp),
-        .icb_rsp_m          (kernel_loader_rsp_ready),
+        .rhs_col_stride_b   (rhs_row_stride_b),
+
+        // .icb_cmd_m       (ia_loader_cmd),
+        // .icb_cmd_s       (ia_loader_cmd_ready),
+        // .icb_rsp_s       (ia_loader_rsp),
+        // .icb_rsp_m       (ia_loader_rsp_ready),
+        .icb_cmd_valid(kernel_loader_icb_cmd_valid),
+        .icb_cmd_ready(kernel_loader_icb_cmd_ready),
+        .icb_cmd_read(kernel_loader_icb_cmd_read),
+        .icb_cmd_addr(kernel_loader_icb_cmd_addr),
+        .icb_cmd_len(kernel_loader_icb_cmd_len),
+        .icb_rsp_valid(kernel_loader_icb_rsp_valid),
+        .icb_rsp_ready(kernel_loader_icb_rsp_ready),
+        .icb_rsp_rdata(kernel_loader_icb_rsp_rdata),
+        .icb_rsp_err(kernel_loader_icb_rsp_err),
+
+
         .weight_sending_done(weight_sending_done),
-        .store_weight_req   (store_weight_req),
+        .weight_row_valid (store_weight_req),
         .weight_out         (weight_out),
         .weight_data_valid  (weight_data_valid)
     );
@@ -394,12 +473,19 @@ module mma_top #(
         .bias_base            (bias_base),
         .k                    (k),
         .m                    (m),
-        .icb_cmd_m            (bias_loader_cmd),
-        .icb_cmd_s            (bias_loader_cmd_ready),
-        .icb_rsp_s            (bias_loader_rsp),
-        .icb_rsp_m            (bias_loader_rsp_ready),
+        // .icb_cmd_m            (bias_loader_cmd),
+        // .icb_cmd_s            (bias_loader_cmd_ready),
+        // .icb_rsp_s            (bias_loader_rsp),
+        // .icb_rsp_m            (bias_loader_rsp_ready),
+
+        .icb_cmd_m    (bias_loader_cmd),
+        .icb_cmd_s    (bias_loader_cmd_ready),
+        .icb_wr_m     (bias_loader_wr),
+        .icb_wr_s     (bias_loader_w_ready),
+        .icb_rsp_s    (bias_loader_rsp),
+        .icb_rsp_m    (bias_loader_rsp_ready),
         .partial_sum_calc_over(partial_sum_calc_over),
-        .tile_calc_start      (send_ia_trigger),
+        //.tile_calc_start      (send_ia_trigger),
         .tile_calc_over       (tile_calc_over),
         .bias_valid           (bias_valid),
         .data_out             (bias_data_out)
@@ -430,7 +516,7 @@ module mma_top #(
         .REG_WIDTH(REG_WIDTH)
     ) u_vec_requant (
         .clk               (clk),
-        .rstn              (rst_n),
+        .rst_n              (rst_n),
         .init_cfg          (init_cfg_requant),
         .cfg_per_channel   (use_per_channel),
         .activation_min_in (act_min),
@@ -454,19 +540,32 @@ module mma_top #(
         .out_valid         (requant_out_valid),
         .out_vec_s8        (requant_out)
     );
+    //wire signed [             7:0] requant_out                            [SIZE];
+    //TODO: check big or little endian
+    //
+    wire [SIZE*8-1:0] in_vec_s8;
+    genvar i;
+        generate
+            for (i = 0; i < SIZE; i = i + 1) begin : gen_unpack_in_vec
+                assign requant_out[i] = in_vec_s8[i*8 +: 8];
+            end
+        endgenerate
 
     // FIFO
     vec_s8_to_fifo #(
         .VLEN(SIZE)
     ) u_vec_s8_to_fifo (
         .clk              (clk),
-        .rstn             (rst_n),
+        .rst_n             (rst_n),
         .in_valid         (requant_out_valid),
-        .in_vec_s8        (requant_out),
-        .output_req       (fifo_output_req),
+        //.in_vec_s8        (requant_out),
+        .in_vec_s8        (in_vec_s8),
+        //.output_req       (fifo_output_req),
+        .oa_fifo_req       (fifo_output_req),
         .vec_valid_num_col(fifo_vec_valid_num_col),
         .output_valid     (fifo_output_valid),
-        .output_switch_row(fifo_output_switch_row),
+        //.output_switch_row(fifo_output_switch_row),
+        .output_row_switch(fifo_output_switch_row),
         .output_ready     (fifo_output_ready),
         .output_mask      (fifo_output_mask),
         .output_data      (fifo_output_data),

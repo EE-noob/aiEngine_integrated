@@ -1,5 +1,6 @@
-`timescale 1ns/1ps
-`include "define.svh"
+
+ //`include "define.svh"
+ `include "e203_defines.v"
 `include "icb_types.svh"
 
 module bias_loader_tb;

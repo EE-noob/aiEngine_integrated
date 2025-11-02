@@ -1,4 +1,5 @@
-`include "define.svh"
+ //`include "define.svh"
+ `include "e203_defines.v"
 `include "icb_types.svh"
 
 // MMA(Matrix Multiply Accumulate) Controller

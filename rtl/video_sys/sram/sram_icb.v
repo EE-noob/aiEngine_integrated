@@ -1,4 +1,5 @@
- `include "define.svh"
+ // //`include "define.svh"
+ `include "e203_defines.v"
  `include "config.v"
  module sram_icb #(
   parameter DW = 32,

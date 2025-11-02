@@ -1,5 +1,6 @@
-`timescale 1ns/1ps
-`include "define.svh"
+
+ //`include "define.svh"
+ `include "e203_defines.v"
 `include "icb_types.svh"
 
 module vec_requant #(
@@ -7,7 +8,7 @@ module vec_requant #(
   parameter int REG_WIDTH = 32
 )(
   input  logic                       clk,
-  input  logic                       rstn,
+  input  logic                       rst_n,
 
   // 配置
   input  logic                       init_cfg,
@@ -84,8 +85,8 @@ module vec_requant #(
   logic [31:0]        mul_base_r, sh_base_r;             // per-channel 基地址
 
 
-  always_ff @(posedge clk or negedge rstn) begin
-    if (!rstn) begin
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
       activation_min_r <= '0;
       activation_max_r <= '0;
       dst_offset_r     <= '0;
@@ -149,8 +150,8 @@ module vec_requant #(
   end
 
   // 参数就绪拍锁存（供计算屏蔽尾块）
-  always_ff @(posedge clk or negedge rstn) begin
-    if (!rstn) begin
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
       lane_need_q <= '0;
     end else begin
       // per-tensor 模式下：所有 lane 都有效
@@ -193,8 +194,8 @@ module vec_requant #(
   // ----------------------------
   // 主状态机（只保留 4 个状态名）
   // ----------------------------
-  always_ff @(posedge clk or negedge rstn) begin
-    if (!rstn) begin
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
       // reset all sequential state
       state              <= IDLE;
       load_phase         <= PH_MUL;
@@ -405,7 +406,7 @@ module vec_requant #(
 
         endcase
       end // !init_cfg
-    end // !rstn
+    end // !rst_n
   end
 
 
@@ -414,8 +415,8 @@ module vec_requant #(
   // ----------------------------
   logic in_valid_q;
   logic out_valid_q;
-  always_ff @(posedge clk or negedge rstn) begin
-    if (!rstn) begin
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
       in_valid_q <= 1'b0;
       out_valid_q  <= 1'b0;
     end else begin
@@ -465,8 +466,8 @@ module vec_requant #(
     logic        [5:0]  right_s;
     logic        [31:0] cur_s_neg;
 
-    always_ff @(posedge clk or negedge rstn) begin
-      if (!rstn) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+      if (!rst_n) begin
         out_vec_s8[j] <= '0;
       end else if (in_valid_q) begin
         // 选择 per-channel 缓冲或 per-tensor 常量

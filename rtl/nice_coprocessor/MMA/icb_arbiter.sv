@@ -51,15 +51,16 @@ module icb_arbiter (
     reg [2:0] priority_queue[3:0];
     reg [2:0] next_priority_queue[3:0];
 
-    // 检测总线是否空闲
-    wire bus_idle = !bus_busy || (bus_busy && current_done);
-
     // 检测当前主机是否完成
     wire current_done = (current_master == 3'd0 && s0_done) ||
                        (current_master == 3'd1 && s1_done) ||
                        (current_master == 3'd2 && s2_done) ||
                        (current_master == 3'd3 && s3_done) ||
                        (current_master == 3'd4 && s4_done);
+    // 检测总线是否空闲
+    wire bus_idle = !bus_busy || (bus_busy && current_done);
+
+
 
     // 计算更新后的优先级队列：将指定设备移到队尾（最低优先级）
     function automatic void calc_updated_priority(

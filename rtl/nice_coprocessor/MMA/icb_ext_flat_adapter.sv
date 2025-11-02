@@ -1,4 +1,4 @@
-`timescale 1ns/1ps
+
 `include "icb_types.svh"
 
 module icb_ext_flat_adapter #(
