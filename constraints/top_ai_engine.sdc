@@ -105,9 +105,9 @@ set CAM_IN_MIN    [expr {$IO_IN_MIN_FRAC  * $CAM_PCLK_PERIOD}]
 # Clocks
 #####################
 
-create_clock -name nice_clk -period $NICE_CLK_PERIOD -waveform {0.0 $NICE_CLK_HIGH} [get_ports nice_clk]
-create_clock -name icb_clk  -period $ICB_CLK_PERIOD  -waveform {0.0 $ICB_CLK_HIGH } [get_ports icb_clk]
-create_clock -name cam_pclk -period $CAM_PCLK_PERIOD -waveform {0.0 $CAM_PCLK_HIGH} [get_ports cam_pclk]
+create_clock -name nice_clk -period $NICE_CLK_PERIOD  [get_ports nice_clk]
+create_clock -name icb_clk  -period $ICB_CLK_PERIOD   [get_ports icb_clk]
+create_clock -name cam_pclk -period $CAM_PCLK_PERIOD  [get_ports cam_pclk]
 
 #####################
 # Clock Groups (CDC)
