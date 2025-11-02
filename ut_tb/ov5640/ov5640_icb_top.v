@@ -70,7 +70,8 @@ module ov5640_icb_top #(
     // ICB时钟域：将脉冲转换为电平
     reg start_req_icb;
     reg start_ack_sync_ff1, start_ack_sync_ff2;
-    
+    reg start_ack_cam; 
+
     always @(posedge icb_clk or negedge icb_rst_n) begin
         if (!icb_rst_n) begin
             start_req_icb <= 1'b0;
@@ -94,7 +95,6 @@ module ov5640_icb_top #(
     
     // CAM时钟域：同步req信号并产生脉冲
     reg start_req_sync_ff1, start_req_sync_ff2, start_req_sync_ff3;
-    reg start_ack_cam;
     
     always @(posedge cam_pclk or negedge cam_rst_n) begin
         if (!cam_rst_n) begin
@@ -270,7 +270,8 @@ module ov5640_icb_top #(
     // =========================================
     // SRAM例化（8位宽，12位地址，单端口）
     // =========================================
-    sram #(
+    // 使用2048x16 SRAM Macro，通过封装模块适配为4096x8接口
+    sram_4096x8_macro_wrap #(
         .DP(4096),
         .DW(8),
         .MW(1),

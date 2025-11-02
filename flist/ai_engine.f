@@ -29,6 +29,7 @@
 ../rtl/nice_coprocessor/wbu.v
 
 ../rtl/video_sys/sram/sram.v
+../rtl/video_sys/sram/sram_4096x8_macro_wrap.v
 ../rtl/video_sys/video_sys_top.sv
 ../rtl/video_sys/general/sirv_gnrl_bufs.v
 ../rtl/video_sys/general/sirv_gnrl_dffs.v
