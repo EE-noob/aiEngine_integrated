@@ -53,7 +53,7 @@
     input  wire             dcmi_icb_rsp_ready,
     output wire [31:0]      dcmi_icb_rsp_rdata,
     input  wire             cam_pclk,
-    input  wire             cam_rst_n,
+    output  wire             cam_rst_n,
     input  wire             cam_vsync,
     input  wire             cam_href,
     input  wire [7:0]       cam_data
