@@ -593,17 +593,18 @@ assign icb_cmd_len=read_burst_length-1;
                                     tile_buffer[rsp_row_cnt][col_idx] <= $signed(icb_rsp_rdata[15:0]) + cfg_lhs_zp[15:0];
                                 if (col_idx + 1 < SIZE)
                                     tile_buffer[rsp_row_cnt][col_idx + 1] <= $signed(icb_rsp_rdata[31:16]) + cfg_lhs_zp[15:0];
-                            end else begin
-                                // 64位总线：每个beat包含4个s16元素
-                                if (col_idx < SIZE)
-                                    tile_buffer[rsp_row_cnt][col_idx] <= $signed(icb_rsp_rdata[15:0]) + cfg_lhs_zp[15:0];
-                                if (col_idx + 1 < SIZE)
-                                    tile_buffer[rsp_row_cnt][col_idx + 1] <= $signed(icb_rsp_rdata[31:16]) + cfg_lhs_zp[15:0];
-                                if (col_idx + 2 < SIZE)
-                                    tile_buffer[rsp_row_cnt][col_idx + 2] <= $signed(icb_rsp_rdata[47:32]) + cfg_lhs_zp[15:0];
-                                if (col_idx + 3 < SIZE)
-                                    tile_buffer[rsp_row_cnt][col_idx + 3] <= $signed(icb_rsp_rdata[63:48]) + cfg_lhs_zp[15:0];
                             end
+                            //  else begin
+                            //     // 64位总线：每个beat包含4个s16元素
+                            //     if (col_idx < SIZE)
+                            //         tile_buffer[rsp_row_cnt][col_idx] <= $signed(icb_rsp_rdata[15:0]) + cfg_lhs_zp[15:0];
+                            //     if (col_idx + 1 < SIZE)
+                            //         tile_buffer[rsp_row_cnt][col_idx + 1] <= $signed(icb_rsp_rdata[31:16]) + cfg_lhs_zp[15:0];
+                            //     if (col_idx + 2 < SIZE)
+                            //         tile_buffer[rsp_row_cnt][col_idx + 2] <= $signed(icb_rsp_rdata[47:32]) + cfg_lhs_zp[15:0];
+                            //     if (col_idx + 3 < SIZE)
+                            //         tile_buffer[rsp_row_cnt][col_idx + 3] <= $signed(icb_rsp_rdata[63:48]) + cfg_lhs_zp[15:0];
+                            // end
                         end else begin
                             // 8位数据模式（需符号扩展到16位）
                             if (BYTE_PER_BEAT == 4) begin
@@ -616,25 +617,26 @@ assign icb_cmd_len=read_burst_length-1;
                                     tile_buffer[rsp_row_cnt][col_idx + 2] <= $signed({{8{icb_rsp_rdata[23]}}, icb_rsp_rdata[23:16]}) + cfg_lhs_zp[15:0];
                                 if (col_idx + 3 < SIZE)
                                     tile_buffer[rsp_row_cnt][col_idx + 3] <= $signed({{8{icb_rsp_rdata[31]}}, icb_rsp_rdata[31:24]}) + cfg_lhs_zp[15:0];
-                            end else begin
-                                // 64位总线：每个beat包含8个s8元素
-                                if (col_idx < SIZE)
-                                    tile_buffer[rsp_row_cnt][col_idx] <= $signed({{8{icb_rsp_rdata[7]}}, icb_rsp_rdata[7:0]}) + cfg_lhs_zp[15:0];
-                                if (col_idx + 1 < SIZE)
-                                    tile_buffer[rsp_row_cnt][col_idx + 1] <= $signed({{8{icb_rsp_rdata[15]}}, icb_rsp_rdata[15:8]}) + cfg_lhs_zp[15:0];
-                                if (col_idx + 2 < SIZE)
-                                    tile_buffer[rsp_row_cnt][col_idx + 2] <= $signed({{8{icb_rsp_rdata[23]}}, icb_rsp_rdata[23:16]}) + cfg_lhs_zp[15:0];
-                                if (col_idx + 3 < SIZE)
-                                    tile_buffer[rsp_row_cnt][col_idx + 3] <= $signed({{8{icb_rsp_rdata[31]}}, icb_rsp_rdata[31:24]}) + cfg_lhs_zp[15:0];
-                                if (col_idx + 4 < SIZE)
-                                    tile_buffer[rsp_row_cnt][col_idx + 4] <= $signed({{8{icb_rsp_rdata[39]}}, icb_rsp_rdata[39:32]}) + cfg_lhs_zp[15:0];
-                                if (col_idx + 5 < SIZE)
-                                    tile_buffer[rsp_row_cnt][col_idx + 5] <= $signed({{8{icb_rsp_rdata[47]}}, icb_rsp_rdata[47:40]}) + cfg_lhs_zp[15:0];
-                                if (col_idx + 6 < SIZE)
-                                    tile_buffer[rsp_row_cnt][col_idx + 6] <= $signed({{8{icb_rsp_rdata[55]}}, icb_rsp_rdata[55:48]}) + cfg_lhs_zp[15:0];
-                                if (col_idx + 7 < SIZE)
-                                    tile_buffer[rsp_row_cnt][col_idx + 7] <= $signed({{8{icb_rsp_rdata[63]}}, icb_rsp_rdata[63:56]}) + cfg_lhs_zp[15:0];
                             end
+                            //  else begin
+                            //     // 64位总线：每个beat包含8个s8元素
+                            //     if (col_idx < SIZE)
+                            //         tile_buffer[rsp_row_cnt][col_idx] <= $signed({{8{icb_rsp_rdata[7]}}, icb_rsp_rdata[7:0]}) + cfg_lhs_zp[15:0];
+                            //     if (col_idx + 1 < SIZE)
+                            //         tile_buffer[rsp_row_cnt][col_idx + 1] <= $signed({{8{icb_rsp_rdata[15]}}, icb_rsp_rdata[15:8]}) + cfg_lhs_zp[15:0];
+                            //     if (col_idx + 2 < SIZE)
+                            //         tile_buffer[rsp_row_cnt][col_idx + 2] <= $signed({{8{icb_rsp_rdata[23]}}, icb_rsp_rdata[23:16]}) + cfg_lhs_zp[15:0];
+                            //     if (col_idx + 3 < SIZE)
+                            //         tile_buffer[rsp_row_cnt][col_idx + 3] <= $signed({{8{icb_rsp_rdata[31]}}, icb_rsp_rdata[31:24]}) + cfg_lhs_zp[15:0];
+                            //     if (col_idx + 4 < SIZE)
+                            //         tile_buffer[rsp_row_cnt][col_idx + 4] <= $signed({{8{icb_rsp_rdata[39]}}, icb_rsp_rdata[39:32]}) + cfg_lhs_zp[15:0];
+                            //     if (col_idx + 5 < SIZE)
+                            //         tile_buffer[rsp_row_cnt][col_idx + 5] <= $signed({{8{icb_rsp_rdata[47]}}, icb_rsp_rdata[47:40]}) + cfg_lhs_zp[15:0];
+                            //     if (col_idx + 6 < SIZE)
+                            //         tile_buffer[rsp_row_cnt][col_idx + 6] <= $signed({{8{icb_rsp_rdata[55]}}, icb_rsp_rdata[55:48]}) + cfg_lhs_zp[15:0];
+                            //     if (col_idx + 7 < SIZE)
+                            //         tile_buffer[rsp_row_cnt][col_idx + 7] <= $signed({{8{icb_rsp_rdata[63]}}, icb_rsp_rdata[63:56]}) + cfg_lhs_zp[15:0];
+                            // end
                         end
                         
                         // =====================================================

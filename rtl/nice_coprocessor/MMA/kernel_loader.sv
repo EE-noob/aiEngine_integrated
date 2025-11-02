@@ -534,25 +534,26 @@ assign icb_cmd_len = read_burst_length - 1;
                                 tile_buffer[rsp_row_cnt][col_idx + 2] <= $signed(icb_rsp_rdata[23:16]) + cfg_rhs_zp[7:0];
                             if (col_idx + 3 < SIZE)
                                 tile_buffer[rsp_row_cnt][col_idx + 3] <= $signed(icb_rsp_rdata[31:24]) + cfg_rhs_zp[7:0];
-                        end else begin
-                            // 64位总线：8个s8元素
-                            if (col_idx < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx] <= $signed(icb_rsp_rdata[7:0]) + cfg_rhs_zp[7:0];
-                            if (col_idx + 1 < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx + 1] <= $signed(icb_rsp_rdata[15:8]) + cfg_rhs_zp[7:0];
-                            if (col_idx + 2 < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx + 2] <= $signed(icb_rsp_rdata[23:16]) + cfg_rhs_zp[7:0];
-                            if (col_idx + 3 < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx + 3] <= $signed(icb_rsp_rdata[31:24]) + cfg_rhs_zp[7:0];
-                            if (col_idx + 4 < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx + 4] <= $signed(icb_rsp_rdata[39:32]) + cfg_rhs_zp[7:0];
-                            if (col_idx + 5 < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx + 5] <= $signed(icb_rsp_rdata[47:40]) + cfg_rhs_zp[7:0];
-                            if (col_idx + 6 < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx + 6] <= $signed(icb_rsp_rdata[55:48]) + cfg_rhs_zp[7:0];
-                            if (col_idx + 7 < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx + 7] <= $signed(icb_rsp_rdata[63:56]) + cfg_rhs_zp[7:0];
                         end
+                        //  else begin
+                        //     // 64位总线：8个s8元素
+                        //     if (col_idx < SIZE)
+                        //         tile_buffer[rsp_row_cnt][col_idx] <= $signed(icb_rsp_rdata[7:0]) + cfg_rhs_zp[7:0];
+                        //     if (col_idx + 1 < SIZE)
+                        //         tile_buffer[rsp_row_cnt][col_idx + 1] <= $signed(icb_rsp_rdata[15:8]) + cfg_rhs_zp[7:0];
+                        //     if (col_idx + 2 < SIZE)
+                        //         tile_buffer[rsp_row_cnt][col_idx + 2] <= $signed(icb_rsp_rdata[23:16]) + cfg_rhs_zp[7:0];
+                        //     if (col_idx + 3 < SIZE)
+                        //         tile_buffer[rsp_row_cnt][col_idx + 3] <= $signed(icb_rsp_rdata[31:24]) + cfg_rhs_zp[7:0];
+                        //     if (col_idx + 4 < SIZE)
+                        //         tile_buffer[rsp_row_cnt][col_idx + 4] <= $signed(icb_rsp_rdata[39:32]) + cfg_rhs_zp[7:0];
+                        //     if (col_idx + 5 < SIZE)
+                        //         tile_buffer[rsp_row_cnt][col_idx + 5] <= $signed(icb_rsp_rdata[47:40]) + cfg_rhs_zp[7:0];
+                        //     if (col_idx + 6 < SIZE)
+                        //         tile_buffer[rsp_row_cnt][col_idx + 6] <= $signed(icb_rsp_rdata[55:48]) + cfg_rhs_zp[7:0];
+                        //     if (col_idx + 7 < SIZE)
+                        //         tile_buffer[rsp_row_cnt][col_idx + 7] <= $signed(icb_rsp_rdata[63:56]) + cfg_rhs_zp[7:0];
+                        // end
                         
                         // =====================================================
                         // 响应计数器更新/FIXME:循环逻辑修改：发完所有列tile后才重新开始（不是单列循环）

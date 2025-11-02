@@ -596,6 +596,7 @@ assign kernel_loader_rsp_ready.rsp_ready = kernel_loader_icb_rsp_ready;
         .init_cfg         (init_cfg_oa),
         .oa_fifo_req      (fifo_output_req),
         .vec_valid_num_col(fifo_vec_valid_num_col),
+        //.write_oa_trigger(),
         .write_oa_req     (write_oa_req),
         .write_oa_granted (write_oa_granted),
         .dst_base         (dst_base),

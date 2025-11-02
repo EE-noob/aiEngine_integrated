@@ -3,18 +3,18 @@
 // - Supports 16x16 tiles with boundary handling
 // - Provides vec_valid_num_col to upstream FIFO (no req_ack)
 /*
- * oa_writer 输出�?活写回控制器设计说明（自主访存版本）
+ * oa_writer 输出激活写回控制器设计说明（自主访存版本）
  * ------------------------------------------------------------
  * 功能概述:
- *  本模块负责面向分块矩阵运算，将脉动阵列的输出�?活数据�?�过 ICB 总线主动写回到外部存储器��?
- *  模块采用自主驱动模式：init_cfg 后自动准备写回流程，每次完成后申请下�?次写回授权�?
+ *  本模块负责面向分块矩阵运算，将脉动阵列的输出激活数据通过 ICB 总线主动写回到外部存储器��?
+ *  模块采用自主驱动模式：init_cfg 后自动准备写回流程，每次完成后申请下一次写回授权�?
  *  模块通过 ICB 总线作为主设备主动发起写请求，支持按行写回和地址 stride 控制��?
  *
  * 工作流程:
- *  1) 配置阶段（�?�过 init_cfg 触发��?
+ *  1) 配置阶段（通过 init_cfg 触发��?
  *     - ��?init_cfg 有效时，模块锁存配置：dst_base、dst_row_stride_b、k、m、tile_count��?
- *     - dst_base: 输出矩阵在内存中的基地址（第�?个分块）
- *     - dst_row_stride_b: 每行之间的地�?间距（字节）
+ *     - dst_base: 输出矩阵在内存中的基地址（第一个分块）
+ *     - dst_row_stride_b: 每行之间的地址间距（字节）
  *     - k: 输出矩阵列数（对��?RHS_COLS��?
  *     - m: 输出矩阵行数（对��?LHS_ROWS��?
  *     - tile_count: 总分块数��?
@@ -22,18 +22,18 @@
  *
  *  2) 写回阶段（由 oa_fifo_req 与握手驱动）
  *     - 上游 FIFO 在需要写回某��?OA Tile 的数据时提示 oa_fifo_req��?
- *     - 约定时序：当模块�?测到 oa_fifo_req 被断�?时，说明上游 FIFO 已取走当��?vec_valid_num_col 值并将开始传输数据；
- *       模块在�?�下�?周期”执行两件事��?
- *         a) 更新 vec_valid_num_col 为下�?��?Tile 的有效列数（供上��?FIFO 在准备下�?次传输时使用）；
- *         b) 驱动 write_oa_req=1 向外部控制器申请写回授权（write_oa_req 在下�?周期提出）�?
+ *     - 约定时序：当模块检测到 oa_fifo_req 被断言时，说明上游 FIFO 已取走当��?vec_valid_num_col 值并将开始传输数据；
+ *       模块在“下一周期”执行两件事��?
+ *         a) 更新 vec_valid_num_col 为下一��?Tile 的有效列数（供上��?FIFO 在准备下一次传输时使用）；
+ *         b) 驱动 write_oa_req=1 向外部控制器申请写回授权（write_oa_req 在下一周期提出）�?
  *     - 在收��?write_oa_granted 之前，模块应保持 output_ready=0，表示尚不可接受脉动阵列的数据传输�?
  *     - 若在后续周期内收��?write_oa_granted 授权，则模块进入写回传输阶段，此时可��?output_ready ��? 并开始接��?output_valid/output_data
- *       （在每个周期��?output_valid=1 ��?output_ready=1 时，模块采样并�?�过 ICB 发起写请求）��?
+ *       （在每个周期��?output_valid=1 ��?output_ready=1 时，模块采样并通过 ICB 发起写请求）��?
  *     - 写回完成后，模块��?write_done=1，并按需驱动 write_oa_req 寻求下一次写回授权�?
  *
  *  3) 自动重触发阶��?
- *     - 每次完成�?个分块的写回后，模块可驱��?write_oa_req=1 申请下一次写回授权，外部控制器�?�过 write_oa_granted 授权��?
- *     - 模块内部维护分块地址指针，每次写回时自动计算下一个分块的基地�?；所有分块写回完成后停止申请��?
+ *     - 每次完成一个分块的写回后，模块可驱��?write_oa_req=1 申请下一次写回授权，外部控制器通过 write_oa_granted 授权��?
+ *     - 模块内部维护分块地址指针，每次写回时自动计算下一个分块的基地址；所有分块写回完成后停止申请��?
  *
  *  4) 地址计算
  *     - 当前写入地址 = dst_base + row_index * dst_row_stride_b + col_index * element_size��?
@@ -59,7 +59,7 @@
         |           oa_writer           |
         |  - 锁存配置: dst_base/stride  |
         |  - FSM: IDLE/WRITE           |
-        |  - ��?列地�?生成(16x16 tile)  |
+        |  - ��?列地址生成(16x16 tile)  |
         |  - ICB 主写: wdata/wmask     |
         |  - 行起��?pulse req_ack       |
         +--+-------------------------+--+
@@ -98,6 +98,7 @@
               +-----------+                               +-------------+
 
 */
+
 `include "e203_defines.v"
 `include "icb_types.svh"
 
@@ -111,7 +112,8 @@ module oa_writer #(
 
     // Config
     input  wire                        init_cfg,
-    input  wire                        write_oa_trigger,
+    // write_oa_trigger is deprecated; start is driven by FIFO request
+    // input  wire                        write_oa_trigger,
     output reg                         write_oa_req,
     input  wire                        write_oa_granted,
 
@@ -252,17 +254,20 @@ module oa_writer #(
                      S_WRITE = 2'b10;
     reg [1:0] state;
     reg        has_grant; // asserted after write_oa_granted until tile release
-    wire slave_cmd_ready   = icb_ext_cmd_s.ready;
-    wire slave_wr_ready    = icb_ext_wr_s.w_ready;
-    wire first_beat_in_row = (beats_in_row == '0);
-    wire bus_ready_for_beat = slave_wr_ready && (!first_beat_in_row || slave_cmd_ready);
-    wire writer_ready_cond = (state == S_WRITE) && has_grant && (beats_in_row < beats_per_row) && bus_ready_for_beat;
+    reg        cmd_pending;
+    reg        row_cmd_sent;
+    wire       slave_cmd_ready   = icb_ext_cmd_s.ready;
+    wire       slave_wr_ready    = icb_ext_wr_s.w_ready;
+    wire       cmd_valid         = (state == S_WRITE) && has_grant && cmd_pending;
+    wire       cmd_fire          = cmd_valid && slave_cmd_ready;
+    wire       row_cmd_ready     = row_cmd_sent || cmd_fire;
+    wire       writer_ready_cond = (state == S_WRITE) && has_grant && row_cmd_ready && (beats_in_row < beats_per_row) && slave_wr_ready;
     assign output_ready    = writer_ready_cond;
-    wire beat_fire         = output_valid && writer_ready_cond;
-    wire [2:0] cmd_len_cur   = (beats_per_row <= 1) ? 3'b000 : (beats_per_row[2:0] - 3'd1);
+    wire       beat_fire   = output_valid && writer_ready_cond;
+    wire [2:0] cmd_len_cur = (beats_per_row <= 1) ? 3'b000 : (beats_per_row[2:0] - 3'd1);
 
     assign icb_ext_cmd_m = '{
-        valid: beat_fire && first_beat_in_row,
+        valid: cmd_valid,
         addr:  cur_addr,
         read:  1'b0,
         len:   cmd_len_cur
@@ -298,6 +303,8 @@ module oa_writer #(
             rows_valid_cur_tile <= '0;
             cols_valid_cur_tile <= '0;
             has_grant           <= 1'b0;
+            cmd_pending         <= 1'b0;
+            row_cmd_sent        <= 1'b0;
             // vec_valid handshake reset
             vec_valid_num_col_r <= '0;
             vec_next_m1         <= '0;
@@ -310,13 +317,15 @@ module oa_writer #(
             // one-shots
             case (state)
                 S_IDLE: begin
+                    cmd_pending  <= 1'b0;
+                    row_cmd_sent <= 1'b0;
                     if (init_cfg) begin
                         tile_row_idx       <= '0;
                         tile_col_idx       <= '0;
                         tiles_done         <= '0;
                     end
 
-                    // 使用已锁存的 cfg_k 在下�?拍发布首?tile ?(cols-1)，并预取下一 tile ?(cols-1)
+                    // 使用已锁存的 cfg_k 在下一拍发布首?tile ?(cols-1)，并预取下一 tile ?(cols-1)
                     if (cfg_lat_tick) begin : init_vec_valid
                         reg [VCOL_W:0] curr_cols_tmp;
                         reg [VCOL_W:0] next_cols_tmp;
@@ -335,8 +344,9 @@ module oa_writer #(
                         vec_pending         <= 1'b1;
                     end
 
-                    // First-tile kick: only request the bus; move to WAIT
-                    if (write_oa_trigger) begin
+                    // First-tile kick: request the bus as soon as FIFO requests
+                    // (no external trigger needed)
+                    if (oa_fifo_req) begin
                         write_oa_req <= 1'b1;
                         has_grant    <= 1'b0;
                         state        <= S_WAIT;
@@ -346,6 +356,7 @@ module oa_writer #(
                 // Wait for bus grant; once granted, compute current tile params,
                 // publish vec_valid for this tile, then enter WRITE (ready will assert inside WRITE)
                 S_WAIT: begin
+                    row_cmd_sent <= 1'b0;
                     if (oa_tiles_done) begin
                         state <= S_IDLE;
                     end else if (write_oa_granted && write_oa_req) begin
@@ -360,6 +371,8 @@ module oa_writer #(
                         row_in_tile         <= '0;
                         beats_per_row       <= (min16(rem_after_tiles(cfg_m, tile_col_idx)) + 3) >> 2;
                         beats_in_row        <= '0;
+                        cmd_pending         <= 1'b1;
+                        row_cmd_sent        <= 1'b0;
 
                         // Publish current tile's (cols-1) immediately so FIFO knows how many bytes per row
                         begin : vec_valid_prep_wait
@@ -389,6 +402,11 @@ module oa_writer #(
                 end
 
                 S_WRITE: begin
+                    if (cmd_fire) begin
+                        cmd_pending  <= 1'b0;
+                        row_cmd_sent <= 1'b1;
+                    end
+
                     if (beat_fire) begin
                         if (last_beat_in_row) begin
                             beats_in_row <= '0;
@@ -422,6 +440,10 @@ module oa_writer #(
                     if (beat_fire && switch_row) begin
                         row_in_tile <= row_in_tile + 1'b1;
                         cur_addr    <= tile_base_addr + (row_in_tile_plus1 * cfg_dst_row_stride_b);
+                        row_cmd_sent <= 1'b0;
+                        if (!tile_transfer_done) begin
+                            cmd_pending <= 1'b1;
+                        end
                     end
 
                 end
