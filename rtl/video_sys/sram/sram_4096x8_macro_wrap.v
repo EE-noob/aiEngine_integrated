@@ -75,7 +75,7 @@ module sram_4096x8_macro_wrap #(
     localparam [2:0] EMA_TIE  = 3'b000;
     localparam [1:0] EMAW_TIE = 2'b00;
 
-    RAMSP2048X16_rtl_top u_macro (
+    RAMSP2048X16 u_macro (
         .Q     (q16),
         .CLK   (clk),
         .CEN   (cen_n),
