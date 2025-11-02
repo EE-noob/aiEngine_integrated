@@ -29,9 +29,6 @@
 ../rtl/nice_coprocessor/wb_pingpong_buf.v
 ../rtl/nice_coprocessor/wbu.v
 
-../rtl/video_sys/sram/sram_icb.v
-../rtl/video_sys/sram/sram_icb_ctrl.v
-../rtl/video_sys/sram/sirv_1cyc_sram_ctrl.v
 ../rtl/video_sys/sram/sram.v
 ../rtl/video_sys/video_sys_top.sv
 ../rtl/video_sys/ov5640/ov5640_icb_top.v

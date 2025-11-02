@@ -56,20 +56,22 @@
     input  wire             cam_rst_n,
     input  wire             cam_vsync,
     input  wire             cam_href,
-    input  wire [7:0]       cam_data,
-    input                   i_icb_cmd_valid,
-    output                  i_icb_cmd_ready,
-    input                   i_icb_cmd_read,
-    input  [AW-1:0]         i_icb_cmd_addr,
-    input  [DW-1:0]         i_icb_cmd_wdata,
-    input  [MW-1:0]         i_icb_cmd_wmask,
-    input  [USR_W-1:0]      i_icb_cmd_usr,
-    output                  i_icb_rsp_valid,
-    input                   i_icb_rsp_ready,
-    output [DW-1:0]         i_icb_rsp_rdata,
-    output [USR_W-1:0]      i_icb_rsp_usr,
-    input                   tcm_cgstop,
-    input                   test_mode
+    input  wire [7:0]       cam_data
+    
+    // ,
+    // input                   i_icb_cmd_valid,
+    // output                  i_icb_cmd_ready,
+    // input                   i_icb_cmd_read,
+    // input  [AW-1:0]         i_icb_cmd_addr,
+    // input  [DW-1:0]         i_icb_cmd_wdata,
+    // input  [MW-1:0]         i_icb_cmd_wmask,
+    // input  [USR_W-1:0]      i_icb_cmd_usr,
+    // output                  i_icb_rsp_valid,
+    // input                   i_icb_rsp_ready,
+    // output [DW-1:0]         i_icb_rsp_rdata,
+    // output [USR_W-1:0]      i_icb_rsp_usr,
+    // input                   tcm_cgstop,
+    // input                   test_mode
 );
 logic [  `E203_XLEN_MW-1:0] nice_icb_cmd_wmask;//弃用
     // Instance 1: e203_subsys_nice_core
@@ -128,20 +130,22 @@ logic [  `E203_XLEN_MW-1:0] nice_icb_cmd_wmask;//弃用
         .cam_rst_n(cam_rst_n),
         .cam_vsync(cam_vsync),
         .cam_href(cam_href),
-        .cam_data(cam_data),
-        .i_icb_cmd_valid(i_icb_cmd_valid),
-        .i_icb_cmd_ready(i_icb_cmd_ready),
-        .i_icb_cmd_read(i_icb_cmd_read),
-        .i_icb_cmd_addr(i_icb_cmd_addr),
-        .i_icb_cmd_wdata(i_icb_cmd_wdata),
-        .i_icb_cmd_wmask(i_icb_cmd_wmask),
-        .i_icb_cmd_usr(i_icb_cmd_usr),
-        .i_icb_rsp_valid(i_icb_rsp_valid),
-        .i_icb_rsp_ready(i_icb_rsp_ready),
-        .i_icb_rsp_rdata(i_icb_rsp_rdata),
-        .i_icb_rsp_usr(i_icb_rsp_usr),
-        .tcm_cgstop(tcm_cgstop),
-        .test_mode(test_mode)
+        .cam_data(cam_data)
+        
+        // ,
+        // .i_icb_cmd_valid(i_icb_cmd_valid),
+        // .i_icb_cmd_ready(i_icb_cmd_ready),
+        // .i_icb_cmd_read(i_icb_cmd_read),
+        // .i_icb_cmd_addr(i_icb_cmd_addr),
+        // .i_icb_cmd_wdata(i_icb_cmd_wdata),
+        // .i_icb_cmd_wmask(i_icb_cmd_wmask),
+        // .i_icb_cmd_usr(i_icb_cmd_usr),
+        // .i_icb_rsp_valid(i_icb_rsp_valid),
+        // .i_icb_rsp_ready(i_icb_rsp_ready),
+        // .i_icb_rsp_rdata(i_icb_rsp_rdata),
+        // .i_icb_rsp_usr(i_icb_rsp_usr),
+        // .tcm_cgstop(tcm_cgstop),
+        // .test_mode(test_mode)
     );
 
 endmodule

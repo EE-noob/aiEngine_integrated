@@ -37,24 +37,25 @@ module video_sys_top #(
     // 摄像头接口
     input  wire             cam_vsync,
     input  wire             cam_href,
-    input  wire [7:0]       cam_data,
+    input  wire [7:0]       cam_data
+    //,
 
-    // SRAM ICB 接口
-      // input                   clk,
-      // input                   rst_n,
-      input                   i_icb_cmd_valid,
-      output                  i_icb_cmd_ready,
-      input                   i_icb_cmd_read,
-      input  [AW-1:0]         i_icb_cmd_addr,
-      input  [DW-1:0]         i_icb_cmd_wdata,
-      input  [MW-1:0]         i_icb_cmd_wmask,
-      input  [USR_W-1:0]      i_icb_cmd_usr,
-      output                  i_icb_rsp_valid,
-      input                   i_icb_rsp_ready,
-      output [DW-1:0]         i_icb_rsp_rdata,
-      output [USR_W-1:0]      i_icb_rsp_usr,
-      input                   tcm_cgstop,
-      input                   test_mode
+    // // SRAM ICB 接口
+    //   // input                   clk,
+    //   // input                   rst_n,
+    //   input                   i_icb_cmd_valid,
+    //   output                  i_icb_cmd_ready,
+    //   input                   i_icb_cmd_read,
+    //   input  [AW-1:0]         i_icb_cmd_addr,
+    //   input  [DW-1:0]         i_icb_cmd_wdata,
+    //   input  [MW-1:0]         i_icb_cmd_wmask,
+    //   input  [USR_W-1:0]      i_icb_cmd_usr,
+    //   output                  i_icb_rsp_valid,
+    //   input                   i_icb_rsp_ready,
+    //   output [DW-1:0]         i_icb_rsp_rdata,
+    //   output [USR_W-1:0]      i_icb_rsp_usr,
+    //   input                   tcm_cgstop,
+    //   input                   test_mode
 );
 
 
@@ -91,29 +92,29 @@ module video_sys_top #(
    .cam_data           (cam_data)
  );
 
-   sram_icb #(
-     .DW(`E203_XLEN),
-     .MW(`E203_XLEN/8),
-     .AW(19),
-     .AW_LSB(2), // 字节寻址
-     .USR_W(1),
-     .DP(131072),
-     .FORCE_X2ZERO(1)
-   ) u_sram_icb (
-      .clk(icb_clk),
-      .rst_n(icb_rst_n),
-      .i_icb_cmd_valid(sram_icb_cmd_valid),
-      .i_icb_cmd_ready(sram_icb_cmd_ready),
-      .i_icb_cmd_read(sram_icb_cmd_read),
-      .i_icb_cmd_addr(sram_icb_cmd_addr[18:0]),
-      .i_icb_cmd_wdata(sram_icb_cmd_wdata),
-      .i_icb_cmd_wmask(sram_icb_cmd_wmask),
-      .i_icb_cmd_usr(1'b0),
-      .i_icb_rsp_valid(sram_icb_rsp_valid),
-      .i_icb_rsp_ready(sram_icb_rsp_ready),
-      .i_icb_rsp_rdata(sram_icb_rsp_rdata),
-      .i_icb_rsp_usr(),
-      .tcm_cgstop(1'b0),
-      .test_mode(1'b0)
-  );
+  //  sram_icb #(
+  //    .DW(`E203_XLEN),
+  //    .MW(`E203_XLEN/8),
+  //    .AW(19),
+  //    .AW_LSB(2), // 字节寻址
+  //    .USR_W(1),
+  //    .DP(131072),
+  //    .FORCE_X2ZERO(1)
+  //  ) u_sram_icb (
+  //     .clk(icb_clk),
+  //     .rst_n(icb_rst_n),
+  //     .i_icb_cmd_valid(sram_icb_cmd_valid),
+  //     .i_icb_cmd_ready(sram_icb_cmd_ready),
+  //     .i_icb_cmd_read(sram_icb_cmd_read),
+  //     .i_icb_cmd_addr(sram_icb_cmd_addr[18:0]),
+  //     .i_icb_cmd_wdata(sram_icb_cmd_wdata),
+  //     .i_icb_cmd_wmask(sram_icb_cmd_wmask),
+  //     .i_icb_cmd_usr(1'b0),
+  //     .i_icb_rsp_valid(sram_icb_rsp_valid),
+  //     .i_icb_rsp_ready(sram_icb_rsp_ready),
+  //     .i_icb_rsp_rdata(sram_icb_rsp_rdata),
+  //     .i_icb_rsp_usr(),
+  //     .tcm_cgstop(1'b0),
+  //     .test_mode(1'b0)
+  // );
 endmodule
