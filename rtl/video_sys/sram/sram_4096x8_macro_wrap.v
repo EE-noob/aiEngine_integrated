@@ -36,12 +36,6 @@ module sram_4096x8_macro_wrap #(
 );
 
     // Sanity for this specific wrapper
-    initial begin
-        if (DP != 4096 || DW != 8 || MW != 1 || AW != 12) begin
-            $display("[sram_4096x8_macro_wrap] Parameter set not supported. DP=%0d DW=%0d MW=%0d AW=%0d", DP, DW, MW, AW);
-        end
-    end
-
     // Map 4096x8 -> 2048x16
     wire [10:0] word_addr = addr[AW-1:1];
     wire        byte_sel  = addr[0];
