@@ -58,7 +58,11 @@ set CAM_IN_PORTS   {
   cam_vsync cam_href cam_data*
 }
 set RESET_PORTS    {
-  nice_rst_n icb_rst_n cam_rst_n
+  nice_rst_n icb_rst_n 
+}
+
+set RESET_OUT_PORTS {
+  cam_rst_n
 }
 
 #####################
@@ -134,6 +138,7 @@ set_clock_uncertainty -hold  $CAM_UNC_HOLD   [get_clocks cam_pclk]
 #####################
 
 set_false_path -from [get_ports $RESET_PORTS]
+set_false_path -to   [get_ports $RESET_OUT_PORTS]
 
 #####################
 # IO Delays (fraction of period)
@@ -160,4 +165,3 @@ set_input_delay  -clock [get_clocks cam_pclk] -min $CAM_IN_MIN   -add_delay [get
 #####################
 # set_input_transition 0.20 [remove_from_collection [all_inputs] [get_ports {nice_clk icb_clk cam_pclk}]]
 # set_load            0.10 [all_outputs]
-
