@@ -32,9 +32,9 @@ set CAM_UNC_HOLD_FRAC  0.01
 
 # I/O delays as fraction of the associated clock period
 # -max is used for setup, -min is used for hold
-set IO_IN_MAX_FRAC   0.60
+set IO_IN_MAX_FRAC   0.30
 set IO_IN_MIN_FRAC   0.05
-set IO_OUT_MAX_FRAC  0.60
+set IO_OUT_MAX_FRAC  0.30
 set IO_OUT_MIN_FRAC  0.05
 
 # Port groups (update if top-level ports change)
@@ -114,9 +114,9 @@ create_clock -name cam_pclk -period $CAM_PCLK_PERIOD  [get_ports cam_pclk]
 #####################
 
 if {$ASYNC_GROUPS} {
+  # nice_clk and icb_clk are same-source (related); keep cam_pclk async
   set_clock_groups -asynchronous \
-    -group { nice_clk } \
-    -group { icb_clk } \
+    -group { nice_clk icb_clk } \
     -group { cam_pclk }
 }
 
