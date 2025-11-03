@@ -5,7 +5,10 @@
 /* verilator lint_on TIMESCALEMOD */
 
 // `ifdef E203_HAS_NICE  //{
-module e203_subsys_nice_core (
+module e203_subsys_nice_core #(
+    // 0: 使用真实 MMA; 1: 使用 Dummy MMA 以便快速仿真
+    parameter USE_DUMMY_MMA = 0
+) (
     // System
     input                        nice_clk,        // NICE 核心时钟
     input                        nice_rst_n,      // NICE 核心异步复位，低有效
@@ -148,55 +151,109 @@ module e203_subsys_nice_core (
     // ========================================================================
     // 连接执行单元
     // ========================================================================
-    // 使用 Dummy MMA 进行早期验证
-    dummy_mma_top #(
-        .WEIGHT_WIDTH(8),
-        .DATA_WIDTH  (16),
-        .SIZE        (16),
-        .BUS_WIDTH   (`E203_XLEN),
-        .REG_WIDTH   (`E203_XLEN),
-        .ADDR_WIDTH  (`E203_ADDR_SIZE)
-    ) u_mma_top (
-        .clk             (nice_clk),
-        .rst_n           (nice_rst_n),
-        .calc_start      (calc_start),
-        .cfg_16bits_ia   (cfg_16bits_ia),
-        .sa_ready        (sa_ready),
-        .wb_valid        (mma_wb_valid),
-        .wb_ready        (mma_wb_ready),
-        .err_code        (mma_err_code),
-        .lhs_base        (lhs_base),
-        .rhs_base        (rhs_base),
-        .dst_base        (dst_base),
-        .bias_base       (bias_base),
-        .lhs_zp          (lhs_zp),
-        .rhs_zp          (rhs_zp),
-        .dst_zp          (dst_zp),
-        .q_mult_pt       (q_mult_pt),
-        .q_shift_pt      (q_shift_pt),
-        .use_per_channel (use_per_channel),
-        .k               (k),
-        .n               (n),
-        .m               (m),
-        .lhs_row_stride_b(lhs_row_stride_b),
-        .dst_row_stride_b(dst_row_stride_b),
-        .rhs_row_stride_b(rhs_row_stride_b),
-        .act_min         (act_min),
-        .act_max         (act_max),
-        .sa_icb_cmd_valid(sa_icb_cmd_valid),
-        .sa_icb_cmd_ready(sa_icb_cmd_ready),
-        .sa_icb_cmd_addr (sa_icb_cmd_addr),
-        .sa_icb_cmd_read (sa_icb_cmd_read),
-        .sa_icb_cmd_len  (sa_icb_cmd_len),
-        .sa_icb_cmd_wdata(sa_icb_cmd_wdata),
-        .sa_icb_cmd_wmask(sa_icb_cmd_wmask),
-        .sa_icb_w_valid  (sa_icb_w_valid),
-        .sa_icb_w_ready  (sa_icb_w_ready),
-        .sa_icb_rsp_valid(sa_icb_rsp_valid),
-        .sa_icb_rsp_ready(sa_icb_rsp_ready),
-        .sa_icb_rsp_rdata(sa_icb_rsp_rdata),
-        .sa_icb_rsp_err  (sa_icb_rsp_err)
-    );
+    generate
+      if (USE_DUMMY_MMA) begin: g_use_dummy
+        // 使用 Dummy MMA 进行早期验证（面积很小，仅握手时序）
+        dummy_mma_top #(
+            .WEIGHT_WIDTH(8),
+            .DATA_WIDTH  (16),
+            .SIZE        (16),
+            .BUS_WIDTH   (`E203_XLEN),
+            .REG_WIDTH   (`E203_XLEN),
+            .ADDR_WIDTH  (`E203_ADDR_SIZE)
+        ) u_mma_top (
+            .clk             (nice_clk),
+            .rst_n           (nice_rst_n),
+            .calc_start      (calc_start),
+            .cfg_16bits_ia   (cfg_16bits_ia),
+            .sa_ready        (sa_ready),
+            .wb_valid        (mma_wb_valid),
+            .wb_ready        (mma_wb_ready),
+            .err_code        (mma_err_code),
+            .lhs_base        (lhs_base),
+            .rhs_base        (rhs_base),
+            .dst_base        (dst_base),
+            .bias_base       (bias_base),
+            .lhs_zp          (lhs_zp),
+            .rhs_zp          (rhs_zp),
+            .dst_zp          (dst_zp),
+            .q_mult_pt       (q_mult_pt),
+            .q_shift_pt      (q_shift_pt),
+            .use_per_channel (use_per_channel),
+            .k               (k),
+            .n               (n),
+            .m               (m),
+            .lhs_row_stride_b(lhs_row_stride_b),
+            .dst_row_stride_b(dst_row_stride_b),
+            .rhs_row_stride_b(rhs_row_stride_b),
+            .act_min         (act_min),
+            .act_max         (act_max),
+            .sa_icb_cmd_valid(sa_icb_cmd_valid),
+            .sa_icb_cmd_ready(sa_icb_cmd_ready),
+            .sa_icb_cmd_addr (sa_icb_cmd_addr),
+            .sa_icb_cmd_read (sa_icb_cmd_read),
+            .sa_icb_cmd_len  (sa_icb_cmd_len),
+            .sa_icb_cmd_wdata(sa_icb_cmd_wdata),
+            .sa_icb_cmd_wmask(sa_icb_cmd_wmask),
+            .sa_icb_w_valid  (sa_icb_w_valid),
+            .sa_icb_w_ready  (sa_icb_w_ready),
+            .sa_icb_rsp_valid(sa_icb_rsp_valid),
+            .sa_icb_rsp_ready(sa_icb_rsp_ready),
+            .sa_icb_rsp_rdata(sa_icb_rsp_rdata),
+            .sa_icb_rsp_err  (sa_icb_rsp_err)
+        );
+      end else begin: g_use_real
+        // 使用真实 MMA Top，综合时不会被裁剪，完整引入所有子模块
+        mma_top #(
+            .WEIGHT_WIDTH(8),
+            .DATA_WIDTH  (16),
+            .SIZE        (16),
+            .BUS_WIDTH   (`E203_XLEN),
+            .REG_WIDTH   (`E203_XLEN),
+            .ADDR_WIDTH  (`E203_ADDR_SIZE)
+        ) u_mma_top (
+            .clk             (nice_clk),
+            .rst_n           (nice_rst_n),
+            .calc_start      (calc_start),
+            .cfg_16bits_ia   (cfg_16bits_ia),
+            .sa_ready        (sa_ready),
+            .wb_valid        (mma_wb_valid),
+            .wb_ready        (mma_wb_ready),
+            .err_code        (mma_err_code),
+            .lhs_base        (lhs_base),
+            .rhs_base        (rhs_base),
+            .dst_base        (dst_base),
+            .bias_base       (bias_base),
+            .lhs_zp          (lhs_zp),
+            .rhs_zp          (rhs_zp),
+            .dst_zp          (dst_zp),
+            .q_mult_pt       (q_mult_pt),
+            .q_shift_pt      (q_shift_pt),
+            .use_per_channel (use_per_channel),
+            .k               (k),
+            .n               (n),
+            .m               (m),
+            .lhs_row_stride_b(lhs_row_stride_b),
+            .dst_row_stride_b(dst_row_stride_b),
+            .rhs_row_stride_b(rhs_row_stride_b),
+            .act_min         (act_min),
+            .act_max         (act_max),
+            .sa_icb_cmd_valid(sa_icb_cmd_valid),
+            .sa_icb_cmd_ready(sa_icb_cmd_ready),
+            .sa_icb_cmd_addr (sa_icb_cmd_addr),
+            .sa_icb_cmd_read (sa_icb_cmd_read),
+            .sa_icb_cmd_len  (sa_icb_cmd_len),
+            .sa_icb_cmd_wdata(sa_icb_cmd_wdata),
+            .sa_icb_cmd_wmask(sa_icb_cmd_wmask),
+            .sa_icb_w_valid  (sa_icb_w_valid),
+            .sa_icb_w_ready  (sa_icb_w_ready),
+            .sa_icb_rsp_valid(sa_icb_rsp_valid),
+            .sa_icb_rsp_ready(sa_icb_rsp_ready),
+            .sa_icb_rsp_rdata(sa_icb_rsp_rdata),
+            .sa_icb_rsp_err  (sa_icb_rsp_err)
+        );
+      end
+    endgenerate
 
     // 实例化 icb_unalign_bridge，转接 ICB 接口
     icb_unalign_bridge #(

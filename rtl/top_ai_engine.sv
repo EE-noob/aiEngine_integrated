@@ -53,10 +53,15 @@
     input  wire             dcmi_icb_rsp_ready,
     output wire [31:0]      dcmi_icb_rsp_rdata,
     input  wire             cam_pclk,
-    output  wire             cam_rst_n,
+    output  wire            cam_rst_n,
     input  wire             cam_vsync,
     input  wire             cam_href,
-    input  wire [7:0]       cam_data
+    input  wire [7:0]       cam_data,
+    // Camera control (I2C) signals
+    output wire             cam_pwdn,
+    output wire             cam_scl,
+    inout  wire             cam_sda,
+    input  wire             clk_50M
     
     // ,
     // input                   i_icb_cmd_valid,
@@ -130,7 +135,11 @@ logic [  `E203_XLEN_MW-1:0] nice_icb_cmd_wmask;//弃用
         .cam_rst_n(cam_rst_n),
         .cam_vsync(cam_vsync),
         .cam_href(cam_href),
-        .cam_data(cam_data)
+        .cam_data(cam_data),
+        .cam_pwdn(cam_pwdn),
+        .cam_scl(cam_scl),
+        .cam_sda(cam_sda),
+        .clk_50M(clk_50M)
         
         // ,
         // .i_icb_cmd_valid(i_icb_cmd_valid),

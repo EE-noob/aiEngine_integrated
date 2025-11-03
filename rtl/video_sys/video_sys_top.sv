@@ -38,8 +38,9 @@ module video_sys_top #(
     input  wire             cam_vsync,
     input  wire             cam_href,
     input  wire [7:0]       cam_data,
-    output wire             cam_pwdn,        
-    output wire             cam_scl,         
+    output wire             cam_pwdn,
+    output wire             cam_scl,
+    inout  wire             cam_sda,
     input  wire             clk_50M
     //,
 
@@ -95,6 +96,7 @@ module video_sys_top #(
    .cam_data           (cam_data),
    .cam_pwdn           (cam_pwdn),
    .cam_scl            (cam_scl),
+   .cam_sda            (cam_sda),
    .clk_50M            (clk_50M)
 
  );
