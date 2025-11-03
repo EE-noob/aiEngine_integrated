@@ -149,7 +149,7 @@ module e203_subsys_nice_core (
     // 连接执行单元
     // ========================================================================
     // 使用 Dummy MMA 进行早期验证
-    dummy_mma_top #(
+    mma_top #(
         .WEIGHT_WIDTH(8),
         .DATA_WIDTH  (16),
         .SIZE        (16),
