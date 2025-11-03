@@ -619,5 +619,5 @@ assign kernel_loader_rsp_ready.rsp_ready = kernel_loader_icb_rsp_ready;
         .oa_calc_over     (oa_calc_over)
     );
 
-    assign calc_done = oa_calc_over;
+    //assign calc_done = oa_calc_over;
 endmodule

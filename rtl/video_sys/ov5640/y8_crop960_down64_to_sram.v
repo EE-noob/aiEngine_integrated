@@ -33,6 +33,7 @@ module y8_crop960_down64_nn #(
     output reg                  frame_done
 );
     // ====== 静态检查 ======
+    // synopsys translate_off
     initial begin
         if (CROP_W != 960 || CROP_H != 960 || IN_W != 1280 || IN_H != 960) begin
             $display("[%m] INFO: parameters changed from default 1280x960 -> crop 960x960.");
@@ -44,6 +45,7 @@ module y8_crop960_down64_nn #(
             $display("[%m] SCALE must be odd for center sampling.");
         end
     end
+    // synopsys translate_on
 
     // ====== 常量与寄存器 ======
     localparam LEFT_TRIM = (IN_W - CROP_W)/2; // =160
@@ -100,7 +102,8 @@ module y8_crop960_down64_nn #(
                 sram_wdata <= in_y;
                 sram_addr  <= wr_addr;
                 // 地址自增（线性 0..4095）
-                if (wr_addr == ADDR_BASE + OUT_PIXELS - 1) begin
+                // Cast constant expression to unsigned to avoid VER-318 in DC
+                if (wr_addr == $unsigned(ADDR_BASE + OUT_PIXELS - 1)) begin
                     wr_addr    <= ADDR_BASE;
                     frame_done <= 1'b1;
                 end else begin
@@ -111,24 +114,24 @@ module y8_crop960_down64_nn #(
             // 行列与 mod-15 的推进（仅在输入有效时推进）
             if (in_valid) begin
                 // 列内 mod-15：在每行的 col==LEFT_TRIM 处置零，其后窗口内每拍自增（0..14 循环）
-                if (col == LEFT_TRIM) begin
+                if (col == $unsigned(LEFT_TRIM)) begin
                     col_mod <= 0;
                 end else if (within_crop) begin
-                    if (col_mod == SCALE_X-1)
+                    if (col_mod == $unsigned(SCALE_X-1))
                         col_mod <= 0;
                     else
                         col_mod <= col_mod + 1'b1;
                 end
                 // 列计数推进
-                if (col == IN_W - 1) begin
+                if (col == $unsigned(IN_W - 1)) begin
                     col <= 0;
                     // 行末推进 row 与 row_mod
-                    if (row == IN_H - 1) begin
+                    if (row == $unsigned(IN_H - 1)) begin
                         row    <= 0;
                     end else begin
                         row    <= row + 1'b1;
                     end
-                    if (row_mod == SCALE_Y-1)
+                    if (row_mod == $unsigned(SCALE_Y-1))
                         row_mod <= 0;
                     else
                         row_mod <= row_mod + 1'b1;

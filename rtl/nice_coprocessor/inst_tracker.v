@@ -50,8 +50,6 @@ module inst_tracker (
                     // 注意：如果在 PENDING 状态又来新的 calc_start，
                     // 保持 PENDING（简化设计，假设单发射）
                 end
-
-                default: state <= IDLE;
             endcase
         end
     end
@@ -82,8 +80,6 @@ module inst_tracker (
                         nice_mem_holdup <= 1'b1;
                     end
                 end
-
-                default: nice_mem_holdup <= 1'b0;
             endcase
         end
     end

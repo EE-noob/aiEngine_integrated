@@ -148,13 +148,14 @@ module csr_unit #(
             csr_lhs_row_stride_b <= {REG_WIDTH{1'b0}};
             csr_dst_row_stride_b <= {REG_WIDTH{1'b0}};
             csr_rhs_row_stride_b <= {REG_WIDTH{1'b0}};
-            csr_lhs_zp           <= {REG_WIDTH{1'b0}};
-            csr_rhs_zp           <= {REG_WIDTH{1'b0}};
-            csr_dst_zp           <= {REG_WIDTH{1'b0}};
-            csr_q_mult_pt        <= {REG_WIDTH{1'b0}};
-            csr_q_shift_pt       <= {REG_WIDTH{1'b0}};
-            csr_act_min          <= {REG_WIDTH{1'b0}};
-            csr_act_max          <= {REG_WIDTH{1'b0}};
+            // Cast resets to signed to avoid unsigned->signed warnings in DC
+            csr_lhs_zp           <= $signed({REG_WIDTH{1'b0}});
+            csr_rhs_zp           <= $signed({REG_WIDTH{1'b0}});
+            csr_dst_zp           <= $signed({REG_WIDTH{1'b0}});
+            csr_q_mult_pt        <= $signed({REG_WIDTH{1'b0}});
+            csr_q_shift_pt       <= $signed({REG_WIDTH{1'b0}});
+            csr_act_min          <= $signed({REG_WIDTH{1'b0}});
+            csr_act_max          <= $signed({REG_WIDTH{1'b0}});
         end else if (csr_req && !is_csr_read) begin
             // Write operation
             case (csr_addr)
@@ -201,13 +202,14 @@ module csr_unit #(
                 MULT_LHS_COLS_OFFSET: csr_rdata = csr_lhs_row_stride_b;
                 MULT_RHS_ROW_STRIDE:  csr_rdata = csr_rhs_row_stride_b;
 
-                MULT_LHS_OFFSET: csr_rdata = csr_lhs_zp;
-                MULT_RHS_OFFSET: csr_rdata = csr_rhs_zp;
-                MULT_DST_OFFSET: csr_rdata = csr_dst_zp;
-                MULT_DST_MULT:   csr_rdata = csr_q_mult_pt;
-                MULT_DST_SHIFT:  csr_rdata = csr_q_shift_pt;
-                MULT_ACT_MIN:    csr_rdata = csr_act_min;
-                MULT_ACT_MAX:    csr_rdata = csr_act_max;
+                // Cast signed CSRs to unsigned bus width for readback
+                MULT_LHS_OFFSET: csr_rdata = $unsigned(csr_lhs_zp);
+                MULT_RHS_OFFSET: csr_rdata = $unsigned(csr_rhs_zp);
+                MULT_DST_OFFSET: csr_rdata = $unsigned(csr_dst_zp);
+                MULT_DST_MULT:   csr_rdata = $unsigned(csr_q_mult_pt);
+                MULT_DST_SHIFT:  csr_rdata = $unsigned(csr_q_shift_pt);
+                MULT_ACT_MIN:    csr_rdata = $unsigned(csr_act_min);
+                MULT_ACT_MAX:    csr_rdata = $unsigned(csr_act_max);
 
                 default: csr_rdata = {REG_WIDTH{1'b0}};  // Unimplemented CSRs return 0
             endcase
