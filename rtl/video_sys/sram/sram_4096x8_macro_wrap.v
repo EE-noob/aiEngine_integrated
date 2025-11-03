@@ -64,7 +64,7 @@ module sram_4096x8_macro_wrap #(
         end
     end
 
-`ifdef USE_SRAM_MACRO
+//`ifdef USE_SRAM_MACRO
     // Tie values for technology-specific pins; adjust if your PDK requires others
     localparam [2:0] EMA_TIE  = 3'b000;
     localparam [1:0] EMAW_TIE = 2'b00;
@@ -81,38 +81,38 @@ module sram_4096x8_macro_wrap #(
         .GWEN  (gwen_n),
         .RET1N (1'b1)
     );
-`else
-    // Generic behavioral 2048x16 memory model for simulation when the macro is absent
-    reg [15:0] mem [0:2047];
-    reg [10:0] raddr_q;
-    always @(posedge clk) begin
-        // Read address register (always enabled like the vendor macro)
-        raddr_q <= word_addr;
-        if (!gwen_n) begin
-            // Bit-write behavior per wen_n
-            if (!byte_sel) begin
-                if (wen_n[0]  == 1'b0) mem[word_addr][0]  <= din16[0];
-                if (wen_n[1]  == 1'b0) mem[word_addr][1]  <= din16[1];
-                if (wen_n[2]  == 1'b0) mem[word_addr][2]  <= din16[2];
-                if (wen_n[3]  == 1'b0) mem[word_addr][3]  <= din16[3];
-                if (wen_n[4]  == 1'b0) mem[word_addr][4]  <= din16[4];
-                if (wen_n[5]  == 1'b0) mem[word_addr][5]  <= din16[5];
-                if (wen_n[6]  == 1'b0) mem[word_addr][6]  <= din16[6];
-                if (wen_n[7]  == 1'b0) mem[word_addr][7]  <= din16[7];
-            end else begin
-                if (wen_n[8]  == 1'b0) mem[word_addr][8]  <= din16[8];
-                if (wen_n[9]  == 1'b0) mem[word_addr][9]  <= din16[9];
-                if (wen_n[10] == 1'b0) mem[word_addr][10] <= din16[10];
-                if (wen_n[11] == 1'b0) mem[word_addr][11] <= din16[11];
-                if (wen_n[12] == 1'b0) mem[word_addr][12] <= din16[12];
-                if (wen_n[13] == 1'b0) mem[word_addr][13] <= din16[13];
-                if (wen_n[14] == 1'b0) mem[word_addr][14] <= din16[14];
-                if (wen_n[15] == 1'b0) mem[word_addr][15] <= din16[15];
-            end
-        end
-    end
-    assign q16 = mem[raddr_q];
-`endif
+//`else
+//    // Generic behavioral 2048x16 memory model for simulation when the macro is absent
+//    reg [15:0] mem [0:2047];
+//    reg [10:0] raddr_q;
+//    always @(posedge clk) begin
+//        // Read address register (always enabled like the vendor macro)
+//        raddr_q <= word_addr;
+//        if (!gwen_n) begin
+//            // Bit-write behavior per wen_n
+//            if (!byte_sel) begin
+//                if (wen_n[0]  == 1'b0) mem[word_addr][0]  <= din16[0];
+//                if (wen_n[1]  == 1'b0) mem[word_addr][1]  <= din16[1];
+//                if (wen_n[2]  == 1'b0) mem[word_addr][2]  <= din16[2];
+//                if (wen_n[3]  == 1'b0) mem[word_addr][3]  <= din16[3];
+//                if (wen_n[4]  == 1'b0) mem[word_addr][4]  <= din16[4];
+//                if (wen_n[5]  == 1'b0) mem[word_addr][5]  <= din16[5];
+//                if (wen_n[6]  == 1'b0) mem[word_addr][6]  <= din16[6];
+//                if (wen_n[7]  == 1'b0) mem[word_addr][7]  <= din16[7];
+//            end else begin
+//                if (wen_n[8]  == 1'b0) mem[word_addr][8]  <= din16[8];
+//                if (wen_n[9]  == 1'b0) mem[word_addr][9]  <= din16[9];
+//                if (wen_n[10] == 1'b0) mem[word_addr][10] <= din16[10];
+//                if (wen_n[11] == 1'b0) mem[word_addr][11] <= din16[11];
+//                if (wen_n[12] == 1'b0) mem[word_addr][12] <= din16[12];
+//                if (wen_n[13] == 1'b0) mem[word_addr][13] <= din16[13];
+//                if (wen_n[14] == 1'b0) mem[word_addr][14] <= din16[14];
+//                if (wen_n[15] == 1'b0) mem[word_addr][15] <= din16[15];
+//            end
+//        end
+//    end
+//    assign q16 = mem[raddr_q];
+//`endif
 
     // Output byte selection, aligned with macro read latency
     always @(posedge clk) begin
