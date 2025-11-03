@@ -98,7 +98,8 @@ module icb2dcmi #(
             if (rd_pending && !dcmi_icb_cmd_ready) begin
                 // 等到响应握手完成
                 if (dcmi_icb_rsp_valid && dcmi_icb_rsp_ready) begin
-                    if (rd_ptr == IMAGE_SIZE-1)
+                    // Cast to unsigned to avoid signed→unsigned comparison warning in DC
+                    if (rd_ptr == $unsigned(IMAGE_SIZE-1))
                         rd_ptr <= {ADDR_WIDTH{1'b0}};
                     else
                         rd_ptr <= rd_ptr + 1'b1;

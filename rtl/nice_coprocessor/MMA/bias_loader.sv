@@ -168,7 +168,8 @@ module bias_loader #(
   genvar gi;
   generate
     for (gi=0; gi<SIZE; gi=gi+1) begin : G_OUT
-      assign data_out[gi] = use_bias_now ? bias_buffer[gi] : '0;
+      // Drive explicit width zero to avoid signed/unsigned warnings in DC
+      assign data_out[gi] = use_bias_now ? bias_buffer[gi] : {DATA_WIDTH{1'b0}};
     end
   endgenerate
 
@@ -184,15 +185,17 @@ module bias_loader #(
       icb_cmd_valid_q <= 1'b0;
       icb_cmd_read_q  <= 1'b0;
       icb_cmd_addr_q  <= '0;
-      icb_cmd_len_q   <= '0;
+      icb_cmd_len_q   <= icb_len_t'(0);
       all_tiles_done     <= 1'b0;
-      rd_beats_cnt    <= '0;
-      beats_expect    <= '0;
+      rd_beats_cnt    <= 6'd0;
+      beats_expect    <= 6'd0;
       next_tile_idx   <= 32'd0;
       tile_col           <= 32'd0;
       tile_row           <= 32'd0;
 
-      for (int i=0;i<SIZE;i++) bias_buffer[i] <= '0;
+      for (int unsigned i = 0; i < SIZE; i++) begin
+        bias_buffer[i] <= {DATA_WIDTH{1'b0}};
+      end
 
     end else begin
       // 缺省拉低命令
@@ -204,8 +207,8 @@ module bias_loader #(
         state         <= IDLE;
         load_bias_req <= 1'b0;
         bias_valid    <= 1'b0;
-        rd_beats_cnt  <= '0;
-        beats_expect  <= '0;
+        rd_beats_cnt  <= 6'd0;
+        beats_expect  <= 6'd0;
         next_tile_idx <= 32'd0;
         all_tiles_done     <= 1'b0;
         tile_col           <= 32'd0;
@@ -268,8 +271,10 @@ module bias_loader #(
 
               if ((rd_beats_cnt + 1) == beats_expect) begin
                 // 尾部补0
-                for (int f = beats_expect; f < SIZE; f++) begin
-                  bias_buffer[f] <= '0;
+                for (int unsigned f = 0; f < SIZE; f++) begin
+                  if (f >= beats_expect) begin
+                    bias_buffer[f] <= {DATA_WIDTH{1'b0}};
+                  end
                 end
                 // 读完即“bias_valid=1”，保持到 tile_calc_over 才清 0
                 bias_valid    <= 1'b1;
