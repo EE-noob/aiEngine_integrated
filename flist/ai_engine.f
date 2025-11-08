@@ -20,7 +20,7 @@
 
 ../rtl/nice_coprocessor/csr_unit.v
 ../rtl/nice_coprocessor/decode_dispatch.v
-../rtl/nice_coprocessor/dummy_mma_top.v
+//../rtl/nice_coprocessor/dummy_mma_top.v
 ../rtl/nice_coprocessor/e203_subsys_nice_core.sv
 ../rtl/nice_coprocessor/icb_unalign_bridge.sv
 ../rtl/nice_coprocessor/inst_pingpong_buf.v
