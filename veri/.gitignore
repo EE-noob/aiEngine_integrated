@@ -1,0 +1,11 @@
+# Ignore everything under veri/ by default
+*
+
+# Keep this .gitignore itself
+!.gitignore
+
+# Allow sim directory and control ignore inside it
+!/sim/
+!sim/Makefile
+!sim/.gitignore
+

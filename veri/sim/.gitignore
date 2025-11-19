@@ -1,0 +1,7 @@
+# Ignore everything generated under veri/sim
+*
+
+# But keep the Makefile and this .gitignore
+!Makefile
+!.gitignore
+
