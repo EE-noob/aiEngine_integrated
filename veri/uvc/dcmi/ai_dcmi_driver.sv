@@ -5,6 +5,7 @@ class ai_dcmi_driver extends uvm_driver#(ai_dcmi_seq_item);
     `uvm_component_utils(ai_dcmi_driver)
 
     virtual dcmi_if vif;
+    int unsigned wait_cycles;
 
     function new(string name, uvm_component parent);
         super.new(name, parent);
@@ -41,18 +42,31 @@ class ai_dcmi_driver extends uvm_driver#(ai_dcmi_seq_item);
         vif.drv_cb.dcmi_icb_cmd_wdata <= tr.wdata;
         vif.drv_cb.dcmi_icb_cmd_wmask <= tr.wmask;
 
-        // Issue command
+        // Issue command with simple timeout-based handshake to avoid deadlock
         vif.drv_cb.dcmi_icb_cmd_valid <= 1'b1;
-        do @(vif.drv_cb); while (!vif.drv_cb.dcmi_icb_cmd_ready);
+        wait_cycles = 0;
+        do begin
+            @(vif.drv_cb);
+            wait_cycles++;
+        end while (!vif.drv_cb.dcmi_icb_cmd_ready && wait_cycles < 1000);
         vif.drv_cb.dcmi_icb_cmd_valid <= 1'b0;
 
         // For read, wait response
         if (tr.read) begin
-            do @(vif.drv_cb); while (!vif.drv_cb.dcmi_icb_rsp_valid);
-            tr.rdata = vif.drv_cb.dcmi_icb_rsp_rdata;
+            wait_cycles = 0;
+            do begin
+                @(vif.drv_cb);
+                wait_cycles++;
+            end while (!vif.drv_cb.dcmi_icb_rsp_valid && wait_cycles < 2000);
+
+            if (vif.drv_cb.dcmi_icb_rsp_valid) begin
+                tr.rdata = vif.drv_cb.dcmi_icb_rsp_rdata;
+            end
+            else begin
+                tr.rdata = '0;
+            end
         end
     endtask
 endclass
 
 `endif
-

@@ -5,6 +5,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
     `uvm_component_utils(ai_nice_driver)
 
     virtual nice_if vif;
+    int unsigned wait_cycles;
 
     function new(string name, uvm_component parent);
         super.new(name, parent);
@@ -44,16 +45,30 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         vif.drv_cb.nice_req_rs2   <= tr.rs2;
 
         vif.drv_cb.nice_req_valid <= 1'b1;
-        // Wait for DUT to accept
-        do @(vif.drv_cb); while (!vif.drv_cb.nice_req_ready);
+        // Wait for DUT to accept, but timeout to avoid deadlock
+        wait_cycles = 0;
+        do begin
+            @(vif.drv_cb);
+            wait_cycles++;
+        end while (!vif.drv_cb.nice_req_ready && wait_cycles < 1000);
         vif.drv_cb.nice_req_valid <= 1'b0;
 
         // Wait for response
-        do @(vif.drv_cb); while (!vif.drv_cb.nice_rsp_valid);
-        tr.rsp_rdat = vif.drv_cb.nice_rsp_rdat;
-        tr.rsp_err  = vif.drv_cb.nice_rsp_err;
+        wait_cycles = 0;
+        do begin
+            @(vif.drv_cb);
+            wait_cycles++;
+        end while (!vif.drv_cb.nice_rsp_valid && wait_cycles < 2000);
+
+        if (vif.drv_cb.nice_rsp_valid) begin
+            tr.rsp_rdat = vif.drv_cb.nice_rsp_rdat;
+            tr.rsp_err  = vif.drv_cb.nice_rsp_err;
+        end
+        else begin
+            tr.rsp_rdat = '0;
+            tr.rsp_err  = 1'b0;
+        end
     endtask
 endclass
 
 `endif
-

@@ -37,10 +37,7 @@ module video_sys_top #(
     // 摄像头接口
     input  wire             cam_vsync,
     input  wire             cam_href,
-    input  wire [7:0]       cam_data,
-    output wire             cam_pwdn,        
-    output wire             cam_scl,         
-    input  wire             clk_50M
+    input  wire [7:0]       cam_data
     //,
 
     // // SRAM ICB 接口
@@ -92,10 +89,7 @@ module video_sys_top #(
 
    .cam_vsync          (cam_vsync),
    .cam_href           (cam_href),
-   .cam_data           (cam_data),
-   .cam_pwdn           (cam_pwdn),
-   .cam_scl            (cam_scl),
-   .clk_50M            (clk_50M)
+   .cam_data           (cam_data)
 
  );
 

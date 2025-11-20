@@ -12,9 +12,7 @@ package ai_dcmi_pkg;
     `include "ai_dcmi_monitor.sv"
     `include "ai_dcmi_coverage.sv"
     `include "ai_dcmi_agent.sv"
-    `include "ai_dcmi_sequence.sv"
 
 endpackage : ai_dcmi_pkg
 
 `endif
-

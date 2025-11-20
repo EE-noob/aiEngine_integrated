@@ -2,6 +2,7 @@
 +incdir+./interface
 +incdir+./env
 +incdir+./test
++incdir+./test/sequence
 +incdir+./uvc/dcmi
 +incdir+./uvc/cam
 +incdir+./uvc/nice

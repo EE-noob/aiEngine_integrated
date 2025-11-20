@@ -39,10 +39,7 @@
 ../rtl/video_sys/general/e203_clkgate.v
 
 ../rtl/top_ai_engine.sv
-../rtl/video_sys/ov5640/i2c_dri.v
-../rtl/video_sys/ov5640/i2c_ov5640_rgb565_cfg.v
 ../rtl/video_sys/ov5640/icb2dcmi.v
-../rtl/video_sys/ov5640/ov5640_dri.v
 ../rtl/video_sys/ov5640/ov5640_icb_top.v
 ../rtl/video_sys/ov5640/ov5640_y8_top.v
 ../rtl/video_sys/ov5640/ov5640_dcmi_y8_if.v

@@ -35,14 +35,6 @@ VSIM          ?= vsim
 RUN_ARGS      ?= +UVM_VERBOSITY=UVM_MEDIUM
 
 ###############################################################################
-# Targets
-###############################################################################
-
-.PHONY: all com sim clean
-
-all: com
-
-###############################################################################
 # VCS flow
 ###############################################################################
 ifeq ($(SIM_TOOL),vcs)
@@ -74,11 +66,16 @@ com:
 
 sim: com
 	@echo "=== Run ModelSim/Questa simulation ==="
-	cd $(VERI_DIR) && $(VSIM) -c work.$(TOP_MODULE) $(RUN_ARGS) -do "run -all; quit"
+	cd $(VERI_DIR) && $(VSIM) -c -wlf vsim.wlf work.$(TOP_MODULE) $(RUN_ARGS) -do "log -r /*; run -all; quit"
 
 clean:
 	@echo "=== Clean ModelSim/Questa outputs ==="
-	cd $(VERI_DIR) && rm -rf work transcript vsim.wlf modelsim.ini
+	cd $(VERI_DIR) && rm -rf work transcript vsim.wlf modelsim.ini sim/ai_engine.wlf
+
+# Open saved waveform (GUI)
+waves:
+	@echo "=== Open ModelSim waveform viewer ==="
+	cd $(VERI_DIR) && $(VSIM) -view vsim.wlf
 
 ###############################################################################
 # Unknown SIM_TOOL

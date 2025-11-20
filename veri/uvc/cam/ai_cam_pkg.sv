@@ -12,9 +12,7 @@ package ai_cam_pkg;
     `include "ai_cam_monitor.sv"
     `include "ai_cam_coverage.sv"
     `include "ai_cam_agent.sv"
-    `include "ai_cam_sequence.sv"
 
 endpackage : ai_cam_pkg
 
 `endif
-

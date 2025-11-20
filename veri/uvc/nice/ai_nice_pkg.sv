@@ -12,9 +12,7 @@ package ai_nice_pkg;
     `include "ai_nice_monitor.sv"
     `include "ai_nice_coverage.sv"
     `include "ai_nice_agent.sv"
-    `include "ai_nice_sequence.sv"
 
 endpackage : ai_nice_pkg
 
 `endif
-

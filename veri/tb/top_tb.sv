@@ -42,22 +42,6 @@ module tb_top;
     logic [31:0]                nice_icb_rsp_rdata;
     logic                       nice_icb_rsp_err;
 
-    // Video system ICB and camera side
-    logic             dcmi_icb_cmd_valid;
-    logic             dcmi_icb_cmd_ready;
-    logic [31:0]      dcmi_icb_cmd_addr;
-    logic             dcmi_icb_cmd_read;
-    logic [31:0]      dcmi_icb_cmd_wdata;
-    logic [3:0]       dcmi_icb_cmd_wmask;
-    logic             dcmi_icb_rsp_valid;
-    logic             dcmi_icb_rsp_ready;
-    logic [31:0]      dcmi_icb_rsp_rdata;
-
-    logic             cam_rst_n;
-    logic             cam_vsync;
-    logic             cam_href;
-    logic [7:0]       cam_data;
-
     // Interfaces
     dcmi_if dcmi_vif (
         .icb_clk  (icb_clk),
@@ -103,37 +87,21 @@ module tb_top;
         // video_sys_top signals
         .icb_clk           (icb_clk),
         .icb_rst_n         (icb_rst_n),
-        .dcmi_icb_cmd_valid(dcmi_icb_cmd_valid),
-        .dcmi_icb_cmd_ready(dcmi_icb_cmd_ready),
-        .dcmi_icb_cmd_addr (dcmi_icb_cmd_addr),
-        .dcmi_icb_cmd_read (dcmi_icb_cmd_read),
-        .dcmi_icb_cmd_wdata(dcmi_icb_cmd_wdata),
-        .dcmi_icb_cmd_wmask(dcmi_icb_cmd_wmask),
-        .dcmi_icb_rsp_valid(dcmi_icb_rsp_valid),
-        .dcmi_icb_rsp_ready(dcmi_icb_rsp_ready),
-        .dcmi_icb_rsp_rdata(dcmi_icb_rsp_rdata),
+        .dcmi_icb_cmd_valid(dcmi_vif.dcmi_icb_cmd_valid),
+        .dcmi_icb_cmd_ready(dcmi_vif.dcmi_icb_cmd_ready),
+        .dcmi_icb_cmd_addr (dcmi_vif.dcmi_icb_cmd_addr),
+        .dcmi_icb_cmd_read (dcmi_vif.dcmi_icb_cmd_read),
+        .dcmi_icb_cmd_wdata(dcmi_vif.dcmi_icb_cmd_wdata),
+        .dcmi_icb_cmd_wmask(dcmi_vif.dcmi_icb_cmd_wmask),
+        .dcmi_icb_rsp_valid(dcmi_vif.dcmi_icb_rsp_valid),
+        .dcmi_icb_rsp_ready(dcmi_vif.dcmi_icb_rsp_ready),
+        .dcmi_icb_rsp_rdata(dcmi_vif.dcmi_icb_rsp_rdata),
         .cam_pclk          (cam_pclk),
-        .cam_rst_n         (cam_rst_n),
-        .cam_vsync         (cam_vsync),
-        .cam_href          (cam_href),
-        .cam_data          (cam_data)
+        .cam_rst_n         (cam_vif.cam_rst_n),
+        .cam_vsync         (cam_vif.cam_vsync),
+        .cam_href          (cam_vif.cam_href),
+        .cam_data          (cam_vif.cam_data)
     );
-
-    // Connect DUT video ICB and camera to interfaces
-    assign dcmi_vif.dcmi_icb_cmd_valid = dcmi_icb_cmd_valid;
-    assign dcmi_icb_cmd_ready          = dcmi_vif.dcmi_icb_cmd_ready;
-    assign dcmi_vif.dcmi_icb_cmd_addr  = dcmi_icb_cmd_addr;
-    assign dcmi_vif.dcmi_icb_cmd_read  = dcmi_icb_cmd_read;
-    assign dcmi_vif.dcmi_icb_cmd_wdata = dcmi_icb_cmd_wdata;
-    assign dcmi_vif.dcmi_icb_cmd_wmask = dcmi_icb_cmd_wmask;
-    assign dcmi_vif.dcmi_icb_rsp_valid = dcmi_icb_rsp_valid;
-    assign dcmi_icb_rsp_ready          = dcmi_vif.dcmi_icb_rsp_ready;
-    assign dcmi_vif.dcmi_icb_rsp_rdata = dcmi_icb_rsp_rdata;
-
-    assign cam_vif.cam_rst_n = cam_rst_n;
-    assign cam_vif.cam_vsync = cam_vsync;
-    assign cam_vif.cam_href  = cam_href;
-    assign cam_vif.cam_data  = cam_data;
 
     // Connect nice interface to DUT sideband signals
     assign nice_vif.nice_active     = nice_active;
@@ -193,16 +161,17 @@ module tb_top;
 
     // UVM configuration and run
     initial begin
+        string testname;
+
         uvm_config_db#(virtual dcmi_if)::set(uvm_root::get(), "*", "dcmi_vif", dcmi_vif);
         uvm_config_db#(virtual cam_if )::set(uvm_root::get(), "*", "cam_vif" , cam_vif);
         uvm_config_db#(virtual nice_if)::set(uvm_root::get(), "*", "nice_vif", nice_vif);
 
-        if (!$value$plusargs("UVM_TESTNAME=%s", uvm_top.get_full_name())) begin
-            run_test("ai_smoke_test");
+        if (!$value$plusargs("UVM_TESTNAME=%s", testname)) begin
+            testname = "ai_smoke_test";
         end
-        else begin
-            run_test();
-        end
+
+        run_test(testname);
     end
 
 endmodule : tb_top

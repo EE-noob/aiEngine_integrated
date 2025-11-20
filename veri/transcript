@@ -1,19 +1,48 @@
-# vsim -c work.tb_top "+UVM_VERBOSITY=UVM_MEDIUM" -do "run -all; quit" 
-# Start time: 10:11:22 on Nov 20,2025
-# ** Note: (vsim-3812) Design is being optimized...
-# ** Error: ../rtl/video_sys/sram/sram_4096x8_macro_wrap.v(72): Module 'RAMSP2048X16' is not defined.
-# Optimization failed
-# ** Warning: (vopt-31) Unable to unlink file "E:/OneDrive/Work/IC_Com_2025/Front_End/Design/Ai_Engine/aiEngine_integrated/veri/work/@_opt/_lib.qdb".
-# ** Warning: (vopt-31) Unable to unlink file "E:/OneDrive/Work/IC_Com_2025/Front_End/Design/Ai_Engine/aiEngine_integrated/veri/work/@_opt/_lib2_0.qdb".
-# 另一个程序正在使用此文件，进程无法访问。 (GetLastError() = 32)
-# ** Warning: (vopt-31) Unable to unlink file "E:/OneDrive/Work/IC_Com_2025/Front_End/Design/Ai_Engine/aiEngine_integrated/veri/work/@_opt/_lib2_0.qdx".
-# 另一个程序正在使用此文件，进程无法访问。 (GetLastError() = 32)
-# ** Warning: (vopt-31) Unable to unlink file "E:/OneDrive/Work/IC_Com_2025/Front_End/Design/Ai_Engine/aiEngine_integrated/veri/work/@_opt/_lib2_0.qpg".
-# 另一个程序正在使用此文件，进程无法访问。 (GetLastError() = 32)
-# ** Warning: (vopt-31) Unable to unlink file "E:/OneDrive/Work/IC_Com_2025/Front_End/Design/Ai_Engine/aiEngine_integrated/veri/work/@_opt/_lib2_0.qtl".
-# 另一个程序正在使用此文件，进程无法访问。 (GetLastError() = 32)
-# ** Warning: (vopt-133) Unable to remove directory "E:/OneDrive/Work/IC_Com_2025/Front_End/Design/Ai_Engine/aiEngine_integrated/veri/work/@_opt".
-# Result too large. (errno = ERANGE)
-# Error loading design
-# End time: 10:11:26 on Nov 20,2025, Elapsed time: 0:00:04
-# Errors: 1, Warnings: 6
+# //  ModelSim SE-64 2019.2 Apr 17 2019
+# //
+# //  Copyright 1991-2019 Mentor Graphics Corporation
+# //  All Rights Reserved.
+# //
+# //  ModelSim SE-64 and its associated documentation contain trade
+# //  secrets and commercial or financial information that are the property of
+# //  Mentor Graphics Corporation and are privileged, confidential,
+# //  and exempt from disclosure under the Freedom of Information Act,
+# //  5 U.S.C. Section 552. Furthermore, this information
+# //  is prohibited from disclosure under the Trade Secrets Act,
+# //  18 U.S.C. Section 1905.
+# //
+# vsim.wlf opened as dataset "vsim"
+add wave -position insertpoint  \
+vsim:/tb_top/dcmi_vif/icb_rst_n \
+vsim:/tb_top/dcmi_vif/dcmi_icb_cmd_valid \
+vsim:/tb_top/dcmi_vif/dcmi_icb_cmd_ready \
+vsim:/tb_top/dcmi_vif/dcmi_icb_cmd_addr \
+vsim:/tb_top/dcmi_vif/dcmi_icb_cmd_read \
+vsim:/tb_top/dcmi_vif/dcmi_icb_cmd_wdata \
+vsim:/tb_top/dcmi_vif/dcmi_icb_cmd_wmask \
+vsim:/tb_top/dcmi_vif/dcmi_icb_rsp_valid \
+vsim:/tb_top/dcmi_vif/dcmi_icb_rsp_ready \
+vsim:/tb_top/dcmi_vif/dcmi_icb_rsp_rdata
+add wave -position insertpoint  \
+vsim:/tb_top/nice_vif/nice_rst_n \
+vsim:/tb_top/nice_vif/nice_active \
+vsim:/tb_top/nice_vif/nice_mem_holdup \
+vsim:/tb_top/nice_vif/nice_req_valid \
+vsim:/tb_top/nice_vif/nice_req_ready \
+vsim:/tb_top/nice_vif/nice_req_inst \
+vsim:/tb_top/nice_vif/nice_req_rs1 \
+vsim:/tb_top/nice_vif/nice_req_rs2 \
+vsim:/tb_top/nice_vif/nice_rsp_valid \
+vsim:/tb_top/nice_vif/nice_rsp_ready \
+vsim:/tb_top/nice_vif/nice_rsp_rdat \
+vsim:/tb_top/nice_vif/nice_rsp_err \
+vsim:/tb_top/nice_vif/nice_icb_cmd_valid \
+vsim:/tb_top/nice_vif/nice_icb_cmd_ready \
+vsim:/tb_top/nice_vif/nice_icb_cmd_addr \
+vsim:/tb_top/nice_vif/nice_icb_cmd_read \
+vsim:/tb_top/nice_vif/nice_icb_cmd_wdata \
+vsim:/tb_top/nice_vif/nice_icb_cmd_size \
+vsim:/tb_top/nice_vif/nice_icb_rsp_valid \
+vsim:/tb_top/nice_vif/nice_icb_rsp_ready \
+vsim:/tb_top/nice_vif/nice_icb_rsp_rdata \
+vsim:/tb_top/nice_vif/nice_icb_rsp_err
