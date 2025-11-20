@@ -70,7 +70,7 @@ com:
 	@echo "=== ModelSim/Questa compile (top_ai_engine) ==="
 	cd $(VERI_DIR) && ($(VLIB) work || true)
 	cd $(VERI_DIR) && $(VMAP) work work
-	cd $(VERI_DIR) && $(VLOG) -sv -f $(FLIST)
+	cd $(VERI_DIR) && $(VLOG) -sv -mfcu -f $(FLIST)
 
 sim: com
 	@echo "=== Run ModelSim/Questa simulation ==="

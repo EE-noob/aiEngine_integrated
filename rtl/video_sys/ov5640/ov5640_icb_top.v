@@ -26,11 +26,7 @@ module ov5640_icb_top #(
     // 摄像头接口
     input  wire             cam_vsync,
     input  wire             cam_href,
-    input  wire [7:0]       cam_data,
-    output wire             cam_pwdn,        //cmos 电源休眠模式选择信号
-    output wire             cam_scl,         //cmos SCCB_SCL线
-    inout  wire             cam_sda,        //cmos SCCB_SDA线
-    input  wire             clk_50M
+    input  wire [7:0]       cam_data
 );
 
     assign cam_rst_n = 1'b1; // 摄像头复位信号，常高保持工作状态
@@ -267,7 +263,6 @@ module ov5640_icb_top #(
                 sram_wdata <= 8'h00;
                 sram_we    <= 1'b0;
             end else begin
-                // 保持当前地址（避免不必要的变化）
                 sram_addr  <= sram_addr;
                 sram_wdata <= 8'h00;
                 sram_we    <= 1'b0;
@@ -275,10 +270,7 @@ module ov5640_icb_top #(
         end
     end
     
-    // =========================================
-    // SRAM例化（8位宽，12位地址，单端口）
-    // =========================================
-    // 使用2048x16 SRAM Macro，通过封装模块适配为4096x8接口
+ 
     sram_4096x8_macro_wrap #(
         .DP(4096),
         .DW(8),
@@ -296,9 +288,7 @@ module ov5640_icb_top #(
 
     assign sram_rd_data_out = sram_rdata;
     
-    // =========================================
-    // 实例化 icb2dcmi 模块
-    // =========================================
+ 
     icb2dcmi #(
         .ADDR_WIDTH(ADDR_WIDTH),
         .IMAGE_SIZE(IMAGE_SIZE)
@@ -339,13 +329,6 @@ module ov5640_icb_top #(
         .frame_done     (frame_done_cam)
     );
 
-    ov5640_dri u_ov5640_dri (
-        .clk        (clk_50M ),
-        .rst_n      (icb_rst_n),
-        .cam_pwdn   (cam_pwdn),
-        .cam_scl    (cam_scl  ),
-        .cam_sda    (cam_sda  ),
-        .cam_init_done(cam_init_done)
-    );
+
 
 endmodule

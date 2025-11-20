@@ -1,0 +1,19 @@
+# vsim -c work.tb_top "+UVM_VERBOSITY=UVM_MEDIUM" -do "run -all; quit" 
+# Start time: 10:11:22 on Nov 20,2025
+# ** Note: (vsim-3812) Design is being optimized...
+# ** Error: ../rtl/video_sys/sram/sram_4096x8_macro_wrap.v(72): Module 'RAMSP2048X16' is not defined.
+# Optimization failed
+# ** Warning: (vopt-31) Unable to unlink file "E:/OneDrive/Work/IC_Com_2025/Front_End/Design/Ai_Engine/aiEngine_integrated/veri/work/@_opt/_lib.qdb".
+# ** Warning: (vopt-31) Unable to unlink file "E:/OneDrive/Work/IC_Com_2025/Front_End/Design/Ai_Engine/aiEngine_integrated/veri/work/@_opt/_lib2_0.qdb".
+# 另一个程序正在使用此文件，进程无法访问。 (GetLastError() = 32)
+# ** Warning: (vopt-31) Unable to unlink file "E:/OneDrive/Work/IC_Com_2025/Front_End/Design/Ai_Engine/aiEngine_integrated/veri/work/@_opt/_lib2_0.qdx".
+# 另一个程序正在使用此文件，进程无法访问。 (GetLastError() = 32)
+# ** Warning: (vopt-31) Unable to unlink file "E:/OneDrive/Work/IC_Com_2025/Front_End/Design/Ai_Engine/aiEngine_integrated/veri/work/@_opt/_lib2_0.qpg".
+# 另一个程序正在使用此文件，进程无法访问。 (GetLastError() = 32)
+# ** Warning: (vopt-31) Unable to unlink file "E:/OneDrive/Work/IC_Com_2025/Front_End/Design/Ai_Engine/aiEngine_integrated/veri/work/@_opt/_lib2_0.qtl".
+# 另一个程序正在使用此文件，进程无法访问。 (GetLastError() = 32)
+# ** Warning: (vopt-133) Unable to remove directory "E:/OneDrive/Work/IC_Com_2025/Front_End/Design/Ai_Engine/aiEngine_integrated/veri/work/@_opt".
+# Result too large. (errno = ERANGE)
+# Error loading design
+# End time: 10:11:26 on Nov 20,2025, Elapsed time: 0:00:04
+# Errors: 1, Warnings: 6
