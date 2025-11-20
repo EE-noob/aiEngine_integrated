@@ -1,6 +1,6 @@
 # Ignore everything generated under veri/sim
-./veri/sim/*
-./veri/work/*
+veri/sim/*
+veri/work/*
 
 # But keep the Makefile and this .gitignore
-!./veri/sim/Makefile
+!veri/sim/Makefile
