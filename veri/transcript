@@ -23,26 +23,3 @@ vsim:/tb_top/dcmi_vif/dcmi_icb_cmd_wmask \
 vsim:/tb_top/dcmi_vif/dcmi_icb_rsp_valid \
 vsim:/tb_top/dcmi_vif/dcmi_icb_rsp_ready \
 vsim:/tb_top/dcmi_vif/dcmi_icb_rsp_rdata
-add wave -position insertpoint  \
-vsim:/tb_top/nice_vif/nice_rst_n \
-vsim:/tb_top/nice_vif/nice_active \
-vsim:/tb_top/nice_vif/nice_mem_holdup \
-vsim:/tb_top/nice_vif/nice_req_valid \
-vsim:/tb_top/nice_vif/nice_req_ready \
-vsim:/tb_top/nice_vif/nice_req_inst \
-vsim:/tb_top/nice_vif/nice_req_rs1 \
-vsim:/tb_top/nice_vif/nice_req_rs2 \
-vsim:/tb_top/nice_vif/nice_rsp_valid \
-vsim:/tb_top/nice_vif/nice_rsp_ready \
-vsim:/tb_top/nice_vif/nice_rsp_rdat \
-vsim:/tb_top/nice_vif/nice_rsp_err \
-vsim:/tb_top/nice_vif/nice_icb_cmd_valid \
-vsim:/tb_top/nice_vif/nice_icb_cmd_ready \
-vsim:/tb_top/nice_vif/nice_icb_cmd_addr \
-vsim:/tb_top/nice_vif/nice_icb_cmd_read \
-vsim:/tb_top/nice_vif/nice_icb_cmd_wdata \
-vsim:/tb_top/nice_vif/nice_icb_cmd_size \
-vsim:/tb_top/nice_vif/nice_icb_rsp_valid \
-vsim:/tb_top/nice_vif/nice_icb_rsp_ready \
-vsim:/tb_top/nice_vif/nice_icb_rsp_rdata \
-vsim:/tb_top/nice_vif/nice_icb_rsp_err

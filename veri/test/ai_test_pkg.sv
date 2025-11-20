@@ -14,6 +14,8 @@ package ai_test_pkg;
     `include "sequence/ai_smoke_dcmi_seq.sv"
     `include "sequence/ai_smoke_cam_seq.sv"
     `include "sequence/ai_smoke_nice_seq.sv"
+    // Top-level smoke sequence that coordinates all UVCs
+    `include "sequence/ai_smoke_seq.sv"
 
     class ai_base_test extends uvm_test;
         `uvm_component_utils(ai_base_test)
@@ -38,22 +40,18 @@ package ai_test_pkg;
         endfunction
 
         virtual task main_phase(uvm_phase phase);
-            ai_smoke_dcmi_seq dcmi_seq;
-            ai_smoke_cam_seq  cam_seq;
-            ai_smoke_nice_seq nice_seq;
+            ai_smoke_seq smoke_seq;
 
             phase.raise_objection(this);
             `uvm_info(get_type_name(), "ai_smoke_test main_phase start", UVM_MEDIUM)
 
-            dcmi_seq = ai_smoke_dcmi_seq::type_id::create("dcmi_seq");
-            cam_seq  = ai_smoke_cam_seq ::type_id::create("cam_seq");
-            nice_seq = ai_smoke_nice_seq::type_id::create("nice_seq");
+            smoke_seq = ai_smoke_seq::type_id::create("smoke_seq");
+            smoke_seq.dcmi_seqr = env.dcmi_agent.seqr;
+            smoke_seq.cam_seqr  = env.cam_agent .seqr;
+            smoke_seq.nice_seqr = env.nice_agent.seqr;
 
-            fork
-                dcmi_seq.start(env.dcmi_agent.seqr);
-                cam_seq .start(env.cam_agent .seqr);
-                nice_seq.start(env.nice_agent.seqr);
-            join
+            // Run the top-level smoke sequence; use dcmi_agent sequencer as parent
+            smoke_seq.start(env.dcmi_agent.seqr);
 
             `uvm_info(get_type_name(), "ai_smoke_test main_phase end, dropping objection", UVM_MEDIUM)
             phase.drop_objection(this);

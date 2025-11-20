@@ -45,12 +45,16 @@ com:
 
 sim: com
 	@echo "=== Run VCS simulation ==="
-	cd $(VERI_DIR) && ./simv $(RUN_ARGS)
+	cd $(VERI_DIR) && ./simv $(RUN_ARGS) +vcs+dumpvars+vcs.vpd
+
+waves:
+	@echo "=== Open VCS waveform viewer (DVE) ==="
+	cd $(VERI_DIR) && dve -vpd vcs.vpd &
 
 clean:
 	@echo "=== Clean VCS outputs ==="
 	cd $(VERI_DIR) && rm -rf simv simv.daidir csrc DVEfiles ucli.key \
-		*.vpd *.vcd *.fsdb novas.rc verdiLog \
+		vcs.vpd *.vpd *.vcd *.fsdb novas.rc verdiLog \
 		.vcs* .inter.vpd vcs.log
 
 ###############################################################################
