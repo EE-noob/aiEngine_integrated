@@ -355,6 +355,16 @@ module mma_controller #(
     // sa_ready信号
     assign sa_ready = (current_state == IDLE);
 
+    // tile_count：矩阵按 SIZE×SIZE 分块后的总 tile 数
+    always_comb begin
+        // ceil_div(k, SIZE) * ceil_div(m, SIZE)
+        tile_count = '0;
+        if ((k != '0) && (m != '0)) begin
+            tile_count = ((k + REG_WIDTH'(SIZE-1)) / REG_WIDTH'(SIZE))
+                       * ((m + REG_WIDTH'(SIZE-1)) / REG_WIDTH'(SIZE));
+        end
+    end
+
     // 写回有效信号
     assign wb_valid = oa_calc_over || (current_state == WAIT_WB) || (current_state == ERROR);
 

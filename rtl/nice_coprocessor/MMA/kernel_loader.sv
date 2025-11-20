@@ -67,8 +67,8 @@
 
  */
 
- `include "./define.svh"
- `include "./icb_types.svh"
+ `include "define.svh"
+ `include "icb_types.svh"
 
 module kernel_loader #(
     parameter int unsigned DATA_WIDTH = 8,      // 权重数据宽度
@@ -179,7 +179,7 @@ module kernel_loader #(
      // =========================================================================
      // ICB响应接收控制
      // =========================================================================
-     reg [REG_WIDTH-1:0] rsp_row_cnt;      // 响应行计数
+     reg [REG_WIDTH-1:0] rsp_col_cnt;      // 响应计数
      reg [REG_WIDTH-1:0] rsp_beat_cnt;     // 响应beat计数
     
     // 响应通道独立维护的tile参数（在INIT时计算好）
@@ -286,15 +286,15 @@ module kernel_loader #(
             cfg_rhs_base <= rhs_base;
 
             // 使用移位和加法替代除法: ceil(n/SIZE) = (n + SIZE - 1) >> $clog2(SIZE)
-            row_tile_num <= (m + SIZE - 1) >> $clog2(SIZE);  // 每行tile数量（n方向）
-            col_tile_num <= (n + SIZE - 1) >> $clog2(SIZE);  // 列方向tile数量（m方向）
+            col_tile_num <= (m + SIZE - 1) >> $clog2(SIZE);  // 每行tile数量（n方向）
+            row_tile_num <= (n + SIZE - 1) >> $clog2(SIZE);  // 列方向tile数量（m方向）
             loop_col_num <= (k + SIZE - 1) >> $clog2(SIZE);  // 列循环次数
 
             // row_tile_rem = (ceil(n/SIZE) * SIZE) - n
             // 计算最后一个行tile的无效列数//FIXME:这里好两个好像反了
-            row_tile_rem <= (((m + SIZE - 1) >> $clog2(SIZE)) << $clog2(SIZE)) - m;
+            col_tile_rem <= (((m + SIZE - 1) >> $clog2(SIZE)) << $clog2(SIZE)) - m;
             // col_tile_rem = (ceil(m/SIZE) * SIZE) - m
-            col_tile_rem <= (((n + SIZE - 1) >> $clog2(SIZE)) << $clog2(SIZE)) - n;
+            row_tile_rem <= (((n + SIZE - 1) >> $clog2(SIZE)) << $clog2(SIZE)) - n;
             
             // =====================================================
             // 响应通道专用参数计算（完全独立于请求通道）
@@ -379,7 +379,7 @@ module kernel_loader #(
                  current_tile_addr <= cfg_rhs_base ;              
              end else if (is_last_row_tile) begin
                  // 当前列的tile发完，重新循环这一列，回到第一个tile/FIXME:循环逻辑修改：发完所有列tile后才重新开始（不是单列循环）
-                 current_tile_addr <= cfg_rhs_base + (cfg_rhs_col_stride_b << $clog2(SIZE));
+                 current_tile_addr <= cfg_rhs_base + (cfg_rhs_col_stride_b << $clog2(SIZE)) * rsp_tile_col_idx;
                 //current_tile_addr <= cfg_rhs_base;
              end else begin
                  current_tile_addr <= current_tile_addr + SIZE;  // int8每个元素1字节
@@ -478,8 +478,8 @@ assign valid_rows = (row_tile_num == 0) ? '0 : (tile_row_idx == row_tile_num - 1
                             current_read_col <= current_read_col + 1;
                             
                             // 计算burst长度（int8固定）
-                            if (is_last_col_tile) begin
-                                read_burst_length <= ((SIZE - col_tile_rem) + BYTE_PER_BEAT - 1) >> $clog2(BYTE_PER_BEAT);
+                            if (is_last_row_tile) begin
+                                read_burst_length <= ((SIZE - row_tile_rem) + BYTE_PER_BEAT - 1) >> $clog2(BYTE_PER_BEAT);
                             end else begin
                                 read_burst_length <= (SIZE + BYTE_PER_BEAT - 1) >> $clog2(BYTE_PER_BEAT);
                             end
@@ -510,12 +510,12 @@ assign valid_rows = (row_tile_num == 0) ? '0 : (tile_row_idx == row_tile_num - 1
     
     wire rsp_is_last_col_tile = (rsp_tile_col_idx == col_tile_num - 1);
     wire rsp_is_last_row_tile = (rsp_tile_row_idx == row_tile_num - 1);
-    wire [REG_WIDTH-1:0] rsp_current_cols = rsp_is_last_row_tile ? rsp_rows_last_tile : rsp_rows_per_tile;
-    wire [REG_WIDTH-1:0] rsp_current_beats = rsp_is_last_col_tile ? rsp_beats_per_row_last : rsp_beats_per_row_normal;
+    wire [REG_WIDTH-1:0] rsp_current_cols = rsp_is_last_col_tile ? rsp_rows_last_tile : rsp_rows_per_tile;
+    wire [REG_WIDTH-1:0] rsp_current_beats = rsp_is_last_row_tile ? rsp_beats_per_row_last : rsp_beats_per_row_normal;
     
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            rsp_row_cnt <= '0;
+            rsp_col_cnt <= '0;
             rsp_beat_cnt <= '0;
             icb_rsp_ready <= '0;
             
@@ -535,7 +535,7 @@ assign valid_rows = (row_tile_num == 0) ? '0 : (tile_row_idx == row_tile_num - 1
                     rsp_tile_row_idx <= '0;
                     rsp_tile_col_idx <= '0;
                     rsp_loop_col_cnt <= '0;
-                    rsp_row_cnt <= '0;
+                    rsp_col_cnt <= '0;
                     rsp_beat_cnt <= '0;
                  end
                 
@@ -547,31 +547,31 @@ assign valid_rows = (row_tile_num == 0) ? '0 : (tile_row_idx == row_tile_num - 1
                         if (BYTE_PER_BEAT == 4) begin
                             // 32位总线：4个s8元素
                             if (col_idx < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx] <= $signed(icb_rsp_rdata[7:0]) + cfg_rhs_zp[7:0];
+                                tile_buffer[rsp_col_cnt][col_idx] <= $signed(icb_rsp_rdata[7:0]) + cfg_rhs_zp[7:0];
                             if (col_idx + 1 < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx + 1] <= $signed(icb_rsp_rdata[15:8]) + cfg_rhs_zp[7:0];
+                                tile_buffer[rsp_col_cnt][col_idx + 1] <= $signed(icb_rsp_rdata[15:8]) + cfg_rhs_zp[7:0];
                             if (col_idx + 2 < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx + 2] <= $signed(icb_rsp_rdata[23:16]) + cfg_rhs_zp[7:0];
+                                tile_buffer[rsp_col_cnt][col_idx + 2] <= $signed(icb_rsp_rdata[23:16]) + cfg_rhs_zp[7:0];
                             if (col_idx + 3 < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx + 3] <= $signed(icb_rsp_rdata[31:24]) + cfg_rhs_zp[7:0];
+                                tile_buffer[rsp_col_cnt][col_idx + 3] <= $signed(icb_rsp_rdata[31:24]) + cfg_rhs_zp[7:0];
                         end else begin
                             // 64位总线：8个s8元素
                             if (col_idx < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx] <= $signed(icb_rsp_rdata[7:0]) + cfg_rhs_zp[7:0];
+                                tile_buffer[rsp_col_cnt][col_idx] <= $signed(icb_rsp_rdata[7:0]) + cfg_rhs_zp[7:0];
                             if (col_idx + 1 < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx + 1] <= $signed(icb_rsp_rdata[15:8]) + cfg_rhs_zp[7:0];
+                                tile_buffer[rsp_col_cnt][col_idx + 1] <= $signed(icb_rsp_rdata[15:8]) + cfg_rhs_zp[7:0];
                             if (col_idx + 2 < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx + 2] <= $signed(icb_rsp_rdata[23:16]) + cfg_rhs_zp[7:0];
+                                tile_buffer[rsp_col_cnt][col_idx + 2] <= $signed(icb_rsp_rdata[23:16]) + cfg_rhs_zp[7:0];
                             if (col_idx + 3 < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx + 3] <= $signed(icb_rsp_rdata[31:24]) + cfg_rhs_zp[7:0];
+                                tile_buffer[rsp_col_cnt][col_idx + 3] <= $signed(icb_rsp_rdata[31:24]) + cfg_rhs_zp[7:0];
                             if (col_idx + 4 < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx + 4] <= $signed(icb_rsp_rdata[39:32]) + cfg_rhs_zp[7:0];
+                                tile_buffer[rsp_col_cnt][col_idx + 4] <= $signed(icb_rsp_rdata[39:32]) + cfg_rhs_zp[7:0];
                             if (col_idx + 5 < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx + 5] <= $signed(icb_rsp_rdata[47:40]) + cfg_rhs_zp[7:0];
+                                tile_buffer[rsp_col_cnt][col_idx + 5] <= $signed(icb_rsp_rdata[47:40]) + cfg_rhs_zp[7:0];
                             if (col_idx + 6 < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx + 6] <= $signed(icb_rsp_rdata[55:48]) + cfg_rhs_zp[7:0];
+                                tile_buffer[rsp_col_cnt][col_idx + 6] <= $signed(icb_rsp_rdata[55:48]) + cfg_rhs_zp[7:0];
                             if (col_idx + 7 < SIZE)
-                                tile_buffer[rsp_row_cnt][col_idx + 7] <= $signed(icb_rsp_rdata[63:56]) + cfg_rhs_zp[7:0];
+                                tile_buffer[rsp_col_cnt][col_idx + 7] <= $signed(icb_rsp_rdata[63:56]) + cfg_rhs_zp[7:0];
                         end
                         
                         // =====================================================
@@ -585,22 +585,22 @@ assign valid_rows = (row_tile_num == 0) ? '0 : (tile_row_idx == row_tile_num - 1
                             // 本行的最后一个 beat 已接收
                             rsp_beat_cnt <= '0;
 
-                            if (rsp_row_cnt == rsp_current_cols - 1) begin
+                            if (rsp_col_cnt == rsp_current_cols - 1) begin
                                 // 当前 tile 的所有行已接收完毕
-                                rsp_row_cnt <= '0;
+                                rsp_col_cnt <= '0;
 
                                 // 先推进 tile 的列索引（列为内层）
-                                if (rsp_tile_col_idx < col_tile_num - 1) begin
-                                    rsp_tile_col_idx <= rsp_tile_col_idx + 1;
+                                if (rsp_tile_row_idx < row_tile_num - 1) begin
+                                    rsp_tile_row_idx <= rsp_tile_row_idx + 1;
                                 end else begin
                                     // 列到末尾，列归0并推进行索引
-                                    rsp_tile_col_idx <= '0;
+                                    rsp_tile_row_idx <= '0;
 
-                                    if (rsp_tile_row_idx < row_tile_num - 1) begin
-                                        rsp_tile_row_idx <= rsp_tile_row_idx + 1;
+                                    if (rsp_tile_col_idx < col_tile_num - 1) begin
+                                        rsp_tile_col_idx <= rsp_tile_col_idx + 1;
                                     end else begin
                                         // 行也到末尾，行归0并推进 loop 计数
-                                        rsp_tile_row_idx <= '0;
+                                        rsp_tile_col_idx <= '0;
                                         if (rsp_loop_col_cnt < loop_col_num - 1) begin
                                             rsp_loop_col_cnt <= rsp_loop_col_cnt + 1;
                                         end else begin
@@ -611,7 +611,7 @@ assign valid_rows = (row_tile_num == 0) ? '0 : (tile_row_idx == row_tile_num - 1
                                 end
                             end else begin
                                 // 当前 tile 未完成，推进到 tile 的下一行
-                                rsp_row_cnt <= rsp_row_cnt + 1;
+                                rsp_col_cnt <= rsp_col_cnt + 1;
                             end
                         end else begin
                             // 继续当前行的下一个 beat
@@ -621,7 +621,7 @@ assign valid_rows = (row_tile_num == 0) ? '0 : (tile_row_idx == row_tile_num - 1
                 end
 
                 default: begin
-                    rsp_row_cnt <= '0;
+                    rsp_col_cnt <= '0;
                     rsp_beat_cnt <= '0;
                     icb_rsp_ready <= '0;
                    // base_col_idx <= '0;
@@ -639,7 +639,7 @@ assign valid_rows = (row_tile_num == 0) ? '0 : (tile_row_idx == row_tile_num - 1
          end else begin
              case (state)
                  LOAD: begin
-                     if (rsp_hs && rsp_beat_cnt == rsp_current_beats - 1 && rsp_row_cnt == rsp_current_cols - 1)
+                     if (rsp_hs && rsp_beat_cnt == rsp_current_beats - 1 && rsp_col_cnt == rsp_current_cols - 1)
                         weight_data_valid <= 1'b1;
                  end
  
@@ -740,7 +740,7 @@ assign valid_rows = (row_tile_num == 0) ? '0 : (tile_row_idx == row_tile_num - 1
                  if (weight_row_valid) begin
                      // 检查是否为有效行和有效列
                      if (send_row_idx < valid_rows && i < valid_cols) begin
-                         weight_out[i] = tile_buffer[send_row_idx][i];
+                         weight_out[i] = tile_buffer[i][send_row_idx];
                      end else begin
                          weight_out[i] = '0;  // 无效行或无效列输出0
                      end

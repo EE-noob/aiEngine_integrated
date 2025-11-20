@@ -29,7 +29,6 @@ module ov5640_icb_top #(
     input  wire [7:0]       cam_data
 );
 
-    assign cam_rst_n = 1'b1; // 摄像头复位信号，常高保持工作状态
     // =========================================
     // 内部信号定义
     // =========================================
@@ -67,6 +66,19 @@ module ov5640_icb_top #(
     wire        cam_init_done;
 
     // =========================================
+    // 摄像头时钟域复位：由 icb_rst_n 异步拉低，在 cam_pclk 下同步释放
+    // =========================================
+    reg [1:0] cam_rst_sync;
+    always @(posedge cam_pclk or negedge icb_rst_n) begin
+        if (!icb_rst_n) begin
+            cam_rst_sync <= 2'b00;
+        end else begin
+            cam_rst_sync <= {cam_rst_sync[0], 1'b1};
+        end
+    end
+    wire cam_rst_n_int = cam_rst_sync[1];
+
+    // =========================================
     // 跨时钟域同步：start_capture (icb_clk -> cam_pclk)
     // 使用电平同步 + 握手协议，避免快到慢时钟域的脉冲丢失
     // =========================================
@@ -100,8 +112,8 @@ module ov5640_icb_top #(
     reg start_req_sync_ff1, start_req_sync_ff2, start_req_sync_ff3;
 
     
-    always @(posedge cam_pclk or negedge icb_rst_n) begin
-        if (!icb_rst_n) begin
+    always @(posedge cam_pclk or negedge cam_rst_n_int) begin
+        if (!cam_rst_n_int) begin
             start_req_sync_ff1 <= 1'b0;
             start_req_sync_ff2 <= 1'b0;
             start_req_sync_ff3 <= 1'b0;
@@ -317,7 +329,7 @@ module ov5640_icb_top #(
     ov5640_y8_top #(
         .WAIT_FRAME(WAIT_FRAME)
     ) u_ov5640_y8_top (
-        .rst_n          (icb_rst_n),
+        .rst_n          (cam_rst_n_int),
         .cam_pclk       (cam_pclk),
         .cam_vsync      (cam_vsync),
         .cam_href       (cam_href),
@@ -329,6 +341,9 @@ module ov5640_icb_top #(
         .frame_done     (frame_done_cam)
     );
 
+
+    // 将本地同步复位导出到顶层端口
+    assign cam_rst_n = cam_rst_n_int;
 
 
 endmodule

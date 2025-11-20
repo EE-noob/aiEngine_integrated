@@ -441,7 +441,8 @@ module vec_requant #(
       prod  = a * mlt;
       prod2 = prod <<< 1;
       adj   = prod2 + 64'sh0000_0000_4000_0000;
-      doubling_high_mult_round = adj >>> 31;
+      // 取高位 32bit 作为返回值，避免 64bit -> 32bit 隐式截断告警
+      doubling_high_mult_round = adj[62:31];
     end
   endfunction
   function automatic signed [31:0] divide_by_power_of_two_round(input signed [31:0] val, input [5:0] rsh);
@@ -475,7 +476,7 @@ module vec_requant #(
         cur_s     = cfg_per_channel ? ch_shift_r[j]      : pt_shift_r;
 
         // s<0 右移 rsh 位；s>0 先左移
-        cur_s_neg = ~cur_s + 1'b1;
+        cur_s_neg <= ~cur_s + 1'b1;
         right_s   = (cur_s < 0) ? cur_s_neg[5:0] : 6'd0;
 
         a_shifted = left_shift_apply(in_vec_s32[j], cur_s);

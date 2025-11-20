@@ -42,16 +42,7 @@ module tb_top;
     logic [31:0]                nice_icb_rsp_rdata;
     logic                       nice_icb_rsp_err;
 
-    // Interfaces
-    dcmi_if dcmi_vif (
-        .icb_clk  (icb_clk),
-        .icb_rst_n(icb_rst_n)
-    );
-
-    cam_if cam_vif (
-        .cam_pclk(cam_pclk)
-    );
-
+    // Interface（仅验证 NICE 接口）
     nice_if nice_vif (
         .nice_clk (nice_clk),
         .nice_rst_n(nice_rst_n)
@@ -87,20 +78,21 @@ module tb_top;
         // video_sys_top signals
         .icb_clk           (icb_clk),
         .icb_rst_n         (icb_rst_n),
-        .dcmi_icb_cmd_valid(dcmi_vif.dcmi_icb_cmd_valid),
-        .dcmi_icb_cmd_ready(dcmi_vif.dcmi_icb_cmd_ready),
-        .dcmi_icb_cmd_addr (dcmi_vif.dcmi_icb_cmd_addr),
-        .dcmi_icb_cmd_read (dcmi_vif.dcmi_icb_cmd_read),
-        .dcmi_icb_cmd_wdata(dcmi_vif.dcmi_icb_cmd_wdata),
-        .dcmi_icb_cmd_wmask(dcmi_vif.dcmi_icb_cmd_wmask),
-        .dcmi_icb_rsp_valid(dcmi_vif.dcmi_icb_rsp_valid),
-        .dcmi_icb_rsp_ready(dcmi_vif.dcmi_icb_rsp_ready),
-        .dcmi_icb_rsp_rdata(dcmi_vif.dcmi_icb_rsp_rdata),
+        // DCMI/摄像头接口在本验证场景中不激活，保持为默认空闲值
+        .dcmi_icb_cmd_valid(1'b0),
+        .dcmi_icb_cmd_ready(),
+        .dcmi_icb_cmd_addr ('0),
+        .dcmi_icb_cmd_read (1'b0),
+        .dcmi_icb_cmd_wdata('0),
+        .dcmi_icb_cmd_wmask('0),
+        .dcmi_icb_rsp_valid(),
+        .dcmi_icb_rsp_ready(1'b1),
+        .dcmi_icb_rsp_rdata(),
         .cam_pclk          (cam_pclk),
-        .cam_rst_n         (cam_vif.cam_rst_n),
-        .cam_vsync         (cam_vif.cam_vsync),
-        .cam_href          (cam_vif.cam_href),
-        .cam_data          (cam_vif.cam_data)
+        .cam_rst_n         (),
+        .cam_vsync         (1'b0),
+        .cam_href          (1'b0),
+        .cam_data          (8'b0)
     );
 
     // Connect nice interface to DUT sideband signals
@@ -163,8 +155,6 @@ module tb_top;
     initial begin
         string testname;
 
-        uvm_config_db#(virtual dcmi_if)::set(uvm_root::get(), "*", "dcmi_vif", dcmi_vif);
-        uvm_config_db#(virtual cam_if )::set(uvm_root::get(), "*", "cam_vif" , cam_vif);
         uvm_config_db#(virtual nice_if)::set(uvm_root::get(), "*", "nice_vif", nice_vif);
 
         if (!$value$plusargs("UVM_TESTNAME=%s", testname)) begin

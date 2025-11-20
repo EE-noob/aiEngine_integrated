@@ -109,6 +109,10 @@ module mma_top #(
         vec_requant_rsp_ready,
         oa_writer_rsp_ready;
 
+    // 对于只读通道（IA Loader 和 Kernel Loader），写通道恒置为 0，避免未驱动告警
+    assign ia_loader_wr  = '{default:'0};
+    assign kernel_loader_wr = '{default:'0};
+
     // ICB 选择信号
     reg         [             2:0] icb_sel;
 
@@ -557,13 +561,14 @@ assign kernel_loader_rsp_ready.rsp_ready = kernel_loader_icb_rsp_ready;
     //wire signed [             7:0] requant_out                            [SIZE];
     //TODO: check big or little endian
     //
+    // 将逐 lane 的 requant_out 数组打包成宽总线供 FIFO 使用
     wire [SIZE*8-1:0] in_vec_s8;
     genvar i;
-        generate
-            for (i = 0; i < SIZE; i = i + 1) begin : gen_unpack_in_vec
-                assign requant_out[i] = in_vec_s8[i*8 +: 8];
-            end
-        endgenerate
+    generate
+        for (i = 0; i < SIZE; i = i + 1) begin : gen_pack_in_vec
+            assign in_vec_s8[i*8 +: 8] = requant_out[i];
+        end
+    endgenerate
 
     // FIFO
     vec_s8_to_fifo #(

@@ -152,6 +152,7 @@ module icb_mux_5to1 (
     assign s1_cmd_ready.ready = (sel == 3'd1) ? m_cmd_rsp.ready : 1'b0;
     assign s2_cmd_ready.ready = (sel == 3'd2) ? m_cmd_rsp.ready : 1'b0;
     assign s3_cmd_ready.ready = (sel == 3'd3) ? m_cmd_rsp.ready : 1'b0;
+    assign s4_cmd_ready.ready = (sel == 3'd4) ? m_cmd_rsp.ready : 1'b0;
 
     // Master wdata ready is driven by the selected slave's w_ready
     // assign m_wr_rsp.w_ready = (sel == 3'd0) ? s0_wr_ready.w_ready :
@@ -163,6 +164,7 @@ module icb_mux_5to1 (
     assign s1_wr_ready.w_ready = (sel == 3'd1) ? m_wr_rsp.w_ready : 1'b0;
     assign s2_wr_ready.w_ready = (sel == 3'd2) ? m_wr_rsp.w_ready : 1'b0;
     assign s3_wr_ready.w_ready = (sel == 3'd3) ? m_wr_rsp.w_ready : 1'b0;
+    assign s4_wr_ready.w_ready = (sel == 3'd4) ? m_wr_rsp.w_ready : 1'b0;
 
 
     // Responses: only the selected slave's response is forwarded to master
@@ -175,6 +177,7 @@ module icb_mux_5to1 (
     assign s1_rsp.rsp_valid = (sel == 3'd1) ? m_rsp.rsp_valid : 1'b0;
     assign s2_rsp.rsp_valid = (sel == 3'd2) ? m_rsp.rsp_valid : 1'b0;
     assign s3_rsp.rsp_valid = (sel == 3'd3) ? m_rsp.rsp_valid : 1'b0;
+    assign s4_rsp.rsp_valid = (sel == 3'd4) ? m_rsp.rsp_valid : 1'b0;
 
     // assign m_rsp.rsp_rdata = (sel == 3'd0) ? s0_rsp.rsp_rdata :
     //                          (sel == 3'd1) ? s1_rsp.rsp_rdata :
@@ -185,6 +188,7 @@ module icb_mux_5to1 (
     assign s1_rsp.rsp_rdata = (sel == 3'd1) ? m_rsp.rsp_rdata : '0;
     assign s2_rsp.rsp_rdata = (sel == 3'd2) ? m_rsp.rsp_rdata : '0;
     assign s3_rsp.rsp_rdata = (sel == 3'd3) ? m_rsp.rsp_rdata : '0;
+    assign s4_rsp.rsp_rdata = (sel == 3'd4) ? m_rsp.rsp_rdata : '0;
 
     // assign m_rsp.rsp_err   = (sel == 3'd0) ? s0_rsp.rsp_err :
     //                          (sel == 3'd1) ? s1_rsp.rsp_err :
@@ -195,6 +199,7 @@ module icb_mux_5to1 (
     assign s1_rsp.rsp_err = (sel == 3'd1) ? m_rsp.rsp_err : 1'b0;
     assign s2_rsp.rsp_err = (sel == 3'd2) ? m_rsp.rsp_err : 1'b0;
     assign s3_rsp.rsp_err = (sel == 3'd3) ? m_rsp.rsp_err : 1'b0;
+    assign s4_rsp.rsp_err = (sel == 3'd4) ? m_rsp.rsp_err : 1'b0;
 
 
     // Forward master's response-ready to the selected slave, others deassert ready

@@ -5,16 +5,12 @@ package ai_test_pkg;
 
     import uvm_pkg::*;
     `include "uvm_macros.svh"
-    import ai_dcmi_pkg::*;
-    import ai_cam_pkg::*;
     import ai_nice_pkg::*;
     import ai_env_pkg::*;
 
-    // Smoke sequences for each interface/agent
-    `include "sequence/ai_smoke_dcmi_seq.sv"
-    `include "sequence/ai_smoke_cam_seq.sv"
+    // Smoke sequence，用于驱动 NICE UVC
     `include "sequence/ai_smoke_nice_seq.sv"
-    // Top-level smoke sequence that coordinates all UVCs
+    // Top-level smoke sequence that coordinates all UVCs（此处仅 NICE）
     `include "sequence/ai_smoke_seq.sv"
 
     class ai_base_test extends uvm_test;
@@ -46,12 +42,10 @@ package ai_test_pkg;
             `uvm_info(get_type_name(), "ai_smoke_test main_phase start", UVM_MEDIUM)
 
             smoke_seq = ai_smoke_seq::type_id::create("smoke_seq");
-            smoke_seq.dcmi_seqr = env.dcmi_agent.seqr;
-            smoke_seq.cam_seqr  = env.cam_agent .seqr;
             smoke_seq.nice_seqr = env.nice_agent.seqr;
 
-            // Run the top-level smoke sequence; use dcmi_agent sequencer as parent
-            smoke_seq.start(env.dcmi_agent.seqr);
+            // Run the top-level smoke sequence; parent 随便选一个 sequencer
+            smoke_seq.start(env.nice_agent.seqr);
 
             `uvm_info(get_type_name(), "ai_smoke_test main_phase end, dropping objection", UVM_MEDIUM)
             phase.drop_objection(this);
