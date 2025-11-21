@@ -42,6 +42,12 @@ package ai_test_pkg;
             `uvm_info(get_type_name(), "ai_smoke_test main_phase start", UVM_MEDIUM)
 
             smoke_seq = ai_smoke_seq::type_id::create("smoke_seq");
+            
+            // Ensure nice_agent is valid before assignment (Force Recompile)
+            if (env.nice_agent == null) begin
+                `uvm_fatal("TEST", "env.nice_agent is null")
+            end
+
             smoke_seq.nice_seqr = env.nice_agent.seqr;
 
             // Run the top-level smoke sequence; parent 随便选一个 sequencer

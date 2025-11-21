@@ -13,19 +13,38 @@ class ai_smoke_nice_seq extends uvm_sequence#(ai_nice_seq_item);
     virtual task body();
         ai_nice_seq_item tr;
 
-        `uvm_info(get_type_name(), "Starting ai_smoke_nice_seq", UVM_MEDIUM)
+        `uvm_info(get_type_name(), "Starting smoke nice sequence...", UVM_MEDIUM)
 
-        repeat (4) begin
-            tr = ai_nice_seq_item::type_id::create("nice_tr", , get_full_name());
-            assert(tr.randomize());
-            `uvm_info(get_type_name(),
-                      $sformatf("Driving nice transaction inst=0x%08h", tr.inst),
-                      UVM_MEDIUM)
-            start_item(tr);
-            finish_item(tr);
-        end
+        // 1. CSR Write Test
+        `uvm_do_with(tr, {
+            cmd_kind == NICE_WR_CSR;
+            csr_addr == 32'h7C6; // MULT_LHS_ROWS
+            csr_data == 32'd16;
+        })
 
-        `uvm_info(get_type_name(), "Completed ai_smoke_nice_seq", UVM_MEDIUM)
+        // 2. CSR Read Test
+        `uvm_do_with(tr, {
+            cmd_kind == NICE_RD_CSR;
+            csr_addr == 32'h7C6;
+            csr_data == 32'd16; // Expected value
+        })
+
+        // 3. Auto Matrix Multiplication Test
+        `uvm_do_with(tr, {
+            cmd_kind == NICE_AUTO;
+            matrix_m == 16;
+            matrix_k == 16;
+            matrix_n == 16;
+            random_matrix_data == 1;
+            // Default config
+            per_ch == 0;
+            a_w == 1;
+            b_w == 1;
+            bias_w == 2;
+            out_w == 1;
+        })
+
+        `uvm_info(get_type_name(), "Smoke nice sequence finished - Recompile Triggered", UVM_MEDIUM)
     endtask
 endclass
 

@@ -1,28 +1,45 @@
-# vsim -c -wlf vsim.wlf work.tb_top "+UVM_VERBOSITY=UVM_MEDIUM" -do "log -r /*; run -all; quit" 
-# Start time: 20:12:05 on Nov 20,2025
-# ** Note: (vsim-8009) Loading existing optimized design _opt
-# //  ModelSim SE-64 2019.2 Apr 17 2019
+# vsim -c -wlf vsim.wlf work.tb_top "+UVM_VERBOSITY=UVM_MEDIUM" -do "log -r /*; run -all; coverage save coverage.ucdb; quit" 
+# Start time: 23:03:49 on Nov 21,2025
+# ** Note: (vsim-3812) Design is being optimized...
+# 
+# ** Warning: ../rtl/nice_coprocessor/MMA/kernel_loader.sv(568): (vopt-2697) MSB of part-select into 'icb_rsp_rdata' is out of bounds.
+# 
+# ** Warning: ../rtl/nice_coprocessor/MMA/kernel_loader.sv(568): (vopt-2697) LSB of part-select into 'icb_rsp_rdata' is out of bounds.
+# 
+# ** Warning: ../rtl/nice_coprocessor/MMA/kernel_loader.sv(570): (vopt-2697) MSB of part-select into 'icb_rsp_rdata' is out of bounds.
+# 
+# ** Warning: ../rtl/nice_coprocessor/MMA/kernel_loader.sv(570): (vopt-2697) LSB of part-select into 'icb_rsp_rdata' is out of bounds.
+# 
+# ** Warning: ../rtl/nice_coprocessor/MMA/kernel_loader.sv(572): (vopt-2697) MSB of part-select into 'icb_rsp_rdata' is out of bounds.
+# 
+# ** Warning: ../rtl/nice_coprocessor/MMA/kernel_loader.sv(572): (vopt-2697) LSB of part-select into 'icb_rsp_rdata' is out of bounds.
+# 
+# ** Warning: ../rtl/nice_coprocessor/MMA/kernel_loader.sv(574): (vopt-2697) MSB of part-select into 'icb_rsp_rdata' is out of bounds.
+# 
+# ** Warning: ../rtl/nice_coprocessor/MMA/kernel_loader.sv(574): (vopt-2697) LSB of part-select into 'icb_rsp_rdata' is out of bounds.
+# 
+# //  ModelSim SE-64 10.4 Dec  3 2014 
 # //
-# //  Copyright 1991-2019 Mentor Graphics Corporation
+# //  Copyright 1991-2014 Mentor Graphics Corporation
 # //  All Rights Reserved.
 # //
-# //  ModelSim SE-64 and its associated documentation contain trade
-# //  secrets and commercial or financial information that are the property of
-# //  Mentor Graphics Corporation and are privileged, confidential,
-# //  and exempt from disclosure under the Freedom of Information Act,
-# //  5 U.S.C. Section 552. Furthermore, this information
-# //  is prohibited from disclosure under the Trade Secrets Act,
-# //  18 U.S.C. Section 1905.
+# //  THIS WORK CONTAINS TRADE SECRET AND PROPRIETARY INFORMATION
+# //  WHICH IS THE PROPERTY OF MENTOR GRAPHICS CORPORATION OR ITS
+# //  LICENSORS AND IS SUBJECT TO LICENSE TERMS.
+# //  THIS DOCUMENT CONTAINS TRADE SECRETS AND COMMERCIAL OR FINANCIAL
+# //  INFORMATION THAT ARE PRIVILEGED, CONFIDENTIAL, AND EXEMPT FROM
+# //  DISCLOSURE UNDER THE FREEDOM OF INFORMATION ACT, 5 U.S.C. SECTION 552.
+# //  FURTHERMORE, THIS INFORMATION IS PROHIBITED FROM DISCLOSURE UNDER
+# //  THE TRADE SECRETS ACT, 18 U.S.C. SECTION 1905.
 # //
 # Loading sv_std.std
-# Loading work.nice_if(fast)
 # Loading mtiUvm.uvm_pkg
 # Loading work.ai_nice_pkg(fast)
 # Loading work.ai_env_pkg(fast)
 # Loading work.ai_test_pkg(fast)
-# Loading work.accumulator_array_sv_unit(fast)
-# Loading mtiUvm.questa_uvm_pkg(fast)
+# Loading work.nice_if_sv_unit(fast)
 # Loading work.tb_top(fast)
+# Loading work.top_ai_engine(fast)
 # Loading work.ia_loader(fast)
 # Loading work.kernel_loader(fast)
 # Loading work.bias_loader(fast)
@@ -31,7 +48,9 @@
 # Loading work.ws_systolic_array(fast)
 # Loading work.accumulator_array(fast)
 # Loading work.vec_requant(fast)
-# Loading D:/modeltech64_2019.2/uvm-1.1d\win64\uvm_dpi.dll
+# Loading mtiUvm.questa_uvm_pkg(fast)
+# Loading work.nice_if(fast)
+# Loading E:/modelsim/uvm-1.1d\win64\uvm_dpi.dll
 # log -r /*
 #  run -all
 # ----------------------------------------------------------------
@@ -54,58 +73,37 @@
 # 
 #       (Specify +UVM_NO_RELNOTES to turn off this notice)
 # 
-# UVM_INFO verilog_src/questa_uvm_pkg-1.2/src/questa_uvm_pkg.sv(277) @ 0: reporter [Questa UVM] QUESTA_UVM-1.2.3
-# UVM_INFO verilog_src/questa_uvm_pkg-1.2/src/questa_uvm_pkg.sv(278) @ 0: reporter [Questa UVM]  questa_uvm::init(+struct)
+# UVM_INFO verilog_src/questa_uvm_pkg-1.2/src/questa_uvm_pkg.sv(215) @ 0: reporter [Questa UVM] QUESTA_UVM-1.2.2
+# UVM_INFO verilog_src/questa_uvm_pkg-1.2/src/questa_uvm_pkg.sv(217) @ 0: reporter [Questa UVM]  questa_uvm::init(+struct)
 # UVM_INFO @ 0: reporter [RNTST] Running test ai_smoke_test...
 # UVM_INFO @ 0: reporter [UVMTOP] UVM testbench topology:
 # --------------------------------------------------------------
 # Name                       Type                    Size  Value
 # --------------------------------------------------------------
-# uvm_test_top               ai_smoke_test           -     @471 
-#   env                      ai_env                  -     @478 
-#     nice_agent             ai_nice_agent           -     @485 
-#       cov                  ai_nice_coverage        -     @632 
-#         analysis_imp       uvm_analysis_imp        -     @639 
-#       drv                  ai_nice_driver          -     @602 
-#         rsp_port           uvm_analysis_port       -     @617 
-#         seq_item_port      uvm_seq_item_pull_port  -     @609 
-#       mon                  ai_nice_monitor         -     @625 
-#         ap                 uvm_analysis_port       -     @653 
-#       seqr                 ai_nice_sequencer       -     @493 
-#         rsp_export         uvm_analysis_export     -     @500 
-#         seq_item_export    uvm_seq_item_pull_imp   -     @594 
+# uvm_test_top               ai_smoke_test           -     @462 
+#   env                      ai_env                  -     @470 
+#     nice_agent             ai_nice_agent           -     @478 
+#       drv                  ai_nice_driver          -     @610 
+#         rsp_port           uvm_analysis_port       -     @627 
+#         seq_item_port      uvm_seq_item_pull_port  -     @618 
+#       seqr                 ai_nice_sequencer       -     @487 
+#         rsp_export         uvm_analysis_export     -     @495 
+#         seq_item_export    uvm_seq_item_pull_imp   -     @601 
 #         arbitration_queue  array                   0     -    
 #         lock_queue         array                   0     -    
 #         num_last_reqs      integral                32    'd1  
 #         num_last_rsps      integral                32    'd1  
 # --------------------------------------------------------------
 # 
-# UVM_INFO ./test/ai_test_pkg.sv(42) @ 0: uvm_test_top [ai_smoke_test] ai_smoke_test main_phase start
-# UVM_INFO ./test/sequence/ai_smoke_seq.sv(24) @ 0: uvm_test_top.env.nice_agent.seqr@@smoke_seq [ai_smoke_seq] ai_smoke_seq body start
-# UVM_INFO ./test/sequence/ai_smoke_nice_seq.sv(16) @ 0: uvm_test_top.env.nice_agent.seqr@@nice_seq [ai_smoke_nice_seq] Starting ai_smoke_nice_seq
-# UVM_INFO ./test/sequence/ai_smoke_nice_seq.sv(21) @ 0: uvm_test_top.env.nice_agent.seqr@@nice_seq [ai_smoke_nice_seq] Driving nice transaction inst=0x022bc7a9
-# UVM_INFO ./test/sequence/ai_smoke_nice_seq.sv(21) @ 60275000: uvm_test_top.env.nice_agent.seqr@@nice_seq [ai_smoke_nice_seq] Driving nice transaction inst=0xc752a869
-# UVM_INFO ./test/sequence/ai_smoke_nice_seq.sv(21) @ 120305000: uvm_test_top.env.nice_agent.seqr@@nice_seq [ai_smoke_nice_seq] Driving nice transaction inst=0xbced49fd
-# UVM_INFO ./test/sequence/ai_smoke_nice_seq.sv(21) @ 180335000: uvm_test_top.env.nice_agent.seqr@@nice_seq [ai_smoke_nice_seq] Driving nice transaction inst=0x717d0da2
-# UVM_INFO ./test/sequence/ai_smoke_nice_seq.sv(28) @ 240365000: uvm_test_top.env.nice_agent.seqr@@nice_seq [ai_smoke_nice_seq] Completed ai_smoke_nice_seq
-# UVM_INFO ./test/sequence/ai_smoke_seq.sv(30) @ 240365000: uvm_test_top.env.nice_agent.seqr@@smoke_seq [ai_smoke_seq] ai_smoke_seq body end
-# UVM_INFO ./test/ai_test_pkg.sv(50) @ 240365000: uvm_test_top [ai_smoke_test] ai_smoke_test main_phase end, dropping objection
-# 
-# --- UVM Report Summary ---
-# 
-# ** Report counts by severity
-# UVM_INFO :   14
-# UVM_WARNING :    0
-# UVM_ERROR :    0
-# UVM_FATAL :    0
-# ** Report counts by id
-# [Questa UVM]     2
-# [RNTST]     1
-# [UVMTOP]     1
-# [ai_smoke_nice_seq]     6
-# [ai_smoke_seq]     2
-# [ai_smoke_test]     2
-# ** Note: $finish    : D:/modeltech64_2019.2/win64/../verilog_src/uvm-1.1d/src/base/uvm_root.svh(430)
-#    Time: 240365 ns  Iteration: 110  Instance: /tb_top
-# End time: 20:12:09 on Nov 20,2025, Elapsed time: 0:00:04
-# Errors: 0, Warnings: 0
+# UVM_INFO ./uvc/nice/ai_nice_driver.sv(51) @ 0: uvm_test_top.env.nice_agent.drv [ai_nice_driver] Run phase: Starting driver loop
+# UVM_INFO ./uvc/nice/ai_nice_driver.sv(37) @ 0: uvm_test_top.env.nice_agent.drv [ai_nice_driver] Reset phase: Initializing interface signals
+# UVM_INFO ./test/ai_test_pkg.sv(42) @ 125000: uvm_test_top [ai_smoke_test] ai_smoke_test main_phase start
+# UVM_INFO ./test/sequence/ai_smoke_seq.sv(24) @ 125000: uvm_test_top.env.nice_agent.seqr@@smoke_seq [ai_smoke_seq] ai_smoke_seq body start
+# UVM_INFO ./test/sequence/ai_smoke_nice_seq.sv(16) @ 125000: uvm_test_top.env.nice_agent.seqr@@nice_seq [ai_smoke_nice_seq] Starting smoke nice sequence...
+# UVM_INFO ./uvc/nice/ai_nice_driver.sv(131) @ 125000: uvm_test_top.env.nice_agent.drv [DRV_CSR] CSR WR: Addr=7c6 Data=00000010
+# Break key hit
+# Simulation stop requested.
+#  coverage save coverage.ucdb
+#  quit
+# End time: 23:03:57 on Nov 21,2025, Elapsed time: 0:00:08
+# Errors: 0, Warnings: 8

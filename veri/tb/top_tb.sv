@@ -44,7 +44,7 @@ module tb_top;
 
     // Interface（仅验证 NICE 接口）
     nice_if nice_vif (
-        .nice_clk (nice_clk),
+        .nice_clk  (nice_clk),
         .nice_rst_n(nice_rst_n)
     );
 
@@ -53,27 +53,27 @@ module tb_top;
         // e203_subsys_nice_core signals
         .nice_clk          (nice_clk),
         .nice_rst_n        (nice_rst_n),
-        .nice_active       (nice_active),
-        .nice_mem_holdup   (nice_mem_holdup),
-        .nice_req_valid    (nice_req_valid),
-        .nice_req_ready    (nice_req_ready),
-        .nice_req_inst     (nice_req_inst),
-        .nice_req_rs1      (nice_req_rs1),
-        .nice_req_rs2      (nice_req_rs2),
-        .nice_rsp_valid    (nice_rsp_valid),
-        .nice_rsp_ready    (nice_rsp_ready),
-        .nice_rsp_rdat     (nice_rsp_rdat),
-        .nice_rsp_err      (nice_rsp_err),
-        .nice_icb_cmd_valid(nice_icb_cmd_valid),
-        .nice_icb_cmd_ready(nice_icb_cmd_ready),
-        .nice_icb_cmd_addr (nice_icb_cmd_addr),
-        .nice_icb_cmd_read (nice_icb_cmd_read),
-        .nice_icb_cmd_wdata(nice_icb_cmd_wdata),
-        .nice_icb_cmd_size (nice_icb_cmd_size),
-        .nice_icb_rsp_valid(nice_icb_rsp_valid),
-        .nice_icb_rsp_ready(nice_icb_rsp_ready),
-        .nice_icb_rsp_rdata(nice_icb_rsp_rdata),
-        .nice_icb_rsp_err  (nice_icb_rsp_err),
+        .nice_active       (nice_vif.nice_active),
+        .nice_mem_holdup   (nice_vif.nice_mem_holdup),
+        .nice_req_valid    (nice_vif.nice_req_valid),
+        .nice_req_ready    (nice_vif.nice_req_ready),
+        .nice_req_inst     (nice_vif.nice_req_inst),
+        .nice_req_rs1      (nice_vif.nice_req_rs1),
+        .nice_req_rs2      (nice_vif.nice_req_rs2),
+        .nice_rsp_valid    (nice_vif.nice_rsp_valid),
+        .nice_rsp_ready    (nice_vif.nice_rsp_ready),
+        .nice_rsp_rdat     (nice_vif.nice_rsp_rdat),
+        .nice_rsp_err      (nice_vif.nice_rsp_err),
+        .nice_icb_cmd_valid(nice_vif.nice_icb_cmd_valid),
+        .nice_icb_cmd_ready(nice_vif.nice_icb_cmd_ready),
+        .nice_icb_cmd_addr (nice_vif.nice_icb_cmd_addr),
+        .nice_icb_cmd_read (nice_vif.nice_icb_cmd_read),
+        .nice_icb_cmd_wdata(nice_vif.nice_icb_cmd_wdata),
+        .nice_icb_cmd_size (nice_vif.nice_icb_cmd_size),
+        .nice_icb_rsp_valid(nice_vif.nice_icb_rsp_valid),
+        .nice_icb_rsp_ready(nice_vif.nice_icb_rsp_ready),
+        .nice_icb_rsp_rdata(nice_vif.nice_icb_rsp_rdata),
+        .nice_icb_rsp_err  (nice_vif.nice_icb_rsp_err),
 
         // video_sys_top signals
         .icb_clk           (icb_clk),
@@ -95,39 +95,12 @@ module tb_top;
         .cam_data          (8'b0)
     );
 
-    // Connect nice interface to DUT sideband signals
-    assign nice_vif.nice_active     = nice_active;
-    assign nice_vif.nice_mem_holdup = nice_mem_holdup;
-
-    assign nice_req_valid = nice_vif.nice_req_valid;
-    assign nice_req_inst  = nice_vif.nice_req_inst;
-    assign nice_req_rs1   = nice_vif.nice_req_rs1;
-    assign nice_req_rs2   = nice_vif.nice_req_rs2;
-    assign nice_vif.nice_req_ready  = nice_req_ready;
-
-    assign nice_rsp_ready          = nice_vif.nice_rsp_ready;
-    assign nice_vif.nice_rsp_valid = nice_rsp_valid;
-    assign nice_vif.nice_rsp_rdat  = nice_rsp_rdat;
-    assign nice_vif.nice_rsp_err   = nice_rsp_err;
-
-    // Monitor ICB between nice-core and memory
-    assign nice_vif.nice_icb_cmd_valid = nice_icb_cmd_valid;
-    assign nice_vif.nice_icb_cmd_ready = nice_icb_cmd_ready;
-    assign nice_vif.nice_icb_cmd_addr  = nice_icb_cmd_addr;
-    assign nice_vif.nice_icb_cmd_read  = nice_icb_cmd_read;
-    assign nice_vif.nice_icb_cmd_wdata = nice_icb_cmd_wdata;
-    assign nice_vif.nice_icb_cmd_size  = nice_icb_cmd_size;
-    assign nice_vif.nice_icb_rsp_valid = nice_icb_rsp_valid;
-    assign nice_vif.nice_icb_rsp_ready = nice_icb_rsp_ready;
-    assign nice_vif.nice_icb_rsp_rdata = nice_icb_rsp_rdata;
-    assign nice_vif.nice_icb_rsp_err   = nice_icb_rsp_err;
-
     // Simple stub for memory side of nice ICB
     initial begin
-        nice_icb_cmd_ready = 1'b1;
-        nice_icb_rsp_valid = 1'b0;
-        nice_icb_rsp_rdata = '0;
-        nice_icb_rsp_err   = 1'b0;
+        nice_vif.nice_icb_cmd_ready = 1'b1;
+        nice_vif.nice_icb_rsp_valid = 1'b0;
+        nice_vif.nice_icb_rsp_rdata = '0;
+        nice_vif.nice_icb_rsp_err   = 1'b0;
     end
 
     // Clock generation
@@ -155,7 +128,7 @@ module tb_top;
     initial begin
         string testname;
 
-        uvm_config_db#(virtual nice_if)::set(uvm_root::get(), "*", "nice_vif", nice_vif);
+        uvm_config_db#(virtual nice_if)::set(uvm_root::get(), "*", "vif", nice_vif);
 
         if (!$value$plusargs("UVM_TESTNAME=%s", testname)) begin
             testname = "ai_smoke_test";
@@ -167,3 +140,4 @@ module tb_top;
 endmodule : tb_top
 
 `endif
+   

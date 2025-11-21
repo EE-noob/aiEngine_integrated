@@ -43,11 +43,11 @@ com:
 	@echo "=== VCS compile (top_ai_engine) ==="
 	cd $(VERI_DIR) && $(VCS) $(VCS_FLAGS) -f $(FLIST) -o simv
 
-sim: com
+sim: clean com
 	@echo "=== Run VCS simulation ==="
 	cd $(VERI_DIR) && ./simv $(RUN_ARGS) +vcs+dumpvars+vcs.vpd
 
-waves:
+wave:
 	@echo "=== Open VCS waveform viewer (DVE) ==="
 	cd $(VERI_DIR) && dve -vpd vcs.vpd &
 
@@ -70,16 +70,27 @@ com:
 
 sim: com
 	@echo "=== Run ModelSim/Questa simulation ==="
-	cd $(VERI_DIR) && $(VSIM) -c -wlf vsim.wlf work.$(TOP_MODULE) $(RUN_ARGS) -do "log -r /*; run -all; quit"
+	cd $(VERI_DIR) && $(VSIM) -c -wlf vsim.wlf work.$(TOP_MODULE) $(RUN_ARGS) \
+		-do "log -r /*; run -all; coverage save coverage.ucdb; quit"
 
 clean:
 	@echo "=== Clean ModelSim/Questa outputs ==="
-	cd $(VERI_DIR) && rm -rf work transcript vsim.wlf modelsim.ini sim/ai_engine.wlf
+	cd $(VERI_DIR) && rm -rf work transcript vsim.wlf modelsim.ini sim/ai_engine.wlf \
+		coverage.ucdb coverage_report.txt
 
 # Open saved waveform (GUI)
 waves:
 	@echo "=== Open ModelSim waveform viewer ==="
 	cd $(VERI_DIR) && $(VSIM) -view vsim.wlf
+
+# Open coverage report (if coverage database exists)
+cov:
+	@echo "=== Open ModelSim coverage viewer ==="
+	@if [ -f $(VERI_DIR)/coverage.ucdb ]; then \
+		cd $(VERI_DIR) && $(VSIM) -viewcov coverage.ucdb; \
+	else \
+		echo "Coverage database not found. Run 'make sim' first."; \
+	fi
 
 ###############################################################################
 # Unknown SIM_TOOL

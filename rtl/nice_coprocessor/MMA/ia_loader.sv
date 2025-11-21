@@ -84,8 +84,8 @@
  *  - 在跳过访存的场景下，需保证 ia_data_valid、ia_sending_done 时序仍然正确，避免上层误判数据准备或发送完成。
  */
 
- `include "e203_defines.v"
- `include "icb_types.svh"
+ `include "../include/define.svh"
+ `include "../include/icb_types.svh"
 // //TODO: 零点偏移没有验证  ia_is_init_data,
 //  ia_calc_done,  也需要再看看 
  // 输入激活加载控制器，双缓冲区交替向脉动阵列加载输入数据
@@ -617,8 +617,8 @@ assign icb_cmd_len=read_burst_length-1;
                                     tile_buffer[rsp_row_cnt][col_idx + 2] <= $signed({{8{icb_rsp_rdata[23]}}, icb_rsp_rdata[23:16]}) + cfg_lhs_zp[15:0];
                                 if (col_idx + 3 < SIZE)
                                     tile_buffer[rsp_row_cnt][col_idx + 3] <= $signed({{8{icb_rsp_rdata[31]}}, icb_rsp_rdata[31:24]}) + cfg_lhs_zp[15:0];
-                            end
-                            //  else begin
+                            end 
+                            // else begin
                             //     // 64位总线：每个beat包含8个s8元素
                             //     if (col_idx < SIZE)
                             //         tile_buffer[rsp_row_cnt][col_idx] <= $signed({{8{icb_rsp_rdata[7]}}, icb_rsp_rdata[7:0]}) + cfg_lhs_zp[15:0];
@@ -791,7 +791,8 @@ assign icb_cmd_len=read_burst_length-1;
      //assign ia_row_valid = (state == SEND) && (send_row_idx > 0 || send_ia_trigger);
      //assign ia_row_valid = (state == SEND) && (send_row_idx > 0);// || send_ia_trigger);
      assign ia_is_init_data = is_first_tile && (state == SEND);
-     assign ia_calc_done = (is_last_col_tile && is_last_loop) && (state == SEND);
+     assign ia_calc_done = (is_last_col_tile && is_last_loop) && (state == SEND)
+                            &&ia_row_valid;
  
      generate
          for (genvar i = 0; i < SIZE; i++) begin : gen_ia_out
