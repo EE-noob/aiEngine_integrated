@@ -1,107 +1,16 @@
-# vsim -c -wlf vsim.wlf work.tb_top "+UVM_VERBOSITY=UVM_MEDIUM" -do "log -r /*; run -all; quit" 
-# Start time: 17:24:27 on Nov 22,2025
-# ** Note: (vsim-3813) Design is being optimized due to module recompilation...
-# 
-# ** Warning: ../rtl/nice_coprocessor/MMA/kernel_loader.sv(580): (vopt-2697) MSB of part-select into 'icb_rsp_rdata' is out of bounds.
-# 
-# ** Warning: ../rtl/nice_coprocessor/MMA/kernel_loader.sv(580): (vopt-2697) LSB of part-select into 'icb_rsp_rdata' is out of bounds.
-# 
-# ** Warning: ../rtl/nice_coprocessor/MMA/kernel_loader.sv(584): (vopt-2697) MSB of part-select into 'icb_rsp_rdata' is out of bounds.
-# 
-# ** Warning: ../rtl/nice_coprocessor/MMA/kernel_loader.sv(584): (vopt-2697) LSB of part-select into 'icb_rsp_rdata' is out of bounds.
-# 
-# ** Warning: ../rtl/nice_coprocessor/MMA/kernel_loader.sv(588): (vopt-2697) MSB of part-select into 'icb_rsp_rdata' is out of bounds.
-# 
-# ** Warning: ../rtl/nice_coprocessor/MMA/kernel_loader.sv(588): (vopt-2697) LSB of part-select into 'icb_rsp_rdata' is out of bounds.
-# 
-# ** Warning: ../rtl/nice_coprocessor/MMA/kernel_loader.sv(592): (vopt-2697) MSB of part-select into 'icb_rsp_rdata' is out of bounds.
-# 
-# ** Warning: ../rtl/nice_coprocessor/MMA/kernel_loader.sv(592): (vopt-2697) LSB of part-select into 'icb_rsp_rdata' is out of bounds.
-# 
 # //  ModelSim SE-64 10.4 Dec  3 2014 
 # //
-# //  Copyright 1991-2014 Mentor Graphics Cdataset reopen vsim.wlf
-# unknown or ambiguous subcommand "reopen": must be alias, autorefresh, clear, close, configure, current, dump, exists, export, filelist, flush, info, list, open, refresh, reload, rename, restart, save, or snapshot
-
-dataset reload
-# vsim:/tb_top/nice_vif/drv_cb
-
-# dfAddDataflowFromWave: Could not open the database because the required debug information has not been generated.
-# Please refer to the documentation for additional details.
-IS INFORMATION IS PROHIBITED FROM DISCLOSURE UNDER
+# //  Copyright 1991-2014 Mentor Graphics Corporation
+# //  All Rights Reserved.
+# //
+# //  THIS WORK CONTAINS TRADE SECRET AND PROPRIETARY INFORMATION
+# //  WHICH IS THE PROPERTY OF MENTOR GRAPHICS CORPORATION OR ITS
+# //  LICENSORS AND IS SUBJECT TO LICENSE TERMS.
+# //  THIS DOCUMENT CONTAINS TRADE SECRETS AND COMMERCIAL OR FINANCIAL
+# //  INFORMATION THAT ARE PRIVILEGED, CONFIDENTIAL, AND EXEMPT FROM
+# //  DISCLOSURE UNDER THE FREEDOM OF INFORMATION ACT, 5 U.S.C. SECTION 552.
+# //  FURTHERMORE, THIS INFORMATION IS PROHIBITED FROM DISCLOSURE UNDER
 # //  THE TRADE SECRETS ACT, 18 U.S.C. SECTION 1905.
 # //
-# Loading sv_std.std
-# Loading mtiUvm.uvm_pkg
-# Loading work.ai_nice_pkg(fast)
-# Loading work.ai_env_pkg(fast)
-# Loading work.ai_test_pkg(fast)
-# Loading work.nice_if_sv_unit(fast)
-# Loading work.tb_top(fast)
-# Loading work.top_ai_engine(fast)
-# Loading work.ia_loader(fast)
-# Loading work.kernel_loader(fast)
-# Loading work.bias_loader(fast)
-# Loading work.compute_core(fast)
-# Loading work.data_setup(fast)
-# Loading work.ws_systolic_array(fast)
-# Loading work.accumulator_array(fast)
-# Loading work.vec_requant(fast)
-# Loading mtiUvm.questa_uvm_pkg(fast)
-# Loading work.nice_if(fast)
-# Loading E:/modelsim/uvm-1.1d\win64\uvm_dpi.dll
-# log -r /*
-#  run -all
-# ----------------------------------------------------------------
-# UVM-1.1d
-# (C) 2007-2013 Mentor Graphics Corporation
-# (C) 2007-2013 Cadence Design Systems, Inc.
-# (C) 2006-2013 Synopsys, Inc.
-# (C) 2011-2013 Cypress Semiconductor Corp.
-# ----------------------------------------------------------------
-# 
-#   ***********       IMPORTANT RELEASE NOTES         ************
-# 
-#   You are using a version of the UVM library that has been compiled
-#   with `UVM_NO_DEPRECATED undefined.
-#   See http://www.eda.org/svdb/view.php?id=3313 for more details.
-# 
-#   You are using a version of the UVM library that has been compiled
-#   with `UVM_OBJECT_MUST_HAVE_CONSTRUCTOR undefined.
-#   See http://www.eda.org/svdb/view.php?id=3770 for more details.
-# 
-#       (Specify +UVM_NO_RELNOTES to turn off this notice)
-# 
-# UVM_INFO verilog_src/questa_uvm_pkg-1.2/src/questa_uvm_pkg.sv(215) @ 0: reporter [Questa UVM] QUESTA_UVM-1.2.2
-# UVM_INFO verilog_src/questa_uvm_pkg-1.2/src/questa_uvm_pkg.sv(217) @ 0: reporter [Questa UVM]  questa_uvm::init(+struct)
-# UVM_INFO @ 0: reporter [RNTST] Running test ai_smoke_test...
-# UVM_INFO @ 0: reporter [UVMTOP] UVM testbench topology:
-# --------------------------------------------------------------
-# Name                       Type                    Size  Value
-# --------------------------------------------------------------
-# uvm_test_top               ai_smoke_test           -     @462 
-#   env                      ai_env                  -     @470 
-#     nice_agent             ai_nice_agent           -     @478 
-#       drv                  ai_nice_driver          -     @610 
-#         rsp_port           uvm_analysis_port       -     @627 
-#         seq_item_port      uvm_seq_item_pull_port  -     @618 
-#       seqr                 ai_nice_sequencer       -     @487 
-#         rsp_export         uvm_analysis_export     -     @495 
-#         seq_item_export    uvm_seq_item_pull_imp   -     @601 
-#         arbitration_queue  array                   0     -    
-#         lock_queue         array                   0     -    
-#         num_last_reqs      integral                32    'd1  
-#         num_last_rsps      integral                32    'd1  
-# --------------------------------------------------------------
-# 
-# UVM_INFO ./uvc/nice/ai_nice_driver.sv(51) @ 0: uvm_test_top.env.nice_agent.drv [ai_nice_driver] Run phase: Starting driver loop
-# UVM_INFO ./uvc/nice/ai_nice_driver.sv(37) @ 0: uvm_test_top.env.nice_agent.drv [ai_nice_driver] Reset phase: Initializing interface signals
-# UVM_INFO ./test/ai_test_pkg.sv(42) @ 125000: uvm_test_top [ai_smoke_test] ai_smoke_test main_phase start
-# UVM_INFO ./test/sequence/ai_smoke_seq.sv(24) @ 125000: uvm_test_top.env.nice_agent.seqr@@smoke_seq [ai_smoke_seq] ai_smoke_seq body start
-# UVM_INFO ./test/sequence/ai_smoke_nice_seq.sv(16) @ 125000: uvm_test_top.env.nice_agent.seqr@@nice_seq [ai_smoke_nice_seq] Starting smoke nice sequence...
-# UVM_INFO ./uvc/nice/ai_nice_driver.sv(156) @ 125000: uvm_test_top.env.nice_agent.drv [DRV_CSR] CSR WR: Addr=0x7c6 (MULT_DST_OFFSET) Data=0x00000010
+# vsim.wlf opened as dataset "vsim"
 # Break key hit
-# Break at an unknown location
-#  quit
-# End time: 17:26:20 on Nov 22,2025, Elapsed time: 0:01:53
-# Errors: 0, Warnings: 8

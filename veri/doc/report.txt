@@ -1,0 +1,203 @@
+ 
+2025年全国大学生嵌入式芯片与系统设计竞赛芯片设计赛道
+
+芯片设计验证报告
+
+
+作品名称（必填）：                                                                          
+队伍编号（必填）：                                                  
+参赛队名（必填）：                                                  
+
+
+
+日期：2025年   月   日
+ 
+1.	测试点列表
+简要说明测试点分解策略
+制定测试点时遵循完整性和优先级原则，确保覆盖设计规格的所有功能点，包括正常路径和异常情况。我们首先依据规格划分等价类并分析边界值，提取典型输入范围和极限条件作为测试点。同时关注矩阵乘法加速器中特有的极端场景（如矩阵维度极限、量化溢出等），确保非常规模式下行为也符合预期。测试点按功能、接口、场景、性能、异常五类组织，列举如下，每个测试点标明主要覆盖手段（定向测试、随机覆盖、断言等）：
+测试点名称	覆盖范围	覆盖方式
+功能类：矩阵乘法
+
+	调试值：小规模矩阵（如M=64, N=48, K=64）	Directtest
+功能类：矩阵乘法
+
+	典型值：中等规模矩阵（如M=2048, N=4096, K=64）	coverage
+功能类：矩阵乘法
+	最小值场景（如M=1或N=1的矢量乘法，K=0或1）和最大值场景（如M=1024，N=65535，K=65535）下的运算	Directtest
+功能类：量化配置
+
+
+	验证不同量化配置对输出结果的影响。包括不开启量化（例如移位因子0，等效于结果直接截断）、中等量化（适度缩放），以及最大量化（例如移位因子达到设计允许上限）等典型配置	Directtest/
+randomtest+coverage
+功能类：激活函数限制
+
+	激活函数（如ReLU或clamp限制）启用情况下输出结果的正确裁剪	Directtest/
+Randomtest+coverage
+功能类：矩阵乘法
+
+	典型值：中等规模矩阵（如M=2048, N=2048, K=64）	coverage
+功能类：矩阵乘法
+
+	典型值：中等规模矩阵（如M=2048, N=2048, K=64）	coverage
+		
+		
+		
+功能类：CSR与MMA操作交叉
+	CSR设置与MMA计算交互顺序的各种可能	添加断言确保当MMA忙时CSR访问不影响其内部状态，或添加断言保证软件不会在MMA计算过程中修改CSR
+功能类：参数组合交叉
+	各关键配置参数的组合覆盖（矩阵维度大小、数据位宽、量化模式、激活函数开关等）	定义Functional Coverage的交叉覆盖项，例如矩阵大小（小/中/大）×量化模式（关闭/模式A/模式B）×激活函数（关/开）等，利用随机约束生成不同组合并记录覆盖率，确保所有组合场景都经过测试。
+接口类:配置接口时序	验证配置寄存器读写的功能和时序正确性。通过总线驱动器执行一系列CSR读写操作，包括单次写入配置、连续写多个寄存器、以及读回校验等场景	
+接口类:icb接口协议	验证DUT通过ICB总线访存的时序和握手。ICB（Internal Chip Bus）为简化的片上总线协议，只有命令通道和返回通道。测试包括：发起SRAM读写请求时，地址、数据和握手信号时序符合ICB协议；当存储器模型插入等待（降低ready信号）时，DUT能够暂停并正确重试，不出现协议违规或数据丢失	randomTest/assertion
+场景类：连续多任务场景	验证加速器在顺序执行多个矩阵运算任务时的行为。场景包括依次配置并启动多次不同尺寸的矩阵乘法，中间不复位DUT，检查后续运算结果正确且不受前一任务残留影响	randomTest
+性能类：延迟	每条用例均需要输出打印加速器完成特定规模运算所需的周期数，以及其是否符合预期性能指标。针对典型规模测量从启动到done的时钟周期，与理论计算周期（M×N×K乘加次数经过硬件并行/流水化后的估计值）对比。允许一定误差范围，但若观察到显著额外开销（例如空闲周期过多），需分析原因。利用监视器记录关键阶段的时序，在scoreboard中打印实际周期数，与规格公式核对以评估性能是否达标。	randomTest/
+DirectTest
+性能类：吞吐	每条用例均需要输出打印每秒（每周期）可完成的计算吞吐	randomTest/
+DirectTest
+性能类：吞吐	每条用例均需要输出打印当前任务下的总线利用率	randomTest/
+DirectTest
+异常类：溢出和饱和处理
+	验证加速器的溢出处理机制（例如饱和截断到最大/最小值）。例如输入矩阵元素全部取极端值（如0x7F或0xFF）且K维长度很大，触发乘累加结果超出目标数据位宽的情况。	DirectTest /assertion
+异常类：非法配置测试
+	输入不合理的配置组合，验证DUT的健壮性。例如寄存器配置顺序错误（先启动运算再配置地址）、参数超出规格范围（如M或N为0但启动运算）等。
+期望DUT对非法配置不执行并返回rd错误码	DirectTest 
+异常类：运行中复位
+	输入不合理的配置组合，验证DUT的健壮性。例如寄存器配置顺序错误（先启动运算再配置地址）、参数超出规格范围（如M或N为0但启动运算）等。
+期望DUT对非法配置不执行并返回rd错误码。	DirectTest 
+
+2.	主要验证组件
+组件名	功能描述
+顶层驱动器 (NICE_Driver)	驱动NICE核心顶层接口的指令请求信号。模拟主CPU的行为，通过nice_req_valid, nice_req_inst, nice_req_rs1, nice_req_rs2等接口发送各种指令和参数值进入设计。支持顺序和随机指令序列，产生包含CSR读写和矩阵计算指令的混合流，以覆盖所有测试场景。驱动器从测试序列获取交易(指令)并将其转换为信号时序。
+顶层监视器 (NICE_Monitor)	监视NICE核心顶层与主核交互的接口信号。捕获nice_req*接口发出的指令交易和nice_rsp*接口返回的结果交易。将捕获的事务送入顶层Scoreboard进行功能验证。还监控nice_active, nice_mem_holdup等状态信号，用于断言检查（例如确保holdup在正确时间段内有效）。该监视器确保整个NICE Core对外表现被观察和记录。
+顶层计分板（NICE_SCB）	发来的csr指令和mat_mult 发送给顶层Scoreboard，并监视nice接口的cmd_rsp -指令响应接口，当dut把mat_mult指令的rd返回后（cmd_rsp 的ready valid握手成功后）,NICE Scb负责功能正确性检查，其需要根据csr将oa矩阵读出并存入一个txt，并将之前给driver用的lhs和rhs两个矩阵txt相乘，判断结果是否等于oa矩阵txt，如果不一样，需要标记是哪一行哪一列不正确。
+
+脉动阵列监视器 (compute_Monitor)	监视compute core上的接口信号。
+一是发给NICE2compute Scoreboard。验证矩阵读取到compute core接口上的tile数据是否正确。
+二是发给	compute Scoreboard，验证compute模块内部进行的tile的乘加运算是否正确。
+	compute Scoreboard	根据WS型脉动阵列的乘加原理计算实际的输出，并和脉动阵列的输出对比。
+NICE2compute Scoreboard	NICE2compute Scoreboard内部自己维护一个按照tiling方式索引lhs、rhs和bias的方法，每次compute core运算时都将脉动阵列监视器 (compute_Monitor)拿到的dut的tile的值和预期的值对比
+存储器代理(Memory Agent)	模拟系统内存的简单模型，支持ICB总线协议的请求/响应，包含：
+用于接受来自DUT的nice_icb_cmd*读写请求，并给出响应；
+支持环境直接后门访问将矩阵计算需要用到的数据直接写入内存（用一些灵活的方法实现）；
+支持监视器根据OA的基地址和大小直接抓取OA矩阵送往Scoreboard进行检查，或打印到txt文件中用于debug
+支持监视器根据IA和权重矩阵的基地址和大小直接抓取矩阵并打印到txt文件中用于debug。
+断言检查器 (Assertion Monitors)	独立于Scoreboard的断言集合，覆盖关键时序和协议约束。如：确保nice_req_valid高时在下个周期内nice_req_ready高则请求被接受，否则持续拉高valid直到ready有效；确保在MMA执行期间nice_mem_holdup为1且执行完毕后一个周期内清0等。这些SystemVerilog断言由Checker组件集中管理，能够迅速发现协议违规或设计漏洞，提高问题定位速度。
+Driver	
+3.	验证方案：
+我们的整个验证流程分为UT验证（模块级），IT验证（子系统级）和soc系统验证(系统级)。这样，可以保证在验证更高层级的设计时，其子模块的bug已经相对较少，且也可以复用一些子模块的验证环境（如monitor和scoreboard），使得在验证过程中可以更快的定位到问题。
+UT验证为每个模块的验证。
+而IT验证分为NICE Core和video sys的两个子系统。Video sys主要使用摄像头、ram等，与硬件相关性大且结构相对简单，故省略uvm验证阶段直接使用fpga原型验证的方法上板调试。
+IT验证中的NICE Core子系统验证采用了分层集成验证的方法。 本方案采取单环境多层次监控的策略，将NICE Core顶层验证和脉动阵列模块验证合二为一。顶层驱动激励从NICE接口统一产生，逐步激发内部脉动阵列的分Tile MMA运算，从而在一个激励环境下验证了顶层行为和脉动阵列子模块细节。这种分层监控机制确保在我们的集成环境中可以定位到错误的来源是在脉动阵列、nice core到MMA top的译码与CSR，还是访存的相关模块，使得rtl的fix bug更为迅速。
+
+ 
+本环境还可以配置验证深度， 利用UVM工厂和配置机制，环境允许选择性地启用/禁用某些监视器和Scoreboard。例如，早期可以仅启用脉动阵列监视和比对单元，用随机指令重点跑通脉动功能；随后启用顶层和脉动阵列监视器以验证完整协同流程；在bug逐渐收敛后的随机验证与回归测试阶段，又可以仅仅启用顶层监视器和对应的比对单元，加快仿真速度。通过这种渐进式打开策略，降低初始调试复杂度，逐步增加验证完整性，最终覆盖所有层次。
+本环境整体采用随机约束生成大量指令场景以提升覆盖率，并辅以关键点的定向测试确保特定功能行为符合预期。随机测试主要用于组合覆盖（例如各种矩阵大小和参数组合），定向测试专注于协议时序和边界/异常情况。两者结合能更全面地覆盖输入空间，同时保证关键场景必测。
+同时，为了减少工作量，加快项目速度，本环境不使用参考模型。由于本设计实现的功能在接口上看相对简单（矩阵乘加），故不需要搭建C模型作为参考，本验证通过systemVerilog在Scoreboard内简单搭建的算法模型来进行结果预期计算。策略是确保Scoreboard模型与设计采用相同的算法逻辑（例如调用相同行列遍历顺序、采用同样定点量化算术），并在少量已知手算例子上交叉验证Scoreboard模型正确性。一旦确认Scoreboard可信，则大量随机测试均可自动判别结果正误。这种自检方案在无第三方参考时保证了验证的有效性，但也要求对设计算法有深刻理解来实现Scoreboard模型。
+在撰写test case的时候，采用阶段化推进的方式:，初期先跑通基本功能（包括CSR访问、简单小矩阵运算的smoke case），再逐渐加入更丰富的测试用例，直至所有基本测试点通过，然后提高随机测试强度并引入复杂场景（并行、异常等）。每个阶段达成既定覆盖和通过率目标后再进入下阶段，最终在回归中汇总统计达到所有覆盖要求作为退出标准。
+
+验证激励方案
+激励方案采取基于UVM Sequence的约束随机激励结合Directed手工场景，并通过task分层实现dut端口的激励驱动
+Driver task：
+Addr_generate:
+根据各个矩阵的大小生成IA 矩阵基址（行展平）；输出矩阵基址；权重矩阵基址（列展平）；输出矩阵基址（行展平）；偏置数组基址(0=无偏置)；以及各个矩阵的行列数与步长等等。
+MatWr：
+通过后门访问将指定的矩阵（txt文件）写入到ram中（比如可以把txt文件里面的矩阵按照要求转成内存里面的格式，然后用readmem写入内存模型。
+
+CSR_wr：包含要写的CSR地址及数据值。将Addr_generate计算出的参数和seq传递进的配置都写入对应的csr。
+CSR_rd：包含要读的CSR地址及预期读取结果。
+send_mat_mult:包含量化模式、左乘数位宽、右乘数位宽、Bias位宽、输出位宽在内的cfg、和out_addr。
+
+
+
+Driver的这些task在一般的seq下要能够自动按照顺序调用，但也同时支持Directed模式下，编写特定顺序的项以触发特殊场景。
+（三个task，一个写死顺序，一个顺序和csr内容自由配置，一个seq干脆就是一个wrcsr/mult这样指令，在case里面可以直接调用自定义）
+Tr:
+包括矩阵的大小（k n m），矩阵内的数是否随机（不随机就高位是矩阵的行序号，低位是矩阵的列序号），激活最小值、激活最大值、IA零点、权重零点、输出零点、量化乘数、量化移位等。
+要包含多重约束和权重
+Seq：
+负责随机或指定定向产生矩阵的大小（k n m），并通过tr的参数，生成具体的矩阵，并按照矩阵的格式写入一个txt（这个txt的格式既要便于人类阅读，又要方便uvm的程序读入）
+
+并随机或指定定向产生激活最小值、激活最大值、IA零点、权重零点、输出零点、量化乘数、量化移位等参数，用于driver写入csr
+验证 Checker 方案
+Checker方案包括监视器(Monitor)、Scoreboard(检查器)和断言(Assertion)三个层次，分布于NICE核心顶层、NICE与MMA接口、MMA内部及总线接口处，各司其职又协同工作：
+多监视器协同: 本验证环境中部署了两套监视器：顶层监视器(NICE_Monitor)监控NICE接口，MMA接口监视器监控NICE内部的MMA_top接口。通过UVM分析端口，将提取的事务分别发送到对应Scoreboard进行检查。
+顶层监视器：
+顶层监视器(NICE_Monitor)与顶层Scb(NICE_Scb)相连，将主核发来的csr指令和mat_mult 发送给顶层Scoreboard，并监视nice接口的cmd_rsp -指令响应接口，当dut把mat_mult指令的rd返回后（cmd_rsp 的ready valid握手成功后）,NICE Scb负责功能正确性检查，其需要根据csr将oa矩阵读出并存入一个txt，并将之前给driver用的lhs和rhs两个矩阵txt相乘，判断结果是否等于oa矩阵txt，如果不一样，需要标记是哪一行哪一列不正确。
+脉动阵列监视器：
+	脉动阵列监视器 (compute_Monitor)负责监视compute core上的接口信号。一是发给NICE2compute Scoreboard。验证矩阵读取到compute core接口上的tile数据是否正确。二是发给	compute Scoreboard，验证compute模块内部进行的tile的乘加运算是否正确。
+compute Scoreboard：根据WS型脉动阵列的乘加原理计算实际的输出，并和脉动阵列的输出对比。
+NICE2compute Scoreboard：内部自己维护一个按照tiling方式索引lhs、rhs和bias的方法，每次compute core运算时都将脉动阵列监视器 (compute_Monitor)拿到的dut的tile的值和预期的值对比
+断言验证: 
+除了Scoreboard的事后比对，本环境大量使用SystemVerilog断言进行线上检查（online checker）。这些断言涵盖：信号握手关系（如valid-ready协议）、时序时钟周期关系（如特定信号脉冲宽度1个周期）、状态一致性（如当nice_active为1时nice_mem_holdup必为1）等。例如断言A1：当nice_req_valid高且nice_req_inst是MAT_MULT指令时，如果mma_top.sa_ready为0则要求nice_req_ready必须为0保持背压；断言A2：当MMA完成计算拉高nice_rsp_valid时，下一周期inst_tracker必须返回IDLE且释放holdup。这些断言在UVM环境中通过一个专门的assertions模块或集成在Monitor内，仿真时持续监控DUT信号，一旦违规立即报告错误及发生时刻信号状态。断言能够快速定位协议类错误，配合Scoreboard的功能错误检查。
+验证使用的寄存器列表
+
+
+CSR寄存器
+表1	CSR寄存器表
+CSR 地址	寄存器名称	位宽	功能描述
+0x7C0	MULT_LHS_PTR	Bit31~Bit0	IA 矩阵基址（行展平）
+0x7C1	MULT_RHS_PTR	Bit31~Bit0	权重矩阵基址（列展平）
+0x7C2	MULT_DST_PTR	Bit31~Bit0	输出矩阵基址（行展平）
+0x7C3	MULT_BIAS_PTR	Bit31~Bit0	偏置数组基址(0=无偏置)
+0x7C4	MULT_LHS_OFFSET	Bit31~Bit0	IA零点
+0x7C5	MULT_RHS_OFFSET	Bit31~Bit0	权重零点
+0x7C6	MULT_RHS_OFFSET	Bit31~Bit0	输出零点
+0x7C7	MULT_DST_MULT	Bit31~Bit0	量化乘数
+0x7C8	MULT_DST_SHIFT	Bit31~Bit0	量化移位
+0x7C9	MULT_LHS_ROWS	Bit31~Bit0	IA行数
+0x7CA	MULT_RHS_ROWS	Bit31~Bit0	权重行数/IA列数
+0x7CB	MULT_RHS_COLS	Bit31~Bit0	权重列数/IA行数
+0x7CC	MULT_LHS_COLS_OFFSET	Bit31~Bit0	IA行步长
+0x7CD	MULT_RHS_ROW_STRIDE	Bit31~Bit0	权重行步长
+0x7CE	MULT_ROW_ADDR_OFFSET	Bit31~Bit0	输出行步长
+0x7CF	MULT_ACT_MIN	Bit31~Bit0	激活最小值
+0x7D0	MULT_ACT_MAX	Bit31~Bit0	激活最大值
+CFG寄存器
+表1	CFG寄存器表
+Bit31~Bit10	Bit9	Bit8~Bit7	Bit6~Bit5	Bit4~Bit3	Bit2~Bit0
+保留	PER_CH	A_W	B_W	BIAS_W	OUT_W
+表2	CFG寄存器配置说明表
+PER_CH	量化模式	0：per tensor
+1：per channel
+A_W	左乘数位宽	00：s4
+01：s8
+10：s16
+B_W	右乘数位宽	00：s4
+01：s8
+10：s16
+BIAS_W	Bias位宽	00：s8
+01：s16
+10：s32
+11：s64
+OUT_W	输出位宽	000：s4
+001：s8
+010：s16
+011：s32
+100：s64
+后仿真验证方案
+PR完成后通过starRC获得布局布线后的各个连接线的时延文件，将这些sdf文件反标给验证环境，再将interface的clockblocking的激励与采用端口的input和output delay改为和sta的端口delay约束一样，就可以使用前仿真的case进行后仿了。
+同时，使用通过+vcs+initreg+random(或者+vcs+initmem+random)这种去模拟真实寄存器/ram的初值，仿真因为门机网表电路真值表的悲观处理（xmerge）导致的xpro问题。使仿真环境更接近真实情况，防止误报。
+4.	功能覆盖率分析
+4.1	覆盖率结果（截图）
+
+4.2	结果分析（重点分析没有覆盖的部分）
+	尝试分析没有覆盖部分产生的原因，以及在未来有何策略上的改进
+
+5.	代码覆盖率分析
+5.1	覆盖率结果（截图）
+
+5.2	结果分析（重点分析没有覆盖的部分）
+尝试分析没有覆盖部分产生的原因，以及在未来有何策略上的改进
+
+6.	条件覆盖率分析
+6.1	覆盖率结果（截图）
+
+6.2	结果分析（重点分析没有覆盖的部分）
+尝试分析没有覆盖部分产生的原因，以及在未来有何策略上的改进
+
+7.	用例激励随机性分析
+
+8.	验证环境warning QA
+针对验证log中的warning进行分析，回答是否会影响结果，可以尝试分析原因
+
+9.	后仿真验证
+   使用SDF延时文件，针对PR后的网表进行仿真验证，解决仿真过程中出现的不定态问题，跑通后仿真用例。
