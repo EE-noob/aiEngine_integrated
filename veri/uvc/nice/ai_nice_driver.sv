@@ -126,11 +126,36 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         end
     endtask
 
+    // 获取CSR名称
+    function string csr_name(bit [11:0] addr);
+        case (addr)
+            `ADDR_MULT_LHS_PTR:        return "MULT_LHS_PTR";
+            `ADDR_MULT_RHS_PTR:        return "MULT_RHS_PTR";
+            `ADDR_MULT_DST_PTR:        return "MULT_DST_PTR";
+            `ADDR_MULT_BIAS_PTR:       return "MULT_BIAS_PTR";
+            `ADDR_MULT_LHS_OFFSET:     return "MULT_LHS_OFFSET";
+            `ADDR_MULT_RHS_OFFSET:     return "MULT_RHS_OFFSET";
+            `ADDR_MULT_DST_OFFSET:     return "MULT_DST_OFFSET";
+            `ADDR_MULT_DST_MULT:       return "MULT_DST_MULT";
+            `ADDR_MULT_DST_SHIFT:      return "MULT_DST_SHIFT";
+            `ADDR_MULT_LHS_ROWS:       return "MULT_LHS_ROWS";
+            `ADDR_MULT_RHS_ROWS:       return "MULT_RHS_ROWS";
+            `ADDR_MULT_RHS_COLS:       return "MULT_RHS_COLS";
+            `ADDR_MULT_LHS_STRIDE:     return "MULT_LHS_STRIDE";
+            `ADDR_MULT_RHS_STRIDE:     return "MULT_RHS_STRIDE";
+            `ADDR_MULT_DST_STRIDE:     return "MULT_DST_STRIDE";
+            `ADDR_MULT_ACT_MIN:        return "MULT_ACT_MIN";
+            `ADDR_MULT_ACT_MAX:        return "MULT_ACT_MAX";
+            default:                   return $sformatf("UNKNOWN_CSR(0x%03h)", addr);
+        endcase
+    endfunction
+
     // 3. CSR_wr: Write single CSR
     task csr_wr(bit [11:0] addr, bit [31:0] data);
-        `uvm_info("DRV_CSR", $sformatf("CSR WR: Addr=%03h Data=%08h", addr, data), UVM_MEDIUM)
-        `uvm_info("DRV_CSR", $sformatf("CSR_WR driving: req_valid=1, req_inst=0x%08h, req_rs1=0x%08h, req_rs2=0x%08h", 
-            {addr, 5'b00001, `NICE_CSRWR_FUNCT3, 5'b00000, `NICE_CUSTOM_3}, data, 32'h0), UVM_HIGH)
+        string name = csr_name(addr);
+        `uvm_info("DRV_CSR", $sformatf("CSR WR: Addr=0x%03h (%s) Data=0x%08h", addr, name, data), UVM_MEDIUM)
+        `uvm_info("DRV_CSR", $sformatf("CSR_WR driving: req_valid=1, req_inst=0x%08h, req_rs1=0x%08h, req_rs2=0x%08h, csr_name=%s", 
+            {addr, 5'b00001, `NICE_CSRWR_FUNCT3, 5'b00000, `NICE_CUSTOM_3}, data, 32'h0, name), UVM_HIGH)
         @(posedge vif.nice_clk);
         vif.nice_req_valid <= 1'b1;
         vif.nice_req_inst  <= {addr, 5'b00001, `NICE_CSRWR_FUNCT3, 5'b00000, `NICE_CUSTOM_3};
@@ -152,9 +177,10 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
     // 4. CSR_rd: Read single CSR
     task csr_rd(bit [11:0] addr, bit [31:0] expected);
         bit [31:0] rdata;
-        `uvm_info("DRV_CSR", $sformatf("CSR RD: Addr=%03h Exp=%08h", addr, expected), UVM_MEDIUM)
-        `uvm_info("DRV_CSR", $sformatf("CSR_RD driving: req_valid=1, req_inst=0x%08h, req_rs1=0x%08h, req_rs2=0x%08h", 
-            {addr, 5'b00000, `NICE_CSRR_FUNCT3, 5'b00001, `NICE_CUSTOM_3}, 32'h0, 32'h0), UVM_HIGH)
+        string name = csr_name(addr);
+        `uvm_info("DRV_CSR", $sformatf("CSR RD: Addr=0x%03h (%s) Exp=0x%08h", addr, name, expected), UVM_MEDIUM)
+        `uvm_info("DRV_CSR", $sformatf("CSR_RD driving: req_valid=1, req_inst=0x%08h, req_rs1=0x%08h, req_rs2=0x%08h, csr_name=%s", 
+            {addr, 5'b00000, `NICE_CSRR_FUNCT3, 5'b00001, `NICE_CUSTOM_3}, 32'h0, 32'h0, name), UVM_HIGH)
         @(posedge vif.nice_clk);
         vif.nice_req_valid <= 1'b1;
         vif.nice_req_inst  <= {addr, 5'b00000, `NICE_CSRR_FUNCT3, 5'b00001, `NICE_CUSTOM_3};
@@ -172,9 +198,9 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         end
         
         rdata = vif.nice_rsp_rdat;
-        `uvm_info("DRV_CSR", $sformatf("CSR_RD got response: rsp_rdat=0x%08h, expected=0x%08h", rdata, expected), UVM_HIGH)
+        `uvm_info("DRV_CSR", $sformatf("CSR_RD got response: rsp_rdat=0x%08h, expected=0x%08h, csr_name=%s", rdata, expected, name), UVM_HIGH)
         if(rdata !== expected) begin
-             `uvm_error("DRV_CSR", $sformatf("CSR Read Mismatch! Addr=%03h Exp=%08h Act=%08h", addr, expected, rdata))
+             `uvm_error("DRV_CSR", $sformatf("CSR Read Mismatch! Addr=0x%03h (%s) Exp=0x%08h Act=0x%08h", addr, name, expected, rdata))
         end
         @(posedge vif.nice_clk);
     endtask
@@ -219,7 +245,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         cfg[4:3] = req.bias_w;
         cfg[2:0] = req.out_w;
 
-        `uvm_info("DRV_TRIG", $sformatf("Sending Matrix Mult: OutAddr=%0h CFG=%0h", out_base_addr, cfg), UVM_MEDIUM)
+        `uvm_info("DRV_TRIG", $sformatf("Sending Matrix Mult: OutAddr=0x%08h CFG=0x%08h", out_base_addr, cfg), UVM_MEDIUM)
         `uvm_info("DRV_TRIG", $sformatf("MAT_MULT driving: req_valid=1, req_inst=0x%08h, req_rs1=0x%08h, req_rs2=0x%08h",
             {`NICE_MAT_MULT_FUNCT7, 5'b00010, 5'b00001, `NICE_FUNCT3, 5'b00011, `NICE_CUSTOM_1}, out_base_addr, cfg), UVM_HIGH)
         
@@ -238,7 +264,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         while(vif.nice_rsp_valid !== 1'b1) begin
             @(posedge vif.nice_clk);
         end
-        `uvm_info("DRV_TRIG", $sformatf("Matrix Mult Done. Status=%0h", vif.nice_rsp_rdat), UVM_HIGH)
+        `uvm_info("DRV_TRIG", $sformatf("Matrix Mult Done. Status=0x%08h", vif.nice_rsp_rdat), UVM_HIGH)
         @(posedge vif.nice_clk);
     endtask
 

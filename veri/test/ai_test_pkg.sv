@@ -58,6 +58,31 @@ package ai_test_pkg;
         endtask
     endclass
 
+    class smoke_test extends ai_base_test;
+        `uvm_component_utils(smoke_test)
+
+        function new(string name = "smoke_test", uvm_component parent = null);
+            super.new(name, parent);
+        endfunction
+
+        virtual task main_phase(uvm_phase phase);
+            ai_smoke_nice_seq nice_seq;
+
+            phase.raise_objection(this);
+            `uvm_info(get_type_name(), "smoke_test main_phase start", UVM_MEDIUM)
+
+            nice_seq = ai_smoke_nice_seq::type_id::create("nice_seq");
+            if (env.nice_agent == null) begin
+                `uvm_fatal("TEST", "env.nice_agent is null")
+            end
+            nice_seq.start(env.nice_agent.seqr);
+
+            `uvm_info(get_type_name(), "smoke_test main_phase end, dropping objection", UVM_MEDIUM)
+            #0.1us; // 防止UVM提前退出，给driver/monitor收尾
+            phase.drop_objection(this);
+        endtask
+    endclass
+
 endpackage : ai_test_pkg
 
 `endif

@@ -33,19 +33,23 @@ VSIM          ?= vsim
 
 # Default run arguments (plusargs), used for both VCS and ModelSim
 RUN_ARGS      ?= +UVM_VERBOSITY=UVM_MEDIUM
+TESTNAME ?= ai_smoke_test
+.PHONY: git
+git:
+	git add -A; git commit -m "auto commit"; git push origin master;
 
 ###############################################################################
 # VCS flow
 ###############################################################################
 ifeq ($(SIM_TOOL),vcs)
-
+.PHONY: com sim clean wave git
 com:
 	@echo "=== VCS compile (top_ai_engine) ==="
 	cd $(VERI_DIR) && $(VCS) $(VCS_FLAGS) -f $(FLIST) -o simv
 
 sim: clean com
 	@echo "=== Run VCS simulation ==="
-	cd $(VERI_DIR) && ./simv $(RUN_ARGS) +vcs+dumpvars+vcs.vpd
+	cd $(VERI_DIR) && ./simv $(RUN_ARGS) +UVM_TESTNAME=$(TESTNAME) +vcs+dumpvars+vcs.vpd -l vcs.log
 
 wave:
 	@echo "=== Open VCS waveform viewer (DVE) ==="
@@ -56,7 +60,9 @@ clean:
 	cd $(VERI_DIR) && rm -rf simv simv.daidir csrc DVEfiles ucli.key \
 		vcs.vpd *.vpd *.vcd *.fsdb novas.rc verdiLog \
 		.vcs* .inter.vpd vcs.log
-
+		
+git:
+	git add -A; git commit -m "auto commit"; git push origin master;
 ###############################################################################
 # ModelSim / Questa flow
 ###############################################################################
@@ -70,27 +76,16 @@ com:
 
 sim: com
 	@echo "=== Run ModelSim/Questa simulation ==="
-	cd $(VERI_DIR) && $(VSIM) -c -wlf vsim.wlf work.$(TOP_MODULE) $(RUN_ARGS) \
-		-do "log -r /*; run -all; coverage save coverage.ucdb; quit"
+	cd $(VERI_DIR) && $(VSIM) -c -wlf vsim.wlf work.$(TOP_MODULE) $(RUN_ARGS) -do "log -r /*; run -all; quit"
 
 clean:
 	@echo "=== Clean ModelSim/Questa outputs ==="
-	cd $(VERI_DIR) && rm -rf work transcript vsim.wlf modelsim.ini sim/ai_engine.wlf \
-		coverage.ucdb coverage_report.txt
+	cd $(VERI_DIR) && rm -rf work transcript vsim.wlf modelsim.ini sim/ai_engine.wlf
 
 # Open saved waveform (GUI)
-waves:
+wave:
 	@echo "=== Open ModelSim waveform viewer ==="
 	cd $(VERI_DIR) && $(VSIM) -view vsim.wlf
-
-# Open coverage report (if coverage database exists)
-cov:
-	@echo "=== Open ModelSim coverage viewer ==="
-	@if [ -f $(VERI_DIR)/coverage.ucdb ]; then \
-		cd $(VERI_DIR) && $(VSIM) -viewcov coverage.ucdb; \
-	else \
-		echo "Coverage database not found. Run 'make sim' first."; \
-	fi
 
 ###############################################################################
 # Unknown SIM_TOOL

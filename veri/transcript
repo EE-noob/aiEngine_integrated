@@ -1,5 +1,5 @@
-# vsim -c -wlf vsim.wlf work.tb_top "+UVM_VERBOSITY=UVM_MEDIUM" -do "log -r /*; run -all; coverage save coverage.ucdb; quit" 
-# Start time: 15:58:32 on Nov 22,2025
+# vsim -c -wlf vsim.wlf work.tb_top "+UVM_VERBOSITY=UVM_MEDIUM" -do "log -r /*; run -all; quit" 
+# Start time: 16:40:32 on Nov 22,2025
 # ** Note: (vsim-3813) Design is being optimized due to module recompilation...
 # 
 # ** Warning: ../rtl/nice_coprocessor/MMA/kernel_loader.sv(580): (vopt-2697) MSB of part-select into 'icb_rsp_rdata' is out of bounds.
@@ -100,10 +100,9 @@
 # UVM_INFO ./test/ai_test_pkg.sv(42) @ 125000: uvm_test_top [ai_smoke_test] ai_smoke_test main_phase start
 # UVM_INFO ./test/sequence/ai_smoke_seq.sv(24) @ 125000: uvm_test_top.env.nice_agent.seqr@@smoke_seq [ai_smoke_seq] ai_smoke_seq body start
 # UVM_INFO ./test/sequence/ai_smoke_nice_seq.sv(16) @ 125000: uvm_test_top.env.nice_agent.seqr@@nice_seq [ai_smoke_nice_seq] Starting smoke nice sequence...
-# UVM_INFO ./uvc/nice/ai_nice_driver.sv(131) @ 125000: uvm_test_top.env.nice_agent.drv [DRV_CSR] CSR WR: Addr=7c6 Data=00000010
+# UVM_INFO ./uvc/nice/ai_nice_driver.sv(156) @ 125000: uvm_test_top.env.nice_agent.drv [DRV_CSR] CSR WR: Addr=0x7c6 (MULT_DST_OFFSET) Data=0x00000010
 # Break key hit
 # Break at an unknown location
-#  coverage save coverage.ucdb
 #  quit
-# End time: 15:59:23 on Nov 22,2025, Elapsed time: 0:00:51
+# End time: 16:40:56 on Nov 22,2025, Elapsed time: 0:00:24
 # Errors: 0, Warnings: 8
