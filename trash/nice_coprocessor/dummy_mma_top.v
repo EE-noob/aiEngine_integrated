@@ -64,7 +64,7 @@ module dummy_mma_top #(
     input logic [REG_WIDTH-1:0] m,
     input logic [REG_WIDTH-1:0] lhs_row_stride_b,
     input logic [REG_WIDTH-1:0] dst_row_stride_b,
-    input logic [REG_WIDTH-1:0] rhs_col_stride_b,
+    input logic [REG_WIDTH-1:0] rhs_row_stride_b,
     input logic signed [REG_WIDTH-1:0] act_min,
     input logic signed [REG_WIDTH-1:0] act_max,
 

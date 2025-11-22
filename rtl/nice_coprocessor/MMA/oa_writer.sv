@@ -121,7 +121,6 @@ module oa_writer #(
     input  wire [REG_WIDTH-1:0]        dst_row_stride_b,
     input  wire [REG_WIDTH-1:0]        k,
     input  wire [REG_WIDTH-1:0]        m,
-    input  wire [REG_WIDTH-1:0]        tile_count,
 
     // Handshake to FIFO
     input wire oa_fifo_req,
@@ -153,10 +152,6 @@ module oa_writer #(
     localparam integer VCOL_W = $clog2(VLEN);
 
 
-
-
-
-
     assign icb_ext_rsp_m = '{ rsp_ready: 1'b1 };
 
     reg [REG_WIDTH-1:0] cfg_dst_base;
@@ -179,7 +174,7 @@ module oa_writer #(
             cfg_dst_row_stride_b<= dst_row_stride_b;
             cfg_k               <= k;
             cfg_m               <= m;
-            cfg_tile_count      <= tile_count;
+            cfg_tile_count      <= (((k + VLEN-1) >> VCOL_W))*(((m + VLEN-1) >> VCOL_W)); // tile_count = (k/16)*(m/16), but we use k*m/16 since we process 16 cols at a time
             cfg_lat_tick        <= 1'b1; // raise tick; will be consumed next cycle
         end else begin
             cfg_lat_tick        <= 1'b0;

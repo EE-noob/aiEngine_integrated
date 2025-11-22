@@ -15,8 +15,10 @@
 ../rtl/nice_coprocessor/MMA/vec_requant.sv
 ../rtl/nice_coprocessor/MMA/vec_s8_to_fifo.sv
 ../rtl/nice_coprocessor/MMA/ws_systolic_array.sv
-../rtl/nice_coprocessor/MMA/basic/shift_accumulator.sv
-../rtl/nice_coprocessor/MMA/basic/ws_systolic_cell.sv
+//../rtl/nice_coprocessor/MMA/basic/shift_accumulator.sv
+//../rtl/nice_coprocessor/MMA/basic/ws_systolic_cell.sv
+../rtl/nice_coprocessor/MMA/shift_accumulator.sv
+../rtl/nice_coprocessor/MMA/ws_systolic_cell.sv
 
 ../rtl/nice_coprocessor/csr_unit.v
 ../rtl/nice_coprocessor/decode_dispatch.v

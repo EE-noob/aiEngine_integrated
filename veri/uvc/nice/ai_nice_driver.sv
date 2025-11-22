@@ -129,6 +129,8 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
     // 3. CSR_wr: Write single CSR
     task csr_wr(bit [11:0] addr, bit [31:0] data);
         `uvm_info("DRV_CSR", $sformatf("CSR WR: Addr=%03h Data=%08h", addr, data), UVM_MEDIUM)
+        `uvm_info("DRV_CSR", $sformatf("CSR_WR driving: req_valid=1, req_inst=0x%08h, req_rs1=0x%08h, req_rs2=0x%08h", 
+            {addr, 5'b00001, `NICE_CSRWR_FUNCT3, 5'b00000, `NICE_CUSTOM_3}, data, 32'h0), UVM_HIGH)
         @(posedge vif.nice_clk);
         vif.nice_req_valid <= 1'b1;
         vif.nice_req_inst  <= {addr, 5'b00001, `NICE_CSRWR_FUNCT3, 5'b00000, `NICE_CUSTOM_3};
@@ -151,6 +153,8 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
     task csr_rd(bit [11:0] addr, bit [31:0] expected);
         bit [31:0] rdata;
         `uvm_info("DRV_CSR", $sformatf("CSR RD: Addr=%03h Exp=%08h", addr, expected), UVM_MEDIUM)
+        `uvm_info("DRV_CSR", $sformatf("CSR_RD driving: req_valid=1, req_inst=0x%08h, req_rs1=0x%08h, req_rs2=0x%08h", 
+            {addr, 5'b00000, `NICE_CSRR_FUNCT3, 5'b00001, `NICE_CUSTOM_3}, 32'h0, 32'h0), UVM_HIGH)
         @(posedge vif.nice_clk);
         vif.nice_req_valid <= 1'b1;
         vif.nice_req_inst  <= {addr, 5'b00000, `NICE_CSRR_FUNCT3, 5'b00001, `NICE_CUSTOM_3};
@@ -168,6 +172,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         end
         
         rdata = vif.nice_rsp_rdat;
+        `uvm_info("DRV_CSR", $sformatf("CSR_RD got response: rsp_rdat=0x%08h, expected=0x%08h", rdata, expected), UVM_HIGH)
         if(rdata !== expected) begin
              `uvm_error("DRV_CSR", $sformatf("CSR Read Mismatch! Addr=%03h Exp=%08h Act=%08h", addr, expected, rdata))
         end
@@ -215,6 +220,8 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         cfg[2:0] = req.out_w;
 
         `uvm_info("DRV_TRIG", $sformatf("Sending Matrix Mult: OutAddr=%0h CFG=%0h", out_base_addr, cfg), UVM_MEDIUM)
+        `uvm_info("DRV_TRIG", $sformatf("MAT_MULT driving: req_valid=1, req_inst=0x%08h, req_rs1=0x%08h, req_rs2=0x%08h",
+            {`NICE_MAT_MULT_FUNCT7, 5'b00010, 5'b00001, `NICE_FUNCT3, 5'b00011, `NICE_CUSTOM_1}, out_base_addr, cfg), UVM_HIGH)
         
         @(posedge vif.nice_clk);
         vif.nice_req_valid <= 1'b1;

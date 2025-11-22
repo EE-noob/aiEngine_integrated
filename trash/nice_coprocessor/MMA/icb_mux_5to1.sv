@@ -165,7 +165,7 @@ module icb_mux_5to1 (
     assign s2_wr_ready.w_ready = (sel == 3'd2) ? m_wr_rsp.w_ready : 1'b0;
     assign s3_wr_ready.w_ready = (sel == 3'd3) ? m_wr_rsp.w_ready : 1'b0;
     assign s4_wr_ready.w_ready = (sel == 3'd4) ? m_wr_rsp.w_ready : 1'b0;
-    
+
 
     // Responses: only the selected slave's response is forwarded to master
     // assign m_rsp.rsp_valid = (sel == 3'd0) ? s0_rsp.rsp_valid :

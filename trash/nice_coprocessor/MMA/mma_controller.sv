@@ -18,7 +18,7 @@
 //
 // 3. 行步长 (row strides):
 //    - lhs_row_stride_b: A 矩阵行步长（字节），不允许为 0
-//    - rhs_col_stride_b: B 矩阵行步长（字节），不允许为 0
+//    - rhs_row_stride_b: B 矩阵行步长（字节），不允许为 0
 //    - dst_row_stride_b: C 矩阵行步长（字节），不允许为 0
 //
 // 4. 量化参数 (quantization):
@@ -64,7 +64,7 @@ module mma_controller #(
     // Row strides (all in BYTES)
     input logic [REG_WIDTH-1:0] lhs_row_stride_b,  // A row stride       (MULT_LHS_COLS_OFFSET)
     input logic [REG_WIDTH-1:0] dst_row_stride_b,  // C row stride       (MULT_ROW_ADDR_OFFSET)
-    input logic [REG_WIDTH-1:0] rhs_col_stride_b,  // B row stride       (MULT_RHS_ROW_STRIDE)
+    input logic [REG_WIDTH-1:0] rhs_row_stride_b,  // B row stride       (MULT_RHS_ROW_STRIDE)
 
     //==== Control Signals ====
     output reg [          2:0] icb_sel,           // ICB多路复用器选择信号
@@ -74,6 +74,7 @@ module mma_controller #(
     output reg                 init_cfg_requant,  // Vec Requant 配置初始化（单拍）
     output reg                 init_cfg_oa,       // OA Writer 配置初始化（单拍）
     output reg                 use_16bits,        // 16位数据指示信号
+    output reg [REG_WIDTH-1:0] tile_count,        // 分块计数信号
 
     //==== Compute Core Interface ====
     input wire partial_sum_calc_over,  // 部分和计算结束
@@ -112,7 +113,7 @@ module mma_controller #(
     input  wire oa_calc_over,      // OA计算完成
 
     //==== Writeback Handshake Interface ====
-    output reg        wb_valid,  // 写回有效信号
+    output wire       wb_valid,  // 写回有效信号
     input  wire       wb_ready,  // 写回就绪信号
     output reg  [1:0] err_code   // 写回状态码: 00=正常, 01=配置错误, 10=资源缺失
 );
@@ -149,7 +150,7 @@ module mma_controller #(
         dim_error = (k == '0) || (n == '0) || (m == '0);
 
         // 检查行步长
-        stride_error = (lhs_row_stride_b == '0) || (rhs_col_stride_b == '0) || (dst_row_stride_b == '0);
+        stride_error = (lhs_row_stride_b == '0) || (rhs_row_stride_b == '0) || (dst_row_stride_b == '0);
 
         // 检查量化参数（仅当 use_per_channel = 1 时）
         quant_error = use_per_channel && (q_mult_pt == '0) && (q_shift_pt == '0);
@@ -167,7 +168,7 @@ module mma_controller #(
 
         // 配置错误（维度、步长、量化参数）
         config_err = (k == '0) || (n == '0) || (m == '0) ||
-                     (lhs_row_stride_b == '0) || (rhs_col_stride_b == '0) || (dst_row_stride_b == '0) ||
+                     (lhs_row_stride_b == '0) || (rhs_row_stride_b == '0) || (dst_row_stride_b == '0) ||
                      (use_per_channel && ((q_mult_pt == '0) || (q_shift_pt == '0)));
 
         if (ptr_error) return 2'b10;  // 资源缺失
@@ -354,16 +355,18 @@ module mma_controller #(
     // sa_ready信号
     assign sa_ready = (current_state == IDLE);
 
-    // 写回有效信号
-    wire wb_valid_next = oa_calc_over || (current_state == WAIT_WB) || (current_state == ERROR);
-
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            wb_valid <= 1'b0;
-        end else begin
-            wb_valid <= wb_valid_next;
+    // tile_count：矩阵按 SIZE×SIZE 分块后的总 tile 数
+    always_comb begin
+        // ceil_div(k, SIZE) * ceil_div(m, SIZE)
+        tile_count = '0;
+        if ((k != '0) && (m != '0)) begin
+            tile_count = ((k + REG_WIDTH'(SIZE-1)) / REG_WIDTH'(SIZE))
+                       * ((m + REG_WIDTH'(SIZE-1)) / REG_WIDTH'(SIZE));
         end
     end
+
+    // 写回有效信号
+    assign wb_valid = oa_calc_over || (current_state == WAIT_WB) || (current_state == ERROR);
 
     // 实例化ICB仲裁器
     icb_arbiter u_icb_arbiter (

@@ -73,7 +73,7 @@ module e203_subsys_nice_core (
     wire [`E203_XLEN-1:0]       m;                  // M: B的列数/输出通道数 (0x7C6)
     wire [`E203_XLEN-1:0]       lhs_row_stride_b;   // A矩阵行步距 (0x7C8)
     wire [`E203_XLEN-1:0]       dst_row_stride_b;   // 输出矩阵行步距 (0x7C7)
-    wire [`E203_XLEN-1:0]       rhs_col_stride_b;   // B矩阵行步距 (0x7C9)
+    wire [`E203_XLEN-1:0]       rhs_row_stride_b;   // B矩阵行步距 (0x7C9)
     wire signed [`E203_XLEN-1:0] act_min;           // 激活下限 (0x7CF)
     wire signed [`E203_XLEN-1:0] act_max;           // 激活上限 (0x7D0)
 
@@ -180,7 +180,7 @@ module e203_subsys_nice_core (
         .m               (m),
         .lhs_row_stride_b(lhs_row_stride_b),
         .dst_row_stride_b(dst_row_stride_b),
-        .rhs_col_stride_b(rhs_col_stride_b),
+        .rhs_row_stride_b(rhs_row_stride_b),
         .act_min         (act_min),
         .act_max         (act_max),
         .sa_icb_cmd_valid(sa_icb_cmd_valid),
@@ -269,7 +269,7 @@ module e203_subsys_nice_core (
         .n               (n),
         .lhs_row_stride_b(lhs_row_stride_b),
         .dst_row_stride_b(dst_row_stride_b),
-        .rhs_col_stride_b(rhs_col_stride_b),
+        .rhs_row_stride_b(rhs_row_stride_b),
         .act_min         (act_min),
         .act_max         (act_max)
     );
