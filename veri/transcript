@@ -1,5 +1,5 @@
 # vsim -c -wlf vsim.wlf work.tb_top "+UVM_VERBOSITY=UVM_MEDIUM" -do "log -r /*; run -all; quit" 
-# Start time: 16:40:32 on Nov 22,2025
+# Start time: 17:24:27 on Nov 22,2025
 # ** Note: (vsim-3813) Design is being optimized due to module recompilation...
 # 
 # ** Warning: ../rtl/nice_coprocessor/MMA/kernel_loader.sv(580): (vopt-2697) MSB of part-select into 'icb_rsp_rdata' is out of bounds.
@@ -20,16 +20,15 @@
 # 
 # //  ModelSim SE-64 10.4 Dec  3 2014 
 # //
-# //  Copyright 1991-2014 Mentor Graphics Corporation
-# //  All Rights Reserved.
-# //
-# //  THIS WORK CONTAINS TRADE SECRET AND PROPRIETARY INFORMATION
-# //  WHICH IS THE PROPERTY OF MENTOR GRAPHICS CORPORATION OR ITS
-# //  LICENSORS AND IS SUBJECT TO LICENSE TERMS.
-# //  THIS DOCUMENT CONTAINS TRADE SECRETS AND COMMERCIAL OR FINANCIAL
-# //  INFORMATION THAT ARE PRIVILEGED, CONFIDENTIAL, AND EXEMPT FROM
-# //  DISCLOSURE UNDER THE FREEDOM OF INFORMATION ACT, 5 U.S.C. SECTION 552.
-# //  FURTHERMORE, THIS INFORMATION IS PROHIBITED FROM DISCLOSURE UNDER
+# //  Copyright 1991-2014 Mentor Graphics Cdataset reopen vsim.wlf
+# unknown or ambiguous subcommand "reopen": must be alias, autorefresh, clear, close, configure, current, dump, exists, export, filelist, flush, info, list, open, refresh, reload, rename, restart, save, or snapshot
+
+dataset reload
+# vsim:/tb_top/nice_vif/drv_cb
+
+# dfAddDataflowFromWave: Could not open the database because the required debug information has not been generated.
+# Please refer to the documentation for additional details.
+IS INFORMATION IS PROHIBITED FROM DISCLOSURE UNDER
 # //  THE TRADE SECRETS ACT, 18 U.S.C. SECTION 1905.
 # //
 # Loading sv_std.std
@@ -104,5 +103,5 @@
 # Break key hit
 # Break at an unknown location
 #  quit
-# End time: 16:40:56 on Nov 22,2025, Elapsed time: 0:00:24
+# End time: 17:26:20 on Nov 22,2025, Elapsed time: 0:01:53
 # Errors: 0, Warnings: 8

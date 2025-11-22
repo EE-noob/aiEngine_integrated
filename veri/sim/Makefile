@@ -32,7 +32,8 @@ VLOG          ?= vlog
 VSIM          ?= vsim
 
 # Default run arguments (plusargs), used for both VCS and ModelSim
-RUN_ARGS      ?= +UVM_VERBOSITY=UVM_MEDIUM
+UVM_VERBOSITY ?= UVM_HIGH
+RUN_ARGS      ?= +UVM_VERBOSITY=$(UVM_VERBOSITY)
 TESTNAME ?= ai_smoke_test
 .PHONY: git
 git:
@@ -72,11 +73,11 @@ com:
 	@echo "=== ModelSim/Questa compile (top_ai_engine) ==="
 	cd $(VERI_DIR) && ($(VLIB) work || true)
 	cd $(VERI_DIR) && $(VMAP) work work
-	cd $(VERI_DIR) && $(VLOG) -sv -mfcu -f $(FLIST)
+	cd $(VERI_DIR) && $(VLOG) -sv -mfcu -f $(FLIST) +UVM_TESTNAME=$(TESTNAME) -l msim.log
 
 sim: com
 	@echo "=== Run ModelSim/Questa simulation ==="
-	cd $(VERI_DIR) && $(VSIM) -c -wlf vsim.wlf work.$(TOP_MODULE) $(RUN_ARGS) -do "log -r /*; run -all; quit"
+	cd $(VERI_DIR) && $(VSIM) -c -wlf vsim.wlf work.$(TOP_MODULE) $(RUN_ARGS) +UVM_TESTNAME=$(TESTNAME) -l msim.log -do "log -r /*; run -all; quit"
 
 clean:
 	@echo "=== Clean ModelSim/Questa outputs ==="

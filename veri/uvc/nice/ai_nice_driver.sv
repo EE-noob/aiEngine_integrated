@@ -153,6 +153,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
     // 3. CSR_wr: Write single CSR
     task csr_wr(bit [11:0] addr, bit [31:0] data);
         string name = csr_name(addr);
+        int wait_cycle;
         `uvm_info("DRV_CSR", $sformatf("CSR WR: Addr=0x%03h (%s) Data=0x%08h", addr, name, data), UVM_MEDIUM)
         `uvm_info("DRV_CSR", $sformatf("CSR_WR driving: req_valid=1, req_inst=0x%08h, req_rs1=0x%08h, req_rs2=0x%08h, csr_name=%s", 
             {addr, 5'b00001, `NICE_CSRWR_FUNCT3, 5'b00000, `NICE_CUSTOM_3}, data, 32'h0, name), UVM_HIGH)
@@ -161,15 +162,23 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         vif.nice_req_inst  <= {addr, 5'b00001, `NICE_CSRWR_FUNCT3, 5'b00000, `NICE_CUSTOM_3};
         vif.nice_req_rs1   <= data;
         vif.nice_req_rs2   <= 32'h0;
-        
+
+        wait_cycle = 0;
         do begin
             @(posedge vif.nice_clk);
+            wait_cycle++;
+            if (wait_cycle % 10000 == 0)
+                `uvm_info("DRV_CSR", $sformatf("Waiting for req_ready... (cycle=%0d, req_ready=%0b)", wait_cycle, vif.nice_req_ready), UVM_NONE)
         end while(vif.nice_req_ready !== 1'b1);
-        
+
         vif.nice_req_valid <= 1'b0;
-        
+
+        wait_cycle = 0;
         while(vif.nice_rsp_valid !== 1'b1) begin
             @(posedge vif.nice_clk);
+            wait_cycle++;
+            if (wait_cycle % 10000 == 0)
+                `uvm_info("DRV_CSR", $sformatf("Waiting for rsp_valid... (cycle=%0d, rsp_valid=%0b)", wait_cycle, vif.nice_rsp_valid), UVM_NONE)
         end
         @(posedge vif.nice_clk);
     endtask
