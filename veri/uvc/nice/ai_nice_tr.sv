@@ -12,9 +12,9 @@ typedef enum bit [2:0] {
 
 class ai_nice_seq_item extends uvm_sequence_item;
     // Low level fields
-    rand bit [5:0]  matrix_k;
-    rand bit [5:0]  matrix_n;
-    rand bit [5:0]  matrix_m;
+    rand bit [15:0]  matrix_k; // Increased width from [5:0] to [15:0]
+    rand bit [15:0]  matrix_n; // Increased width from [5:0] to [15:0]
+    rand bit [15:0]  matrix_m; // Increased width from [5:0] to [15:0]
     rand bit        random_matrix_data;
 
     // Configuration bits
@@ -42,6 +42,22 @@ class ai_nice_seq_item extends uvm_sequence_item;
     string ia_matrix_file = "";
     string wgt_matrix_file = "";
 
+    // Analysis / Coverage fields (populated by monitor)
+    int latency_cycles;
+    real throughput_ops_per_cycle;
+    bit overflow_detected;
+    bit saturation_occurred;
+    int illegal_config_type;
+    int reset_during_operation;
+    int extreme_value_test;
+    int csr_access_type;
+    int icb_ready_delay;
+    int icb_cmd_type;
+    int bus_utilization;
+    int consecutive_task_count;
+    int task_interval_cycles;
+    int csr_mma_order;
+
     `uvm_object_utils_begin(ai_nice_seq_item)
         `uvm_field_enum(nice_cmd_t, cmd_kind, UVM_ALL_ON)
         `uvm_field_int(csr_addr, UVM_ALL_ON)
@@ -49,7 +65,21 @@ class ai_nice_seq_item extends uvm_sequence_item;
         `uvm_field_string(ia_matrix_file, UVM_ALL_ON)
         `uvm_field_string(wgt_matrix_file, UVM_ALL_ON)
         
-
+        // Analysis fields
+        `uvm_field_int(latency_cycles, UVM_ALL_ON)
+        `uvm_field_real(throughput_ops_per_cycle, UVM_ALL_ON)
+        `uvm_field_int(overflow_detected, UVM_ALL_ON)
+        `uvm_field_int(saturation_occurred, UVM_ALL_ON)
+        `uvm_field_int(illegal_config_type, UVM_ALL_ON)
+        `uvm_field_int(reset_during_operation, UVM_ALL_ON)
+        `uvm_field_int(extreme_value_test, UVM_ALL_ON)
+        `uvm_field_int(csr_access_type, UVM_ALL_ON)
+        `uvm_field_int(icb_ready_delay, UVM_ALL_ON)
+        `uvm_field_int(icb_cmd_type, UVM_ALL_ON)
+        `uvm_field_int(bus_utilization, UVM_ALL_ON)
+        `uvm_field_int(consecutive_task_count, UVM_ALL_ON)
+        `uvm_field_int(task_interval_cycles, UVM_ALL_ON)
+        `uvm_field_int(csr_mma_order, UVM_ALL_ON)
 
         `uvm_field_int(matrix_k        , UVM_ALL_ON)
         `uvm_field_int(matrix_n        , UVM_ALL_ON)
