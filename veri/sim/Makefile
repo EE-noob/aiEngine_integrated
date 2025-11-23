@@ -19,6 +19,9 @@ SIM_TOOL      ?= modelsim
 # Waveform dump format: fsdb, vpd, vcd, or none (for VCS)
 DUMP          ?= vpd
 
+# Coverage enable: 0 or 1
+COV           ?= 0
+
 # veri/ directory (this Makefile is under veri/sim/)
 VERI_DIR      := ..
 
@@ -32,6 +35,20 @@ VCS_FLAGS     := -full64 -sverilog -timescale=1ns/1ps \
                  -debug_access+all +vcs+lic+wait \
                  -ntb_opts uvm-1.2 \
                  -lca -kdb
+
+# Coverage settings
+COV_OPTS      := -cm line+cond+fsm+tgl+branch+assert
+COV_DIR       := simv.vdb
+
+ifeq ($(COV),1)
+    VCS_FLAGS += $(COV_OPTS)
+    # Pass coverage options to simulation runtime
+    # -cm_dir specifies where to save the coverage database
+    # -cm_name specifies the test name for the coverage run
+    SIM_COV_OPTS = $(COV_OPTS) -cm_dir $(COV_DIR) -cm_name $(TESTNAME)
+else
+    SIM_COV_OPTS =
+endif
 
 # FSDB dump settings (requires Verdi/Novas)
 ifeq ($(DUMP),fsdb)
@@ -90,11 +107,14 @@ com:
 ifeq ($(DUMP),fsdb)
 	@echo "=== Using FSDB: VERDI_HOME=$(VERDI_HOME) ==="
 endif
+ifeq ($(COV),1)
+	@echo "=== Coverage Enabled: $(COV_DIR) ==="
+endif
 	cd $(VERI_DIR) && $(VCS) $(VCS_FLAGS) -f $(FLIST) -o simv
 
 sim: com
 	@echo "=== Run VCS simulation (DUMP=$(DUMP)) ==="
-	cd $(VERI_DIR) && ./simv $(RUN_ARGS) +UVM_TESTNAME=$(TESTNAME) $(DUMP_OPTS) -l vcs.log
+	cd $(VERI_DIR) && ./simv $(RUN_ARGS) +UVM_TESTNAME=$(TESTNAME) $(DUMP_OPTS) $(SIM_COV_OPTS) -l vcs.log
 
 # Interactive GUI simulation with Verdi (requires FSDB)
 verdi: check_verdi
@@ -117,6 +137,16 @@ gui: check_verdi com
 	@echo "=== Run VCS simulation in Verdi GUI mode ==="
 	cd $(VERI_DIR) && verdi -sx -f $(FLIST) -top $(TOP_MODULE) \
 		-simflow -simv $(VERI_DIR)/simv $(RUN_ARGS) +UVM_TESTNAME=$(TESTNAME) &
+
+# Open Coverage in Verdi
+cov: check_verdi
+	@echo "=== Open Verdi Coverage Viewer ==="
+	@if [ -d $(VERI_DIR)/$(COV_DIR) ]; then \
+		cd $(VERI_DIR) && verdi -cov -covdir $(COV_DIR) & \
+	else \
+		echo "Error: Coverage directory $(COV_DIR) not found. Run 'make sim COV=1' first."; \
+		exit 1; \
+	fi
 
 # Open waveform viewer based on dump format
 wave:

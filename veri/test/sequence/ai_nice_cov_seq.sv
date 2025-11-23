@@ -72,7 +72,8 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         `uvm_info("COV_SEQ", "Traversing Quantization Configs...", UVM_LOW)
         
         // 遍历 Shift: Disabled(0), Small([1:8]), Medium([9:16]), Large([17:31])
-        shifts = '{0, 4, 12, 20};
+        // FIX: 约束要求 quant_shift inside {[-16:16]}，因此移除 20，改为 16
+        shifts = '{0, 4, 12, 16};
         foreach(shifts[i]) `DO_SAMPLE(tr, { quant_shift == shifts[i]; })
 
         // 遍历 Per-Channel
@@ -88,7 +89,8 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         `DO_SAMPLE(tr, { act_min == -32768; act_max == 32767; })
         
         // ReLU-like (0 to Max)
-        `DO_SAMPLE(tr, { act_min == 0; act_max == 32767; })
+        // FIX: 约束要求 act_min < 0 (inside [-32768:-1])，因此改为 -1
+        `DO_SAMPLE(tr, { act_min == -1; act_max == 32767; })
         
         // Clamp (Small range)
         `DO_SAMPLE(tr, { act_min == -10; act_max == 10; })

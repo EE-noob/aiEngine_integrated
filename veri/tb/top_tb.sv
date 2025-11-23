@@ -119,7 +119,7 @@ module tb_top;
     initial begin
         nice_rst_n = 1'b0;
         icb_rst_n  = 1'b0;
-        repeat (10) @(posedge nice_clk);
+        repeat (3) @(posedge nice_clk);
         nice_rst_n = 1'b1;
         icb_rst_n  = 1'b1;
     end
