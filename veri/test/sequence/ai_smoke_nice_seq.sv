@@ -32,15 +32,15 @@ class ai_smoke_nice_seq extends uvm_sequence#(ai_nice_seq_item);
         // 3. Auto Matrix Multiplication Test
         `uvm_do_with(tr, {
             cmd_kind == NICE_AUTO;
-            matrix_m == 16;
+            matrix_m == 6;
             matrix_k == 16;
-            matrix_n == 16;
+            matrix_n == 9;
             random_matrix_data == 1;
             // Default config
             per_ch == 0;
             a_w == 1;
             b_w == 1;
-            bias_w == 2;
+            bias_w == 0;
             out_w == 1;
 
             quant_shift == 3;

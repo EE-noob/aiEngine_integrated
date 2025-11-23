@@ -137,7 +137,7 @@ class ai_nice_seq_item extends uvm_sequence_item;
     constraint c_quant_params {
         quant_multiplier inside {[1:32'h0000_FFFF]};
         quant_shift      inside {[-16:16]};
-        (quant_shift >= 0) -> (quant_multiplier <= 32'h0000_1FFF);
+        (per_ch == 0) -> (quant_multiplier <= 32'h0000_1FFF);
     }
     
     // Config constraints (defaults)
