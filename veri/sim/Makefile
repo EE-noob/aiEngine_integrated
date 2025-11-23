@@ -98,7 +98,7 @@ sim: com
 
 # Interactive GUI simulation with Verdi (requires FSDB)
 verdi: check_verdi
-ifeq ($(DUMP),fsdb)
+ifeq (1,1)#($(DUMP),fsdb)
 	@echo "=== Launch Verdi interactive debug (VCS+Verdi) ==="
 	@if [ -f $(VERI_DIR)/$(TOP_MODULE).fsdb ]; then \
 		cd $(VERI_DIR) && verdi -ssf $(TOP_MODULE).fsdb -dbdir simv.daidir -sswr $(TOP_MODULE).fsdb.log & \
