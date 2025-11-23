@@ -25,11 +25,11 @@ class ai_nice_seq_item extends uvm_sequence_item;
     rand bit [2:0]  out_w;
 
     // Quantization & Activation
-    rand bit signed [15:0] act_min;
-    rand bit signed [15:0] act_max;
-    rand bit signed [15:0] lhs_offset;
-    rand bit signed [15:0] rhs_offset;
-    rand bit signed [15:0] dst_offset;
+    rand bit signed [31:0] act_min;    // Widened to 32-bit
+    rand bit signed [31:0] act_max;    // Widened to 32-bit
+    rand bit signed [31:0] lhs_offset; // Widened to 32-bit
+    rand bit signed [31:0] rhs_offset; // Widened to 32-bit
+    rand bit signed [31:0] dst_offset; // Widened to 32-bit
     rand bit [31:0]        quant_multiplier;
     rand bit signed [5:0]  quant_shift;
     rand nice_cmd_t cmd_kind;

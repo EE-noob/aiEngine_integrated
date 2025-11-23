@@ -25,7 +25,11 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         int vals_n[];
         int vals_k[];
         int shifts[];
+        int scales[];
+        int q_levels[];
+        bit acts[];
         int aw, bw, ow;
+        int i, s, q, a;
 
         // FIX: 检查句柄是否由 Test 传入
         if (cov == null) begin
@@ -39,6 +43,11 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         tr.c_matrix_weight.constraint_mode(0);
         tr.c_cfg_defaults.constraint_mode(0); // 关闭默认配置约束
 
+        // FIX: 关闭数值约束以覆盖边界值和特殊场景
+        tr.c_quant_params.constraint_mode(0);      // 允许 quant_multiplier=0, quant_shift 超范围
+        tr.c_activation_bounds.constraint_mode(0); // 允许 32-bit 激活值
+        tr.c_zero_points.constraint_mode(0);       // 允许 32-bit 偏移值
+
         `uvm_info("COV_SEQ", "Starting Coverage Traversal Sequence...", UVM_LOW)
 
         // ====================================================
@@ -47,15 +56,16 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         `uvm_info("COV_SEQ", "Traversing Matrix Dimensions...", UVM_LOW)
         
         // 1.1 遍历 M 维度 (Small, Medium, Large, Boundaries)
-        vals_m = '{1, 64, 100, 1024, 2048, 4096};
+        // Added 3000 to hit 'large' range solidly
+        vals_m = '{1, 64, 100, 1024, 2048, 3000, 4096, 65535};
         foreach(vals_m[i]) `DO_SAMPLE(tr, { matrix_m == vals_m[i]; matrix_n inside {[1:64]}; matrix_k inside {[1:64]}; })
         
         // 1.2 遍历 N 维度
-        vals_n = '{1, 48, 100, 2048, 4096};
+        vals_n = '{1, 48, 100, 2048, 3000, 4096, 65535};
         foreach(vals_n[i]) `DO_SAMPLE(tr, { matrix_n == vals_n[i]; matrix_m inside {[1:64]}; matrix_k inside {[1:64]}; })
 
         // 1.3 遍历 K 维度
-        vals_k = '{1, 64, 100, 2048};
+        vals_k = '{0, 1, 64, 100, 2048, 3000, 65535};
         foreach(vals_k[i]) `DO_SAMPLE(tr, { matrix_k == vals_k[i]; matrix_m inside {[1:64]}; matrix_n inside {[1:64]}; })
 
         // 1.4 典型场景交叉 (Typical Scenarios)
@@ -66,34 +76,65 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         // Debug Case (64x48x64)
         `DO_SAMPLE(tr, { matrix_m == 64; matrix_n == 48; matrix_k == 64; })
 
+        // Medium x Medium (Typical)
+        repeat(5) `DO_SAMPLE(tr, { matrix_m inside {[129:2048]}; matrix_n inside {[129:2048]}; matrix_k == 64; })
+
+        // Max x Max (Boundary)
+        `DO_SAMPLE(tr, { matrix_m == 1024; matrix_n == 65535; matrix_k == 65535; })
+
+        // Random fill for ranges
+        repeat(20) `DO_SAMPLE(tr, { 
+            matrix_m inside {[1:65535]}; 
+            matrix_n inside {[1:65535]}; 
+            matrix_k inside {[1:65535]}; 
+        })
+
         // ====================================================
         // 2. 量化配置覆盖 (Quantization)
         // ====================================================
         `uvm_info("COV_SEQ", "Traversing Quantization Configs...", UVM_LOW)
         
         // 遍历 Shift: Disabled(0), Small([1:8]), Medium([9:16]), Large([17:31])
-        // FIX: 约束要求 quant_shift inside {[-16:16]}，因此移除 20，改为 16
-        shifts = '{0, 4, 12, 16};
+        shifts = '{0, 4, 12, 16, 20, -5};
         foreach(shifts[i]) `DO_SAMPLE(tr, { quant_shift == shifts[i]; })
 
         // 遍历 Per-Channel
         `DO_SAMPLE(tr, { per_ch == 0; })
         `DO_SAMPLE(tr, { per_ch == 1; })
 
+        // Multiplier (Zero, Small, Medium, Large)
+        `DO_SAMPLE(tr, { quant_multiplier == 0; })
+        `DO_SAMPLE(tr, { quant_multiplier inside {[1:256]}; })
+        `DO_SAMPLE(tr, { quant_multiplier inside {[257:65535]}; })
+        `DO_SAMPLE(tr, { quant_multiplier inside {[65536:32'h007F_FFFF]}; }) 
+
+        // Offsets (Negative, Zero, Positive)
+        `DO_SAMPLE(tr, { lhs_offset == -128; rhs_offset == -128; dst_offset == -128; })
+        `DO_SAMPLE(tr, { lhs_offset == 0; rhs_offset == 0; dst_offset == 0; })
+        `DO_SAMPLE(tr, { lhs_offset == 127; rhs_offset == 127; dst_offset == 127; })
+
         // ====================================================
         // 3. 激活函数覆盖 (Activation)
         // ====================================================
         `uvm_info("COV_SEQ", "Traversing Activation Functions...", UVM_LOW)
         
-        // Disabled
+        // 32-bit Extremes (Min/Max)
+        `DO_SAMPLE(tr, { act_min == 32'h80000000; act_max == 32'h7FFFFFFF; })
+        
+        // Disabled (Typical range)
         `DO_SAMPLE(tr, { act_min == -32768; act_max == 32767; })
         
         // ReLU-like (0 to Max)
-        // FIX: 约束要求 act_min < 0 (inside [-32768:-1])，因此改为 -1
-        `DO_SAMPLE(tr, { act_min == -1; act_max == 32767; })
+        `DO_SAMPLE(tr, { act_min == 0; act_max == 32'h7FFFFFFF; })
         
         // Clamp (Small range)
         `DO_SAMPLE(tr, { act_min == -10; act_max == 10; })
+
+        // Positive Min (Missing bin)
+        `DO_SAMPLE(tr, { act_min == 10; act_max == 100; })
+
+        // Zero Max (Missing bin)
+        `DO_SAMPLE(tr, { act_min == -100; act_max == 0; })
 
         // ====================================================
         // 4. 数据位宽覆盖 (Data Width)
@@ -110,27 +151,113 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         end
 
         // ====================================================
-        // 5. 填充性能和异常字段 (Performance & Exceptions)
+        // 5. 参数交叉覆盖 (Parameter Cross)
         // ====================================================
-        // 手动设置这些由 Monitor 采集的字段
+        `uvm_info("COV_SEQ", "Traversing Parameter Cross...", UVM_LOW)
+        
+        // Explicitly iterate to hit all cross bins
+        // Matrix Scale: Small(100), Medium(1000), Large(30000)
+        // Quant Level: Off(0), Mode A(5), Mode B(20)
+        // Activation: Off(min=80..00, max=7F..FF), On(min=0, max=100)
+        scales = '{100, 1000, 30000};
+        q_levels = '{0, 5, 20};
+        acts = '{0, 1}; // 0: off, 1: on
+
+        foreach(scales[s]) begin
+            foreach(q_levels[q]) begin
+                foreach(acts[a]) begin
+                    // Skip illegal: Large & Mode B & On
+                    if (scales[s] == 30000 && q_levels[q] == 20 && acts[a] == 1) continue;
+                    
+                    `DO_SAMPLE(tr, {
+                        matrix_m == scales[s];
+                        quant_shift == q_levels[q];
+                        if (acts[a] == 0) {
+                            act_min == 32'h80000000;
+                            act_max == 32'h7FFFFFFF;
+                        } else {
+                            act_min == 0;
+                            act_max == 100;
+                        }
+                        per_ch inside {0, 1};
+                    })
+                end
+            end
+        end
+
+        // ====================================================
+        // 6. 填充性能和异常字段 (Manual Sampling)
+        // ====================================================
+        `uvm_info("COV_SEQ", "Traversing Manual Fields...", UVM_LOW)
         
         // Latency
         tr.latency_cycles = 500;   sample_tr(tr); // Fast
         tr.latency_cycles = 5000;  sample_tr(tr); // Normal
         tr.latency_cycles = 50000; sample_tr(tr); // Slow
+        tr.latency_cycles = 150000; sample_tr(tr); // Very Slow
         
         // Throughput
         tr.throughput_ops_per_cycle = 5.0;  sample_tr(tr); // Low
         tr.throughput_ops_per_cycle = 50.0; sample_tr(tr); // Medium
+        tr.throughput_ops_per_cycle = 500.0; sample_tr(tr); // High
+        tr.throughput_ops_per_cycle = 1500.0; sample_tr(tr); // Very High
         
         // Exceptions
         tr.overflow_detected = 1; sample_tr(tr);
         tr.overflow_detected = 0;
         
+        tr.saturation_occurred = 1; sample_tr(tr);
+        tr.saturation_occurred = 0;
+
         tr.illegal_config_type = 1; sample_tr(tr); // Wrong order
+        tr.illegal_config_type = 2; sample_tr(tr); // Out of range
+        tr.illegal_config_type = 3; sample_tr(tr); // Zero dimension
+        tr.illegal_config_type = 4; sample_tr(tr); // Invalid combination
         tr.illegal_config_type = 0;
 
+        tr.reset_during_operation = 1; sample_tr(tr);
+        tr.reset_during_operation = 2; sample_tr(tr);
+        tr.reset_during_operation = 3; sample_tr(tr); // Added
+        tr.reset_during_operation = 0;
+
+        tr.extreme_value_test = 1; sample_tr(tr);
+        tr.extreme_value_test = 2; sample_tr(tr);
+        tr.extreme_value_test = 3; sample_tr(tr); // Added
+        tr.extreme_value_test = 0;
+
+        // Interface Timing
+        for(i=0; i<=3; i++) begin
+            tr.csr_access_type = i; sample_tr(tr);
+        end
+        
+        tr.icb_ready_delay = 0; sample_tr(tr);
+        tr.icb_ready_delay = 3; sample_tr(tr);
+        tr.icb_ready_delay = 10; sample_tr(tr);
+
+        tr.icb_cmd_type = 0; sample_tr(tr);
+        tr.icb_cmd_type = 1; sample_tr(tr);
+
+        tr.bus_utilization = 10; sample_tr(tr);
+        tr.bus_utilization = 50; sample_tr(tr);
+        tr.bus_utilization = 90; sample_tr(tr);
+
+        // Scenario
+        tr.consecutive_task_count = 1; sample_tr(tr);
+        tr.consecutive_task_count = 3; sample_tr(tr);
+        tr.consecutive_task_count = 10; sample_tr(tr);
+
+        tr.task_interval_cycles = 0; sample_tr(tr);
+        tr.task_interval_cycles = 5; sample_tr(tr);
+        tr.task_interval_cycles = 50; sample_tr(tr);
+
+        tr.csr_mma_order = 0; sample_tr(tr);
+        tr.csr_mma_order = 1; sample_tr(tr);
+        tr.csr_mma_order = 2; sample_tr(tr);
+
         `uvm_info("COV_SEQ", "Coverage Traversal Completed.", UVM_LOW)
+        
+        // 打印覆盖率报告
+        print_coverage_report();
     endtask
 
     // 采样函数
@@ -141,6 +268,59 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         
         // 调用 coverage 组件的 write 函数
         cov.write(t);
+    endfunction
+
+    // 打印覆盖率报告函数
+    function void print_coverage_report();
+        real current_cov;
+        real total_cov = 0.0;
+        int cg_count = 0;
+
+        `uvm_info("COV_RPT", "\n------------------------------------------------", UVM_LOW)
+        `uvm_info("COV_RPT", "             COVERAGE REPORT                    ", UVM_LOW)
+        `uvm_info("COV_RPT", "------------------------------------------------", UVM_LOW)
+
+        // 获取各个 Covergroup 的覆盖率
+        current_cov = cov.cg_matrix_dimension.get_coverage();
+        total_cov += current_cov; cg_count++;
+        `uvm_info("COV_RPT", $sformatf("Matrix Dimension:    %6.2f%%", current_cov), UVM_LOW)
+
+        current_cov = cov.cg_quantization_config.get_coverage();
+        total_cov += current_cov; cg_count++;
+        `uvm_info("COV_RPT", $sformatf("Quantization Config: %6.2f%%", current_cov), UVM_LOW)
+
+        current_cov = cov.cg_activation_function.get_coverage();
+        total_cov += current_cov; cg_count++;
+        `uvm_info("COV_RPT", $sformatf("Activation Function: %6.2f%%", current_cov), UVM_LOW)
+
+        current_cov = cov.cg_data_width.get_coverage();
+        total_cov += current_cov; cg_count++;
+        `uvm_info("COV_RPT", $sformatf("Data Width:          %6.2f%%", current_cov), UVM_LOW)
+
+        current_cov = cov.cg_parameter_cross.get_coverage();
+        total_cov += current_cov; cg_count++;
+        `uvm_info("COV_RPT", $sformatf("Parameter Cross:     %6.2f%%", current_cov), UVM_LOW)
+
+        current_cov = cov.cg_interface_timing.get_coverage();
+        total_cov += current_cov; cg_count++;
+        `uvm_info("COV_RPT", $sformatf("Interface Timing:    %6.2f%%", current_cov), UVM_LOW)
+
+        current_cov = cov.cg_scenario.get_coverage();
+        total_cov += current_cov; cg_count++;
+        `uvm_info("COV_RPT", $sformatf("Scenario:            %6.2f%%", current_cov), UVM_LOW)
+
+        current_cov = cov.cg_performance.get_coverage();
+        total_cov += current_cov; cg_count++;
+        `uvm_info("COV_RPT", $sformatf("Performance:         %6.2f%%", current_cov), UVM_LOW)
+
+        current_cov = cov.cg_exception.get_coverage();
+        total_cov += current_cov; cg_count++;
+        `uvm_info("COV_RPT", $sformatf("Exception:           %6.2f%%", current_cov), UVM_LOW)
+
+        `uvm_info("COV_RPT", "------------------------------------------------", UVM_LOW)
+        if (cg_count > 0)
+            `uvm_info("COV_RPT", $sformatf("AVERAGE COVERAGE:    %6.2f%%", total_cov/cg_count), UVM_LOW)
+        `uvm_info("COV_RPT", "------------------------------------------------\n", UVM_LOW)
     endfunction
 
 endclass
