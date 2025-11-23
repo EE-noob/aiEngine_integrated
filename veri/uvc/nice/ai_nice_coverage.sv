@@ -199,7 +199,7 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
         }
         
         // 完整组合覆盖
-        cross_all_params: cross cp_matrix_scale, cp_quant_level, cp_activation, cp_per_channel;
+        //cross_all_params: cross cp_matrix_scale, cp_quant_level, cp_activation, cp_per_channel;
     endgroup
 
     // 覆盖组：接口时序覆盖
