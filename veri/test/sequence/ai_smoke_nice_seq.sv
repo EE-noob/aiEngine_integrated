@@ -37,7 +37,7 @@ class ai_smoke_nice_seq extends uvm_sequence#(ai_nice_seq_item);
             matrix_n == 16;
             random_matrix_data == 1;
             // Default config
-            per_ch == 1;
+            per_ch == 0;
             a_w == 1;
             b_w == 1;
             bias_w == 2;
