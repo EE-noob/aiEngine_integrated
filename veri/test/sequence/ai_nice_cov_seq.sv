@@ -28,8 +28,9 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         int scales[];
         int q_levels[];
         bit acts[];
+        bit per_chs[]; // Added: Array for per_ch iteration
         int aw, bw, ow;
-        int i, s, q, a;
+        int i, s, q, a, p; // Added: Loop variable p
         
         // Added for matrix cross coverage
         int m_cross[];
@@ -188,28 +189,32 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         // Matrix Scale: Small(100), Medium(1000), Large(30000)
         // Quant Level: Off(0), Mode A(5), Mode B(20)
         // Activation: Off(min=80..00, max=7F..FF), On(min=0, max=100)
+        // Per Channel: Off(0), On(1)
         scales = '{100, 1000, 30000};
         q_levels = '{0, 5, 20};
         acts = '{0, 1}; // 0: off, 1: on
+        per_chs = '{0, 1}; // Added: Explicit values for per_ch
 
         foreach(scales[s]) begin
             foreach(q_levels[q]) begin
                 foreach(acts[a]) begin
-                    // Skip illegal: Large & Mode B & On
-                    if (scales[s] == 30000 && q_levels[q] == 20 && acts[a] == 1) continue;
-                    
-                    `DO_SAMPLE(tr, {
-                        matrix_m == scales[s];
-                        quant_shift == q_levels[q];
-                        if (acts[a] == 0) {
-                            act_min == 32'h80000000;
-                            act_max == 32'h7FFFFFFF;
-                        } else {
-                            act_min == 0;
-                            act_max == 100;
-                        }
-                        per_ch inside {0, 1};
-                    })
+                    foreach(per_chs[p]) begin
+                        // Skip illegal: Large & Mode B & On
+                        if (scales[s] == 30000 && q_levels[q] == 20 && acts[a] == 1) continue;
+                        
+                        `DO_SAMPLE(tr, {
+                            matrix_m == scales[s];
+                            quant_shift == q_levels[q];
+                            if (acts[a] == 0) {
+                                act_min == 32'h80000000;
+                                act_max == 32'h7FFFFFFF;
+                            } else {
+                                act_min == 0;
+                                act_max == 100;
+                            }
+                            per_ch == per_chs[p]; // Explicitly set per_ch
+                        })
+                    end
                 end
             end
         end
