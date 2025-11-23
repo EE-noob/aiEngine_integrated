@@ -78,7 +78,7 @@ package ai_test_pkg;
                 `uvm_fatal("TEST", "env.nice_agent is null")
             end
 
-             #100ns;//wait rst done
+             #1000ns;//wait rst done
             nice_seq.start(env.nice_agent.seqr);
 
             `uvm_info(get_type_name(), "smoke_test main_phase end, dropping objection", UVM_MEDIUM)
