@@ -54,6 +54,7 @@ class ai_nice_seq_item extends uvm_sequence_item;
     int icb_ready_delay;
     int icb_cmd_type;
     int bus_arbitration; // Renamed from bus_utilization
+    int bus_utilization;
     int consecutive_task_count;
     int task_interval_cycles;
     int csr_mma_order;

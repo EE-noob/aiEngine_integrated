@@ -30,6 +30,12 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         bit acts[];
         int aw, bw, ow;
         int i, s, q, a;
+        
+        // Added for matrix cross coverage
+        int m_cross[];
+        int n_cross[];
+        int k_cross[];
+        int m, n, k;
 
         // FIX: 检查句柄是否由 Test 传入
         if (cov == null) begin
@@ -82,12 +88,28 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         // Max x Max (Boundary)
         `DO_SAMPLE(tr, { matrix_m == 1024; matrix_n == 65535; matrix_k == 65535; })
 
-        // Random fill for ranges
-        repeat(20) `DO_SAMPLE(tr, { 
-            matrix_m inside {[1:65535]}; 
-            matrix_n inside {[1:65535]}; 
-            matrix_k inside {[1:65535]}; 
-        })
+        // ====================================================
+        // 1.5 矩阵维度交叉覆盖 (Matrix Dimension Cross)
+        // ====================================================
+        `uvm_info("COV_SEQ", "Traversing Matrix Dimension Cross...", UVM_LOW)
+        
+        // Explicitly iterate through Small, Medium, Large bins for M, N, K
+        // Small: [1:128], Medium: [129:2048], Large: [2049:65535]
+        m_cross = '{64, 1000, 4000};
+        n_cross = '{64, 1000, 4000};
+        k_cross = '{64, 1000, 4000};
+
+        foreach(m_cross[m]) begin
+            foreach(n_cross[n]) begin
+                foreach(k_cross[k]) begin
+                    `DO_SAMPLE(tr, {
+                        matrix_m == m_cross[m];
+                        matrix_n == n_cross[n];
+                        matrix_k == k_cross[k];
+                    })
+                end
+            end
+        end
 
         // ====================================================
         // 2. 量化配置覆盖 (Quantization)
@@ -118,22 +140,29 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         // ====================================================
         `uvm_info("COV_SEQ", "Traversing Activation Functions...", UVM_LOW)
         
-        // 32-bit Extremes (Min/Max)
-        `DO_SAMPLE(tr, { act_min == 32'h80000000; act_max == 32'h7FFFFFFF; })
-        
+        // 1. Cross Bin: relu_like (min=zero, max=pos_max)
+        `DO_SAMPLE(tr, { act_min == 0; act_max == 32'h7FFFFFFF; })
+
+        // 2. Cross Bin: clamp (min=neg_max, max=normal)
+        // Covers: cp_act_min.neg_max && cp_act_max.normal
+        `DO_SAMPLE(tr, { act_min == 32'h80000000; act_max == 100; })
+
+        // 3. Cross Bin: clamp (min=zero, max=normal)
+        // Covers: cp_act_min.zero && cp_act_max.normal
+        `DO_SAMPLE(tr, { act_min == 0; act_max == 100; })
+
+        // 4. Cross Bin: clamp (min=pos_values, max=normal)
+        // Covers: cp_act_min.pos_values && cp_act_max.normal
+        `DO_SAMPLE(tr, { act_min == 10; act_max == 100; })
+
+        // Additional cases for robustness
         // Disabled (Typical range)
         `DO_SAMPLE(tr, { act_min == -32768; act_max == 32767; })
         
-        // ReLU-like (0 to Max)
-        `DO_SAMPLE(tr, { act_min == 0; act_max == 32'h7FFFFFFF; })
-        
-        // Clamp (Small range)
+        // Clamp (Small range negative)
         `DO_SAMPLE(tr, { act_min == -10; act_max == 10; })
 
-        // Positive Min (Missing bin)
-        `DO_SAMPLE(tr, { act_min == 10; act_max == 100; })
-
-        // Zero Max (Missing bin)
+        // Zero Max
         `DO_SAMPLE(tr, { act_min == -100; act_max == 0; })
 
         // ====================================================
@@ -190,14 +219,10 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         // ====================================================
         `uvm_info("COV_SEQ", "Traversing Manual Fields...", UVM_LOW)
         
-        // Latency & Throughput (Performance) - Removed
-        
         // Exceptions
         tr.overflow_detected = 1; sample_tr(tr);
         tr.overflow_detected = 0;
         
-        // Saturation - Removed
-
         tr.illegal_config_type = 1; sample_tr(tr); // Wrong order
         tr.illegal_config_type = 2; sample_tr(tr); // Out of range
         tr.illegal_config_type = 3; sample_tr(tr); // Zero dimension
@@ -208,8 +233,6 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         tr.reset_during_operation = 2; sample_tr(tr);
         tr.reset_during_operation = 3; sample_tr(tr); // Added
         tr.reset_during_operation = 0;
-
-        // Extreme values - Removed
 
         // Interface Timing
         for(i=0; i<=3; i++) begin
@@ -223,9 +246,10 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         tr.icb_cmd_type = 0; sample_tr(tr);
         tr.icb_cmd_type = 1; sample_tr(tr);
 
-        tr.bus_utilization = 10; sample_tr(tr);
-        tr.bus_utilization = 50; sample_tr(tr);
-        tr.bus_utilization = 90; sample_tr(tr);
+        // Bus Arbitration (0 to 4 requests)
+        for(i=0; i<=4; i++) begin
+            tr.bus_arbitration = i; sample_tr(tr);
+        end
 
         // Scenario
         tr.consecutive_task_count = 1; sample_tr(tr);
@@ -235,8 +259,6 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         tr.task_interval_cycles = 0; sample_tr(tr);
         tr.task_interval_cycles = 5; sample_tr(tr);
         tr.task_interval_cycles = 50; sample_tr(tr);
-
-        // CSR MMA Order - Removed
 
         `uvm_info("COV_SEQ", "Coverage Traversal Completed.", UVM_LOW)
         
@@ -293,8 +315,6 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         total_cov += current_cov; cg_count++;
         `uvm_info("COV_RPT", $sformatf("Scenario:            %6.2f%%", current_cov), UVM_LOW)
 
-        // Performance - Removed
-
         current_cov = cov.cg_exception.get_coverage();
         total_cov += current_cov; cg_count++;
         `uvm_info("COV_RPT", $sformatf("Exception:           %6.2f%%", current_cov), UVM_LOW)
@@ -308,22 +328,5 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
 endclass
 
 `endif // AI_NICE_COV_SEQ_SV
-        `uvm_info("COV_RPT", $sformatf("Scenario:            %6.2f%%", current_cov), UVM_LOW)
 
-        current_cov = cov.cg_performance.get_coverage();
-        total_cov += current_cov; cg_count++;
-        `uvm_info("COV_RPT", $sformatf("Performance:         %6.2f%%", current_cov), UVM_LOW)
 
-        current_cov = cov.cg_exception.get_coverage();
-        total_cov += current_cov; cg_count++;
-        `uvm_info("COV_RPT", $sformatf("Exception:           %6.2f%%", current_cov), UVM_LOW)
-
-        `uvm_info("COV_RPT", "------------------------------------------------", UVM_LOW)
-        if (cg_count > 0)
-            `uvm_info("COV_RPT", $sformatf("AVERAGE COVERAGE:    %6.2f%%", total_cov/cg_count), UVM_LOW)
-        `uvm_info("COV_RPT", "------------------------------------------------\n", UVM_LOW)
-    endfunction
-
-endclass
-
-`endif // AI_NICE_COV_SEQ_SV

@@ -346,49 +346,6 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
 endclass
 
 `endif // AI_NICE_COVERAGE_SV
-        quant_shift = t.quant_shift;
-        quant_mult = t.quant_multiplier; // FIX: Name mapping
-        lhs_offset = t.lhs_offset;
-        rhs_offset = t.rhs_offset;
-        dst_offset = t.dst_offset;
-        act_min = t.act_min;
-        act_max = t.act_max;
-        a_width = t.a_w;          // FIX: Name mapping
-        b_width = t.b_w;          // FIX: Name mapping
-        bias_width = t.bias_w;    // FIX: Name mapping
-        out_width = t.out_w;      // FIX: Name mapping
-        
-        // Update analysis fields
-        latency_cycles = t.latency_cycles;
-        throughput_ops_per_cycle = t.throughput_ops_per_cycle;
-        overflow_detected = t.overflow_detected;
-        saturation_occurred = t.saturation_occurred;
-        illegal_config_type = t.illegal_config_type;
-        reset_during_operation = t.reset_during_operation;
-        extreme_value_test = t.extreme_value_test;
-        csr_access_type = t.csr_access_type;
-        icb_ready_delay = t.icb_ready_delay;
-        icb_cmd_type = t.icb_cmd_type;
-        bus_arbitration = t.bus_arbitration; // Renamed
-        consecutive_task_count = t.consecutive_task_count;
-        task_interval_cycles = t.task_interval_cycles;
-        csr_mma_order = t.csr_mma_order;
-
-        // 采样覆盖率
-        cg_matrix_dimension.sample();
-        cg_quantization_config.sample();
-        cg_activation_function.sample();
-        cg_data_width.sample();
-        cg_parameter_cross.sample();
-        cg_interface_timing.sample();
-        cg_scenario.sample();
-        cg_performance.sample();
-        cg_exception.sample();
-    endfunction
-
-endclass
-
-`endif // AI_NICE_COVERAGE_SV
 
 
 
