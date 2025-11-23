@@ -45,6 +45,7 @@ class ai_smoke_nice_seq extends uvm_sequence#(ai_nice_seq_item);
 
             quant_shift == 3;
             quant_multiplier == 5;
+            bias_base_addr == 32'h0000_0000;
         })
 
         `uvm_info(get_type_name(), "Smoke nice sequence finished - Recompile Triggered", UVM_MEDIUM)
