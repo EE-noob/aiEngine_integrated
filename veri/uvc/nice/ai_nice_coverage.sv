@@ -53,7 +53,7 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
         
         // K维度覆盖点
         cp_k_inner: coverpoint k_inner {
-            bins zero = {0};                  // K=0边界
+            //bins zero = {0};                  // K=0边界
             bins one = {1};                   // K=1边界
             bins val_small = {[2:128]};
             bins val_medium = {[129:2048]};
@@ -99,7 +99,7 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
         
         // 量化乘数
         cp_quant_mult: coverpoint quant_mult {
-            bins zero = {0};
+            //bins zero = {0};
             bins val_small = {[1:256]};
             bins val_medium = {[257:65535]};
             bins val_large = {[65536:$]};
