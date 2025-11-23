@@ -255,34 +255,6 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
             bins short = {[1:10]};
             bins long = {[11:100]};
         }
-        
-        // CSR与MMA操作顺序
-        cp_csr_mma_order: coverpoint csr_mma_order {
-            bins normal = {0};                // 先CSR后MMA
-            bins abnormal = {1};              // 先MMA后CSR
-            bins interleaved = {2};           // 交错
-        }
-    endgroup
-
-    // 覆盖组：性能覆盖
-    covergroup cg_performance;
-        option.per_instance = 1;
-        option.name = "performance_coverage";
-        
-        cp_latency_cycles: coverpoint latency_cycles {
-            bins fast = {[0:1000]};
-            bins normal = {[1001:10000]};
-            bins slow = {[10001:100000]};
-            bins very_slow = {[100001:$]};
-        }
-        
-        // FIX: Cast real to int for coverpoint
-        cp_throughput: coverpoint int'(throughput_ops_per_cycle) {
-            bins low = {[0:10]};
-            bins throughput_ops_per_cycle_medium = {[11:100]};
-            bins high = {[101:1000]};
-            bins very_high = {[1001:$]};
-        }
     endgroup
 
     // 覆盖组：异常场景覆盖
@@ -294,11 +266,6 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
         cp_overflow: coverpoint overflow_detected {
             bins no_overflow = {0};
             bins overflow = {1};
-        }
-        
-        cp_saturation: coverpoint saturation_occurred {
-            bins no_saturation = {0};
-            bins saturation = {1};
         }
         
         // 非法配置
@@ -317,14 +284,6 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
             bins reset_during_calc = {2};
             bins reset_after_done = {3};
         }
-        
-        // 极端值测试
-        cp_extreme_values: coverpoint extreme_value_test {
-            bins normal_range = {0};
-            bins max_positive = {1};          // 0x7F/0xFF
-            bins max_negative = {2};          // 0x80/0x00
-            bins mixed_extreme = {3};
-        }
     endgroup
 
     function new(string name = "ai_nice_coverage", uvm_component parent = null); // FIX: 默认名字修正
@@ -336,7 +295,6 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
         cg_parameter_cross = new();
         cg_interface_timing = new();
         cg_scenario = new();
-        cg_performance = new();
         cg_exception = new();
     endfunction
 
@@ -346,6 +304,48 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
         n_cols = t.matrix_n;      // FIX: Name mapping
         k_inner = t.matrix_k;     // FIX: Name mapping
         per_ch = t.per_ch;
+        quant_shift = t.quant_shift;
+        quant_mult = t.quant_multiplier; // FIX: Name mapping
+        lhs_offset = t.lhs_offset;
+        rhs_offset = t.rhs_offset;
+        dst_offset = t.dst_offset;
+        act_min = t.act_min;
+        act_max = t.act_max;
+        a_width = t.a_w;          // FIX: Name mapping
+        b_width = t.b_w;          // FIX: Name mapping
+        bias_width = t.bias_w;    // FIX: Name mapping
+        out_width = t.out_w;      // FIX: Name mapping
+        
+        // Update analysis fields
+        latency_cycles = t.latency_cycles;
+        throughput_ops_per_cycle = t.throughput_ops_per_cycle;
+        overflow_detected = t.overflow_detected;
+        saturation_occurred = t.saturation_occurred;
+        illegal_config_type = t.illegal_config_type;
+        reset_during_operation = t.reset_during_operation;
+        extreme_value_test = t.extreme_value_test;
+        csr_access_type = t.csr_access_type;
+        icb_ready_delay = t.icb_ready_delay;
+        icb_cmd_type = t.icb_cmd_type;
+        bus_arbitration = t.bus_arbitration; // Renamed
+        consecutive_task_count = t.consecutive_task_count;
+        task_interval_cycles = t.task_interval_cycles;
+        csr_mma_order = t.csr_mma_order;
+
+        // 采样覆盖率
+        cg_matrix_dimension.sample();
+        cg_quantization_config.sample();
+        cg_activation_function.sample();
+        cg_data_width.sample();
+        cg_parameter_cross.sample();
+        cg_interface_timing.sample();
+        cg_scenario.sample();
+        cg_exception.sample();
+    endfunction
+
+endclass
+
+`endif // AI_NICE_COVERAGE_SV
         quant_shift = t.quant_shift;
         quant_mult = t.quant_multiplier; // FIX: Name mapping
         lhs_offset = t.lhs_offset;

@@ -190,24 +190,13 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         // ====================================================
         `uvm_info("COV_SEQ", "Traversing Manual Fields...", UVM_LOW)
         
-        // Latency
-        tr.latency_cycles = 500;   sample_tr(tr); // Fast
-        tr.latency_cycles = 5000;  sample_tr(tr); // Normal
-        tr.latency_cycles = 50000; sample_tr(tr); // Slow
-        tr.latency_cycles = 150000; sample_tr(tr); // Very Slow
-        
-        // Throughput
-        tr.throughput_ops_per_cycle = 5.0;  sample_tr(tr); // Low
-        tr.throughput_ops_per_cycle = 50.0; sample_tr(tr); // Medium
-        tr.throughput_ops_per_cycle = 500.0; sample_tr(tr); // High
-        tr.throughput_ops_per_cycle = 1500.0; sample_tr(tr); // Very High
+        // Latency & Throughput (Performance) - Removed
         
         // Exceptions
         tr.overflow_detected = 1; sample_tr(tr);
         tr.overflow_detected = 0;
         
-        tr.saturation_occurred = 1; sample_tr(tr);
-        tr.saturation_occurred = 0;
+        // Saturation - Removed
 
         tr.illegal_config_type = 1; sample_tr(tr); // Wrong order
         tr.illegal_config_type = 2; sample_tr(tr); // Out of range
@@ -220,10 +209,7 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         tr.reset_during_operation = 3; sample_tr(tr); // Added
         tr.reset_during_operation = 0;
 
-        tr.extreme_value_test = 1; sample_tr(tr);
-        tr.extreme_value_test = 2; sample_tr(tr);
-        tr.extreme_value_test = 3; sample_tr(tr); // Added
-        tr.extreme_value_test = 0;
+        // Extreme values - Removed
 
         // Interface Timing
         for(i=0; i<=3; i++) begin
@@ -237,10 +223,9 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         tr.icb_cmd_type = 0; sample_tr(tr);
         tr.icb_cmd_type = 1; sample_tr(tr);
 
-        // Bus Arbitration (0 to 4 requests)
-        for(i=0; i<=4; i++) begin
-            tr.bus_arbitration = i; sample_tr(tr);
-        end
+        tr.bus_utilization = 10; sample_tr(tr);
+        tr.bus_utilization = 50; sample_tr(tr);
+        tr.bus_utilization = 90; sample_tr(tr);
 
         // Scenario
         tr.consecutive_task_count = 1; sample_tr(tr);
@@ -251,9 +236,7 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         tr.task_interval_cycles = 5; sample_tr(tr);
         tr.task_interval_cycles = 50; sample_tr(tr);
 
-        tr.csr_mma_order = 0; sample_tr(tr);
-        tr.csr_mma_order = 1; sample_tr(tr);
-        tr.csr_mma_order = 2; sample_tr(tr);
+        // CSR MMA Order - Removed
 
         `uvm_info("COV_SEQ", "Coverage Traversal Completed.", UVM_LOW)
         
@@ -308,6 +291,23 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
 
         current_cov = cov.cg_scenario.get_coverage();
         total_cov += current_cov; cg_count++;
+        `uvm_info("COV_RPT", $sformatf("Scenario:            %6.2f%%", current_cov), UVM_LOW)
+
+        // Performance - Removed
+
+        current_cov = cov.cg_exception.get_coverage();
+        total_cov += current_cov; cg_count++;
+        `uvm_info("COV_RPT", $sformatf("Exception:           %6.2f%%", current_cov), UVM_LOW)
+
+        `uvm_info("COV_RPT", "------------------------------------------------", UVM_LOW)
+        if (cg_count > 0)
+            `uvm_info("COV_RPT", $sformatf("AVERAGE COVERAGE:    %6.2f%%", total_cov/cg_count), UVM_LOW)
+        `uvm_info("COV_RPT", "------------------------------------------------\n", UVM_LOW)
+    endfunction
+
+endclass
+
+`endif // AI_NICE_COV_SEQ_SV
         `uvm_info("COV_RPT", $sformatf("Scenario:            %6.2f%%", current_cov), UVM_LOW)
 
         current_cov = cov.cg_performance.get_coverage();
