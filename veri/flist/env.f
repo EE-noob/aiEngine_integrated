@@ -9,4 +9,5 @@
 ./uvc/nice/ai_nice_pkg.sv
 ./env/ai_env_pkg.sv
 ./test/ai_test_pkg.sv
+./tb/ai_sram_model.sv
 ./tb/top_tb.sv
