@@ -46,7 +46,8 @@ ifeq ($(DUMP),fsdb)
         $(error FSDB PLI not found: $(VERDI_TAB). Please check VERDI_HOME or use DUMP=vpd)
     endif
     VCS_FLAGS += -P $(VERDI_TAB) $(VERDI_PLI)
-    DUMP_OPTS  = +fsdb+autoflush +fsdbfile+$(TOP_MODULE).fsdb
+    # Add +dump_fsdb to enable the dump block in top_tb.sv
+    DUMP_OPTS  = +dump_fsdb +fsdb+autoflush +fsdbfile+$(TOP_MODULE).fsdb
 else ifeq ($(DUMP),vpd)
     DUMP_OPTS  = +vpdfile+$(TOP_MODULE).vpd
 else ifeq ($(DUMP),vcd)
