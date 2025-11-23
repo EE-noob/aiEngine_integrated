@@ -124,11 +124,11 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
             bins enabled = {1};               // 启用
         }
         
-        // 激活函数类型交叉
-        cross_activation: cross cp_act_min, cp_act_max {
-            bins relu_like = binsof(cp_act_min.zero) && binsof(cp_act_max.pos_max);
-            bins clamp = binsof(cp_act_min) && binsof(cp_act_max.normal);
-        }
+        // // 激活函数类型交叉
+        // cross_activation: cross cp_act_min, cp_act_max {
+        //     bins relu_like = binsof(cp_act_min.zero) && binsof(cp_act_max.pos_max);
+        //     bins clamp = binsof(cp_act_min) && binsof(cp_act_max.normal);
+        // }
     endgroup
 
     // 覆盖组：数据位宽覆盖
@@ -199,7 +199,7 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
         }
         
         // 完整组合覆盖
-        //cross_all_params: cross cp_matrix_scale, cp_quant_level, cp_activation, cp_per_channel;
+        cross_all_params: cross cp_matrix_scale, cp_quant_level, cp_activation, cp_per_channel;
     endgroup
 
     // 覆盖组：接口时序覆盖
