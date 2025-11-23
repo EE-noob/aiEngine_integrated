@@ -101,7 +101,7 @@ verdi: check_verdi
 ifeq (1,1)#($(DUMP),fsdb)
 	@echo "=== Launch Verdi interactive debug (VCS+Verdi) ==="
 	@if [ -f $(VERI_DIR)/$(TOP_MODULE).fsdb ]; then \
-		cd $(VERI_DIR) && verdi -ssf $(TOP_MODULE).fsdb -dbdir simv.daidir -sswr $(TOP_MODULE).fsdb.log & \
+		cd $(VERI_DIR) && verdi -ssf $(TOP_MODULE).fsdb -rcFile ~/dark.rc -dbdir simv.daidir -sswr $(TOP_MODULE).fsdb.log & \
 	else \
 		echo "Error: FSDB file not found. Please run 'make sim DUMP=fsdb' first"; \
 		exit 1; \
