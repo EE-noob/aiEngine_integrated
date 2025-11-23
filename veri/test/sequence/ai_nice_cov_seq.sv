@@ -237,9 +237,10 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         tr.icb_cmd_type = 0; sample_tr(tr);
         tr.icb_cmd_type = 1; sample_tr(tr);
 
-        tr.bus_utilization = 10; sample_tr(tr);
-        tr.bus_utilization = 50; sample_tr(tr);
-        tr.bus_utilization = 90; sample_tr(tr);
+        // Bus Arbitration (0 to 4 requests)
+        for(i=0; i<=4; i++) begin
+            tr.bus_arbitration = i; sample_tr(tr);
+        end
 
         // Scenario
         tr.consecutive_task_count = 1; sample_tr(tr);

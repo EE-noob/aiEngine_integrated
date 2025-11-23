@@ -53,7 +53,7 @@ class ai_nice_seq_item extends uvm_sequence_item;
     int csr_access_type;
     int icb_ready_delay;
     int icb_cmd_type;
-    int bus_utilization;
+    int bus_arbitration; // Renamed from bus_utilization
     int consecutive_task_count;
     int task_interval_cycles;
     int csr_mma_order;
@@ -76,7 +76,7 @@ class ai_nice_seq_item extends uvm_sequence_item;
         `uvm_field_int(csr_access_type, UVM_ALL_ON)
         `uvm_field_int(icb_ready_delay, UVM_ALL_ON)
         `uvm_field_int(icb_cmd_type, UVM_ALL_ON)
-        `uvm_field_int(bus_utilization, UVM_ALL_ON)
+        `uvm_field_int(bus_arbitration, UVM_ALL_ON) // Renamed
         `uvm_field_int(consecutive_task_count, UVM_ALL_ON)
         `uvm_field_int(task_interval_cycles, UVM_ALL_ON)
         `uvm_field_int(csr_mma_order, UVM_ALL_ON)

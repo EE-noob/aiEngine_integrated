@@ -14,7 +14,7 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
     bit [2:0] out_width;
     int csr_access_type;
     int icb_ready_delay, icb_cmd_type;
-    int bus_utilization;
+    int bus_arbitration; // Renamed from bus_utilization
     int consecutive_task_count, task_interval_cycles;
     int csr_mma_order;
     int latency_cycles;
@@ -33,49 +33,25 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
         cp_m_rows: coverpoint m_rows {
             bins val_small = {[1:128]};           // 小规模
             bins val_medium = {[129:2048]};       // 中等规模
-            bins val_large = {[2049:4096]};       // 大规模
-            bins boundary_min = {1};          // 最小边界
-            bins boundary_64 = {64};          // 调试值
-            bins boundary_1024 = {1024};      // 典型边界
-            bins boundary_max = {[4097:65535]}; // 最大边界
+            bins val_large = {[2049:65535]};      // 大规模
         }
         
         // N维度覆盖点
         cp_n_cols: coverpoint n_cols {
             bins val_small = {[1:128]};
             bins val_medium = {[129:2048]};
-            bins val_large = {[2049:4096]};
-            bins boundary_min = {1};
-            bins boundary_48 = {48};          // 调试值
-            bins boundary_2048 = {2048};
-            bins boundary_max = {[4097:65535]};
+            bins val_large = {[2049:65535]};
         }
         
         // K维度覆盖点
         cp_k_inner: coverpoint k_inner {
-            //bins zero = {0};                  // K=0边界
-            bins one = {1};                   // K=1边界
-            bins val_small = {[2:128]};
+            bins val_small = {[1:128]};
             bins val_medium = {[129:2048]};
-            bins boundary_64 = {64};
-            bins boundary_max = {[2049:65535]};
+            bins val_large = {[2049:65535]};
         }
         
-        // 矩阵规模交叉覆盖
-        cross_matrix_size: cross cp_m_rows, cp_n_cols, cp_k_inner {
-            bins debug_case = binsof(cp_m_rows.boundary_64) && 
-                             binsof(cp_n_cols.boundary_48) && 
-                             binsof(cp_k_inner.boundary_64);
-            bins typical_medium = binsof(cp_m_rows.val_medium) && 
-                                 binsof(cp_n_cols.val_medium) && 
-                                 binsof(cp_k_inner.boundary_64);
-            bins vector_mult = (binsof(cp_m_rows.boundary_min) || 
-                               binsof(cp_n_cols.boundary_min)) && 
-                              binsof(cp_k_inner);
-            bins max_scenario = binsof(cp_m_rows.boundary_1024) && 
-                               binsof(cp_n_cols.boundary_max) && 
-                               binsof(cp_k_inner.boundary_max);
-        }
+        // 矩阵规模交叉覆盖 - 自动交叉上述定义的 val_small, val_medium, val_large
+        cross_matrix_size: cross cp_m_rows, cp_n_cols, cp_k_inner;
     endgroup
 
     // 覆盖组：量化配置覆盖
@@ -251,11 +227,13 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
             bins write = {1};
         }
         
-        // 总线利用率
-        cp_bus_utilization: coverpoint bus_utilization {
-            bins bus_utilization_low = {[0:33]};
-            bins bus_utilization_medium = {[34:66]};
-            bins bus_utilization_high = {[67:100]};
+        // 总线仲裁 (0-4个请求)
+        cp_bus_arbitration: coverpoint bus_arbitration {
+            bins req_0 = {0};
+            bins req_1 = {1};
+            bins req_2 = {2};
+            bins req_3 = {3};
+            bins req_4 = {4};
         }
     endgroup
 
@@ -328,7 +306,7 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
             bins none = {0};
             bins wrong_order = {1};           // 配置顺序错误
             bins out_of_range = {2};          // 参数超范围
-            bins zero_dimension = {3};        // M或N为0
+            bins zero_dimension = {3};        // K或M或N为0
             bins invalid_combination = {4};   // 无效组合
         }
         
@@ -391,7 +369,7 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
         csr_access_type = t.csr_access_type;
         icb_ready_delay = t.icb_ready_delay;
         icb_cmd_type = t.icb_cmd_type;
-        bus_utilization = t.bus_utilization;
+        bus_arbitration = t.bus_arbitration; // Renamed
         consecutive_task_count = t.consecutive_task_count;
         task_interval_cycles = t.task_interval_cycles;
         csr_mma_order = t.csr_mma_order;
@@ -411,6 +389,7 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
 endclass
 
 `endif // AI_NICE_COVERAGE_SV
+
 
 
 
