@@ -33,7 +33,7 @@
     output [`E203_ADDR_SIZE-1:0] nice_icb_cmd_addr,
     output                       nice_icb_cmd_read,
     output [     `E203_XLEN-1:0] nice_icb_cmd_wdata,
-    //output [  `E203_XLEN_MW-1:0] nice_icb_cmd_wmask,
+    output [  `E203_XLEN_MW-1:0] nice_icb_cmd_wmask,
     output [                1:0] nice_icb_cmd_size,
     input                        nice_icb_rsp_valid,
     output                       nice_icb_rsp_ready,
@@ -73,7 +73,6 @@
     // input                   tcm_cgstop,
     // input                   test_mode
 );
-logic [  `E203_XLEN_MW-1:0] nice_icb_cmd_wmask;//弃用
     // Instance 1: e203_subsys_nice_core
     e203_subsys_nice_core e203_subsys_nice_core_inst (
         .nice_clk(nice_clk),
