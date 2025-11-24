@@ -95,23 +95,68 @@ module tb_top;
         .cam_data          (8'b0)
     );
 
-    // SRAM Model Instance connected to NICE ICB interface
-    ai_sram_model u_sram_model (
-        .clk       (nice_clk),
-        .rst_n     (nice_rst_n),
-        
-        .cmd_valid (nice_vif.nice_icb_cmd_valid),
-        .cmd_ready (nice_vif.nice_icb_cmd_ready),
-        .cmd_addr  (nice_vif.nice_icb_cmd_addr),
-        .cmd_read  (nice_vif.nice_icb_cmd_read),
-        .cmd_wdata (nice_vif.nice_icb_cmd_wdata),
-        .cmd_size  (nice_vif.nice_icb_cmd_size),
-        
-        .rsp_valid (nice_vif.nice_icb_rsp_valid),
-        .rsp_ready (nice_vif.nice_icb_rsp_ready),
-        .rsp_rdata (nice_vif.nice_icb_rsp_rdata),
-        .rsp_err   (nice_vif.nice_icb_rsp_err)
+    // // SRAM Model Instance connected to NICE ICB interface
+    // ai_sram_model u_sram_model (
+    //     .clk       (nice_clk),
+    //     .rst_n     (nice_rst_n),
+    //     
+    //     .cmd_valid (nice_vif.nice_icb_cmd_valid),
+    //     .cmd_ready (nice_vif.nice_icb_cmd_ready),
+    //     .cmd_addr  (nice_vif.nice_icb_cmd_addr),
+    //     .cmd_read  (nice_vif.nice_icb_cmd_read),
+    //     .cmd_wdata (nice_vif.nice_icb_cmd_wdata),
+    //     .cmd_size  (nice_vif.nice_icb_cmd_size),
+    //     
+    //     .rsp_valid (nice_vif.nice_icb_rsp_valid),
+    //     .rsp_ready (nice_vif.nice_icb_rsp_ready),
+    //     .rsp_rdata (nice_vif.nice_icb_rsp_rdata),
+    //     .rsp_err   (nice_vif.nice_icb_rsp_err)
+    // );
+
+    // Wmask generation for SRAM ICB
+    logic [3:0] nice_icb_cmd_wmask;
+    always_comb begin
+        if (nice_vif.nice_icb_cmd_size == 2'b10) nice_icb_cmd_wmask = 4'b1111;
+        else if (nice_vif.nice_icb_cmd_size == 2'b01) begin
+            if (nice_vif.nice_icb_cmd_addr[1]) nice_icb_cmd_wmask = 4'b1100;
+            else nice_icb_cmd_wmask = 4'b0011;
+        end else begin // byte
+            case (nice_vif.nice_icb_cmd_addr[1:0])
+                2'b00: nice_icb_cmd_wmask = 4'b0001;
+                2'b01: nice_icb_cmd_wmask = 4'b0010;
+                2'b10: nice_icb_cmd_wmask = 4'b0100;
+                2'b11: nice_icb_cmd_wmask = 4'b1000;
+            endcase
+        end
+    end
+
+    // SRAM ICB Instance
+    sram_icb #(
+        .DW(32),
+        .MW(4),
+        .AW(32), 
+        .AW_LSB(2),
+        .USR_W(1),
+        .DP(131072) 
+    ) u_sram_icb (
+        .clk             (nice_clk),
+        .rst_n           (nice_rst_n),
+        .i_icb_cmd_valid (nice_vif.nice_icb_cmd_valid),
+        .i_icb_cmd_ready (nice_vif.nice_icb_cmd_ready),
+        .i_icb_cmd_read  (nice_vif.nice_icb_cmd_read),
+        .i_icb_cmd_addr  (nice_vif.nice_icb_cmd_addr),
+        .i_icb_cmd_wdata (nice_vif.nice_icb_cmd_wdata),
+        .i_icb_cmd_wmask (nice_icb_cmd_wmask),
+        .i_icb_cmd_usr   (1'b0),
+        .i_icb_rsp_valid (nice_vif.nice_icb_rsp_valid),
+        .i_icb_rsp_ready (nice_vif.nice_icb_rsp_ready),
+        .i_icb_rsp_rdata (nice_vif.nice_icb_rsp_rdata),
+        .i_icb_rsp_usr   (), 
+        .tcm_cgstop      (1'b0),
+        .test_mode       (1'b0)
     );
+    
+    assign nice_vif.nice_icb_rsp_err = 1'b0;
 
     // Clock generation
     initial begin

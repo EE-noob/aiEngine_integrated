@@ -17,33 +17,37 @@
                                                                          
                                                                          
 //=====================================================================
-//
 // Designer   : Bob Hu
 //
 // Description:
-//  Verilog module for X checker
+//  The clock gating cell
 //
 // ====================================================================
+`include "e203_defines.v"
 
-
-`ifndef FPGA_SOURCE//{
-`ifndef DISABLE_SV_ASSERTION//{
-//synopsys translate_off
-module sirv_gnrl_xchecker # (
-  parameter DW = 32
-) (
-  input  [DW-1:0] i_dat,
-  input clk
+module e203_clkgate (
+  input   clk_in,
+  input   test_mode,
+  input   clock_en,
+  output  clk_out
 );
 
-
-CHECK_THE_X_VALUE:
-  assert property (@(posedge clk) 
-                     ((^(i_dat)) !== 1'bx)
-                  )
-  else $fatal ("\n Error: Oops, detected a X value!!! This should never happen. \n");
-
-endmodule
-//synopsys translate_on
+`ifdef FPGA_SOURCE//{
+    // In the FPGA, the clock gating is just pass through
+    assign clk_out = clk_in;
 `endif//}
+
+`ifndef FPGA_SOURCE//{
+
+reg enb /*verilator clock_enable*/;
+
+always@(*)
+  if (!clk_in)
+    enb = (clock_en | test_mode);
+
+assign clk_out = enb & clk_in;
+
 `endif//}
+
+endmodule 
+

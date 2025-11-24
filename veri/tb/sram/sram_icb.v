@@ -1,3 +1,5 @@
+`include "e203_defines.v"
+
 module sram_icb #(
   parameter DW = 32,
   parameter MW = 4,
@@ -70,9 +72,9 @@ module sram_icb #(
     .FORCE_X2ZERO(FORCE_X2ZERO),
     .DW(DW),
     .MW(MW),
-    .AW(AW-AW_LSB)
-    // .MEM_PATH(`E203_CFG_EXTRAM_INIT_PATH),    // 新增
-    // .INIT_EN(`E203_CFG_EXTRAM_INIT_EN)        // 新增
+    .AW(AW-AW_LSB),
+    .MEM_PATH(`E203_CFG_EXTRAM_INIT_PATH),    // 新增
+    .INIT_EN(`E203_CFG_EXTRAM_INIT_EN)        // 新增
   ) u_sram (
     .sd  (  ),
     .ds  (  ),
