@@ -113,22 +113,22 @@ module tb_top;
     //     .rsp_err   (nice_vif.nice_icb_rsp_err)
     // );
 
-    // Wmask generation for SRAM ICB
-    logic [3:0] nice_icb_cmd_wmask;
-    always_comb begin
-        if (nice_vif.nice_icb_cmd_size == 2'b10) nice_icb_cmd_wmask = 4'b1111;
-        else if (nice_vif.nice_icb_cmd_size == 2'b01) begin
-            if (nice_vif.nice_icb_cmd_addr[1]) nice_icb_cmd_wmask = 4'b1100;
-            else nice_icb_cmd_wmask = 4'b0011;
-        end else begin // byte
-            case (nice_vif.nice_icb_cmd_addr[1:0])
-                2'b00: nice_icb_cmd_wmask = 4'b0001;
-                2'b01: nice_icb_cmd_wmask = 4'b0010;
-                2'b10: nice_icb_cmd_wmask = 4'b0100;
-                2'b11: nice_icb_cmd_wmask = 4'b1000;
-            endcase
-        end
-    end
+    // // Wmask generation for SRAM ICB
+    // logic [3:0] nice_icb_cmd_wmask;
+    // always_comb begin
+    //     if (nice_vif.nice_icb_cmd_size == 2'b10) nice_icb_cmd_wmask = 4'b1111;
+    //     else if (nice_vif.nice_icb_cmd_size == 2'b01) begin
+    //         if (nice_vif.nice_icb_cmd_addr[1]) nice_icb_cmd_wmask = 4'b1100;
+    //         else nice_icb_cmd_wmask = 4'b0011;
+    //     end else begin // byte
+    //         case (nice_vif.nice_icb_cmd_addr[1:0])
+    //             2'b00: nice_icb_cmd_wmask = 4'b0001;
+    //             2'b01: nice_icb_cmd_wmask = 4'b0010;
+    //             2'b10: nice_icb_cmd_wmask = 4'b0100;
+    //             2'b11: nice_icb_cmd_wmask = 4'b1000;
+    //         endcase
+    //     end
+    // end
 
     // SRAM ICB Instance
     sram_icb #(

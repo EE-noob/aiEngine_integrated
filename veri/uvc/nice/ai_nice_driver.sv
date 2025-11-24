@@ -16,7 +16,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
     bit [31:0] bias_base_addr;
     
     // Memory Map Constants (Example)
-    localparam MEM_START_ADDR = 32'h0000_0000;
+    localparam MEM_START_ADDR = 32'h0000_00f0;
 
     function new(string name, uvm_component parent);
         super.new(name, parent);
