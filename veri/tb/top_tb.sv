@@ -132,12 +132,7 @@ module tb_top;
 
     // SRAM ICB Instance
     sram_icb #(
-        .DW(32),
-        .MW(4),
-        .AW(32), 
-        .AW_LSB(2),
-        .USR_W(1),
-        .DP(131072) 
+
     ) u_sram_icb (
         .clk             (nice_clk),
         .rst_n           (nice_rst_n),

@@ -105,4 +105,4 @@
 `define E203_CFG_DTCM_ADDR_WIDTH 18
 
 `define FPGA_SOURCE
-`define SYNTHESIS
+// `define SYNTHESIS
