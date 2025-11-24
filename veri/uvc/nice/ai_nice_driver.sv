@@ -274,7 +274,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         while(vif.nice_rsp_valid !== 1'b1) begin
             @(posedge vif.nice_clk);
         end
-        `uvm_info("DRV_TRIG", $sformatf("Matrix Mult Done. Status=0x%08h", vif.nice_rsp_rdat), UVM_HIGH)
+        `uvm_info("MULT Done", $sformatf("Matrix Mult Done. Status=0x%08h", vif.nice_rsp_rdat), UVM_HIGH)
         @(posedge vif.nice_clk);
     endtask
 
