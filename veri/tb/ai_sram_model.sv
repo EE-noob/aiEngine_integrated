@@ -22,7 +22,7 @@ module ai_sram_model (
 
     // 使用关联数组模拟大容量稀疏存储器
     bit [31:0] mem [int];
-
+    int rsp_cnt;
     // ============================================================
     // M Interface Responder (Memory Model)
     // ============================================================
@@ -30,6 +30,7 @@ module ai_sram_model (
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
             mem.delete(); 
+            rsp_cnt<=0;
         end
         else begin
             if (cmd_valid && cmd_ready) begin
@@ -45,7 +46,6 @@ module ai_sram_model (
             end
         end
     end
-
     always @(posedge clk or negedge rst_n) begin // rsp
         if(!rst_n) begin
             cmd_ready <= 1'b1; // TODO: add random ready
@@ -57,6 +57,7 @@ module ai_sram_model (
             // Command accepted
             if (cmd_read) begin
                 if (cmd_valid && cmd_ready) begin
+                    
                     rsp_valid <= 1'b1; // todo:多拍后返回数据，使用queue/fifo暂存，待够四拍可以往外发
                     begin
                         bit [31:0] addr_aligned;
@@ -85,6 +86,55 @@ module ai_sram_model (
             end
         end
     end
+    // always @(posedge clk or negedge rst_n) begin // rsp
+    //     if(!rst_n) begin
+    //         cmd_ready <= 1'b1; // TODO: add random ready
+    //         rsp_valid <= 1'b0;
+    //         rsp_rdata <= '0;
+    //         rsp_err   <= 1'b0;
+    //     end
+    //     else begin
+    //         // Command accepted
+    //         if (cmd_read) begin
+    //             if (cmd_valid && cmd_ready) begin
+    //                 if((rsp_valid && rsp_ready))
+    //                     rsp_cnt<=rsp_cnt;
+    //                 else
+    //                     rsp_cnt<=rsp_cnt++;
+    //             end else begin
+    //                   if((rsp_valid && rsp_ready))
+    //                     rsp_cnt<=rsp_cnt--;
+    //                 else
+    //                     rsp_cnt<=rsp_cnt;
+    //             end
+    //                 rsp_valid <= 1'b1; // todo:多拍后返回数据，使用queue/fifo暂存，待够四拍可以往外发
+    //                 begin
+    //                     bit [31:0] addr_aligned;
+    //                     addr_aligned = {cmd_addr[31:2], 2'b00}; // FIX: Separate declaration and assignment
+    //                     if (mem.exists(addr_aligned))
+    //                         rsp_rdata <= mem[addr_aligned];
+    //                     else
+    //                         rsp_rdata <= $urandom();
+    //                 end
+    //                 rsp_err <= 1'b0;
+    //             end
+    //             else if(rsp_valid && rsp_ready) begin
+    //                 rsp_valid <= 1'b0;
+    //                 rsp_rdata <= '0;
+    //                 rsp_err <= 1'b0;
+    //             end
+    //         end else begin     // write rsp operation
+    //             if (cmd_valid && cmd_ready) begin
+    //                 rsp_valid <= 1'b1;
+    //                 rsp_err <= 1'b0; // TODO: 注入错误
+    //             end
+    //             else if(rsp_valid && rsp_ready) begin
+    //                 rsp_valid <= 1'b0;
+    //                 rsp_err <= 1'b0;
+    //             end
+    //         end
+    //     end
+    // end
 
 endmodule
 
