@@ -102,50 +102,50 @@ logic [  `E203_XLEN_MW-1:0] nice_icb_cmd_wmask;//弃用
         .nice_icb_rsp_err(nice_icb_rsp_err)
     );
 
-    // Instance 2: video_sys_top
-    video_sys_top #(
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .IMAGE_SIZE(IMAGE_SIZE),
-        .WAIT_FRAME(WAIT_FRAME),
-        .DW(DW),
-        .MW(MW),
-        .AW(AW),
-        .AW_LSB(AW_LSB),
-        .USR_W(USR_W),
-        .DP(DP),
-        .FORCE_X2ZERO(FORCE_X2ZERO)
-    ) video_sys_top_inst (
-        .icb_clk(icb_clk),
-        .icb_rst_n(icb_rst_n),
-        .dcmi_icb_cmd_valid(dcmi_icb_cmd_valid),
-        .dcmi_icb_cmd_ready(dcmi_icb_cmd_ready),
-        .dcmi_icb_cmd_addr(dcmi_icb_cmd_addr),
-        .dcmi_icb_cmd_read(dcmi_icb_cmd_read),
-        .dcmi_icb_cmd_wdata(dcmi_icb_cmd_wdata),
-        .dcmi_icb_cmd_wmask(dcmi_icb_cmd_wmask),
-        .dcmi_icb_rsp_valid(dcmi_icb_rsp_valid),
-        .dcmi_icb_rsp_ready(dcmi_icb_rsp_ready),
-        .dcmi_icb_rsp_rdata(dcmi_icb_rsp_rdata),
-        .cam_pclk(cam_pclk),
-        .cam_rst_n(cam_rst_n),
-        .cam_vsync(cam_vsync),
-        .cam_href(cam_href),
-        .cam_data(cam_data)
+    // // Instance 2: video_sys_top
+    // video_sys_top #(
+    //     .ADDR_WIDTH(ADDR_WIDTH),
+    //     .IMAGE_SIZE(IMAGE_SIZE),
+    //     .WAIT_FRAME(WAIT_FRAME),
+    //     .DW(DW),
+    //     .MW(MW),
+    //     .AW(AW),
+    //     .AW_LSB(AW_LSB),
+    //     .USR_W(USR_W),
+    //     .DP(DP),
+    //     .FORCE_X2ZERO(FORCE_X2ZERO)
+    // ) video_sys_top_inst (
+    //     .icb_clk(icb_clk),
+    //     .icb_rst_n(icb_rst_n),
+    //     .dcmi_icb_cmd_valid(dcmi_icb_cmd_valid),
+    //     .dcmi_icb_cmd_ready(dcmi_icb_cmd_ready),
+    //     .dcmi_icb_cmd_addr(dcmi_icb_cmd_addr),
+    //     .dcmi_icb_cmd_read(dcmi_icb_cmd_read),
+    //     .dcmi_icb_cmd_wdata(dcmi_icb_cmd_wdata),
+    //     .dcmi_icb_cmd_wmask(dcmi_icb_cmd_wmask),
+    //     .dcmi_icb_rsp_valid(dcmi_icb_rsp_valid),
+    //     .dcmi_icb_rsp_ready(dcmi_icb_rsp_ready),
+    //     .dcmi_icb_rsp_rdata(dcmi_icb_rsp_rdata),
+    //     .cam_pclk(cam_pclk),
+    //     .cam_rst_n(cam_rst_n),
+    //     .cam_vsync(cam_vsync),
+    //     .cam_href(cam_href),
+    //     .cam_data(cam_data)
         
-        // ,
-        // .i_icb_cmd_valid(i_icb_cmd_valid),
-        // .i_icb_cmd_ready(i_icb_cmd_ready),
-        // .i_icb_cmd_read(i_icb_cmd_read),
-        // .i_icb_cmd_addr(i_icb_cmd_addr),
-        // .i_icb_cmd_wdata(i_icb_cmd_wdata),
-        // .i_icb_cmd_wmask(i_icb_cmd_wmask),
-        // .i_icb_cmd_usr(i_icb_cmd_usr),
-        // .i_icb_rsp_valid(i_icb_rsp_valid),
-        // .i_icb_rsp_ready(i_icb_rsp_ready),
-        // .i_icb_rsp_rdata(i_icb_rsp_rdata),
-        // .i_icb_rsp_usr(i_icb_rsp_usr),
-        // .tcm_cgstop(tcm_cgstop),
-        // .test_mode(test_mode)
-    );
+    //     // ,
+    //     // .i_icb_cmd_valid(i_icb_cmd_valid),
+    //     // .i_icb_cmd_ready(i_icb_cmd_ready),
+    //     // .i_icb_cmd_read(i_icb_cmd_read),
+    //     // .i_icb_cmd_addr(i_icb_cmd_addr),
+    //     // .i_icb_cmd_wdata(i_icb_cmd_wdata),
+    //     // .i_icb_cmd_wmask(i_icb_cmd_wmask),
+    //     // .i_icb_cmd_usr(i_icb_cmd_usr),
+    //     // .i_icb_rsp_valid(i_icb_rsp_valid),
+    //     // .i_icb_rsp_ready(i_icb_rsp_ready),
+    //     // .i_icb_rsp_rdata(i_icb_rsp_rdata),
+    //     // .i_icb_rsp_usr(i_icb_rsp_usr),
+    //     // .tcm_cgstop(tcm_cgstop),
+    //     // .test_mode(test_mode)
+    // );
 
 endmodule

@@ -25,7 +25,7 @@
 ../rtl/nice_coprocessor/MMA/ws_systolic_cell.sv
 ../rtl/nice_coprocessor/wbu.v
 ../rtl/nice_coprocessor/wb_pingpong_buf.v
-// ../rtl/top_ai_engine.sv
+../rtl/top_ai_engine.sv
 // ../rtl/video_sys/general/e203_clkgate.v
 // ../rtl/video_sys/general/sirv_1cyc_sram_ctrl.v
 // ../rtl/video_sys/general/sirv_gnrl_bufs.v
