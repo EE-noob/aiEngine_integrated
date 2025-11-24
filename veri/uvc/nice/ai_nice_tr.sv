@@ -102,16 +102,16 @@ class ai_nice_seq_item extends uvm_sequence_item;
         `uvm_field_int(quant_shift     , UVM_ALL_ON)
     `uvm_object_utils_end
 
-    // Matrix dimension coverage & weighting
-    constraint c_matrix_dims {
-        matrix_k inside {[1:64]};
-        matrix_n inside {[1:64]};
-        matrix_m inside {[1:64]};
-    }
+    // // Matrix dimension coverage & weighting
+    // constraint c_matrix_dims {
+    //     matrix_k inside {[1:64]};
+    //     matrix_n inside {[1:64]};
+    //     matrix_m inside {[1:64]};
+    // }
     constraint c_matrix_weight {
-        matrix_k dist { [1:4] := 1, [5:16] := 3, [17:64] := 2 };
-        matrix_n dist { [1:4] := 1, [5:32] := 4, [33:64] := 1 };
-        matrix_m dist { [1:8] := 2, [9:32] := 3, [33:64] := 2 };
+        matrix_k dist { [1:4] := 1, [5:16] := 3, [17:64] := 2 ,[64:1024]:=3};
+        matrix_n dist { [1:4] := 1, [5:32] := 4, [33:64] := 1 ,[64:1024]:=3};
+        matrix_m dist { [1:8] := 2, [9:32] := 3, [33:64] := 2 ,[64:1024]:=3};
     }
     
     // Default command is AUTO for simple sequences

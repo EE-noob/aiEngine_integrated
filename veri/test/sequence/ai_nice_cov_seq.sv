@@ -46,7 +46,7 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
         tr = ai_nice_seq_item::type_id::create("tr");
         
         // 关闭默认的尺寸限制约束，以便覆盖更大范围 (原约束限制在64以内)
-        tr.c_matrix_dims.constraint_mode(0);
+        //tr.c_matrix_dims.constraint_mode(0);
         tr.c_matrix_weight.constraint_mode(0);
         tr.c_cfg_defaults.constraint_mode(0); // 关闭默认配置约束
 
