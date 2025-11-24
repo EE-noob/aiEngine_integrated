@@ -25,22 +25,22 @@
 ../rtl/nice_coprocessor/MMA/ws_systolic_cell.sv
 ../rtl/nice_coprocessor/wbu.v
 ../rtl/nice_coprocessor/wb_pingpong_buf.v
-../rtl/top_ai_engine.sv
-../rtl/video_sys/general/e203_clkgate.v
-../rtl/video_sys/general/sirv_1cyc_sram_ctrl.v
-../rtl/video_sys/general/sirv_gnrl_bufs.v
-../rtl/video_sys/general/sirv_gnrl_dffs.v
-../rtl/video_sys/general/sirv_gnrl_icbs.v
-../rtl/video_sys/general/sirv_gnrl_ram.v
-../rtl/video_sys/general/sirv_gnrl_xchecker.v
-../rtl/video_sys/general/sirv_sim_ram.v
-../rtl/video_sys/general/sirv_sram_icb_ctrl.v
-../rtl/video_sys/ov5640/icb2dcmi.v
-../rtl/video_sys/ov5640/ov5640_dcmi_y8_if.v
-../rtl/video_sys/ov5640/ov5640_icb_top.v
-../rtl/video_sys/ov5640/ov5640_y8_top.v
-../rtl/video_sys/ov5640/y8_crop960_down64_to_sram.v
-../rtl/video_sys/sram/RAMSP2048X16_stub.v
-../rtl/video_sys/sram/sram.v
-../rtl/video_sys/sram/sram_4096x8_macro_wrap.v
-../rtl/video_sys/video_sys_top.sv
+// ../rtl/top_ai_engine.sv
+// ../rtl/video_sys/general/e203_clkgate.v
+// ../rtl/video_sys/general/sirv_1cyc_sram_ctrl.v
+// ../rtl/video_sys/general/sirv_gnrl_bufs.v
+// ../rtl/video_sys/general/sirv_gnrl_dffs.v
+// ../rtl/video_sys/general/sirv_gnrl_icbs.v
+// ../rtl/video_sys/general/sirv_gnrl_ram.v
+// ../rtl/video_sys/general/sirv_gnrl_xchecker.v
+// ../rtl/video_sys/general/sirv_sim_ram.v
+// ../rtl/video_sys/general/sirv_sram_icb_ctrl.v
+// ../rtl/video_sys/ov5640/icb2dcmi.v
+// ../rtl/video_sys/ov5640/ov5640_dcmi_y8_if.v
+// ../rtl/video_sys/ov5640/ov5640_icb_top.v
+// ../rtl/video_sys/ov5640/ov5640_y8_top.v
+// ../rtl/video_sys/ov5640/y8_crop960_down64_to_sram.v
+// ../rtl/video_sys/sram/RAMSP2048X16_stub.v
+// ../rtl/video_sys/sram/sram.v
+// ../rtl/video_sys/sram/sram_4096x8_macro_wrap.v
+// ../rtl/video_sys/video_sys_top.sv
