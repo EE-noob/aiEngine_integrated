@@ -99,10 +99,9 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         bias_size = req.matrix_n * 4;
 
         ia_base_addr   = MEM_START_ADDR;
-        wgt_base_addr  = ia_base_addr + ((ia_size + 3) & ~3); // Align 4
-        bias_base_addr = wgt_base_addr + ((wgt_size + 3) & ~3) + 32'h0000_FFFFFFFF;
-        bias_base_addr = 0;//wgt_base_addr + ((wgt_size + 3) & ~3);
-        out_base_addr  = bias_base_addr + ((bias_size + 3) & ~3);
+        wgt_base_addr  = ia_base_addr + ((ia_size + 3) & 32'hFFFF_FFFC); // FIX: Explicit mask to avoid redundant digits warning
+        bias_base_addr = wgt_base_addr + ((wgt_size + 3) & 32'hFFFF_FFFC);
+        out_base_addr  = bias_base_addr + ((bias_size + 3) & 32'hFFFF_FFFC);
         
         `uvm_info("DRV_ADDR", $sformatf("Gen Addrs: IA=%0h WGT=%0h BIAS=%0h OUT=%0h", 
             ia_base_addr, wgt_base_addr, bias_base_addr, out_base_addr), UVM_HIGH)
