@@ -22,7 +22,7 @@ module ai_sram_model (
 
     // 使用关联数组模拟大容量稀疏存储器
     bit [31:0] mem [int];
-    int rsp_cnt;
+      bit [31:0] rsp_cnt;
     bit [31:0] addr_aligned;
     // ============================================================
     // M Interface Responder (Memory Model)
