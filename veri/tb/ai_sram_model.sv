@@ -31,7 +31,6 @@ module ai_sram_model (
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
             mem.delete(); 
-            rsp_cnt<=0;
         end
         else begin
             if (cmd_valid && cmd_ready) begin
@@ -92,6 +91,7 @@ module ai_sram_model (
             rsp_valid <= 1'b0;
             rsp_rdata <= '0;
             rsp_err   <= 1'b0;
+            rsp_cnt<=0;
         end
         else begin
             // Command accepted
@@ -100,10 +100,10 @@ module ai_sram_model (
                     if((rsp_valid && rsp_ready))
                         rsp_cnt<=rsp_cnt;
                     else
-                        rsp_cnt<=rsp_cnt++;
+                        rsp_cnt<=rsp_cnt+1;
                 end else begin
                       if((rsp_valid && rsp_ready))
-                        rsp_cnt<=rsp_cnt--;
+                        rsp_cnt<=rsp_cnt-1;
                     else
                         rsp_cnt<=rsp_cnt;
                 end
