@@ -4,7 +4,6 @@
 // ICB 类型定义（打包）
  //`include "define.svh"
  `include "e203_defines.v"
-
 // 为了解决端口方向性问题，将命令/响应拆分为方向化的打包结构
 // Master -> Slave: 命令有效载荷（master 驱动）
 typedef struct packed {
@@ -39,7 +38,7 @@ typedef struct packed {
     logic                       valid;                       // master 输出
     logic [`E203_ADDR_SIZE-1:0] addr;                        // master 输出
     logic                       read;                        // master 输出
-    logic [2:0]                 len;                         // burst长度，支持最多8 beat（0~7）
+    logic [`ICB_LEN_W-1:0]      len;                         // master 输出，突发长度，0表示1个数据
 } icb_ext_cmd_m_t;
 
 // 上游写数据通道
