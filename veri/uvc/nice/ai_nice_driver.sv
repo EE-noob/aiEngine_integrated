@@ -90,17 +90,18 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         
         // Assuming data width is 1 byte for input/weight, 4 bytes for output/bias
         // IA: M x K (Row flattened)
-        ia_size = req.matrix_m * req.matrix_k; 
+        ia_size = req.matrix_k * req.matrix_n; 
         // WGT: K x N (Col flattened)
-        wgt_size = req.matrix_k * req.matrix_n;
+        wgt_size = req.matrix_n * req.matrix_m;
         // OUT: M x N (Row flattened)
-        out_size = req.matrix_m * req.matrix_n * 4; 
+        out_size = req.matrix_k * req.matrix_m ; 
         // Bias: N (Array)
         bias_size = req.matrix_n * 4;
 
         ia_base_addr   = MEM_START_ADDR;
         wgt_base_addr  = ia_base_addr + ((ia_size + 3) & ~3); // Align 4
-        bias_base_addr = wgt_base_addr + ((wgt_size + 3) & ~3);
+        bias_base_addr = wgt_base_addr + ((wgt_size + 3) & ~3) + 32'h0000_FFFFFFFF;
+        bias_base_addr = 0;//wgt_base_addr + ((wgt_size + 3) & ~3);
         out_base_addr  = bias_base_addr + ((bias_size + 3) & ~3);
         
         `uvm_info("DRV_ADDR", $sformatf("Gen Addrs: IA=%0h WGT=%0h BIAS=%0h OUT=%0h", 
@@ -228,9 +229,9 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         csr_wr(`ADDR_MULT_RHS_COLS, req.matrix_n);
         
         // Strides (Assuming Row Major / Packed for now)
-        csr_wr(`ADDR_MULT_LHS_STRIDE, req.matrix_k);
+        csr_wr(`ADDR_MULT_LHS_STRIDE, req.matrix_n);
         csr_wr(`ADDR_MULT_RHS_STRIDE, req.matrix_n);
-        csr_wr(`ADDR_MULT_DST_STRIDE, req.matrix_n);
+        csr_wr(`ADDR_MULT_DST_STRIDE, req.matrix_m);
         
         // Quantization Parameters
         csr_wr(`ADDR_MULT_LHS_OFFSET, req.lhs_offset);

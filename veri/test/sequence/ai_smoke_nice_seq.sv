@@ -32,9 +32,9 @@ class ai_smoke_nice_seq extends uvm_sequence#(ai_nice_seq_item);
         // 3. Auto Matrix Multiplication Test
         `uvm_do_with(tr, {
             cmd_kind == NICE_AUTO;
-            matrix_m == 6;
+            matrix_m == 56;
             matrix_k == 16;
-            matrix_n == 9;
+            matrix_n == 49;
             random_matrix_data == 1;
             // Default config
             per_ch == 0;
@@ -45,9 +45,29 @@ class ai_smoke_nice_seq extends uvm_sequence#(ai_nice_seq_item);
 
             quant_shift == 3;
             quant_multiplier == 5;
-            bias_base_addr == 32'h0000_0000;
+            //bias_base_addr == 32'h0000_0000;
         })
+repeat(20)
+begin
+        // 3. Auto Matrix Multiplication Test
+        `uvm_do_with(tr, {
+            cmd_kind == NICE_AUTO;
+            // matrix_m == 6;
+            // matrix_k == 16;
+            // matrix_n == 49;
+            random_matrix_data == 1;
+            // Default config
+            per_ch == 0;
+            a_w == 1;
+            b_w == 1;
+            bias_w == 0;
+            out_w == 1;
 
+            quant_shift == 3;
+            quant_multiplier == 5;
+            //bias_base_addr == 32'h0000_0000;
+        })
+    end
         `uvm_info(get_type_name(), "Smoke nice sequence finished - Recompile Triggered", UVM_MEDIUM)
     endtask
 endclass

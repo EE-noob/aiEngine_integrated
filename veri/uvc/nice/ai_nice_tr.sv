@@ -109,9 +109,9 @@ class ai_nice_seq_item extends uvm_sequence_item;
         matrix_m inside {[1:64]};
     }
     constraint c_matrix_weight {
-        matrix_k dist { [1:4] := 1, [5:16] := 3, [17:64] := 1 };
-        matrix_n dist { [1:4] := 1, [5:32] := 4, [33:64] := 2 };
-        matrix_m dist { [1:8] := 2, [9:32] := 3, [33:64] := 1 };
+        matrix_k dist { [1:4] := 1, [5:16] := 3, [17:64] := 0 };
+        matrix_n dist { [1:4] := 1, [5:32] := 4, [33:64] := 0 };
+        matrix_m dist { [1:8] := 2, [9:32] := 3, [33:64] := 0 };
     }
     
     // Default command is AUTO for simple sequences
