@@ -64,16 +64,17 @@ module tb_top;
         .nice_rsp_ready    (nice_vif.nice_rsp_ready),
         .nice_rsp_rdat     (nice_vif.nice_rsp_rdat),
         .nice_rsp_err      (nice_vif.nice_rsp_err),
-        .nice_icb_cmd_valid(nice_vif.nice_icb_cmd_valid),
-        .nice_icb_cmd_ready(nice_vif.nice_icb_cmd_ready),
-        .nice_icb_cmd_addr (nice_vif.nice_icb_cmd_addr),
-        .nice_icb_cmd_read (nice_vif.nice_icb_cmd_read),
-        .nice_icb_cmd_wdata(nice_vif.nice_icb_cmd_wdata),
-        .nice_icb_cmd_size (nice_vif.nice_icb_cmd_size),
-        .nice_icb_rsp_valid(nice_vif.nice_icb_rsp_valid),
-        .nice_icb_rsp_ready(nice_vif.nice_icb_rsp_ready),
-        .nice_icb_rsp_rdata(nice_vif.nice_icb_rsp_rdata),
-        .nice_icb_rsp_err  (nice_vif.nice_icb_rsp_err),
+        .nice_icb_cmd_valid(nice_icb_cmd_valid),
+        .nice_icb_cmd_ready(nice_icb_cmd_ready),
+        .nice_icb_cmd_addr (nice_icb_cmd_addr),
+        .nice_icb_cmd_read (nice_icb_cmd_read),
+        .nice_icb_cmd_wdata(nice_icb_cmd_wdata),
+        .nice_icb_cmd_size (nice_icb_cmd_size),
+        .nice_icb_cmd_wmask(nice_icb_cmd_wmask),
+        .nice_icb_rsp_valid(nice_icb_rsp_valid),
+        .nice_icb_rsp_ready(nice_icb_rsp_ready),
+        .nice_icb_rsp_rdata(nice_icb_rsp_rdata),
+        .nice_icb_rsp_err  (nice_icb_rsp_err),
 
         // video_sys_top signals
         .icb_clk           (icb_clk),
@@ -131,27 +132,25 @@ module tb_top;
     // end
 
     // SRAM ICB Instance
-    sram_icb #(
-
-    ) u_sram_icb (
+    sram_icb #( ) u_sram_icb (
         .clk             (nice_clk),
         .rst_n           (nice_rst_n),
-        .i_icb_cmd_valid (nice_vif.nice_icb_cmd_valid),
-        .i_icb_cmd_ready (nice_vif.nice_icb_cmd_ready),
-        .i_icb_cmd_read  (nice_vif.nice_icb_cmd_read),
-        .i_icb_cmd_addr  (nice_vif.nice_icb_cmd_addr),
-        .i_icb_cmd_wdata (nice_vif.nice_icb_cmd_wdata),
+        .i_icb_cmd_valid (nice_icb_cmd_valid),
+        .i_icb_cmd_ready (nice_icb_cmd_ready),
+        .i_icb_cmd_read  (nice_icb_cmd_read),
+        .i_icb_cmd_addr  (nice_icb_cmd_addr),
+        .i_icb_cmd_wdata (nice_icb_cmd_wdata),
         .i_icb_cmd_wmask (nice_icb_cmd_wmask),
         .i_icb_cmd_usr   (1'b0),
-        .i_icb_rsp_valid (nice_vif.nice_icb_rsp_valid),
-        .i_icb_rsp_ready (nice_vif.nice_icb_rsp_ready),
-        .i_icb_rsp_rdata (nice_vif.nice_icb_rsp_rdata),
+        .i_icb_rsp_valid (nice_icb_rsp_valid),
+        .i_icb_rsp_ready (nice_icb_rsp_ready),
+        .i_icb_rsp_rdata (nice_icb_rsp_rdata),
         .i_icb_rsp_usr   (), 
         .tcm_cgstop      (1'b0),
         .test_mode       (1'b0)
     );
     
-    assign nice_vif.nice_icb_rsp_err = 1'b0;
+    assign nice_icb_rsp_err = 1'b0;
 
     // Clock generation
     initial begin
@@ -192,6 +191,22 @@ module tb_top;
     // ============================================================
     initial begin
        // if ($test$plusargs("dump_fsdb")) begin
+            string fsdb_name;
+            if (!$value$plusargs("fsdbfile+%s", fsdb_name)) begin
+                fsdb_name = "tb_top.fsdb";
+            end
+            $fsdbDumpfile(fsdb_name);
+            $fsdbDumpvars(0, tb_top);
+            $fsdbDumpSVA();
+            $fsdbDumpMDA();
+            // Dump UVM components if needed, though usually handled by transaction recording
+            // $fsdbDumpClassObject(uvm_root::get()); 
+        end
+    //end
+
+endmodule : tb_top
+
+`endif
             string fsdb_name;
             if (!$value$plusargs("fsdbfile+%s", fsdb_name)) begin
                 fsdb_name = "tb_top.fsdb";
