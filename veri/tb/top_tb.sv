@@ -95,23 +95,23 @@ module tb_top;
         .cam_data          (8'b0)
     );
 
-    // SRAM Model Instance connected to NICE ICB interface
-    ai_sram_model u_sram_model (
-        .clk       (nice_clk),
-        .rst_n     (nice_rst_n),
+    // // SRAM Model Instance connected to NICE ICB interface
+    // ai_sram_model u_sram_model (
+    //     .clk       (nice_clk),
+    //     .rst_n     (nice_rst_n),
         
-        .cmd_valid (nice_vif.nice_icb_cmd_valid),
-        .cmd_ready (nice_vif.nice_icb_cmd_ready),
-        .cmd_addr  (nice_vif.nice_icb_cmd_addr),
-        .cmd_read  (nice_vif.nice_icb_cmd_read),
-        .cmd_wdata (nice_vif.nice_icb_cmd_wdata),
-        .cmd_size  (nice_vif.nice_icb_cmd_size),
+    //     .cmd_valid (nice_vif.nice_icb_cmd_valid),
+    //     .cmd_ready (nice_vif.nice_icb_cmd_ready),
+    //     .cmd_addr  (nice_vif.nice_icb_cmd_addr),
+    //     .cmd_read  (nice_vif.nice_icb_cmd_read),
+    //     .cmd_wdata (nice_vif.nice_icb_cmd_wdata),
+    //     .cmd_size  (nice_vif.nice_icb_cmd_size),
         
-        .rsp_valid (nice_vif.nice_icb_rsp_valid),
-        .rsp_ready (nice_vif.nice_icb_rsp_ready),
-        .rsp_rdata (nice_vif.nice_icb_rsp_rdata),
-        .rsp_err   (nice_vif.nice_icb_rsp_err)
-    );
+    //     .rsp_valid (nice_vif.nice_icb_rsp_valid),
+    //     .rsp_ready (nice_vif.nice_icb_rsp_ready),
+    //     .rsp_rdata (nice_vif.nice_icb_rsp_rdata),
+    //     .rsp_err   (nice_vif.nice_icb_rsp_err)
+    // );
 
     // Clock generation
     initial begin
