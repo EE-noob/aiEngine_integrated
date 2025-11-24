@@ -82,7 +82,7 @@ package ai_test_pkg;
             nice_seq.start(env.nice_agent.seqr);
 
             `uvm_info(get_type_name(), "smoke_test main_phase end, dropping objection", UVM_MEDIUM)
-            #0.1us; // 防止UVM提前退出，给driver/monitor收尾
+            #1us; // 防止UVM提前退出，给driver/monitor收尾
             phase.drop_objection(this);
         endtask
     endclass
