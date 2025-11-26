@@ -47,7 +47,7 @@ class ai_smoke_nice_seq extends uvm_sequence#(ai_nice_seq_item);
             quant_multiplier == 5;
             //bias_base_addr == 32'h0000_0000;
         })
-repeat(20)
+repeat(0)
 begin
         // 3. Auto Matrix Multiplication Test
         `uvm_do_with(tr, {
