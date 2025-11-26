@@ -11,6 +11,7 @@
 #   make sim SIM_TOOL=vcs
 #   make sim SIM_TOOL=vcs DUMP=fsdb  # dump FSDB waveform
 #   make verdi SIM_TOOL=vcs          # Verdi interactive debug
+#   make sim SEED=12345              # use specific seed
 ###############################################################################
 
 # Which simulator to use: modelsim or vcs
@@ -21,6 +22,9 @@ DUMP          ?= vpd
 
 # Coverage enable: 0 or 1
 COV           ?= 0
+
+# Random seed: if not specified, use random seed; otherwise use specified value
+SEED          ?= random
 
 # veri/ directory (this Makefile is under veri/sim/)
 VERI_DIR      := ..
@@ -87,6 +91,17 @@ UVM_VERBOSITY ?= UVM_HIGH
 RUN_ARGS      ?= +UVM_VERBOSITY=$(UVM_VERBOSITY)
 TESTNAME      ?= ai_smoke_test
 
+# Seed arguments for VCS and ModelSim
+ifeq ($(SEED),random)
+    VCS_SEED_OPT      = -ntb_random_seed_automatic
+    MSIM_SEED_OPT     = -sv_seed random
+    SEED_DISPLAY      = random (automatic)
+else
+    VCS_SEED_OPT      = -ntb_random_seed=$(SEED)
+    MSIM_SEED_OPT     = -sv_seed $(SEED)
+    SEED_DISPLAY      = $(SEED)
+endif
+
 .PHONY: git
 git:
 	git add -A; git commit -m "auto commit"; git push origin master;
@@ -104,16 +119,17 @@ check_verdi:
 com:
 	@echo "=== VCS compile (top_ai_engine) ==="
 	@echo "=== DUMP format: $(DUMP) ==="
+	@echo "=== SEED: $(SEED_DISPLAY) ==="
 ifeq ($(DUMP),fsdb)
 	@echo "=== Using FSDB: VERDI_HOME=$(VERDI_HOME) ==="
 endif
 ifeq ($(COV),1)
 	@echo "=== Coverage Enabled: $(COV_DIR) ==="
 endif
-	cd $(VERI_DIR) && $(VCS) $(VCS_FLAGS) -f $(FLIST) -o simv
+	cd $(VERI_DIR) && $(VCS) $(VCS_FLAGS) $(VCS_SEED_OPT) -f $(FLIST) -o simv
 
 sim: com
-	@echo "=== Run VCS simulation (DUMP=$(DUMP)) ==="
+	@echo "=== Run VCS simulation (DUMP=$(DUMP), SEED=$(SEED_DISPLAY)) ==="
 	cd $(VERI_DIR) && ./simv $(RUN_ARGS) +UVM_TESTNAME=$(TESTNAME) $(DUMP_OPTS) $(SIM_COV_OPTS) -l vcs.log
 
 # Interactive GUI simulation with Verdi (requires FSDB)
@@ -193,13 +209,14 @@ else ifeq ($(SIM_TOOL),modelsim)
 
 com:
 	@echo "=== ModelSim/Questa compile (top_ai_engine) ==="
+	@echo "=== SEED: $(SEED_DISPLAY) ==="
 	cd $(VERI_DIR) && ($(VLIB) work || true)
 	cd $(VERI_DIR) && $(VMAP) work work
 	cd $(VERI_DIR) && $(VLOG) -sv -mfcu -f $(FLIST) +UVM_TESTNAME=$(TESTNAME) -l msim.log
 
 sim: com
-	@echo "=== Run ModelSim/Questa simulation ==="
-	cd $(VERI_DIR) && $(VSIM) -c -wlf vsim.wlf work.$(TOP_MODULE) $(RUN_ARGS) +UVM_TESTNAME=$(TESTNAME) -l msim.log -do "log -r /*; run -all; quit"
+	@echo "=== Run ModelSim/Questa simulation (SEED=$(SEED_DISPLAY)) ==="
+	cd $(VERI_DIR) && $(VSIM) -c -wlf vsim.wlf work.$(TOP_MODULE) $(RUN_ARGS) +UVM_TESTNAME=$(TESTNAME) $(MSIM_SEED_OPT) -l msim.log -do "log -r /*; run -all; quit"
 
 clean:
 	@echo "=== Clean ModelSim/Questa outputs ==="
@@ -239,6 +256,7 @@ help:
 	@echo "  wave    - Open waveform viewer"
 	@echo "  verdi   - Open Verdi (VCS only, requires FSDB)"
 	@echo "  gui     - Run simulation in Verdi GUI mode (VCS only)"
+	@echo "  cov     - Open Verdi Coverage Viewer (VCS only)"
 	@echo "  clean   - Clean generated files"
 	@echo "  help    - Show this help message"
 	@echo ""
@@ -247,11 +265,16 @@ help:
 	@echo "  DUMP=<fsdb|vpd|vcd|none>  - Waveform format (default: vpd for VCS)"
 	@echo "  TESTNAME=<test>           - UVM test name (default: ai_smoke_test)"
 	@echo "  UVM_VERBOSITY=<level>     - UVM verbosity (default: UVM_HIGH)"
+	@echo "  SEED=<number|random>      - Random seed (default: random)"
+	@echo "  COV=<0|1>                 - Enable coverage (default: 0)"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make sim SIM_TOOL=vcs DUMP=vpd          # VCS with VPD waveform"
 	@echo "  make sim SIM_TOOL=vcs DUMP=fsdb         # VCS with FSDB (requires VERDI_HOME)"
+	@echo "  make sim SEED=12345                     # Use fixed seed 12345"
+	@echo "  make sim SEED=random                    # Use random seed (default)"
 	@echo "  make verdi DUMP=fsdb                    # Open Verdi with FSDB"
 	@echo "  make sim SIM_TOOL=modelsim              # ModelSim simulation"
+	@echo "  make sim COV=1                          # Enable coverage"
 	@echo ""
 	@echo "Note: FSDB format requires VERDI_HOME environment variable to be set."
