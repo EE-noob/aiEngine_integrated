@@ -16,7 +16,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
     bit [31:0] bias_base_addr;
     
     // Memory Map Constants (Example)
-    localparam MEM_START_ADDR = 32'h0000_00f0;
+    localparam MEM_START_ADDR = 32'h0000_0001;
 
     function new(string name, uvm_component parent);
         super.new(name, parent);
@@ -255,8 +255,8 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         cfg[4:3] = req.bias_w;
         cfg[2:0] = req.out_w;
 
-        `uvm_info("DRV_TRIG", $sformatf("Sending Matrix Mult: OutAddr=0x%08h CFG=0x%08h", out_base_addr, cfg), UVM_MEDIUM)
-        `uvm_info("DRV_TRIG", $sformatf("MAT_MULT driving: req_valid=1, req_inst=0x%08h, req_rs1=0x%08h, req_rs2=0x%08h",
+        `uvm_info("drv mult csr", $sformatf("Sending Matrix Mult: OutAddr=0x%08h CFG=0x%08h", out_base_addr, cfg), UVM_MEDIUM)
+        `uvm_info("trig mult", $sformatf("MAT_MULT driving: req_valid=1, req_inst=0x%08h, req_rs1=0x%08h, req_rs2=0x%08h",
             {`NICE_MAT_MULT_FUNCT7, 5'b00010, 5'b00001, `NICE_FUNCT3, 5'b00011, `NICE_CUSTOM_1}, out_base_addr, cfg), UVM_HIGH)
         
         @(posedge vif.nice_clk);

@@ -187,11 +187,11 @@ module sirv_sim_ram
     generate
      if(FORCE_X2ZERO == 1) begin: force_x_to_zero
         for (i = 0; i < DW; i = i+1) begin:force_x_gen 
-            `ifndef SYNTHESIS//{
-            assign dout[i] = (dout_pre[i] === 1'bx) ? 1'b0 : dout_pre[i];
-            `else//}{
-            assign dout[i] = dout_pre[i];
-            `endif//}
+            // `ifndef SYNTHESIS//{
+            // assign dout[i] = (dout_pre[i] === 1'bx) ? 1'b0 : dout_pre[i];
+            // `else//}{
+            assign dout[i] = $random;//dout_pre[i];
+            // `endif//}
         end
      end
      else begin:no_force_x_to_zero

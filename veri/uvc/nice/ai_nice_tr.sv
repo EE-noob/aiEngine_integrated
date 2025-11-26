@@ -126,7 +126,8 @@ class ai_nice_seq_item extends uvm_sequence_item;
 
     // Activation & zero-point coherence
     constraint c_activation_bounds {
-        act_min inside {[-32768:-1]};
+        //act_min inside {[-32768:-1]};
+        act_min >0;
         act_max inside {[0:32767]};
         act_min < act_max;
     }
