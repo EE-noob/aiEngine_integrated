@@ -19,7 +19,6 @@ module icb_mux_5to1 (
 
     // Slave 0
     input icb_ext_cmd_m_t s0_cmd,        // mux -> slave: cmd payload
-    input icb_ext_wr_m_t  s0_wr,         // mux -> slave: write-data payload
     output  icb_ext_cmd_s_t s0_cmd_ready,  // slave -> mux: cmd ready
     output  icb_ext_wr_s_t  s0_wr_ready,   // slave -> mux: wdata ready
     output  icb_ext_rsp_s_t s0_rsp,        // slave -> mux: rsp payload
@@ -27,7 +26,6 @@ module icb_mux_5to1 (
 
     // Slave 1
     input icb_ext_cmd_m_t s1_cmd,
-    input icb_ext_wr_m_t  s1_wr,
     output  icb_ext_cmd_s_t s1_cmd_ready,
     output  icb_ext_wr_s_t  s1_wr_ready,
     output  icb_ext_rsp_s_t s1_rsp,
@@ -35,7 +33,6 @@ module icb_mux_5to1 (
 
     // Slave 2
     input icb_ext_cmd_m_t s2_cmd,
-    input icb_ext_wr_m_t  s2_wr,
     output  icb_ext_cmd_s_t s2_cmd_ready,
     output  icb_ext_wr_s_t  s2_wr_ready,
     output  icb_ext_rsp_s_t s2_rsp,
@@ -43,7 +40,6 @@ module icb_mux_5to1 (
 
     // Slave 3
     input icb_ext_cmd_m_t s3_cmd,
-    input icb_ext_wr_m_t  s3_wr,
     output  icb_ext_cmd_s_t s3_cmd_ready,
     output  icb_ext_wr_s_t  s3_wr_ready,
     output  icb_ext_rsp_s_t s3_rsp,
@@ -114,33 +110,21 @@ module icb_mux_5to1 (
     // assign s3_wr.w_valid = (sel == 3'd3) ? m_wr.w_valid : 1'b0;
     // assign s4_wr.w_valid = (sel == 3'd4) ? m_wr.w_valid : 1'b0;
 
-    assign m_wr.w_valid= ( (sel == 3'd0) ? s0_wr.w_valid :
-                         (sel == 3'd1) ? s1_wr.w_valid :
-                         (sel == 3'd2) ? s2_wr.w_valid :
-                         (sel == 3'd3) ? s3_wr.w_valid :
-                         (sel == 3'd4) ? s4_wr.w_valid : 1'b0 );
+    assign m_wr.w_valid= s4_wr.w_valid ;
 
     // assign s0_wr.wdata = m_wr.wdata;
     // assign s1_wr.wdata = m_wr.wdata;
     // assign s2_wr.wdata = m_wr.wdata;
     // assign s3_wr.wdata = m_wr.wdata;
     // assign s4_wr.wdata = m_wr.wdata;
-    assign m_wr.wdata = ( (sel == 3'd0) ? s0_wr.wdata :
-                         (sel == 3'd1) ? s1_wr.wdata :
-                         (sel == 3'd2) ? s2_wr.wdata :
-                         (sel == 3'd3) ? s3_wr.wdata :
-                         (sel == 3'd4) ? s4_wr.wdata : '0 );
+    assign m_wr.wdata =  s4_wr.wdata ;
 
     // assign s0_wr.wmask = m_wr.wmask;
     // assign s1_wr.wmask = m_wr.wmask;
     // assign s2_wr.wmask = m_wr.wmask;
     // assign s3_wr.wmask = m_wr.wmask;
     // assign s4_wr.wmask = m_wr.wmask;
-    assign m_wr.wmask = ( (sel == 3'd0) ? s0_wr.wmask :
-                         (sel == 3'd1) ? s1_wr.wmask :
-                         (sel == 3'd2) ? s2_wr.wmask :
-                         (sel == 3'd3) ? s3_wr.wmask :
-                         (sel == 3'd4) ? s4_wr.wmask : '0 );
+    assign m_wr.wmask =  s4_wr.wmask ;
 
     // Master cmd ready is driven by the selected slave's ready
     // assign m_cmd_rsp.ready = (sel == 3'd0) ? s0_cmd_ready.ready :

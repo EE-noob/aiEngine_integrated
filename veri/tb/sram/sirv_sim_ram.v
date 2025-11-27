@@ -195,7 +195,7 @@ module sirv_sim_ram
         end
      end
      else begin:no_force_x_to_zero
-       assign dout = dout_pre;
+       assign dout = $random;
      end
     endgenerate
 

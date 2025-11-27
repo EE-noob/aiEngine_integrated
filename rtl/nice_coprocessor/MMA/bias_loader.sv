@@ -19,7 +19,7 @@ module bias_loader #(
 
     // ICB（三通道，读为主）
     output icb_ext_cmd_m_t icb_cmd_m,
-    output icb_ext_wr_m_t  icb_wr_m,
+    //output icb_ext_wr_m_t  icb_wr_m,
     input  icb_ext_cmd_s_t icb_cmd_s,
     input  icb_ext_wr_s_t  icb_wr_s,
     input  icb_ext_rsp_s_t icb_rsp_s,
@@ -129,9 +129,9 @@ module bias_loader #(
   assign icb_cmd_m.addr   = icb_cmd_addr_q;
   assign icb_cmd_m.len    = icb_cmd_len_q;
 
-  assign icb_wr_m.w_valid = 1'b0;
-  assign icb_wr_m.wdata   = '0;
-  assign icb_wr_m.wmask   = '0;
+  //assign icb_wr_m.w_valid = 1'b0;
+  //assign icb_wr_m.wdata   = '0;
+  //assign icb_wr_m.wmask   = '0;
 
   assign icb_rsp_m        = '{rsp_ready: 1'b1};
 

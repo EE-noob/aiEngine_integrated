@@ -28,7 +28,7 @@ module vec_requant #(
 
     // ICB
     output    icb_ext_cmd_m_t icb_cmd_m,
-    output    icb_ext_wr_m_t  icb_wr_m,
+    //output    icb_ext_wr_m_t  icb_wr_m,
     input var icb_ext_cmd_s_t icb_cmd_s,
     input var icb_ext_wr_s_t  icb_wr_s,
     input var icb_ext_rsp_s_t icb_rsp_s,
@@ -183,7 +183,7 @@ module vec_requant #(
   wire rsp_hskd = icb_rsp_s.rsp_valid && icb_rsp_m.rsp_ready;
 
   // master 侧：响应 ready 常 1；不使用写通道
-  assign icb_wr_m  = '{default: '0};
+  //assign icb_wr_m  = '{default: '0};
   assign icb_rsp_m = '{rsp_ready: 1'b1};
   assign icb_cmd_m = icb_cmd_m_wire;
   always_comb icb_cmd_m_wire = icb_cmd_m_reg;
@@ -464,18 +464,21 @@ module vec_requant #(
     always_ff @(posedge clk or negedge rst_n) begin
       if (!rst_n) begin
         out_vec_s8[j] <= '0;
+        rq_tmp    <= '0;
+        cur_m <= '0;
+        cur_s <= '0;
       end else if (in_valid) begin
         // 选择 per-channel 缓冲或 per-tensor 常量
-        cur_m     = cfg_per_channel ? ch_multiplier_r[j] : pt_multiplier_r;
-        cur_s     = cfg_per_channel ? ch_shift_r[j] : pt_shift_r;
+        cur_m     <= cfg_per_channel ? ch_multiplier_r[j] : pt_multiplier_r;
+        cur_s     <= cfg_per_channel ? ch_shift_r[j] : pt_shift_r;
 
-        rq_tmp    = cmsis_nn_requantize(in_vec_s32[j], cur_m, cur_s);
-        rq_tmp    = rq_tmp + dst_offset_r;
+        rq_tmp    <= cmsis_nn_requantize(in_vec_s32[j], cur_m, cur_s);
+        rq_tmp    <= rq_tmp + dst_offset_r;
 
-        if (rq_tmp < activation_min_r) rq_tmp = activation_min_r;
-        if (rq_tmp > activation_max_r) rq_tmp = activation_max_r;
+        if (rq_tmp < activation_min_r) rq_tmp <= activation_min_r;
+        if (rq_tmp > activation_max_r) rq_tmp <= activation_max_r;
 
-        lane_en = (j < lane_need_q);
+        lane_en <= (j < lane_need_q);
 
         if (lane_en) begin
           if (rq_tmp > 32'sd127) out_vec_s8[j] <= 8'sd127;

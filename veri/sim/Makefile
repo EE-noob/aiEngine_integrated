@@ -15,10 +15,10 @@
 ###############################################################################
 
 # Which simulator to use: modelsim or vcs
-SIM_TOOL      ?= modelsim
+SIM_TOOL      ?= vcs
 
 # Waveform dump format: fsdb, vpd, vcd, or none (for VCS)
-DUMP          ?= vpd
+DUMP          ?= fsdb
 
 # Coverage enable: 0 or 1
 COV           ?= 0
@@ -126,11 +126,11 @@ endif
 ifeq ($(COV),1)
 	@echo "=== Coverage Enabled: $(COV_DIR) ==="
 endif
-	cd $(VERI_DIR) && $(VCS) $(VCS_FLAGS) $(VCS_SEED_OPT) -f $(FLIST) -o simv
+	cd $(VERI_DIR) && $(VCS) $(VCS_FLAGS) $(VCS_SEED_OPT) -f $(FLIST) +initreg+random -o simv
 
 sim: com
 	@echo "=== Run VCS simulation (DUMP=$(DUMP), SEED=$(SEED_DISPLAY)) ==="
-	cd $(VERI_DIR) && ./simv $(RUN_ARGS) +UVM_TESTNAME=$(TESTNAME) $(DUMP_OPTS) $(SIM_COV_OPTS) -l vcs.log
+	cd $(VERI_DIR) && ./simv $(RUN_ARGS) +UVM_TESTNAME=$(TESTNAME) $(DUMP_OPTS) $(SIM_COV_OPTS) -l vcs.log 
 
 # Interactive GUI simulation with Verdi (requires FSDB)
 verdi: check_verdi

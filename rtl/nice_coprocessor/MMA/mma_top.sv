@@ -85,7 +85,7 @@ module mma_top #(
 
   // 各子模块的 ICB 接口信号（扩展）
   icb_ext_cmd_m_t ia_loader_cmd, kernel_loader_cmd, bias_loader_cmd, vec_requant_cmd, oa_writer_cmd;
-  icb_ext_wr_m_t ia_loader_wr, kernel_loader_wr, bias_loader_wr, vec_requant_wr, oa_writer_wr;
+  icb_ext_wr_m_t  oa_writer_wr;
 
   icb_ext_cmd_s_t
       ia_loader_cmd_ready,
@@ -231,25 +231,25 @@ module mma_top #(
       .m_rsp       (mux_m_rsp),
       .m_rsp_ready (mux_m_rsp_ready),
       .s0_cmd      (ia_loader_cmd),
-      .s0_wr       (ia_loader_wr),
+      //.s0_wr       (ia_loader_wr),
       .s0_cmd_ready(ia_loader_cmd_ready),
       .s0_wr_ready (ia_loader_w_ready),
       .s0_rsp      (ia_loader_rsp),
       .s0_rsp_ready(ia_loader_rsp_ready),
       .s1_cmd      (kernel_loader_cmd),
-      .s1_wr       (kernel_loader_wr),
+      //.s1_wr       (kernel_loader_wr),
       .s1_cmd_ready(kernel_loader_cmd_ready),
       .s1_wr_ready (kernel_loader_w_ready),
       .s1_rsp      (kernel_loader_rsp),
       .s1_rsp_ready(kernel_loader_rsp_ready),
       .s2_cmd      (bias_loader_cmd),
-      .s2_wr       (bias_loader_wr),
+      //.s2_wr       (bias_loader_wr),
       .s2_cmd_ready(bias_loader_cmd_ready),
       .s2_wr_ready (bias_loader_w_ready),
       .s2_rsp      (bias_loader_rsp),
       .s2_rsp_ready(bias_loader_rsp_ready),
       .s3_cmd      (vec_requant_cmd),
-      .s3_wr       (vec_requant_wr),
+      //.s3_wr       (vec_requant_wr),
       .s3_cmd_ready(vec_requant_cmd_ready),
       .s3_wr_ready (vec_requant_w_ready),
       .s3_rsp      (vec_requant_rsp),
@@ -492,7 +492,7 @@ module mma_top #(
 
       .icb_cmd_m            (bias_loader_cmd),
       .icb_cmd_s            (bias_loader_cmd_ready),
-      .icb_wr_m             (bias_loader_wr),
+      // .icb_wr_m             (bias_loader_wr),
       .icb_wr_s             (bias_loader_w_ready),
       .icb_rsp_s            (bias_loader_rsp),
       .icb_rsp_m            (bias_loader_rsp_ready),
@@ -542,7 +542,7 @@ module mma_top #(
       .k                 (k),
       .m                 (m),
       .icb_cmd_m         (vec_requant_cmd),
-      .icb_wr_m          (vec_requant_wr),
+      //.icb_wr_m          (vec_requant_wr),
       .icb_cmd_s         (vec_requant_cmd_ready),
       .icb_wr_s          (vec_requant_w_ready),
       .icb_rsp_s         (vec_requant_rsp),

@@ -236,12 +236,19 @@ module vec_s8_to_fifo #(
   end
 
   // storage input data
-  always @(posedge clk) begin
-    if (in_valid && fifo_sel == 1'b0) begin
-      fifo_mem0[fifo_wptr0] <= in_vec_s8;
-    end
-    if (in_valid && fifo_sel == 1'b1) begin
-      fifo_mem1[fifo_wptr1] <= in_vec_s8;
+  always @(posedge clk or negedge rst_n) begin
+    if(!rst_n) begin
+      for(integer i = 0; i <= VLEN; i = i + 1) begin
+        fifo_mem0[i] <= 0;
+        fifo_mem1[i] <= 0;
+      end
+    end else begin
+      if (in_valid && fifo_sel == 1'b0) begin
+        fifo_mem0[fifo_wptr0] <= in_vec_s8;
+      end
+      if (in_valid && fifo_sel == 1'b1) begin
+        fifo_mem1[fifo_wptr1] <= in_vec_s8;
+      end
     end
   end
 
