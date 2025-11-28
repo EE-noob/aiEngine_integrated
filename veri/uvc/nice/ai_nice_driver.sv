@@ -18,8 +18,15 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
     // Memory Map Constants (Example)
     localparam MEM_START_ADDR = 32'h0000_0001;
 
+    // 添加 Analysis Port 用于发送 mult done 信号
+    uvm_analysis_port #(ai_nice_seq_item) drv_done_ap;
+    // 添加 Analysis Port 用于发送完成的事务给 Scoreboard
+    uvm_analysis_port #(ai_nice_seq_item) item_collected_port;
+
     function new(string name, uvm_component parent);
         super.new(name, parent);
+        drv_done_ap = new("drv_done_ap", this);
+        item_collected_port = new("item_collected_port", this);
     endfunction
 
     // Build phase: Get virtual interface from config_db
@@ -55,6 +62,9 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
             `uvm_info(get_type_name(), $sformatf("Got transaction: %s", req.convert2string()), UVM_HIGH)
             
             drive_item(req);
+            
+            // 发送事务到 Scoreboard
+            item_collected_port.write(req);
             
             seq_item_port.item_done();
         end
@@ -275,6 +285,8 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
             @(posedge vif.nice_clk);
         end
         `uvm_info("MULT Done", $sformatf("Matrix Mult Done. Status=0x%08h", vif.nice_rsp_rdat), UVM_HIGH)
+        // 发送完成信号
+        drv_done_ap.write(req);
         @(posedge vif.nice_clk);
     endtask
 

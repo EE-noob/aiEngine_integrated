@@ -14,6 +14,7 @@ package ai_env_pkg;
         `uvm_component_utils(ai_env)
 
         ai_nice_agent nice_agent;
+        ai_nice_scoreboard nice_scb;
 
         function new(string name, uvm_component parent);
             super.new(name, parent);
@@ -22,10 +23,13 @@ package ai_env_pkg;
         virtual function void build_phase(uvm_phase phase);
             super.build_phase(phase);
             nice_agent = ai_nice_agent::type_id::create("nice_agent", this);
+            nice_scb   = ai_nice_scoreboard::type_id::create("nice_scb", this);
         endfunction
 
         virtual function void connect_phase(uvm_phase phase);
             super.connect_phase(phase);
+            // Connect Agent's analysis port (connected to Driver internally since Monitor is disabled) to Scoreboard
+            nice_agent.analysis_port.connect(nice_scb.analysis_imp);
             uvm_root::get().print_topology();
         endfunction
     endclass

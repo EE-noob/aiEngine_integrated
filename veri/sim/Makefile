@@ -15,10 +15,10 @@
 ###############################################################################
 
 # Which simulator to use: modelsim or vcs
-SIM_TOOL      ?= vcs
+SIM_TOOL      ?= modelsim#vcs
 
 # Waveform dump format: fsdb, vpd, vcd, or none (for VCS)
-DUMP          ?= fsdb
+DUMP          ?= vcd#fsdb
 
 # Coverage enable: 0 or 1
 COV           ?= 0

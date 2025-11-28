@@ -190,7 +190,7 @@ module tb_top;
     // FSDB Dump
     // ============================================================
     initial begin
-       // if ($test$plusargs("dump_fsdb")) begin
+       if ($test$plusargs("dump_fsdb")) begin
             string fsdb_name;
             if (!$value$plusargs("fsdbfile+%s", fsdb_name)) begin
                 fsdb_name = "tb_top.fsdb";
@@ -202,7 +202,7 @@ module tb_top;
             // Dump UVM components if needed, though usually handled by transaction recording
             // $fsdbDumpClassObject(uvm_root::get()); 
         end
-    //end
+    end
 
 endmodule : tb_top
 

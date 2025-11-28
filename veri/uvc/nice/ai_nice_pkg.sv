@@ -11,6 +11,7 @@ package ai_nice_pkg;
     `include "ai_nice_driver.sv"
     //`include "ai_nice_monitor.sv"
     `include "ai_nice_coverage.sv"
+    `include "ai_nice_scoreboard.sv"
     `include "ai_nice_agent.sv"
 
 endpackage : ai_nice_pkg
