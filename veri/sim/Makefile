@@ -126,11 +126,11 @@ endif
 ifeq ($(COV),1)
 	@echo "=== Coverage Enabled: $(COV_DIR) ==="
 endif
-	cd $(VERI_DIR) && $(VCS) $(VCS_FLAGS) $(VCS_SEED_OPT) -f $(FLIST) +initreg+random -o simv
-
+	cd $(VERI_DIR) && $(VCS) $(VCS_FLAGS) $(VCS_SEED_OPT) -f $(FLIST)  -o simv
+#+vcs+initreg+random
 sim: com
 	@echo "=== Run VCS simulation (DUMP=$(DUMP), SEED=$(SEED_DISPLAY)) ==="
-	cd $(VERI_DIR) && ./simv $(RUN_ARGS) +UVM_TESTNAME=$(TESTNAME) $(DUMP_OPTS) $(SIM_COV_OPTS) -l vcs.log 
+	cd $(VERI_DIR) && ./simv  $(RUN_ARGS) +UVM_TESTNAME=$(TESTNAME) $(DUMP_OPTS) $(SIM_COV_OPTS) -l vcs.log 
 
 # Interactive GUI simulation with Verdi (requires FSDB)
 verdi: check_verdi
@@ -200,7 +200,7 @@ clean:
 	cd $(VERI_DIR) && rm -rf simv simv.daidir csrc DVEfiles ucli.key \
 		*.vpd *.vcd *.fsdb *.fsdb.log novas* verdiLog \
 		.vcs* .inter.vpd vcs.log *.log AN.DB \
-		verdi_config_file .restart* *.key *.rc *.conf
+		verdi_config_file .restart* *.key *.conf
 
 ###############################################################################
 # ModelSim / Questa flow
