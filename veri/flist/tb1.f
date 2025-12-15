@@ -3,5 +3,5 @@
 +incdir+./env
 +incdir+./test
 
--f flist/dut.f
--f flist/env.f
+-f ../flist/dut.f
+-f ../flist/env.f
