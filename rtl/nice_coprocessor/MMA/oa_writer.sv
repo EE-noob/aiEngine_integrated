@@ -295,10 +295,12 @@ module oa_writer #(
       has_grant           <= 1'b0;
       cmd_pending         <= 1'b0;
       row_cmd_sent        <= 1'b0;
+      beats_per_row       <= '0;
+      beats_in_row        <= '0;
       // vec_valid handshake reset
       vec_valid_num_col_r <= '0;
       vec_next_m1         <= '0;
-      vec_pending         <= 1'b0;
+      vec_pending         <= '0;
       vpub_next_row_idx   <= '0;
       vpub_next_col_idx   <= '0;
     end else begin

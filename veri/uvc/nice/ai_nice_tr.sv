@@ -41,7 +41,13 @@ class ai_nice_seq_item extends uvm_sequence_item;
     // File based loading (optional)
     string ia_matrix_file = "";
     string wgt_matrix_file = "";
+    string bias_vector_file = "";
 
+    string result_matrix_file = "result_matrix.out";
+
+    string csr_read_data_file = "csr_read_data.out";
+    string csr_write_data_file = "csr_write_data.out";
+    string mem_init_file = "../memInfo/main_extram.mem";
     // Analysis / Coverage fields (populated by monitor)
     int latency_cycles;
     real throughput_ops_per_cycle;

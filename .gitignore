@@ -4,3 +4,5 @@ veri/work/*
 
 # But keep the Makefile and this .gitignore
 !veri/sim/Makefile
+!veri/sim/.gitignore
+!veri/sim/*.rc

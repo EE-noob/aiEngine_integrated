@@ -1,6 +1,3 @@
-#ifndef _VC_HDRS_H
-#define _VC_HDRS_H
-
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -161,8 +158,6 @@ struct	_vcs_dpi_rsrc_msg_struct	{
 
  extern void fsdbTransDPI_create_stream_end(/* OUTPUT */int *state, /* INPUT */int sid, /* INPUT */const char* options);
 
- extern int fsdbTransDPI_get_ended_stream_id(/* OUTPUT */int *state, /* INPUT */const char* stream_fullname, /* INPUT */const char* options);
-
  extern long long fsdbTransDPI_begin(/* OUTPUT */int *state, /* INPUT */int sid, /* INPUT */const char* trans_type, /* INPUT */const char* options);
 
  extern void fsdbTransDPI_set_label(/* OUTPUT */int *state, /* INPUT */long long tid, /* INPUT */const char* label, /* INPUT */const char* options);
@@ -171,13 +166,7 @@ struct	_vcs_dpi_rsrc_msg_struct	{
 
  extern void fsdbTransDPI_add_logicvec_attribute(/* OUTPUT */int *state, /* INPUT */long long tid, /* INPUT */const char* attribute_name, const /* INPUT */svLogicVecVal *attribute, /* INPUT */int numbit, /* INPUT */const char* options);
 
- extern void fsdbTransDPI_add_bitvec_attribute(/* OUTPUT */int *state, /* INPUT */long long tid, /* INPUT */const char* attribute_name, const /* INPUT */svBitVecVal *attribute, /* INPUT */int numbit, /* INPUT */const char* options);
-
  extern void fsdbTransDPI_add_int_attribute(/* OUTPUT */int *state, /* INPUT */long long tid, /* INPUT */const char* attribute_name, /* INPUT */int attribute, /* INPUT */const char* options);
-
- extern void fsdbTransDPI_add_shortint_attribute(/* OUTPUT */int *state, /* INPUT */long long tid, /* INPUT */const char* attribute_name, /* INPUT */short int attribute, /* INPUT */const char* options);
-
- extern void fsdbTransDPI_add_longint_attribute(/* OUTPUT */int *state, /* INPUT */long long tid, /* INPUT */const char* attribute_name, /* INPUT */long long attribute, /* INPUT */const char* options);
 
  extern void fsdbTransDPI_add_string_attribute(/* OUTPUT */int *state, /* INPUT */long long tid, /* INPUT */const char* attribute_name, /* INPUT */const char* attribute, /* INPUT */const char* options);
 
@@ -187,13 +176,7 @@ struct	_vcs_dpi_rsrc_msg_struct	{
 
  extern void fsdbTransDPI_add_logicvec_attribute_with_expected_value(/* OUTPUT */int *state, /* INPUT */long long tid, /* INPUT */const char* attribute_name, const /* INPUT */svLogicVecVal *attribute, /* INPUT */int numbit, const /* INPUT */svLogicVecVal *expected_val, /* INPUT */const char* options);
 
- extern void fsdbTransDPI_add_bitvec_attribute_with_expected_value(/* OUTPUT */int *state, /* INPUT */long long tid, /* INPUT */const char* attribute_name, const /* INPUT */svBitVecVal *attribute, /* INPUT */int numbit, const /* INPUT */svBitVecVal *expected_val, /* INPUT */const char* options);
-
  extern void fsdbTransDPI_add_int_attribute_with_expected_value(/* OUTPUT */int *state, /* INPUT */long long tid, /* INPUT */const char* attribute_name, /* INPUT */int attribute, /* INPUT */int expected_val, /* INPUT */const char* options);
-
- extern void fsdbTransDPI_add_shortint_attribute_with_expected_value(/* OUTPUT */int *state, /* INPUT */long long tid, /* INPUT */const char* attribute_name, /* INPUT */short int attribute, /* INPUT */short int expected_val, /* INPUT */const char* options);
-
- extern void fsdbTransDPI_add_longint_attribute_with_expected_value(/* OUTPUT */int *state, /* INPUT */long long tid, /* INPUT */const char* attribute_name, /* INPUT */long long attribute, /* INPUT */long long expected_val, /* INPUT */const char* options);
 
  extern void fsdbTransDPI_add_string_attribute_with_expected_value(/* OUTPUT */int *state, /* INPUT */long long tid, /* INPUT */const char* attribute_name, /* INPUT */const char* attribute, /* INPUT */const char* expected_val, /* INPUT */const char* options);
 
@@ -213,7 +196,4 @@ void SdisableFork();
 #ifdef __cplusplus
 }
 #endif
-
-
-#endif //#ifndef _VC_HDRS_H
 

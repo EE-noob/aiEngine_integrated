@@ -196,7 +196,8 @@ module tb_top;
                 fsdb_name = "tb_top.fsdb";
             end
             $fsdbDumpfile(fsdb_name);
-            $fsdbDumpvars(0, tb_top);
+            //$fsdbDumpvars(0, tb_top);
+            $fsdbDumpvars(0,"+all");
             $fsdbDumpSVA();
             $fsdbDumpMDA();
             // Dump UVM components if needed, though usually handled by transaction recording
