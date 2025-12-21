@@ -2,11 +2,11 @@ Magic 271485
 Revision Verdi_O-2018.09-SP2
 
 ; Window Layout <x> <y> <width> <height> <signalwidth> <valuewidth>
-viewPort 0 27 1918 347 505 65
+viewPort 0 27 1846 456 505 65
 
 ; File list:
 ; openDirFile [-d delimiter] [-s time_offset] [-rf auto_bus_rule_file] path_name file_name
-openDirFile -d / "" "/home/ICer/ic_prjs/aiengine/aiEngine_integrated/veri/tb_top.fsdb"
+openDirFile -d / "" "/home/posedge/work/aiEngine_integrated/veri/sim/tb_top.fsdb"
 
 ; file time scale:
 ; fileTimeScale ### s|ms|us|ns|ps
@@ -16,16 +16,16 @@ signalSpacing 5
 
 ; windowTimeUnit is used for zoom, cursor & marker
 ; waveform viewport range
-zoom 82202065.052950 103264515.885023
-cursor 0.000000
+zoom 26309886.032432 28069761.025099
+cursor 27005000.000000
 marker 0.000000
 
 ; user define markers
 ; userMarker time_pos marker_name color linestyle
 ; visible top row signal index
-top 0
+top 55
 ; marker line index
-markerPos 57
+markerPos 70
 
 ; event list
 ; addEvent event_name event_expression
@@ -46,7 +46,7 @@ curSTATUS ByChange
 
 
 addGroup "G1"
-activeDirFile "" "/home/ICer/ic_prjs/aiengine/aiEngine_integrated/veri/tb_top.fsdb"
+activeDirFile "" "/home/posedge/work/aiEngine_integrated/veri/sim/tb_top.fsdb"
 addSignal -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/nice_clk
 addSignal -h 15 -holdScope nice_rst_n
 addSignal -h 15 -holdScope nice_active
@@ -104,7 +104,20 @@ addSignal -h 15 -holdScope acc_data_out[0:15]
 addSignal -h 15 -holdScope acc_data_valid
 addSignal -h 15 -holdScope tile_calc_over
 addSignal -h 15 -holdScope partial_sum_calc_over
-addGroup "G8"
+addGroup "xpro"
+addSignal -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_mma_top/sa_icb_cmd_len[3:0]
+addSignal -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_mma_top/u_icb_flat_adapter/icb_cmd_m.len[3:0]
+addSignal -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_mma_top/u_icb_mux/sel[2:0]
+addSignal -h 15 -holdScope s3_cmd.len[3:0]
+addSignal -h 15 -holdScope s4_cmd.len[3:0]
+addSignal -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_mma_top/u_oa_writer/cmd_valid
+addSignal -h 15 -holdScope cur_addr[31:0]
+addSignal -h 15 -holdScope cmd_len_cur[2:0]
+addSignal -h 15 -holdScope beats_per_row[4:0]
+addSignal -h 15 -holdScope beats_per_row[2:0]
+addSignal -h 15 -holdScope cfg_m[31:0]
+addSignal -h 15 -holdScope tile_col_idx[31:0]
+addGroup "G9"
 
 ; getSignalForm Scope Hierarchy Status
 ; active file of getSignalForm
