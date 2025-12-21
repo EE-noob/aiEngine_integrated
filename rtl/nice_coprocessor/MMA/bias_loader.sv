@@ -37,7 +37,7 @@ module bias_loader #(
     output reg bias_valid,
 
     // 输出偏置向量（第一次部分和输出偏置，其余时间输出0）
-    output wire [DATA_WIDTH-1:0] data_out[SIZE]
+    output wire signed [DATA_WIDTH-1:0] data_out[SIZE]
 );
 
   // ---------------------------

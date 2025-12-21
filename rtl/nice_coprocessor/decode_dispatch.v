@@ -10,7 +10,7 @@
 `include "e203_defines.v"
 
 module decode_dispatch #(
-    parameter int unsigned REG_WIDTH = 32
+    parameter REG_WIDTH = 32
 ) (
     input wire clk,
     input wire rst_n,

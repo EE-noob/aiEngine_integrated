@@ -216,10 +216,10 @@ module oa_writer #(
   // sample for edge detection
   always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      oa_fifo_req_q <= 1'b0;
+      oa_fifo_req_q  <= 1'b0;
       write_oa_req_d <= 1'b0;
     end else begin
-      oa_fifo_req_q <= oa_fifo_req;
+      oa_fifo_req_q  <= oa_fifo_req;
       write_oa_req_d <= write_oa_req;
     end
   end
@@ -307,11 +307,9 @@ module oa_writer #(
         S_IDLE: begin
           cmd_pending  <= 1'b0;
           row_cmd_sent <= 1'b0;
-          if (init_cfg) begin
-            tile_row_idx <= '0;
-            tile_col_idx <= '0;
-            tiles_done   <= '0;
-          end
+          tiles_done   <= '0;
+          tile_row_idx <= '0;
+          tile_col_idx <= '0;
 
           // 使用已锁存的 cfg_k 在下一拍发布首?tile ?(cols-1)，并预取下一 tile ?(cols-1)
           if (cfg_lat_tick) begin : init_vec_valid
@@ -335,9 +333,9 @@ module oa_writer #(
           // First-tile kick: request the bus as soon as FIFO requests
           // (no external trigger needed)
           if (oa_fifo_req) begin
-            write_oa_req   <= 1'b1;
-            has_grant      <= 1'b0;
-            state          <= S_WAIT;
+            write_oa_req <= 1'b1;
+            has_grant    <= 1'b0;
+            state        <= S_WAIT;
           end
         end
 

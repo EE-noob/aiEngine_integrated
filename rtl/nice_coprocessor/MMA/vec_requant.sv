@@ -284,10 +284,10 @@ module vec_requant #(
 
               if (cmd_hskd) begin
                 // 命令已被对端接受，本次突发开始
-                cmd_busy     <= 1'b1;
+                cmd_busy            <= 1'b1;
                 icb_cmd_m_reg.valid <= 1'b0;  // 下拍取消 valid
-                rd_beats_cnt <= 6'd0;
-                beats_expect <= lane_need_cur[5:0];  // 需要收的拍数
+                rd_beats_cnt        <= 6'd0;
+                beats_expect        <= lane_need_cur[5:0];  // 需要收的拍数
               end
             end
 
@@ -428,30 +428,59 @@ module vec_requant #(
 
   assign out_valid = (!cfg_per_channel) ? out_valid_q : (out_valid_q && quant_params_valid);
 
-  // 用 CMSIS-NN 风格重写重量化函数
-  function automatic signed [31:0] cmsis_nn_requantize(input signed [31:0] acc,
-                                                       input signed [31:0] multiplier,
-                                                       input signed [31:0] shift_s);
-    reg signed [63:0] prod;
-    reg signed [63:0] rounded;
-    reg [5:0] shift_amt;
-    reg signed [31:0] neg_shift;
+  function automatic signed [31:0] round_divide_by_power_of_two(input signed [31:0] x,
+                                                                input integer rshift);
+    reg signed [31:0] shifted;
+    reg signed [31:0] mask;
+    reg signed [31:0] remainder;
+    reg signed [31:0] threshold;
     begin
-      prod = acc * multiplier;
-      if (shift_s > 0) begin
-        shift_amt = shift_s[5:0];
-        rounded = prod + (64'sd1 <<< (shift_amt - 1));
-        cmsis_nn_requantize = rounded >>> shift_amt;
-      end else if (shift_s < 0) begin
-        neg_shift = -shift_s;
-        shift_amt = neg_shift[5:0];
-        prod = prod <<< shift_amt;
-        cmsis_nn_requantize = prod[31:0];
+      if (rshift == 0) begin
+        round_divide_by_power_of_two = x;
       end else begin
-        cmsis_nn_requantize = prod[31:0];
+        shifted   = x >>> rshift;
+        mask      = (32'sd1 <<< rshift) - 1;
+        remainder = x & mask;
+        threshold = mask >>> 1;
+        if (x < 0) threshold = threshold + 1;
+
+        round_divide_by_power_of_two = shifted + (remainder > threshold);
       end
     end
   endfunction
+
+
+  // CMSIS-NN 风格重量化函数
+  function automatic signed [31:0] cmsis_nn_requantize(input signed [31:0] acc,
+                                                       input signed [31:0] multiplier,  // Q31
+                                                       input signed [31:0] shift_s       // can be + or -
+);
+    reg signed [63:0] acc_ext;
+    reg signed [63:0] prod;
+    reg signed [63:0] round64;
+    reg signed [31:0] result;
+    integer lshift;
+    integer rshift;
+    begin
+      // -------- split shift --------
+      lshift = (shift_s > 0) ? shift_s : 0;
+      rshift = (shift_s < 0) ? -shift_s : 0;
+
+      // -------- LEFT_SHIFT --------
+      acc_ext = $signed(acc) <<< lshift;
+
+      // -------- Q31 multiply + rounding (doubling high mult) --------
+      prod    = acc_ext * $signed(multiplier);
+      round64 = prod + (64'sd1 <<< 30);
+      result  = round64 >>> 31;
+
+      // -------- RIGHT_SHIFT with rounding --------
+      if (rshift > 0) cmsis_nn_requantize = round_divide_by_power_of_two(result, rshift);
+      else cmsis_nn_requantize = result;
+    end
+  endfunction
+
+
 
   // 做一行（16 lane），尾块屏蔽
   genvar j;
@@ -460,25 +489,26 @@ module vec_requant #(
     logic lane_en;
     logic signed [31:0] cur_m, cur_s;
     logic signed [31:0] rq_tmp;
-
     always_ff @(posedge clk or negedge rst_n) begin
+
+      rq_tmp = '0;
+      cur_m  = '0;
+      cur_s  = '0;
+
       if (!rst_n) begin
         out_vec_s8[j] <= '0;
-        rq_tmp    <= '0;
-        cur_m <= '0;
-        cur_s <= '0;
       end else if (in_valid) begin
         // 选择 per-channel 缓冲或 per-tensor 常量
-        cur_m     <= cfg_per_channel ? ch_multiplier_r[j] : pt_multiplier_r;
-        cur_s     <= cfg_per_channel ? ch_shift_r[j] : pt_shift_r;
+        cur_m  = cfg_per_channel ? ch_multiplier_r[j] : pt_multiplier_r;
+        cur_s  = cfg_per_channel ? ch_shift_r[j] : pt_shift_r;
 
-        rq_tmp    <= cmsis_nn_requantize(in_vec_s32[j], cur_m, cur_s);
-        rq_tmp    <= rq_tmp + dst_offset_r;
+        rq_tmp = cmsis_nn_requantize(in_vec_s32[j], cur_m, cur_s);
+        rq_tmp = rq_tmp + dst_offset_r;
 
-        if (rq_tmp < activation_min_r) rq_tmp <= activation_min_r;
-        if (rq_tmp > activation_max_r) rq_tmp <= activation_max_r;
+        if (rq_tmp < activation_min_r) rq_tmp = activation_min_r;
+        if (rq_tmp > activation_max_r) rq_tmp = activation_max_r;
 
-        lane_en <= (j < lane_need_q);
+        lane_en = (j < lane_need_q);
 
         if (lane_en) begin
           if (rq_tmp > 32'sd127) out_vec_s8[j] <= 8'sd127;
