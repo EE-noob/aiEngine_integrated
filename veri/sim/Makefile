@@ -30,7 +30,7 @@ run: com sim
 gv:
 	gcc -v 
 comp:
-	vcs -full64 -sverilog -timescale=1ns/1ps -debug_access+all -kdb -lca -ntb_opts uvm-1.2    -f ../flist/tb1.f -top tb_top -l compile.log -o simv"
+	vcs -full64 -sverilog -timescale=1ns/1ps -debug_access+all -kdb -lca -ntb_opts uvm-1.2    -f ../flist/tb1.f -top tb_top -l compile.log -o simv
 com:
 	@echo "[COMPILE] VCS -> $(SIMV)"
 	vcs $(VCS_OPTS) $(INCDIRS:%=-y %) $(DEFINES:%=+define+%) -f $(FILELIST) -fsdb -top $(TOP) -l compile.log -o $(SIMV)

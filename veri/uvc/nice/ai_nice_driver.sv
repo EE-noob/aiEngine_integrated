@@ -10,10 +10,10 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
     virtual nice_if vif; 
 
     // Internal address management
-    bit [31:0] ia_base_addr;
-    bit [31:0] wgt_base_addr;
-    bit [31:0] out_base_addr;
-    bit [31:0] bias_base_addr;
+    bit [31:0] ia_base_addr;//0001;
+    bit [31:0] wgt_base_addr;//1000;
+    bit [31:0] out_base_addr;//1002;
+    bit [31:0] bias_base_addr;//1003;
     
     // Memory Map Constants (Example)
     localparam MEM_START_ADDR = 32'h0000_0001;
