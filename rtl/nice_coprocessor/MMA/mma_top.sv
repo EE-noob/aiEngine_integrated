@@ -135,13 +135,13 @@ module mma_top #(
   wire                           load_bias_req;
   wire                           load_bias_granted;
   wire                           bias_valid;
-  wire        [            31:0] bias_data_out                          [SIZE];
+  wire signed [            31:0] bias_data_out                          [SIZE];
 
   // Accumulator Array 输出（来自封装模块）
   wire                           acc_data_valid;
   wire                           tile_calc_over;
   wire                           partial_sum_calc_over;
-  wire        [            31:0] acc_data_out                           [SIZE];
+  wire signed [            31:0] acc_data_out                           [SIZE];
 
   // Requantization 内部信号
   wire                           load_quant_req;

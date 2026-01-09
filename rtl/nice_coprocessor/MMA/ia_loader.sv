@@ -14,16 +14,16 @@
  *
  *  术语:
  *   - SIZE: 脉动阵列的行/列宽度（通常为16），模块参数 SIZE 即脉动阵列规格
- *   - IA Tile: 尺寸为 SIZE 行 × SIZE 列 的输入子块，对于IA_loader,每一行有row_tile_num=n/ SIZE(向上取整）  个tile
+ *   - IA Tile: 尺寸为 SIZE 行 × SIZE 列 的输入子块，对于IA_loader,每一行有horizontal_tile_num=n/ SIZE(向上取整）  个tile
  *   - Weight Tile: 尺寸为 SIZE 行 × SIZE 列
  *   - OA Tile: 尺寸为 SIZE 行 × SIZE 列
  *
  *  重要推导:
- *   - row_tile_num = ceil(n/ SIZE)          // 每个OA行的IA Tile数//实际计算时需要使用移位和加法来替代原有的除法和取整，以保证时序通过
+ *   - horizontal_tile_num = ceil(n/ SIZE)          // 每个OA行的IA Tile数//实际计算时需要使用移位和加法来替代原有的除法和取整，以保证时序通过
  *   - row_tile_rem = ceil(n/ SIZE) - n           // 最后一个IA Tile的无效的列数（考虑矩阵边界）
  *   - 每行IA Tile 会被重复使用loop_row_num=ceil(m/ SIZE) 次（与不同列的Weight Tile相乘）//实际计算时需要使用移位和加法来替代原有的除法和取整，以保证时序通过
- *   - col_tile_num = ceil(k / SIZE)          // 列方向需要的IA Tile个数，需使用移位加法替代除法以满足时序
- *   - col_tile_rem = (col_tile_num * SIZE) - k // 最后一列方向Tile的无效行数，计算同样采用移位加法避免乘除
+ *   - vertical_tile_num = ceil(k / SIZE)          // 列方向需要的IA Tile个数，需使用移位加法替代除法以满足时序
+ *   - col_tile_rem = (vertical_tile_num * SIZE) - k // 最后一列方向Tile的无效行数，计算同样采用移位加法避免乘除
  *
  * 工作流程（高层）：
  *  0) 空闲阶段（IDLE）
@@ -31,7 +31,7 @@
     1) 配置阶段（init_cfg）   
        IDLE阶段被 init_cfg 单拍拉高触发，模块进入配置状态
  *     - 锁存所有需要的寄存器：k、n、m、lhs_base、lhs_row_stride_b、lhs_zp、use_16bits
- *     - 根据 k、SIZE、N 等计算 row_tile_num 与 loop_row_num row_tile_rem等访存参数并保存
+ *     - 根据 k、SIZE、N 等计算 horizontal_tile_num 与 loop_row_num row_tile_rem等访存参数并保存
  *
  *  2) 自主Load阶段（模块内部驱动 ICB）
      配置阶段计算且寄存完成之后 或者 上一个IA Tile的逐行发送完成且整个IA矩阵没有加载完成时，模块进入Load状态
@@ -39,9 +39,9 @@
  *     - 根据当前 IA Tile 索引计算基地址（cfg_lhs_base + tile_row * lhs_row_stride_b + col_offset）//实际实现中tile_row * lhs_row_stride_b不能用乘法，需要用一个寄存器寄存上一行的地址，然后加上STRIDE
         col_offset = (tile_col_idx * SIZE * (use_16bits ? 16 : 8)) //实际实现中col_offset不能用乘法，需要用一个寄存器寄存上一个tile的列的地址，然后加上SIZE*(use_16bits ? 2 : 1)
  *     - 维护 tile_row_idx、tile_col_idx、loop_row_cnt 等状态变量，
- -  计数当前tile在当前行的cnt，并计算计算当前 Tile 的实际列数（考虑矩阵边界）如果在row_tile_num 内，icb_ext_cmd_m_t.len始终是 SIZE * (use_16bits ? 16 : 8)/`E203_XLEN，如果刚好等于row_tile_num ，这里的读请求得注意，有效行数为=SIZE-row_tile_rem，所以burst len只需要访问有效的这些数据，而如果32字节里面有些数据是无效的，那么读出来之后也不用管，因为在kernel loader那里会把对应的weight置为0
+ -  计数当前tile在当前行的cnt，并计算计算当前 Tile 的实际列数（考虑矩阵边界）如果在horizontal_tile_num 内，icb_ext_cmd_m_t.len始终是 SIZE * (use_16bits ? 16 : 8)/`E203_XLEN，如果刚好等于horizontal_tile_num ，这里的读请求得注意，有效行数为=SIZE-row_tile_rem，所以burst len只需要访问有效的这些数据，而如果32字节里面有些数据是无效的，那么读出来之后也不用管，因为在kernel loader那里会把对应的weight置为0
  *   同理，最后一行的tile的无效的行不用发送读请求读  
- - 每一个tile的地址和实际长度算好后就发一次读请求，一个tile读完之后，tile_col_idx++，如果tile_col_idx==row_tile_num,说明这一行的tile读完了，就把tile_col_idx清0，loop_row_cnt++，如果loop_row_cnt==loop_row_num,说明这一行的tile循环读完了，就把基地址加上tile_col_idx還有stride的这些，再把相关的idx清0，继续读下一行tile,tile_row_idx++
+ - 每一个tile的地址和实际长度算好后就发一次读请求，一个tile读完之后，tile_col_idx++，如果tile_col_idx==horizontal_tile_num,说明这一行的tile读完了，就把tile_col_idx清0，loop_row_cnt++，如果loop_row_cnt==loop_row_num,说明这一行的tile循环读完了，就把基地址加上tile_col_idx還有stride的这些，再把相关的idx清0，继续读下一行tile,tile_row_idx++
         *  
  *    读响应通道
  *     - 将读取的数据缓存到内部行缓冲或Tile缓冲中；当完整Tile可用时置 ia_data_valid=1
@@ -111,7 +111,7 @@ module ia_loader #(
     input  logic [REG_WIDTH-1:0]        k,                 // 输入激活矩阵行数（RHS_ROWS）// init_cfg高时保证稳定
     input logic [REG_WIDTH-1:0] n,  // 输入激活矩阵列数（RHS_COLS）
     input  logic [REG_WIDTH-1:0]        m,                 // 输出矩阵列数（LHS_COLS），用于计算行的循环次数
-    //也就是说对于IA_loader,每一行有row_tile_num=n/ 16向上取整个tile,然后这一行row_tile_num个tile发完后又循环这一行，循环次数为loop_row_num=m/ 16向上取整个tile
+    //也就是说对于IA_loader,每一行有horizontal_tile_num=n/ 16向上取整个tile,然后这一行horizontal_tile_num个tile发完后又循环这一行，循环次数为loop_row_num=m/ 16向上取整个tile
 
     // 配置寄存器（在 init_cfg 时锁存）
     input  logic signed [REG_WIDTH-1:0] lhs_zp,            // 输入激活零点偏移（s32）这个不是地址偏移，是数据偏移，把读到的每个数据加上这个就行，如果上溢就是最大值，下溢就是最小值
@@ -165,8 +165,8 @@ module ia_loader #(
   // =========================================================================
   // Tile计算参数
   // =========================================================================
-  reg [REG_WIDTH-1:0] row_tile_num;  // 每行tile数量 = ceil(n/SIZE)
-  reg [REG_WIDTH-1:0] col_tile_num;  // 列方向tile数量 = ceil(k/SIZE)
+  reg [REG_WIDTH-1:0] horizontal_tile_num;  // 每行tile数量 = ceil(n/SIZE)
+  reg [REG_WIDTH-1:0] vertical_tile_num;  // 列方向tile数量 = ceil(k/SIZE)
   reg [REG_WIDTH-1:0] loop_row_num;  // 行循环次数 = ceil(m/SIZE)
   reg [REG_WIDTH-1:0] row_tile_rem;  // 最后一个行tile无效列数
   reg [REG_WIDTH-1:0] col_tile_rem;  // 最后一个列tile无效行数
@@ -222,15 +222,17 @@ module ia_loader #(
   // 辅助信号
   // =========================================================================
 
-  //  wire is_last_col_tile = (tile_col_idx == row_tile_num - 1);
-  //  wire is_last_row_tile = (tile_row_idx == col_tile_num - 1);
-  // wire is_last_col_tile = (tile_col_idx == col_tile_num - 1);
-  // wire is_last_row_tile = (tile_row_idx == row_tile_num - 1);
+  //  wire is_last_col_tile = (tile_col_idx == horizontal_tile_num - 1);
+  //  wire is_last_row_tile = (tile_row_idx == vertical_tile_num - 1);
+  // wire is_last_col_tile = (tile_col_idx == vertical_tile_num - 1);
+  // wire is_last_row_tile = (tile_row_idx == horizontal_tile_num - 1);
   // 正确的判断逻辑：!!!!!!
-  // tile_col_idx 是列方向索引，应该与 row_tile_num 比较（一行有多少个tile）
-  // tile_row_idx 是行方向索引，应该与 col_tile_num 比较（一列有多少个tile）
-  wire is_last_col_tile = (tile_col_idx == row_tile_num - 1);
-  wire is_last_row_tile = (tile_row_idx == col_tile_num - 1);
+  // tile_col_idx 是列方向索引，应该与 horizontal_tile_num 比较（一行有多少个tile）
+  // tile_row_idx 是行方向索引，应该与 vertical_tile_num 比较（一列有多少个tile）
+  wire is_last_col_tile = (tile_col_idx == horizontal_tile_num - 1);
+  wire is_last_row_tile = (tile_row_idx == vertical_tile_num - 1);
+  wire [REG_WIDTH-1:0] rsp_current_rows = rsp_is_last_row_tile ? rsp_rows_last_tile : rsp_rows_per_tile;      // 当前tile的行数
+  wire [REG_WIDTH-1:0] rsp_current_beats = rsp_is_last_col_tile ? rsp_beats_per_row_last : rsp_beats_per_row_normal;  // 当前行的beat数
 
 
   wire is_last_loop = (loop_row_cnt == loop_row_num - 1);
@@ -243,12 +245,12 @@ module ia_loader #(
   // =========================================================================
   // 单段式状态机 - 现态更新与次态逻辑合并
   // =========================================================================
-  logic is_last_row_tile_dff;
+  logic is_last_col_tile_dff;
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      is_last_row_tile_dff <= 0;
+      is_last_col_tile_dff <= 0;
     end else begin
-      is_last_row_tile_dff <= is_last_row_tile;
+      is_last_col_tile_dff <= is_last_col_tile;
     end
   end
   always_ff @(posedge clk or negedge rst_n) begin
@@ -272,8 +274,8 @@ module ia_loader #(
 
         SEND: begin
           //if (is_last_row_tile && is_last_col_tile && is_last_loop)
-          //if (is_last_row_tile && (tile_col_idx == col_tile_num ) && is_last_loop)
-          if (!is_last_row_tile && is_last_row_tile_dff)  // is_last_loop的下降沿
+          //if (is_last_row_tile && (tile_col_idx == vertical_tile_num ) && is_last_loop)
+          if (is_last_col_tile && is_last_row_tile && ia_sending_done && is_last_loop)  // is_last_loop的下降沿
             state <= IDLE;
           else if (load_ia_granted)
             // 等待授权后才进入下一个LOAD
@@ -297,8 +299,8 @@ module ia_loader #(
       cfg_lhs_row_stride_b <= '0;
       cfg_lhs_base <= '0;
       cfg_use_16bits <= '0;
-      row_tile_num <= '0;
-      col_tile_num <= '0;
+      horizontal_tile_num <= '0;
+      vertical_tile_num <= '0;
       loop_row_num <= '0;
       row_tile_rem <= '0;
       col_tile_rem <= '0;
@@ -320,8 +322,8 @@ module ia_loader #(
       cfg_use_16bits <= use_16bits;
 
       // 使用移位和加法替代除法: ceil(n/SIZE) = (n + SIZE - 1) >> log2(SIZE)
-      row_tile_num <= (n + SIZE - 1) >> $clog2(SIZE);  // 每行tile数量
-      col_tile_num <= (k + SIZE - 1) >> $clog2(SIZE);  // 列方向tile数量
+      horizontal_tile_num <= (n + SIZE - 1) >> $clog2(SIZE);  // 每行tile数量
+      vertical_tile_num <= (k + SIZE - 1) >> $clog2(SIZE);  // 列方向tile数量
       loop_row_num <= (m + SIZE - 1) >> $clog2(SIZE);  // 行循环次数
 
       // row_tile_rem = (ceil(n/SIZE) * SIZE) - n
@@ -375,22 +377,19 @@ module ia_loader #(
 
         SEND: begin
           if (ia_sending_done) begin
-            if (is_last_loop && is_last_col_tile) begin
-              // 移到下一行tile
-              tile_row_idx <= tile_row_idx + 1;
-              tile_col_idx <= '0;
-              loop_row_cnt <= '0;
-              // 更新当前行的基地址，加上一个tile行的地址偏移量
-              // cfg_lhs_row_stride_b 是配置的行间距（单位：字节），表示矩阵中相邻两行之间的地址间隔
-              // 由于一个 tile 包含 SIZE 行，所以需要跳过 SIZE 行的地址偏移
-              // 通过左移 $clog2(SIZE) 位实现乘以 SIZE 的效果（避免使用乘法器以满足时序要求）
-              // 例如：SIZE=16 时，$clog2(16)=4，左移4位相当于乘以16
-              // 最终地址偏移 = cfg_lhs_row_stride_b * S
-              current_row_base <= current_row_base + (cfg_lhs_row_stride_b << $clog2(SIZE));
-            end else if (is_last_col_tile) begin
-              // 同一行重新开始
-              tile_col_idx <= '0;
-              loop_row_cnt <= loop_row_cnt + 1;
+            if (is_last_col_tile) begin
+              if (is_last_loop) begin
+                // 移到下一行tile
+                tile_row_idx <= tile_row_idx + 1;
+                tile_col_idx <= '0;
+                loop_row_cnt <= '0;
+                // 更新当前行的基地址，加上一个tile行的地址偏移量
+                current_row_base <= current_row_base + (cfg_lhs_row_stride_b << $clog2(SIZE));
+              end else begin
+                // 同一行重新开始
+                tile_col_idx <= '0;
+                loop_row_cnt <= loop_row_cnt + 1;
+              end
             end else begin
               // 同一行下一个tile
               tile_col_idx <= tile_col_idx + 1;
@@ -437,9 +436,9 @@ module ia_loader #(
       valid_cols   <= '0;
     end else if (state == INIT) begin
       // INIT状态就计算好第一个tile的有效行列
-      valid_rows   <= (col_tile_num == 1) ? (SIZE - col_tile_rem) : SIZE;
-      valid_cols   <= (row_tile_num == 1) ? (SIZE - row_tile_rem) : SIZE;
-      rows_to_read <= (col_tile_num == 1) ? (SIZE - col_tile_rem) : SIZE;
+      valid_rows   <= (vertical_tile_num == 1) ? (SIZE - col_tile_rem) : SIZE;
+      valid_cols   <= (horizontal_tile_num == 1) ? (SIZE - row_tile_rem) : SIZE;
+      rows_to_read <= (vertical_tile_num == 1) ? (SIZE - col_tile_rem) : SIZE;
     end else if (state == SEND && ia_sending_done) begin
       // SEND完成后，为下一个tile计算有效行列
       // 判断下一个tile的行索引
@@ -448,7 +447,7 @@ module ia_loader #(
       else next_tile_row_idx = tile_row_idx;
 
       // 根据下一个tile的行索引判断是否是最后一行tile
-      if (next_tile_row_idx == col_tile_num - 1) begin
+      if (next_tile_row_idx == vertical_tile_num - 1) begin
         valid_rows   <= SIZE - col_tile_rem;
         rows_to_read <= SIZE - col_tile_rem;
       end else begin
@@ -460,7 +459,7 @@ module ia_loader #(
       if (is_last_col_tile) next_tile_col_idx = 0;
       else next_tile_col_idx = tile_col_idx + 1;
 
-      if (next_tile_col_idx == row_tile_num - 1) valid_cols <= SIZE - row_tile_rem;
+      if (next_tile_col_idx == horizontal_tile_num - 1) valid_cols <= SIZE - row_tile_rem;
       else valid_cols <= SIZE;
     end
   end
@@ -511,7 +510,7 @@ module ia_loader #(
             end
           end else begin
             // 当前tile所有行已发送完读请求
-            if (cmd_hs) begin // 等待最后一个请求握手完成
+            if (cmd_hs) begin  // 等待最后一个请求握手完成
               icb_cmd_valid <= 1'b0;
             end
           end
@@ -546,10 +545,8 @@ module ia_loader #(
   ));
 
   // 响应通道辅助信号（根据响应通道自己的tile索引计算）
-  wire rsp_is_last_col_tile = (rsp_tile_col_idx == row_tile_num - 1);  // 是否最后一列tile
-  wire rsp_is_last_row_tile = (rsp_tile_row_idx == col_tile_num - 1);  // 是否最后一行tile
-  wire [REG_WIDTH-1:0] rsp_current_rows = rsp_is_last_row_tile ? rsp_rows_last_tile : rsp_rows_per_tile;      // 当前tile的行数
-  wire [REG_WIDTH-1:0] rsp_current_beats = rsp_is_last_col_tile ? rsp_beats_per_row_last : rsp_beats_per_row_normal;  // 当前行的beat数
+  wire rsp_is_last_col_tile = (rsp_tile_col_idx == horizontal_tile_num - 1);  // 是否最后一列tile
+  wire rsp_is_last_row_tile = (rsp_tile_row_idx == vertical_tile_num - 1);  // 是否最后一行tile
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -666,7 +663,7 @@ module ia_loader #(
                 // 当前tile的所有行接收完毕
                 rsp_row_cnt <= '0;
 
-                if (rsp_tile_col_idx == row_tile_num - 1) begin
+                if (rsp_tile_col_idx == horizontal_tile_num - 1) begin
                   // 当前行的所有tile接收完
                   rsp_tile_col_idx <= '0;
 
