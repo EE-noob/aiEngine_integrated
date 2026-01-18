@@ -1,15 +1,21 @@
 import numpy as np
 import os
 import random
-import struct
 
 # 随机生成矩阵尺寸 (128~256)
-K = random.randint(16, 256)
-N = random.randint(16, 256)
-M = random.randint(16, 256)
+# K = random.randint(16, 256)
+# N = random.randint(16, 256)
+# M = random.randint(16, 256)
+
+# # 随机选择 lhs 数据类型
+# lhs_dtype = random.choice([1, 2])  # 1: S8, 2: S16
+
+K = 28  
+N = 146 
+M = 62  # output_ch，通道数，RHS的列数
 
 # 随机选择 lhs 数据类型
-lhs_dtype = random.choice([1, 2])  # 1: S8, 2: S16
+lhs_dtype = 2
 
 # 随机生成 lhs (A)、rhs (B) 的 int8/int16 内容
 if lhs_dtype == 1:  # S8
@@ -20,8 +26,6 @@ rhs = np.random.randint(-128, 128, size=(N, M), dtype=np.int8)
 
 # 随机生成 bias (int32)
 bias = np.random.randint(-10000, 10000, size=M, dtype=np.int32)
-# bias 随机或为 0，这里先简单设为 0
-# bias = np.zeros(M, dtype=np.int32)
 
 # 计算累加结果 (int32)
 sum_result = np.dot(lhs.astype(np.int32), rhs.astype(np.int32))  # [K, M]
@@ -192,23 +196,13 @@ else:  # per-channel
 # 使用同样公式生成预期输出
 quantized = requantize_array(result, dst_mults, dst_shifts)
 
-# 输出目录：./test_case
-out_dir = "./test_case"
+# 输出目录：./eai_csrc_api
+out_dir = "/home/etc/FPGA/e203_simulator/eai_csrc_api"
 os.makedirs(out_dir, exist_ok=True)
-data_mem_path = os.path.join(out_dir, "data.mem")
-expected_mem_path = os.path.join(out_dir, "expected.mem")
-config_path = os.path.join(out_dir, "config.txt")
+c_path = os.path.join(out_dir, "test_case.c")
+h_path = os.path.join(out_dir, "test_case.h")
 debug_path = os.path.join(out_dir, "debug_output.txt")
 
-# 保存数组原始内容到txt文件
-np.savetxt(os.path.join(out_dir, "lhs.txt"), lhs, fmt='%d')
-np.savetxt(os.path.join(out_dir, "rhs.txt"), rhs, fmt='%d')
-np.savetxt(os.path.join(out_dir, "bias.txt"), bias, fmt='%d')
-np.savetxt(os.path.join(out_dir, "expected_dst.txt"), quantized, fmt='%d')
-if quant_mode == 1:
-    np.savetxt(os.path.join(out_dir, "dst_mult.txt"), dst_mults, fmt='%d')
-    np.savetxt(os.path.join(out_dir, "dst_shift.txt"), dst_shifts, fmt='%d')
-    
 # 生成调试文件：未经量化的累加结果 (int32)
 with open(debug_path, 'w') as f:
     f.write(f"未经量化的矩阵乘法中间结果 (K={K}, N={N}, M={M})\n")
@@ -224,104 +218,142 @@ with open(debug_path, 'w') as f:
         for j in range(M):
             f.write(f"  通道 {j}: dst_mult={dst_mults[j]}, dst_shift={dst_shifts[j]}\n")
 
-# 辅助函数：将字节数组打包为32位小端字，写入mem文件
-def write_mem(file, data_bytes):
-    for i in range(0, len(data_bytes), 4):
-        chunk = data_bytes[i:i+4]
-        if len(chunk) < 4:
-            chunk += b'\x00' * (4 - len(chunk))  # 填充0
-        word = struct.unpack('<I', chunk)[0]  # 小端32位
-        file.write(f"{word:08x}\n")
-
-# 准备数据mem：lhs, rhs, bias, quant params
-with open(data_mem_path, 'w') as f:
+# 生成C文件
+with open(c_path, 'w') as f:
+    f.write('#include "test_case.h"\n\n')
     # LHS
-    lhs_bytes = lhs.tobytes()
-    write_mem(f, lhs_bytes)
-    lhs_addr = 0
-    lhs_size = len(lhs_bytes)
-    
-    # RHS (列优先)
-    rhs_bytes = rhs.flatten(order='F').tobytes()
-    write_mem(f, rhs_bytes)
-    rhs_addr = lhs_size
-    rhs_size = len(rhs_bytes)
-    
+    lhs_type_str = 'int8_t' if lhs_dtype == 1 else 'int16_t'
+    f.write(f'// LHS data (K x N, {lhs_type_str})\n')
+    f.write(f'{lhs_type_str} lhs_data[{K * N}] = {{\n')
+    for i in range(K * N):
+        f.write(f'  {int(lhs.flatten()[i])}')
+        if i < K * N - 1:
+            f.write(',')
+        if (i + 1) % N == 0:
+            f.write('\n')
+        else:
+            f.write(' ')
+    f.write('};\n\n')
+
+    # RHS
+    f.write('// RHS data (N x M, column-major)\n')
+    f.write('int8_t rhs_data[{}] = {{\n'.format(N * M))
+    rhs_flat = rhs.flatten(order='F')  # 列展平
+    for i in range(N * M):
+        f.write(f'  {int(rhs_flat[i])}')
+        if i < N * M - 1:
+            f.write(',')
+        if (i + 1) % N == 0:  # 每列 N 个元素后换行（列优先）
+            f.write('\n')
+        else:
+            f.write(' ')
+    f.write('};\n\n')
+
     # Bias
-    bias_bytes = bias.tobytes()
-    write_mem(f, bias_bytes)
-    bias_addr = rhs_addr + rhs_size
-    bias_size = len(bias_bytes)
-    
-    # Quant params (if per-channel)
-    if quant_mode == 1:
-        mult_bytes = dst_mults.tobytes()
-        write_mem(f, mult_bytes)
-        mult_addr = bias_addr + bias_size
-        mult_size = len(mult_bytes)
-        
-        shift_bytes = dst_shifts.tobytes()
-        write_mem(f, shift_bytes)
-        shift_addr = mult_addr + mult_size
-        shift_size = len(shift_bytes)
-    else:
-        mult_addr = shift_addr = 0
-        mult_size = shift_size = 0
+    f.write('// Bias data (length M)\n')
+    f.write('int32_t bias_data[{}] = {{\n'.format(M))
+    for i in range(M):
+        f.write(f'  {int(bias[i])}')
+        if i < M - 1:
+            f.write(',')
+        f.write('\n' if (i + 1) % M == 0 else ' ')
+    f.write('};\n\n')
 
-# 准备expected mem：expected_dst_data
-with open(expected_mem_path, 'w') as f:
-    expected_bytes = quantized.tobytes()
-    write_mem(f, expected_bytes)
-    expected_addr = 0
-    expected_size = len(expected_bytes)
+    # Expected DST
+    f.write('// Expected DST data (K x M)\n')
+    f.write('int8_t expected_dst_data[{}] = {{\n'.format(K * M))
+    for i in range(K * M):
+        f.write(f'  {int(quantized.flatten()[i])}')
+        if i < K * M - 1:
+            f.write(',')
+        if (i + 1) % M == 0:
+            f.write('\n')
+        else:
+            f.write(' ')
+    f.write('};\n\n')
 
-# 生成配置文件
-with open(config_path, 'w') as f:
-    f.write("# Human-readable config file\n")
-    f.write(f"K = {K}\n")
-    f.write(f"N = {N}\n")
-    f.write(f"M = {M}\n")
-    f.write(f"lhs_dtype = {lhs_dtype}  # 1: S8, 2: S16\n")
-    f.write(f"quant_mode = {quant_mode}  # 0: per-tensor, 1: per-channel\n")
-    f.write("\n# Addresses in data.mem (bytes)\n")
-    f.write(f"lhs_addr = {lhs_addr}\n")
-    f.write(f"rhs_addr = {rhs_addr}\n")
-    f.write(f"bias_addr = {bias_addr}\n")
+    # 输出缓冲区（由 Python 固定大小生成）
+    f.write('// DST buffer (K x M), used as output buffer\n')
+    f.write('int8_t dst_data[{}];\n\n'.format(K * M))
+
+    # DST mult/shift data (per-channel)
     if quant_mode == 1:
-        f.write(f"dst_mult_addr = {mult_addr}\n")
-        f.write(f"dst_shift_addr = {shift_addr}\n")
-    f.write("\n# Sizes (bytes)\n")
-    f.write(f"lhs_size = {lhs_size}\n")
-    f.write(f"rhs_size = {rhs_size}\n")
-    f.write(f"bias_size = {bias_size}\n")
-    f.write(f"expected_dst_size = {expected_size}\n")
-    if quant_mode == 1:
-        f.write(f"dst_mult_size = {mult_size}\n")
-        f.write(f"dst_shift_size = {shift_size}\n")
-    f.write("\n# Config struct fields\n")
-    f.write(f"K = {K}\n")
-    f.write(f"N = {N}\n")
-    f.write(f"M = {M}\n")
+        f.write('// DST mult data (length M, per-channel)\n')
+        f.write('int32_t dst_mult_data[{}] = {{\n'.format(M))
+        for i in range(M):
+            f.write(f'  {int(dst_mults[i])}')
+            if i < M - 1:
+                f.write(',')
+            f.write('\n')
+        f.write('};\n\n')
+
+        f.write('// DST shift data (length M, per-channel)\n')
+        f.write('int32_t dst_shift_data[{}] = {{\n'.format(M))
+        for i in range(M):
+            f.write(f'  {int(dst_shifts[i])}')
+            if i < M - 1:
+                f.write(',')
+            f.write('\n')
+        f.write('};\n\n')
+
+    # Config
+    f.write('// Auto-generated matmul config\n')
+    f.write('dsa_matmul_config_t test_config = {\n')
+    f.write('  .lhs_ptr = lhs_data,\n')
+    f.write('  .rhs_ptr = rhs_data,\n')
+    f.write('  .dst_ptr = dst_data,\n')
+    f.write('  .bias_ptr = bias_data,\n')
+    f.write('  .K = %d,\n' % K)
+    f.write('  .N = %d,\n' % N)
+    f.write('  .M = %d,\n' % M)
+    # 计算步进（字节）
     lhs_row_stride = N * (1 if lhs_dtype == 1 else 2)
-    rhs_row_stride = N * 1
-    dst_row_stride = M * 1
-    f.write(f"lhs_row_stride = {lhs_row_stride}\n")
-    f.write(f"rhs_row_stride = {rhs_row_stride}\n")
-    f.write(f"dst_row_stride = {dst_row_stride}\n")
+    rhs_row_stride = N * 1  # rhs是int8_t
+    dst_row_stride = M * 1  # dst是int8_t
+    f.write('  .lhs_row_stride = %d,\n' % lhs_row_stride)
+    f.write('  .rhs_row_stride = %d,\n' % rhs_row_stride)
+    f.write('  .dst_row_stride = %d,\n' % dst_row_stride)
+    # 数据类型
     lhs_dtype_macro = 'DSA_DTYPE_S8' if lhs_dtype == 1 else 'DSA_DTYPE_S16'
-    f.write(f"lhs_dtype = {lhs_dtype_macro}\n")
-    f.write("rhs_dtype = DSA_DTYPE_S8\n")
-    f.write("bias_dtype = DSA_DTYPE_S32\n")
-    f.write("out_dtype = DSA_DTYPE_S8\n")
-    f.write(f"quant_mode = {quant_mode}\n")
-    f.write("lhs_offset = 0\n")
-    f.write("rhs_offset = 0\n")
-    f.write("dst_offset = 0\n")
+    f.write('  .lhs_dtype = %s,\n' % lhs_dtype_macro)
+    f.write('  .rhs_dtype = DSA_DTYPE_S8,\n')
+    f.write('  .bias_dtype = DSA_DTYPE_S32,\n')
+    f.write('  .out_dtype = DSA_DTYPE_S8,\n')
+    # 量化模式与零点
+    f.write('  .quant_mode = %d,\n' % quant_mode)
+    f.write('  .lhs_offset = 0,\n')
+    f.write('  .rhs_offset = 0,\n')
+    f.write('  .dst_offset = 0,\n')
+    # per-tensor 量化
     if quant_mode == 0:
-        f.write(f"dst_mult = {dst_mult}\n")
-        f.write(f"dst_shift = {dst_shift}\n")
+        f.write('  .dst_mult = %d,\n' % dst_mult)
+        f.write('  .dst_shift = %d,\n' % dst_shift)
+        f.write('  .dst_mult_ptr = NULL,\n')
+        f.write('  .dst_shift_ptr = NULL,\n')
     else:
-        f.write("dst_mult = 0\n")
-        f.write("dst_shift = 0\n")
-    f.write("act_min = -128\n")
-    f.write("act_max = 127\n")
+        f.write('  .dst_mult = 0,\n')
+        f.write('  .dst_shift = 0,\n')
+        f.write('  .dst_mult_ptr = dst_mult_data,\n')
+        f.write('  .dst_shift_ptr = dst_shift_data,\n')
+    # 激活范围
+    f.write('  .act_min = -128,\n')
+    f.write('  .act_max = 127,\n')
+    f.write('};\n')
+
+# 生成头文件
+with open(h_path, 'w') as f:
+    f.write('#ifndef TEST_CASE_H\n')
+    f.write('#define TEST_CASE_H\n\n')
+    f.write('#include <stdint.h>\n')
+    f.write('#include "dsa_accel.h"\n\n')
+    lhs_type_str = 'int8_t' if lhs_dtype == 1 else 'int16_t'
+    f.write(f'extern {lhs_type_str} lhs_data[{K * N}];\n')
+    f.write('extern int8_t rhs_data[%d];\n' % (N * M))
+    f.write('extern int32_t bias_data[%d];\n' % M)
+    f.write('extern int8_t expected_dst_data[%d];\n' % (K * M))
+    f.write('extern int8_t dst_data[%d];\n' % (K * M))
+    if quant_mode == 1:
+        f.write('extern int32_t dst_mult_data[%d];\n' % M)
+        f.write('extern int32_t dst_shift_data[%d];\n' % M)
+    f.write('extern dsa_matmul_config_t test_config;\n\n')
+    f.write('#endif // TEST_CASE_H\n')
