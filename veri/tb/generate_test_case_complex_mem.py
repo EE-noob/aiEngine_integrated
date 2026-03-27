@@ -7,33 +7,61 @@ import shutil
 def compute_requant_params(acc: np.ndarray):
     """
     根据累加结果范围，生成 dst_mult 和 dst_shift，使得
-      output = (acc * dst_mult + (1 << (shift-1))) >> shift
-    落在 int8 范围内且不完全溢出。
+    量化后的输出在 int8 范围内有良好的分布。
+    
+    CMSIS-NN 使用的公式：
+    result = (acc << left_shift) * mult 的高32位 (doubling) >> right_shift
+    其中 mult 在 [0x40000000, 0x7FFFFFFF] 范围内（即 0.5 到 1.0 的定点数）
     """
-    acc_min = int(acc.min())
-    acc_max = int(acc.max())
-    max_abs = max(abs(acc_min), abs(acc_max))
-    if max_abs == 0:
-        # 全 0，任意量化都行，返回恒等
-        return 1, 0
-
-    # 我们使用右移 (shift >= 0)，不进行小数放大，保证简单可靠
-    # 目标：max_abs * mult / 2^shift <= 127 且 mult 尽量大
-    # 先枚举适当范围的 shift，选出最大的 mult
-    best_mult = 1
+    acc_min = float(acc.min())
+    acc_max = float(acc.max())
+    
+    if acc_min == 0 and acc_max == 0:
+        return 1073741824, 0  # 0x40000000, shift=0 (恒等映射)
+    
+    # 确定输出范围：使用 [-127, 127] 以避免饱和
+    out_min = -127.0
+    out_max = 127.0
+    
+    # 计算缩放因子：将 [acc_min, acc_max] 映射到 [out_min, out_max]
+    # 考虑对称性，使用最大绝对值
+    acc_abs_max = max(abs(acc_min), abs(acc_max))
+    
+    # 目标缩放比例
+    scale = 127.0 / acc_abs_max
+    
+    # CMSIS-NN doubling_high_mult 的特性：
+    # - mult 在 [0x40000000, 0x7FFFFFFF] 范围（对应 [0.5, 1.0)）
+    # - 结果会 doubling（相当于乘以2）
+    # - 所以实际缩放是 2 * mult / 2^31 * 2^left_shift / 2^right_shift
+    
+    # 简化：scale = mult / 2^30 * 2^left_shift / 2^right_shift
+    # 即：scale = mult * 2^(left_shift - right_shift - 30)
+    
+    # 寻找最佳的 shift 和 mult
+    best_mult = 1073741824  # 0x40000000
     best_shift = 0
-    max_shift = 31  # int32 足够
-    for s in range(max_shift + 1):
-        # mult <= 127 * 2^s / max_abs
-        num = 127 * (1 << s)
-        mult = num // max_abs  # floor
-        if mult < 1:
+    best_error = float('inf')
+    
+    # shift > 0 表示左移，shift < 0 表示右移
+    for shift in range(-31, 32):
+        # mult = scale * 2^(30 - shift)
+        mult_float = scale * (2 ** (30 - shift))
+        
+        # mult 必须在 [0x40000000, 0x7FFFFFFF] 范围内
+        mult = int(round(mult_float))
+        if mult < 0x40000000 or mult > 0x7FFFFFFF:
             continue
-        # 记录 mult 最大的组合
-        if mult > best_mult:
+        
+        # 计算实际的缩放比例
+        actual_scale = mult / (2 ** (30 - shift))
+        error = abs(actual_scale - scale)
+        
+        if error < best_error:
+            best_error = error
             best_mult = mult
-            best_shift = s
-
+            best_shift = shift
+    
     return int(best_mult), int(best_shift)
 
 def compute_requant_params_per_channel(acc: np.ndarray, axis=1):
@@ -51,22 +79,81 @@ def compute_requant_params_per_channel(acc: np.ndarray, axis=1):
     else:
         raise ValueError("Unsupported axis")
 
+def riscv_nn_requantize(acc, mult, shift):
+    """
+    精确模拟 CMSIS-NN 的 riscv_nn_requantize 函数
+    
+    C 实现：
+    __STATIC_FORCEINLINE int32_t riscv_nn_requantize(const int32_t val, const int32_t multiplier, const int32_t shift) {
+        return riscv_nn_divide_by_power_of_two(
+            riscv_nn_doubling_high_mult_no_sat(val * (1 << LEFT_SHIFT(shift)), multiplier),
+            RIGHT_SHIFT(shift));
+    }
+    
+    __STATIC_FORCEINLINE int32_t riscv_nn_doubling_high_mult_no_sat(const int32_t m1, const int32_t m2) {
+        int64_t mult = (1LL << 30) + (int64_t)m1 * m2;
+        return (int32_t)(mult >> 31);
+    }
+    """
+    # 转换为 Python int（无限精度）
+    acc = int(acc)
+    mult = int(mult)
+    shift = int(shift)
+    
+    # LEFT_SHIFT 和 RIGHT_SHIFT 宏
+    left_shift = shift if shift > 0 else 0
+    right_shift = 0 if shift > 0 else -shift
+    
+    # 步骤 1: 应用左移
+    val = acc * (1 << left_shift)
+    
+    # 步骤 2: riscv_nn_doubling_high_mult_no_sat
+    # 64 位乘法 + rounding offset
+    prod = (1 << 30) + val * mult
+    # 右移 31 位（相当于除以 2^31，这是 doubling high mult 的关键）
+    result = prod >> 31
+    
+    # 步骤 3: riscv_nn_divide_by_power_of_two (应用右移)
+    # 注意：这里需要带 rounding 的右移
+    if right_shift > 0:
+        # 带 rounding 的右移：加上 (1 << (right_shift - 1)) 再右移
+        mask = (1 << right_shift) - 1
+        remainder = result & mask
+        result = result >> right_shift
+        # 如果余数 >= 一半，则向上舍入（考虑符号）
+        if remainder > (1 << (right_shift - 1)):
+            result += 1
+        elif remainder == (1 << (right_shift - 1)):
+            # 正好一半时，根据符号决定舍入方向
+            # 标准的 round-to-nearest-even，但 CMSIS-NN 使用 round-half-up
+            if result >= 0:
+                result += 1
+    
+    # 限制在 int32 范围内
+    if result > 2147483647:
+        result = 2147483647
+    elif result < -2147483648:
+        result = -2147483648
+    
+    return int(result)
+
 def requantize_array(acc: np.ndarray, mults, shifts) -> np.ndarray:
     """
-    使用 CMSIS-NN 公式对整个 acc 数组做 requant：
-      output = (acc * mult + (1 << (shift-1))) / 2^shift
+    使用 CMSIS-NN 兼容的量化函数对整个 acc 数组做 requant。
     支持 mults 和 shifts 为标量或数组（广播）。
     """
-    acc_int64 = acc.astype(np.int64)
-    mults = np.broadcast_to(mults, acc.shape).astype(np.int64)
-    shifts = np.broadcast_to(shifts, acc.shape).astype(np.int32)
-    prod = acc_int64 * mults
-    mask = shifts > 0
-    if np.any(mask):
-        prod[mask] += (1 << (shifts[mask] - 1))
-        prod[mask] >>= shifts[mask]
-    prod = np.clip(prod, -128, 127)
-    return prod.astype(np.int8)
+    output = np.zeros_like(acc, dtype=np.int8)
+    
+    # 转换为数组以支持广播
+    mults_array = np.broadcast_to(mults, acc.shape)
+    shifts_array = np.broadcast_to(shifts, acc.shape)
+    
+    # 逐元素应用量化
+    for idx in np.ndindex(acc.shape):
+        quantized_val = riscv_nn_requantize(acc[idx], mults_array[idx], shifts_array[idx])
+        output[idx] = np.clip(quantized_val, -128, 127)
+    
+    return output
 
 def generate_test_case(
     K=None,

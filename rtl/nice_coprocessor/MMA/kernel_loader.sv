@@ -8,7 +8,7 @@
     而对于kernel_loader,每一列的vertical_tile_num个tile发完之后并不循环发送这一列，而是将所有列的tile都发送完毕后，再从第一列开始重新发送。
 5.weight矩阵是列展平存储在内存中的，所以缓存在tile buffer中的时候也一列一列存的，但是发weight_out的时候是一行一行发的（先输出最后一行，最后输出第一行，和ia loader相反的）
 6.weight_out输出到脉动阵列的权重（按行输出），行倒序输出，先输出最后一行，最后输出第一行。
-7.tile按行输出。无效的行输出0；无效的列置为0，和ia loader不一样，因为weight tile是“压入”ws systolic array里的，所以无效的行也必须输入。而且由于ia没有处理，所以他无效的行和列都应该置为0。
+7.tile按行输出。无效的行输出0；无效的列置为0，和ia loader不一yang，因为weight tile是“压入”ws systolic array里的，所以无效的行也必须输入。而且由于ia没有处理，所以他无效的行和列都应该置为0。
  * ------------------------------------------------------------
  * 功能概述:
  *  本模块负责面向分块矩阵运算，从外部存储器自主读取权重数据（RHS），并按行输出到脉动阵列。
@@ -51,7 +51,7 @@
      配置阶段计算且寄存完成之后 或者 上一个weight Tile的逐行发送完成且整个weight矩阵没有加载完成时，模块进入Load状态
  *     读请求通道：
  *     - 根据当前 Tile 索引计算基地址（cfg_rhs_base + tile_col * rhs_col_stride_b + row_offset）//实际实现中不能用乘法，需要用一个寄存器寄存上一行的地址，然后加上STRIDE
- *     - 维护 tile_row_idx、tile_col_idx、loop_row_cnt 等状态变量，
+ *     - 维护 tile_col_idx、tile_row_idx、loop_row_cnt 等状态变量，
  *   同理，最后一行的tile的无效的行不用发送读请求读  
         *  
  *    读响应通道
@@ -150,9 +150,10 @@ module kernel_loader #(
   // =========================================================================
   // Tile索引和地址
   // =========================================================================
-  reg [REG_WIDTH-1:0] tile_row_idx;  // 当前tile行索引（对应m方向）
-  reg [REG_WIDTH-1:0] tile_col_idx;  // 当前tile列索引（对应n方向）
-  reg [REG_WIDTH-1:0] loop_col_cnt;  // 当前列循环计数
+  reg [REG_WIDTH-1:0] tile_col_idx;  // 当前tile行索引（对应m方向）
+  reg [REG_WIDTH-1:0] tile_row_idx;  // 当前tile列索引（对应n方向）
+  reg [REG_WIDTH-1:0] loop_row_cnt;  // 当前列循环计数
+  reg tile_col_direction;  // 列索引方向：0=递增，1=递减
   //reg [REG_WIDTH-1:0] current_col_base; // 当前列基地址
   reg [REG_WIDTH-1:0] current_tile_addr;  // 当前tile起始地址
 
@@ -160,7 +161,7 @@ module kernel_loader #(
   // 读取控制
   // =========================================================================
   //reg [REG_WIDTH-1:0] cols_to_read;     // 当前tile需读取的列数
-  reg [REG_WIDTH-1:0] current_read_col;  // 当前读取的列号
+  reg [REG_WIDTH-1:0] current_read_row;  // 当前读取的列号
   reg [REG_WIDTH-1:0] read_burst_length;  // 读取burst长度
   reg [REG_WIDTH-1:0] current_col_addr;  // 当前读取列的地址（累加寄存器）
 
@@ -168,8 +169,8 @@ module kernel_loader #(
   // Tile缓冲区
   // =========================================================================
   reg signed [DATA_WIDTH-1:0] tile_buffer[SIZE][SIZE];
-  wire [REG_WIDTH-1:0] valid_rows;  // 缓冲区有效行数
-  wire [REG_WIDTH-1:0] valid_cols;  // 缓冲区有效列数
+  wire [REG_WIDTH-1:0] valid_cols;  // 缓冲区有效行数
+  wire [REG_WIDTH-1:0] valid_rows;  // 缓冲区有效列数
 
   // =========================================================================
   // 发送控制
@@ -179,7 +180,7 @@ module kernel_loader #(
   // =========================================================================
   // ICB响应接收控制
   // =========================================================================
-  reg [REG_WIDTH-1:0] rsp_col_cnt;  // 响应计数
+  reg [REG_WIDTH-1:0] rsp_row_cnt;  // 响应计数
   reg [REG_WIDTH-1:0] rsp_beat_cnt;  // 响应beat计数
 
   // 响应通道独立维护的tile参数（在INIT时计算好）
@@ -189,16 +190,19 @@ module kernel_loader #(
   reg [REG_WIDTH-1:0] rsp_beats_per_row_last;  // 最后一列tile每行的beat数
 
   // 响应通道的tile追踪
-  reg [REG_WIDTH-1:0] rsp_tile_row_idx;  // 当前响应的tile行索引
-  reg [REG_WIDTH-1:0] rsp_tile_col_idx;  // 当前响应的tile列索引
-  reg [REG_WIDTH-1:0] rsp_loop_col_cnt;  // 当前响应的循环计数
+  reg [REG_WIDTH-1:0] rsp_tile_col_idx;  // 当前响应的tile行索引
+  reg [REG_WIDTH-1:0] rsp_tile_row_idx;  // 当前响应的tile列索引
+  reg [REG_WIDTH-1:0] rsp_loop_row_cnt;  // 当前响应的循环计数
 
   // =========================================================================
   // 辅助信号
   // =========================================================================
-  wire is_last_col_tile = (tile_col_idx == vertical_tile_num - 1);
-  wire is_last_row_tile = (tile_row_idx == horizontal_tile_num - 1);
-  wire is_last_loop = (loop_col_cnt == loop_col_num - 1);
+  // 动态判断是否到达列边界（根据方向）
+  wire is_last_col_tile = (tile_row_idx == vertical_tile_num - 1);
+  wire is_last_row_tile = (tile_col_direction == 1'b0) ? (tile_col_idx == horizontal_tile_num - 1)
+                                                      : (tile_col_idx == 0);
+  wire is_bottom_row_tile = (tile_col_idx == horizontal_tile_num - 1);
+  wire is_last_loop = (loop_row_cnt == loop_col_num - 1);
   wire cmd_hs = icb_cmd_valid && icb_cmd_ready;
   wire rsp_hs = icb_rsp_valid && icb_rsp_ready;
 
@@ -236,7 +240,6 @@ module kernel_loader #(
 
         SEND: begin
           // 当本次 tile 的行逐行发送完成（weight_sending_done）时，判断是否为整个权重矩阵的最后一个 tile
-          // 只有在：当前为最后一行 tile、最后一列 tile，并且完成了最后一轮循环时，才真正结束并回到 IDLE
           if (weight_sending_done && is_last_row_tile && is_last_col_tile && is_last_loop) begin
             state <= IDLE;
           end else if (weight_sending_done) begin
@@ -317,45 +320,55 @@ module kernel_loader #(
   end
 
   // =========================================================================
-  // Tile索引管理 - 列主序访存
+  // Tile索引管理 - 列主序访存 + 折返逻辑
   // =========================================================================
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      tile_row_idx <= '0;
       tile_col_idx <= '0;
-      loop_col_cnt <= '0;
-      //current_col_base <= '0;//FIXME:这个应该不需要了
+      tile_row_idx <= '0;
+      loop_row_cnt <= '0;
+      tile_col_direction <= 1'b0;  // 初始为递增
     end else begin
       case (state)
         INIT: begin
-          tile_row_idx <= '0;
           tile_col_idx <= '0;
-          loop_col_cnt <= '0;
-          //current_col_base <= cfg_rhs_base;
+          tile_row_idx <= '0;
+          loop_row_cnt <= '0;
+          tile_col_direction <= 1'b0;  // 从递增开始
         end
 
         SEND: begin
           if (weight_sending_done) begin
-            // 遍历顺序：在同一行内列索引先增加 (col 方向为内层)，
-            // 当列到末尾则列归0并行索引增加；当行也到末尾则行归0并 loop_col_cnt++。
-            if (tile_row_idx < horizontal_tile_num - 1) begin
-              // 同一行的下一个列 tile
-              tile_row_idx <= tile_row_idx + 1;
+            // 先判断是否完成当前行的所有tile
+            if (is_last_row_tile) begin
+              // 当前行的所有tile已完成
+              //   tile_col_idx <= '0;
+              if (is_last_col_tile) begin
+                if (is_last_loop) begin
+                  // 所有循环完成，回到初始状态
+                  tile_row_idx <= '0;
+                  tile_col_direction <= 1'b0;
+                  loop_row_cnt <= '0;
+                end else begin
+                  // 进入下一次循环
+                  loop_row_cnt <= loop_row_cnt + 1;
+                  tile_row_idx <= '0;
+                  tile_col_direction <= 1'b0;  // 重置为递增方向
+                  tile_col_idx <= '0;
+                end
+              end else begin
+                tile_row_idx <= tile_row_idx + 1;
+                // 发生折返：改变方向，tile_row_idx保持不变
+                tile_col_direction <= ~tile_col_direction;
+              end
             end else begin
-              // 当前行的列已到末尾，回到该行的第 0 列
-              tile_row_idx <= '0;
-              if (tile_col_idx < vertical_tile_num - 1) begin
-                // 移到下一行，同列从0开始
+              // 未到达边界，根据方向移动到下一列
+              if (tile_col_direction == 1'b0) begin
+                // 递增方向
                 tile_col_idx <= tile_col_idx + 1;
               end else begin
-                // 行也到末尾：回到第0行，并推进 loop 计数
-                tile_col_idx <= '0;
-                if (loop_col_cnt < loop_col_num - 1) begin
-                  loop_col_cnt <= loop_col_cnt + 1;
-                end else begin
-                  // 所有 loop 完成，回到初始位置
-                  loop_col_cnt <= '0;
-                end
+                // 递减方向
+                tile_col_idx <= tile_col_idx - 1;
               end
             end
           end
@@ -365,7 +378,7 @@ module kernel_loader #(
   end
 
   // =========================================================================
-  // 地址计算 - 列主序
+  // 地址计算 - 列主序 + 支持折返
   // =========================================================================
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -373,80 +386,36 @@ module kernel_loader #(
     end else if (state == INIT) begin
       current_tile_addr <= cfg_rhs_base;
     end else if (state == SEND && weight_sending_done) begin
-      if (is_last_col_tile && is_last_row_tile && is_last_loop)
-        // 所有tile发送完成，地址回到初始位置
-        current_tile_addr <= '0;
-      // tile发送完成后更新到下一个tile的起始地址
-      else if (is_last_col_tile && is_last_row_tile) begin
+      if (is_last_col_tile && is_last_row_tile) begin
         // 当前列的所有tile循环都完成了，移到下一列tile的第一个
         current_tile_addr <= cfg_rhs_base;
       end else if (is_last_row_tile) begin
-        // 当前列的tile发完，重新循环这一列，回到第一个tile/FIXME:循环逻辑修改：发完所有列tile后才重新开始（不是单列循环）
-        current_tile_addr <= cfg_rhs_base + (cfg_rhs_col_stride_b << $clog2(
-            SIZE
-        )) * rsp_tile_col_idx;
-        //current_tile_addr <= cfg_rhs_base;
+        // 当前列的所有行tile发送完成，需要移动到下一列
+        if (!is_last_col_tile) begin
+          // 到达边界，折返
+          current_tile_addr <= current_tile_addr + (cfg_rhs_col_stride_b << $clog2(SIZE));
+        end
       end else begin
-        current_tile_addr <= current_tile_addr + SIZE;  // int8每个元素1字节
+        // 同一列的下一个行tile
+        if (tile_col_direction == 1'b0) begin
+          current_tile_addr <= current_tile_addr + SIZE;  // int8每个元素1字节
+        end else begin
+          current_tile_addr <= current_tile_addr - SIZE;  // int8每个元素1字节
+        end
       end
-
-    end
-  end
-
-  // =========================================================================
-  // 有效行列数计算
-  // =========================================================================
-  logic [REG_WIDTH-1:0] next_tile_row_idx ;//FIXME:循环逻辑修改：发完所有列tile后才重新开始（不是单列循环）
-  // 列方向
-  logic [REG_WIDTH-1:0] next_tile_col_idx;
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      //  valid_rows <= '0;
-      //  valid_cols <= '0;
-      next_tile_row_idx <= 'b0;
-      next_tile_col_idx <= 'b0;
-      //  end else if (state == INIT) begin
-      //      // INIT状态就计算好第一个tile的有效行列
-      //      valid_rows <= (horizontal_tile_num == 1) ? (SIZE - row_tile_rem) : SIZE;
-      //      valid_cols <= (vertical_tile_num == 1) ? (SIZE - col_tile_rem) : SIZE;
-    end else if (state == SEND && weight_sending_done) begin
-      // SEND完成后，为下一个tile计算有效行列
-      // 判断下一个tile的行索引
-      if (is_last_row_tile && is_last_col_tile && is_last_loop) next_tile_row_idx <= 0;
-      else if (is_last_row_tile && is_last_col_tile) next_tile_row_idx <= 0;
-      else if (is_last_row_tile) next_tile_row_idx <= 0;
-      else next_tile_row_idx <= tile_row_idx + 1;
-
-
-      // 根据下一个tile的行索引判断是否是最后一行tile
-      //  if (next_tile_row_idx == horizontal_tile_num - 1) 
-      //      valid_rows <= SIZE - row_tile_rem;
-      //   else 
-      //      valid_rows <= SIZE;
-
-
-      if (is_last_row_tile && is_last_col_tile && is_last_loop) next_tile_col_idx <= 0;
-      else if (is_last_row_tile && is_last_col_tile) next_tile_col_idx <= 0;
-      else if (is_last_row_tile) next_tile_col_idx <= tile_col_idx + 1;
-
-
-
-      //  if (next_tile_col_idx == vertical_tile_num - 1)
-      //      valid_cols <= SIZE - col_tile_rem;
-      //  else
-      //      valid_cols <= SIZE;
     end
   end
 
   assign icb_cmd_len = read_burst_length - 1;
-  assign valid_cols = (vertical_tile_num == 0) ? '0 : (tile_col_idx == vertical_tile_num - 1) ? (SIZE - col_tile_rem) : SIZE;
-  assign valid_rows = (horizontal_tile_num == 0) ? '0 : (tile_row_idx == horizontal_tile_num - 1) ? (SIZE - row_tile_rem) : SIZE;
+  assign valid_rows = (vertical_tile_num == 0) ? '0 : (tile_row_idx == vertical_tile_num - 1) ? (SIZE - col_tile_rem) : SIZE;
+  assign valid_cols = (horizontal_tile_num == 0) ? '0 : (tile_col_idx == horizontal_tile_num - 1) ? (SIZE - row_tile_rem) : SIZE;
+
   // =========================================================================
   // ICB读请求发送 - 列主序
   // =========================================================================
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      current_read_col <= '0;
+      current_read_row <= '0;
       read_burst_length <= '1;
       icb_cmd_valid <= '0;
       icb_cmd_read <= '0;
@@ -456,14 +425,14 @@ module kernel_loader #(
       case (state)
         LOAD: begin
           // 当前tile还有列需要读取
-          if (current_read_col < valid_cols) begin
+          if (current_read_row < valid_rows) begin
             // 等待上一次请求握手完成或首次发送
             if (!icb_cmd_valid || cmd_hs) begin
               icb_cmd_valid <= 1'b1;
               icb_cmd_read  <= 1'b1;
 
               // 使用累加寄存器计算地址（避免乘法）
-              if (current_read_col == 0) begin
+              if (current_read_row == 0) begin
                 // 第一列：使用tile基地址/FIXME:循环逻辑修改：strided名字修改
                 icb_cmd_addr <= current_tile_addr;
                 current_col_addr <= current_tile_addr + cfg_rhs_col_stride_b;
@@ -473,10 +442,10 @@ module kernel_loader #(
                 current_col_addr <= current_col_addr + cfg_rhs_col_stride_b;
               end
 
-              current_read_col <= current_read_col + 1;
+              current_read_row <= current_read_row + 1;
 
               // 计算burst长度（int8固定）
-              if (is_last_row_tile) begin
+              if (is_bottom_row_tile) begin
                 read_burst_length <= ((SIZE - row_tile_rem) + BYTE_PER_BEAT - 1) >>
                     $clog2(BYTE_PER_BEAT);
               end else begin
@@ -492,7 +461,7 @@ module kernel_loader #(
         end
 
         default: begin
-          current_read_col <= '0;
+          current_read_row <= '0;
           icb_cmd_valid <= 1'b0;
           icb_cmd_read <= 1'b0;
           current_col_addr <= '0;
@@ -509,20 +478,20 @@ module kernel_loader #(
   logic [$clog2(SIZE)-1:0] col_idx;
   assign col_idx = rsp_beat_cnt << $clog2(ELEMENTS_PER_BEAT_S8);
 
-  wire rsp_is_last_col_tile = (rsp_tile_col_idx == vertical_tile_num - 1);
-  wire rsp_is_last_row_tile = (rsp_tile_row_idx == horizontal_tile_num - 1);
+  wire rsp_is_last_col_tile = (rsp_tile_row_idx == vertical_tile_num - 1);
+  wire rsp_is_last_row_tile = tile_col_direction ? (rsp_tile_col_idx == 0) : (rsp_tile_col_idx == horizontal_tile_num - 1);
   wire [REG_WIDTH-1:0] rsp_current_cols = rsp_is_last_col_tile ? rsp_rows_last_tile : rsp_rows_per_tile;
   wire [REG_WIDTH-1:0] rsp_current_beats = rsp_is_last_row_tile ? rsp_beats_per_row_last : rsp_beats_per_row_normal;
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      rsp_col_cnt <= '0;
+      rsp_row_cnt <= '0;
       rsp_beat_cnt <= '0;
       icb_rsp_ready <= '0;
 
-      rsp_tile_row_idx <= '0;
       rsp_tile_col_idx <= '0;
-      rsp_loop_col_cnt <= '0;
+      rsp_tile_row_idx <= '0;
+      rsp_loop_row_cnt <= '0;
 
       // 初始化tile缓冲区
       for (int i = 0; i < SIZE; i++) begin
@@ -533,10 +502,10 @@ module kernel_loader #(
     end else begin
       case (state)
         INIT: begin
-          rsp_tile_row_idx <= '0;
           rsp_tile_col_idx <= '0;
-          rsp_loop_col_cnt <= '0;
-          rsp_col_cnt <= '0;
+          rsp_tile_row_idx <= '0;
+          rsp_loop_row_cnt <= '0;
+          rsp_row_cnt <= '0;
           rsp_beat_cnt <= '0;
         end
 
@@ -548,49 +517,49 @@ module kernel_loader #(
             if (BYTE_PER_BEAT == 4) begin
               // 32位总线：4个s8元素
               if (col_idx < SIZE)
-                tile_buffer[rsp_col_cnt][col_idx] <= $signed(icb_rsp_rdata[7:0]) + cfg_rhs_zp[7:0];
+                tile_buffer[rsp_row_cnt][col_idx] <= $signed(icb_rsp_rdata[7:0]) + cfg_rhs_zp[7:0];
               if (col_idx + 1 < SIZE)
-                tile_buffer[rsp_col_cnt][col_idx+1] <= $signed(
+                tile_buffer[rsp_row_cnt][col_idx+1] <= $signed(
                     icb_rsp_rdata[15:8]
                 ) + cfg_rhs_zp[7:0];
               if (col_idx + 2 < SIZE)
-                tile_buffer[rsp_col_cnt][col_idx+2] <= $signed(
+                tile_buffer[rsp_row_cnt][col_idx+2] <= $signed(
                     icb_rsp_rdata[23:16]
                 ) + cfg_rhs_zp[7:0];
               if (col_idx + 3 < SIZE)
-                tile_buffer[rsp_col_cnt][col_idx+3] <= $signed(
+                tile_buffer[rsp_row_cnt][col_idx+3] <= $signed(
                     icb_rsp_rdata[31:24]
                 ) + cfg_rhs_zp[7:0];
             end else if (BYTE_PER_BEAT == 8) begin
               // 64位总线：8个s8元素
               if (col_idx < SIZE)
-                tile_buffer[rsp_col_cnt][col_idx] <= $signed(icb_rsp_rdata[7:0]) + cfg_rhs_zp[7:0];
+                tile_buffer[rsp_row_cnt][col_idx] <= $signed(icb_rsp_rdata[7:0]) + cfg_rhs_zp[7:0];
               if (col_idx + 1 < SIZE)
-                tile_buffer[rsp_col_cnt][col_idx+1] <= $signed(
+                tile_buffer[rsp_row_cnt][col_idx+1] <= $signed(
                     icb_rsp_rdata[15:8]
                 ) + cfg_rhs_zp[7:0];
               if (col_idx + 2 < SIZE)
-                tile_buffer[rsp_col_cnt][col_idx+2] <= $signed(
+                tile_buffer[rsp_row_cnt][col_idx+2] <= $signed(
                     icb_rsp_rdata[23:16]
                 ) + cfg_rhs_zp[7:0];
               if (col_idx + 3 < SIZE)
-                tile_buffer[rsp_col_cnt][col_idx+3] <= $signed(
+                tile_buffer[rsp_row_cnt][col_idx+3] <= $signed(
                     icb_rsp_rdata[31:24]
                 ) + cfg_rhs_zp[7:0];
               if (col_idx + 4 < SIZE)
-                tile_buffer[rsp_col_cnt][col_idx+4] <= $signed(
+                tile_buffer[rsp_row_cnt][col_idx+4] <= $signed(
                     icb_rsp_rdata[39:32]
                 ) + cfg_rhs_zp[7:0];
               if (col_idx + 5 < SIZE)
-                tile_buffer[rsp_col_cnt][col_idx+5] <= $signed(
+                tile_buffer[rsp_row_cnt][col_idx+5] <= $signed(
                     icb_rsp_rdata[47:40]
                 ) + cfg_rhs_zp[7:0];
               if (col_idx + 6 < SIZE)
-                tile_buffer[rsp_col_cnt][col_idx+6] <= $signed(
+                tile_buffer[rsp_row_cnt][col_idx+6] <= $signed(
                     icb_rsp_rdata[55:48]
                 ) + cfg_rhs_zp[7:0];
               if (col_idx + 7 < SIZE)
-                tile_buffer[rsp_col_cnt][col_idx+7] <= $signed(
+                tile_buffer[rsp_row_cnt][col_idx+7] <= $signed(
                     icb_rsp_rdata[63:56]
                 ) + cfg_rhs_zp[7:0];
             end
@@ -606,33 +575,33 @@ module kernel_loader #(
               // 本行的最后一个 beat 已接收
               rsp_beat_cnt <= '0;
 
-              if (rsp_col_cnt == rsp_current_cols - 1) begin
+              if (rsp_row_cnt == rsp_current_cols - 1) begin
                 // 当前 tile 的所有行已接收完毕
-                rsp_col_cnt <= '0;
+                rsp_row_cnt <= '0;
 
                 // 先推进 tile 的列索引（列为内层）
-                if (rsp_tile_row_idx < horizontal_tile_num - 1) begin
-                  rsp_tile_row_idx <= rsp_tile_row_idx + 1;
+                if (rsp_tile_col_idx < horizontal_tile_num - 1) begin
+                  rsp_tile_col_idx <= rsp_tile_col_idx + 1;
                 end else begin
                   // 列到末尾，列归0并推进行索引
-                  rsp_tile_row_idx <= '0;
+                  rsp_tile_col_idx <= '0;
 
-                  if (rsp_tile_col_idx < vertical_tile_num - 1) begin
-                    rsp_tile_col_idx <= rsp_tile_col_idx + 1;
+                  if (rsp_tile_row_idx < vertical_tile_num - 1) begin
+                    rsp_tile_row_idx <= rsp_tile_row_idx + 1;
                   end else begin
                     // 行也到末尾，行归0并推进 loop 计数
-                    rsp_tile_col_idx <= '0;
-                    if (rsp_loop_col_cnt < loop_col_num - 1) begin
-                      rsp_loop_col_cnt <= rsp_loop_col_cnt + 1;
+                    rsp_tile_row_idx <= '0;
+                    if (rsp_loop_row_cnt < loop_col_num - 1) begin
+                      rsp_loop_row_cnt <= rsp_loop_row_cnt + 1;
                     end else begin
                       // 所有循环完成，回到初始
-                      rsp_loop_col_cnt <= '0;
+                      rsp_loop_row_cnt <= '0;
                     end
                   end
                 end
               end else begin
                 // 当前 tile 未完成，推进到 tile 的下一行
-                rsp_col_cnt <= rsp_col_cnt + 1;
+                rsp_row_cnt <= rsp_row_cnt + 1;
               end
             end else begin
               // 继续当前行的下一个 beat
@@ -642,7 +611,7 @@ module kernel_loader #(
         end
 
         default: begin
-          rsp_col_cnt   <= '0;
+          rsp_row_cnt   <= '0;
           rsp_beat_cnt  <= '0;
           icb_rsp_ready <= '0;
           // base_col_idx <= '0;
@@ -660,7 +629,7 @@ module kernel_loader #(
     end else begin
       case (state)
         LOAD: begin
-          if (rsp_hs && rsp_beat_cnt == (rsp_current_beats - 1) && rsp_col_cnt == rsp_current_cols - 1)
+          if (rsp_hs && rsp_beat_cnt == (rsp_current_beats - 1) && rsp_row_cnt == rsp_current_cols - 1)
             weight_data_valid <= 1'b1;
         end
 
@@ -723,9 +692,9 @@ module kernel_loader #(
     end else begin
       if (state == IDLE && !load_weight_req && init_cfg) begin
         load_weight_req <= 1'b1;
-      end 
-             else if (state == SEND && weight_sending_done && 
+      end else if (state == SEND && weight_sending_done && 
                  !(is_last_row_tile && is_last_col_tile && is_last_loop) && !load_weight_req) begin
+        // 权重总是需要重新load（不像IA那样可以复用）
         load_weight_req <= 1'b1;
       end else if (load_weight_granted) begin
         load_weight_req <= 1'b0;
@@ -756,7 +725,7 @@ module kernel_loader #(
       always_comb begin
         if (weight_row_valid) begin
           // 检查是否为有效行和有效列
-          if (send_row_idx < valid_rows && i < valid_cols) begin
+          if (send_row_idx < valid_cols && i < valid_rows) begin
             weight_out[i] = tile_buffer[i][send_row_idx];
           end else begin
             weight_out[i] = '0;  // 无效行或无效列输出0

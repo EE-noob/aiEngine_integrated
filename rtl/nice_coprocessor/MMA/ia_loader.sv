@@ -177,6 +177,7 @@ module ia_loader #(
   reg [REG_WIDTH-1:0] tile_row_idx;  // 当前tile行索引
   reg [REG_WIDTH-1:0] tile_col_idx;  // 当前tile列索引
   reg [REG_WIDTH-1:0] loop_row_cnt;  // 当前行循环计数
+  reg tile_col_direction;  // 列索引方向：0=递增，1=递减
   reg [REG_WIDTH-1:0] current_row_base;  // 当前行基地址
   reg [REG_WIDTH-1:0] current_tile_addr;  // 当前tile起始地址
 
@@ -237,14 +238,20 @@ module ia_loader #(
 
 
 
-  wire is_last_col_tile = (tile_col_idx == horizontal_tile_num - 1);
+  // 动态判断是否到达列边界（根据方向）
+  wire is_last_col_tile = (tile_col_direction == 1'b0) ?
+                          (tile_col_idx == horizontal_tile_num - 1) :  // 递增方向：最后一列
+  (tile_col_idx == 0);  // 递减方向：第一列
+  wire is_bottom_col_tile = (tile_col_idx == horizontal_tile_num - 1);
   wire is_last_row_tile = (tile_row_idx == vertical_tile_num - 1);
-  wire [REG_WIDTH-1:0] rsp_current_rows = rsp_is_last_row_tile ? rsp_rows_last_tile : rsp_rows_per_tile;      // 当前tile的行数
-  wire [REG_WIDTH-1:0] rsp_current_beats = rsp_is_last_col_tile ? rsp_beats_per_row_last : rsp_beats_per_row_normal;  // 当前行的beat数
-
 
   wire is_last_loop = (loop_row_cnt == loop_row_num - 1);
-  wire is_first_tile = (tile_col_idx == 0);
+  // 修正is_first_tile语义：根据方向判断是否为第一个tile
+  // 递增方向：tile_col_idx == 0
+  // 递减方向：tile_col_idx == horizontal_tile_num - 1
+  wire is_first_tile = (tile_col_direction == 1'b0) ? 
+                       (tile_col_idx == 0) :                          // 递增方向：第一列
+  (tile_col_idx == horizontal_tile_num - 1);  // 递减方向：最后一列
   wire cmd_hs = icb_cmd_valid && icb_cmd_ready;
   wire rsp_hs = icb_rsp_valid && icb_rsp_ready;
 
@@ -281,13 +288,18 @@ module ia_loader #(
         end
 
         SEND: begin
-          //if (is_last_row_tile && is_last_col_tile && is_last_loop)
-          //if (is_last_row_tile && (tile_col_idx == vertical_tile_num ) && is_last_loop)
-          if (is_last_col_tile && is_last_row_tile && ia_sending_done && is_last_loop)  // is_last_loop的下降沿
+          if (is_last_col_tile && is_last_row_tile && ia_sending_done && is_last_loop)
             state <= IDLE;
-          else if (load_ia_granted)
-            // 等待授权后才进入下一个LOAD
+          else if (ia_sending_done) begin
+            // 检测是否发生折返
+            if (is_last_col_tile && !is_last_loop) begin
+              // 折返情况：直接进入SEND，不需要LOAD
+              state <= SEND;
+            end
+          end else if (load_ia_granted) begin
+            // 正常情况：等待授权后进入LOAD
             state <= LOAD;
+          end
         end
 
         default: state <= IDLE;
@@ -329,7 +341,7 @@ module ia_loader #(
       cfg_lhs_base <= lhs_base;
       cfg_use_16bits <= use_16bits;
 
-      // 使用移位和加法替代除法: ceil(n/SIZE) = (n + SIZE - 1) >> log2(SIZE)
+      // 使用移位和加法替代除法: ceil(n/SIZE) = (n + SIZE - 1) >> $clog2(SIZE)
       horizontal_tile_num <= (n + SIZE - 1) >> $clog2(SIZE);  // 每行tile数量
       vertical_tile_num <= (k + SIZE - 1) >> $clog2(SIZE);  // 列方向tile数量
       loop_row_num <= (m + SIZE - 1) >> $clog2(SIZE);  // 行循环次数
@@ -366,7 +378,7 @@ module ia_loader #(
   end
 
   // =========================================================================
-  // Tile索引管理
+  // Tile索引管理（修改为折返式）
   // =========================================================================
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -374,6 +386,7 @@ module ia_loader #(
       tile_col_idx <= '0;
       loop_row_cnt <= '0;
       current_row_base <= '0;
+      tile_col_direction <= 1'b0;  // 初始为递增
     end else begin
       case (state)
         INIT: begin
@@ -381,6 +394,7 @@ module ia_loader #(
           tile_col_idx <= '0;
           loop_row_cnt <= '0;
           current_row_base <= cfg_lhs_base;
+          tile_col_direction <= 1'b0;  // 从递增开始
         end
 
         SEND: begin
@@ -391,16 +405,23 @@ module ia_loader #(
                 tile_row_idx <= tile_row_idx + 1;
                 tile_col_idx <= '0;
                 loop_row_cnt <= '0;
-                // 更新当前行的基地址，加上一个tile行的地址偏移量
+                tile_col_direction <= 1'b0;  // 新行从递增开始
+                // 更新当前行的基地址
                 current_row_base <= current_row_base + (cfg_lhs_row_stride_b << $clog2(SIZE));
               end else begin
-                // 同一行重新开始
-                tile_col_idx <= '0;
+                // 发生折返：改变方向，tile_col_idx保持不变
+                tile_col_direction <= ~tile_col_direction;
                 loop_row_cnt <= loop_row_cnt + 1;
               end
             end else begin
-              // 同一行下一个tile
-              tile_col_idx <= tile_col_idx + 1;
+              // 根据方向更新tile_col_idx
+              if (tile_col_direction == 1'b0) begin
+                // 递增方向
+                tile_col_idx <= tile_col_idx + 1;
+              end else begin
+                // 递减方向
+                tile_col_idx <= tile_col_idx - 1;
+              end
             end
           end
         end
@@ -409,7 +430,7 @@ module ia_loader #(
   end
 
   // =========================================================================
-  // 地址计算
+  // 地址计算（修改以支持折返）
   // =========================================================================
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -417,18 +438,21 @@ module ia_loader #(
     end else if (state == INIT) begin
       current_tile_addr <= cfg_lhs_base;
     end else if (state == SEND && ia_sending_done) begin
-      // tile发送完成后更新到下一个tile的起始地址
       if (is_last_col_tile && is_last_loop) begin
-        // 当前行的所有tile循环都完成了，移到下一行tile的第一个//与384行等价，这里是先把要拿去访存的地址先更新了，384行是先寄存着，方便后续跳回。
-        // 下一tile行的地址 = 当前tile行基地址 + SIZE × stride
+        // 移到下一行tile
         current_tile_addr <= current_row_base + (cfg_lhs_row_stride_b << $clog2(SIZE));
-      end else if (is_last_col_tile) begin
-        // 当前行的tile发完，重新循环这一行，回到第一个tile
-        current_tile_addr <= current_row_base;//384行是先寄存着，方便后续跳回。这样不用再减一次，少用一个加法器和移位器
+      end else if (is_last_col_tile && !is_last_loop) begin
+        // 折返情况：地址保持不变（因为下次发送同一个tile）
+        current_tile_addr <= current_tile_addr;
       end else begin
-        // 移到同一tile行的下一个tile（列方向）
-        // 下一个tile地址 = 当前tile地址 + SIZE个元素的字节数
-        current_tile_addr <= current_tile_addr + (SIZE << (cfg_use_16bits ? 1 : 0));
+        // 根据方向更新地址
+        if (tile_col_direction == 1'b0) begin
+          // 递增方向：向右移动
+          current_tile_addr <= current_tile_addr + (SIZE << (cfg_use_16bits ? 1 : 0));
+        end else begin
+          // 递减方向：向左移动
+          current_tile_addr <= current_tile_addr - (SIZE << (cfg_use_16bits ? 1 : 0));
+        end
       end
     end
   end
@@ -508,7 +532,7 @@ module ia_loader #(
               current_read_row <= current_read_row + 1;
 
               // 计算burst长度
-              if (is_last_col_tile) begin
+              if (is_bottom_col_tile) begin
                 read_burst_length <= (((SIZE - row_tile_rem) << (cfg_use_16bits ? 1 : 0)) + BYTE_PER_BEAT - 1) >> $clog2(
                     BYTE_PER_BEAT);
               end else begin
@@ -552,6 +576,12 @@ module ia_loader #(
       ELEMENTS_PER_BEAT_S8
   ));
 
+  // 响应通道辅助信号（根据响应通道自己的tile索引计算）
+  wire rsp_is_last_col_tile = tile_col_direction ? (rsp_tile_col_idx == 0) : (rsp_tile_col_idx == horizontal_tile_num - 1);  // 是否最后一列tile
+  wire rsp_is_last_row_tile = (rsp_tile_row_idx == vertical_tile_num - 1);  // 是否最后一行tile
+
+  wire [REG_WIDTH-1:0] rsp_current_rows = rsp_is_last_row_tile ? rsp_rows_last_tile : rsp_rows_per_tile;      // 当前tile的行数
+  wire [REG_WIDTH-1:0] rsp_current_beats = rsp_is_last_col_tile ? rsp_beats_per_row_last : rsp_beats_per_row_normal;  // 当前行的beat数
 
 
   always_ff @(posedge clk or negedge rst_n) begin
@@ -669,10 +699,13 @@ module ia_loader #(
                 // 当前tile的所有行接收完毕
                 rsp_row_cnt <= '0;
 
-                if (rsp_tile_col_idx == horizontal_tile_num - 1) begin
+                if (rsp_tile_col_idx >= horizontal_tile_num - 1) begin
                   // 当前行的所有tile接收完
-                  rsp_tile_col_idx <= '0;
-
+                  if (is_last_loop) begin
+                    rsp_tile_col_idx <= 0;
+                  end else begin
+                    rsp_tile_col_idx <= 1;
+                  end
                   if (rsp_loop_row_cnt == loop_row_num - 1) begin
                     // 当前行循环完成，移到下一行tile
                     rsp_loop_row_cnt <= '0;
@@ -707,7 +740,7 @@ module ia_loader #(
   end
 
   // =========================================================================
-  // ia_data_valid生成
+  // ia_data_valid生成（修改以支持折返）
   // =========================================================================
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -721,8 +754,18 @@ module ia_loader #(
         end
 
         SEND: begin
-          // 开始发送时拉低
-          if (send_ia_trigger || send_row_idx > 0) ia_data_valid <= 1'b0;
+          if (ia_sending_done) begin
+            if (is_last_col_tile && !is_last_loop) begin
+              // 折返情况：立即拉高，表示数据已可用（无需load）
+              ia_data_valid <= 1'b1;
+            end else begin
+              // 正常情况：开始发送时拉低
+              ia_data_valid <= 1'b0;
+            end
+          end else if (send_ia_trigger || send_row_idx > 0) begin
+            ia_data_valid <= 1'b0;
+          end
+
         end
 
         default: ia_data_valid <= '0;
@@ -764,7 +807,7 @@ module ia_loader #(
   end
 
   // =========================================================================
-  // load_ia_req生成
+  // load_ia_req生成（修改以跳过折返时的load请求）
   // =========================================================================
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -773,10 +816,15 @@ module ia_loader #(
       // INIT状态拉高load_ia_req，申请第一个tile的访存授权
       if (state == INIT && !load_ia_req) begin
         load_ia_req <= 1'b1;
-      end  // SEND状态发送完成后，如果不是最后一个tile，需要申请下一个tile
-      else if (state == SEND && ia_sending_done && 
-                 !(is_last_row_tile && is_last_col_tile && is_last_loop) && !load_ia_req) begin
-        load_ia_req <= 1'b1;
+      end  // SEND状态发送完成后的处理
+      else if (state == SEND && ia_sending_done) begin
+        // 如果是折返，不需要发送load请求
+        if (is_last_col_tile && !is_last_loop) begin
+          load_ia_req <= 1'b0;
+        end  // 如果不是最后一个tile且不是折返，需要申请下一个tile
+        else if (!(is_last_row_tile && is_last_col_tile && is_last_loop) && !load_ia_req) begin
+          load_ia_req <= 1'b1;
+        end
       end  // 收到授权后拉低
       else if (load_ia_granted) begin
         load_ia_req <= 1'b0;
