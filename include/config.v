@@ -96,7 +96,7 @@
 `define E203_CFG_DTCM_INIT_PATH    "F:/Xilinx/vivado_project/e203_vivado/main_ram.mem"
 `define E203_CFG_EXTRAM_INIT_EN    1
 //`define E203_CFG_EXTRAM_INIT_PATH  "F:/Xilinx/vivado_project/e203_vivado/main_extram.mem"
-`define E203_CFG_EXTRAM_INIT_PATH  "../veri/memInfo/main_extram.mem"
+`define E203_CFG_EXTRAM_INIT_PATH  "../tb/main_extram.mem"
 
 
 `define E203_CFG_HAS_ECC

@@ -229,6 +229,14 @@ module ia_loader #(
   // 正确的判断逻辑：!!!!!!
   // tile_col_idx 是列方向索引，应该与 horizontal_tile_num 比较（一行有多少个tile）
   // tile_row_idx 是行方向索引，应该与 vertical_tile_num 比较（一列有多少个tile）
+  //1.18added****
+  // 响应通道辅助信号（根据响应通道自己的tile索引计算）
+  wire rsp_is_last_col_tile = (rsp_tile_col_idx == horizontal_tile_num - 1);  // 是否最后一列tile
+  wire rsp_is_last_row_tile = (rsp_tile_row_idx == vertical_tile_num - 1);  // 是否最后一行tile
+  //1.18added****<<<
+
+
+
   wire is_last_col_tile = (tile_col_idx == horizontal_tile_num - 1);
   wire is_last_row_tile = (tile_row_idx == vertical_tile_num - 1);
   wire [REG_WIDTH-1:0] rsp_current_rows = rsp_is_last_row_tile ? rsp_rows_last_tile : rsp_rows_per_tile;      // 当前tile的行数
@@ -544,9 +552,7 @@ module ia_loader #(
       ELEMENTS_PER_BEAT_S8
   ));
 
-  // 响应通道辅助信号（根据响应通道自己的tile索引计算）
-  wire rsp_is_last_col_tile = (rsp_tile_col_idx == horizontal_tile_num - 1);  // 是否最后一列tile
-  wire rsp_is_last_row_tile = (rsp_tile_row_idx == vertical_tile_num - 1);  // 是否最后一行tile
+
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
