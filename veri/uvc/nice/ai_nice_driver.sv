@@ -82,7 +82,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
                 csr_wr(req.csr_addr[11:0], req.csr_data);
             end
             NICE_RD_CSR: begin
-                csr_rd(req.csr_addr[11:0], req.csr_data); // req.csr_data here is expected value
+                csr_rd(req.csr_addr[11:0], req.csr_data, req.csr_check_en);
             end
             NICE_TRIGGER: begin
                 send_mat_mult(req);
@@ -195,9 +195,12 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
     endtask
 
     // 4. CSR_rd: Read single CSR
-    task csr_rd(bit [11:0] addr, bit [31:0] expected);
+    task csr_rd(bit [11:0] addr, inout bit [31:0] data, bit check_en = 1'b1);
+        bit [31:0] expected;
+
         bit [31:0] rdata;
         string name = csr_name(addr);
+        expected = data;
         `uvm_info("DRV_CSR", $sformatf("CSR RD: Addr=0x%03h (%s) Exp=0x%08h", addr, name, expected), UVM_MEDIUM)
         `uvm_info("DRV_CSR", $sformatf("CSR_RD driving: req_valid=1, req_inst=0x%08h, req_rs1=0x%08h, req_rs2=0x%08h, csr_name=%s", 
             {addr, 5'b00000, `NICE_CSRR_FUNCT3, 5'b00001, `NICE_CUSTOM_3}, 32'h0, 32'h0, name), UVM_HIGH)
@@ -219,9 +222,10 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         
         rdata = vif.nice_rsp_rdat;
         `uvm_info("DRV_CSR", $sformatf("CSR_RD got response: rsp_rdat=0x%08h, expected=0x%08h, csr_name=%s", rdata, expected, name), UVM_HIGH)
-        if(rdata !== expected) begin
+        if (check_en && (rdata !== expected)) begin
              `uvm_error("DRV_CSR", $sformatf("CSR Read Mismatch! Addr=0x%03h (%s) Exp=0x%08h Act=0x%08h", addr, name, expected, rdata))
         end
+        data = rdata;
         @(posedge vif.nice_clk);
     endtask
 

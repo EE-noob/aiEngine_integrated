@@ -7,6 +7,8 @@ package ai_nice_pkg;
     `include "uvm_macros.svh"
 
     `include "ai_nice_tr.sv"
+    `include "ai_nice_reg_adapter.sv"
+    `include "ai_nice_reg_model.sv"
     `include "ai_nice_sequencer.sv"
     `include "ai_nice_driver.sv"
     //`include "ai_nice_monitor.sv"

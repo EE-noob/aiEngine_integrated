@@ -37,6 +37,7 @@ class ai_nice_seq_item extends uvm_sequence_item;
     // CSR Direct Access Fields
     rand bit [31:0] csr_addr;
     rand bit [31:0] csr_data;
+    rand bit        csr_check_en;// enable compare for direct NICE_RD_CSR
 
     // File based loading (optional)
     string ia_matrix_file = "";
@@ -69,6 +70,7 @@ class ai_nice_seq_item extends uvm_sequence_item;
         `uvm_field_enum(nice_cmd_t, cmd_kind, UVM_ALL_ON)
         `uvm_field_int(csr_addr, UVM_ALL_ON)
         `uvm_field_int(csr_data, UVM_ALL_ON)
+        `uvm_field_int(csr_check_en, UVM_ALL_ON)
         `uvm_field_string(ia_matrix_file, UVM_ALL_ON)
         `uvm_field_string(wgt_matrix_file, UVM_ALL_ON)
         
@@ -128,6 +130,9 @@ class ai_nice_seq_item extends uvm_sequence_item;
     // Default command is AUTO for simple sequences
     constraint c_default_cmd {
         soft cmd_kind == NICE_AUTO;
+    }
+    constraint c_csr_check_default {
+        soft csr_check_en == 1;
     }
 
     // Activation & zero-point coherence
