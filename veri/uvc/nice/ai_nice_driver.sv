@@ -7,20 +7,21 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
     `uvm_component_utils(ai_nice_driver)
 
     // Virtual interface
-    virtual nice_if vif; 
+    virtual nice_if vif;
 
     // Internal address management
-    bit [31:0] ia_base_addr;//0001;
-    bit [31:0] wgt_base_addr;//1000;
-    bit [31:0] out_base_addr;//1002;
-    bit [31:0] bias_base_addr;//1003;
-    
-    // Memory Map Constants (Example)
+    bit [31:0] ia_base_addr;
+    bit [31:0] wgt_base_addr;
+    bit [31:0] out_base_addr;
+    bit [31:0] bias_base_addr;
+
+    // Keep a shadow of CSR values written through frontdoor.
+    bit [31:0] csr_shadow [bit [11:0]];
+
+    // Memory Map Constants
     localparam MEM_START_ADDR = 32'h0000_0001;
 
-    // 添加 Analysis Port 用于发送 mult done 信号
     uvm_analysis_port #(ai_nice_seq_item) drv_done_ap;
-    // 添加 Analysis Port 用于发送完成的事务给 Scoreboard
     uvm_analysis_port #(ai_nice_seq_item) item_collected_port;
 
     function new(string name, uvm_component parent);
@@ -29,7 +30,6 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         item_collected_port = new("item_collected_port", this);
     endfunction
 
-    // Build phase: Get virtual interface from config_db
     virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
         if(!uvm_config_db#(virtual nice_if)::get(this, "", "vif", vif)) begin
@@ -37,35 +37,33 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         end
     endfunction
 
-    // Reset phase: Initialize interface signals
     virtual task reset_phase(uvm_phase phase);
         super.reset_phase(phase);
         phase.raise_objection(this);
         `uvm_info(get_type_name(), "Reset phase: Initializing interface signals", UVM_MEDIUM)
-        
-        vif.nice_req_valid <= 1'b0;
-        vif.nice_req_inst  <= 32'h0;
-        vif.nice_req_rs1   <= 32'h0;
-        vif.nice_req_rs2   <= 32'h0;
-        vif.nice_rsp_ready <= 1'b1;
-        
+
+        vif.nice_req_valid  <= 1'b0;
+        vif.nice_req_inst   <= 32'h0;
+        vif.nice_req_rs1    <= 32'h0;
+        vif.nice_req_rs2    <= 32'h0;
+        vif.nice_rsp_ready  <= 1'b1;
+        vif.mem_reload_req  <= 1'b0;
+        csr_shadow.delete();
+
         repeat(5) @(posedge vif.nice_clk);
         phase.drop_objection(this);
     endtask
 
-    // Main phase: Drive transactions
     virtual task run_phase(uvm_phase phase);
         `uvm_info(get_type_name(), "Run phase: Starting driver loop", UVM_MEDIUM)
-        
+
         forever begin
             seq_item_port.get_next_item(req);
             `uvm_info(get_type_name(), $sformatf("Got transaction: %s", req.convert2string()), UVM_HIGH)
-            
+
             drive_item(req);
-            
-            // 发送事务到 Scoreboard
+
             item_collected_port.write(req);
-            
             seq_item_port.item_done();
         end
     endtask
@@ -88,56 +86,42 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
                 send_mat_mult(req);
             end
             NICE_LOAD_MEM: begin
-                addr_generate(req); // Ensure addresses are valid
+                addr_generate(req);
                 mat_wr(req);
             end
         endcase
     endtask
 
-    // 1. Addr_generate: Calculate base addresses and strides
     task addr_generate(ai_nice_seq_item req);
         int ia_size, wgt_size, out_size, bias_size;
-        
-        // Assuming data width is 1 byte for input/weight, 4 bytes for output/bias
-        // IA: M x K (Row flattened)
-        ia_size = req.matrix_k * req.matrix_n; 
-        // WGT: K x N (Col flattened)
+
+        ia_size = req.matrix_k * req.matrix_n;
         wgt_size = req.matrix_n * req.matrix_m;
-        // OUT: M x N (Row flattened)
-        out_size = req.matrix_k * req.matrix_m ; 
-        // Bias: N (Array)
+        out_size = req.matrix_k * req.matrix_m;
         bias_size = req.matrix_n * 4;
 
         ia_base_addr   = MEM_START_ADDR;
-        wgt_base_addr  = ia_base_addr + ((ia_size + 3) & 32'hFFFF_FF01); // FIX: Explicit mask to avoid redundant digits warning
+        wgt_base_addr  = ia_base_addr + ((ia_size + 3) & 32'hFFFF_FF01);
         bias_base_addr = wgt_base_addr + ((wgt_size + 3) & 32'hFFFF_FF01);
-        //bias_base_addr = 0;//wgt_base_addr + ((wgt_size + 3) & 32'hFFFF_FFFC);
         out_base_addr  = bias_base_addr + ((bias_size + 3) & 32'hFFFF_FF01);
-        
-        `uvm_info("DRV_ADDR", $sformatf("Gen Addrs: IA=%0h WGT=%0h BIAS=%0h OUT=%0h", 
+
+        `uvm_info("DRV_ADDR", $sformatf("Gen Addrs: IA=%0h WGT=%0h BIAS=%0h OUT=%0h",
             ia_base_addr, wgt_base_addr, bias_base_addr, out_base_addr), UVM_HIGH)
     endtask
 
-    // 2. MatWr: Backdoor write to RAM
     task mat_wr(ai_nice_seq_item req);
         if (req.ia_matrix_file != "") begin
-            // Load from TXT file logic here
             `uvm_info("DRV_MEM", $sformatf("Loading IA from file: %s", req.ia_matrix_file), UVM_MEDIUM)
-            // $readmemh(req.ia_matrix_file, ...);
         end else begin
-            // Generate random data based on req constraints
-            // Example: Write IA Matrix
             for(int r=0; r<req.matrix_m; r++) begin
                 for(int c=0; c<req.matrix_k; c++) begin
                     bit [31:0] val = req.get_matrix_value(r, c);
-                    // mem_write_backdoor(ia_base_addr + idx, val);
                 end
             end
             `uvm_info("DRV_MEM", "Generated and wrote random matrix data to RAM", UVM_MEDIUM)
         end
     endtask
 
-    // 获取CSR名称
     function string csr_name(bit [11:0] addr);
         case (addr)
             `ADDR_MULT_LHS_PTR:        return "MULT_LHS_PTR";
@@ -161,12 +145,11 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         endcase
     endfunction
 
-    // 3. CSR_wr: Write single CSR
     task csr_wr(bit [11:0] addr, bit [31:0] data);
         string name = csr_name(addr);
         int wait_cycle;
         `uvm_info("DRV_CSR", $sformatf("CSR WR: Addr=0x%03h (%s) Data=0x%08h", addr, name, data), UVM_MEDIUM)
-        `uvm_info("DRV_CSR", $sformatf("CSR_WR driving: req_valid=1, req_inst=0x%08h, req_rs1=0x%08h, req_rs2=0x%08h, csr_name=%s", 
+        `uvm_info("DRV_CSR", $sformatf("CSR_WR driving: req_valid=1, req_inst=0x%08h, req_rs1=0x%08h, req_rs2=0x%08h, csr_name=%s",
             {addr, 5'b00001, `NICE_CSRWR_FUNCT3, 5'b00000, `NICE_CUSTOM_3}, data, 32'h0, name), UVM_HIGH)
         @(posedge vif.nice_clk);
         vif.nice_req_valid <= 1'b1;
@@ -191,35 +174,35 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
             if (wait_cycle % 10000 == 0)
                 `uvm_info("DRV_CSR", $sformatf("Waiting for rsp_valid... (cycle=%0d, rsp_valid=%0b)", wait_cycle, vif.nice_rsp_valid), UVM_NONE)
         end
+
+        csr_shadow[addr] = data;
         @(posedge vif.nice_clk);
     endtask
 
-    // 4. CSR_rd: Read single CSR
     task csr_rd(bit [11:0] addr, inout bit [31:0] data, bit check_en = 1'b1);
         bit [31:0] expected;
-
         bit [31:0] rdata;
         string name = csr_name(addr);
         expected = data;
         `uvm_info("DRV_CSR", $sformatf("CSR RD: Addr=0x%03h (%s) Exp=0x%08h", addr, name, expected), UVM_MEDIUM)
-        `uvm_info("DRV_CSR", $sformatf("CSR_RD driving: req_valid=1, req_inst=0x%08h, req_rs1=0x%08h, req_rs2=0x%08h, csr_name=%s", 
+        `uvm_info("DRV_CSR", $sformatf("CSR_RD driving: req_valid=1, req_inst=0x%08h, req_rs1=0x%08h, req_rs2=0x%08h, csr_name=%s",
             {addr, 5'b00000, `NICE_CSRR_FUNCT3, 5'b00001, `NICE_CUSTOM_3}, 32'h0, 32'h0, name), UVM_HIGH)
         @(posedge vif.nice_clk);
         vif.nice_req_valid <= 1'b1;
         vif.nice_req_inst  <= {addr, 5'b00000, `NICE_CSRR_FUNCT3, 5'b00001, `NICE_CUSTOM_3};
         vif.nice_req_rs1   <= 32'h0;
         vif.nice_req_rs2   <= 32'h0;
-        
+
         do begin
             @(posedge vif.nice_clk);
         end while(vif.nice_req_ready !== 1'b1);
-        
+
         vif.nice_req_valid <= 1'b0;
-        
+
         while(vif.nice_rsp_valid !== 1'b1) begin
             @(posedge vif.nice_clk);
         end
-        
+
         rdata = vif.nice_rsp_rdat;
         `uvm_info("DRV_CSR", $sformatf("CSR_RD got response: rsp_rdat=0x%08h, expected=0x%08h, csr_name=%s", rdata, expected, name), UVM_HIGH)
         if (check_en && (rdata !== expected)) begin
@@ -229,39 +212,95 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         @(posedge vif.nice_clk);
     endtask
 
-    // Helper: Write all configs for AUTO mode
     task csr_wr_all_config(ai_nice_seq_item req);
-        // Address Pointers
         csr_wr(`ADDR_MULT_LHS_PTR, ia_base_addr);
         csr_wr(`ADDR_MULT_RHS_PTR, wgt_base_addr);
         csr_wr(`ADDR_MULT_DST_PTR, out_base_addr);
         csr_wr(`ADDR_MULT_BIAS_PTR, bias_base_addr);
-        
-        // Dimensions
+
         csr_wr(`ADDR_MULT_LHS_ROWS, req.matrix_m);
         csr_wr(`ADDR_MULT_RHS_ROWS, req.matrix_k);
         csr_wr(`ADDR_MULT_RHS_COLS, req.matrix_n);
-        
-        // Strides (Assuming Row Major / Packed for now)
+
         csr_wr(`ADDR_MULT_LHS_STRIDE, req.matrix_n);
         csr_wr(`ADDR_MULT_RHS_STRIDE, req.matrix_n);
         csr_wr(`ADDR_MULT_DST_STRIDE, req.matrix_m);
-        
-        // Quantization Parameters
+
         csr_wr(`ADDR_MULT_LHS_OFFSET, req.lhs_offset);
         csr_wr(`ADDR_MULT_RHS_OFFSET, req.rhs_offset);
         csr_wr(`ADDR_MULT_DST_OFFSET, req.dst_offset);
         csr_wr(`ADDR_MULT_DST_MULT,   req.quant_multiplier);
         csr_wr(`ADDR_MULT_DST_SHIFT,  req.quant_shift);
-        
-        // Activation
+
         csr_wr(`ADDR_MULT_ACT_MIN, req.act_min);
         csr_wr(`ADDR_MULT_ACT_MAX, req.act_max);
     endtask
 
-    // 5. send_mat_mult: Trigger execution
+    function automatic bit [31:0] get_csr_or_default(bit [11:0] addr, bit [31:0] dft);
+        if (csr_shadow.exists(addr)) begin
+            return csr_shadow[addr];
+        end
+        return dft;
+    endfunction
+
+    // Generate memory image from current CSR-shadows and reload SRAM model.
+    task gen_mem_info(ai_nice_seq_item req);
+        int k_val;
+        int n_val;
+        int m_val;
+        int lhs_dtype;
+        int quant_mode;
+        int rc;
+        int mismatch_cnt;
+        string fix_mode_arg;
+        string cmd;
+
+        k_val = get_csr_or_default(`ADDR_MULT_LHS_ROWS, req.matrix_k);
+        n_val = get_csr_or_default(`ADDR_MULT_RHS_COLS, req.matrix_n);
+        m_val = get_csr_or_default(`ADDR_MULT_RHS_ROWS, req.matrix_m);
+
+        if ((k_val <= 0) || (n_val <= 0) || (m_val <= 0)) begin
+            `uvm_warning("MEM_GEN", $sformatf("Skip gen_mem_info due to invalid dims K=%0d N=%0d M=%0d", k_val, n_val, m_val))
+            return;
+        end
+
+        lhs_dtype = (req.a_w == 2) ? 2 : 1;
+        quant_mode = req.per_ch ? 1 : 0;
+        fix_mode_arg = req.fix_mode ? "--fix_mode" : "";
+
+        cmd = $sformatf(
+            "cd ../tb && python ./generate_test_case_complex_mem.py --K %0d --N %0d --M %0d --lhs_dtype %0d %s --quant_mode %0d --out_dir ./test_case_runtime",
+            k_val, n_val, m_val, lhs_dtype, fix_mode_arg, quant_mode
+        );
+
+        `uvm_info("MEM_GEN", {"Run: ", cmd}, UVM_MEDIUM)
+        rc = $system(cmd);
+        if (rc != 0) begin
+            `uvm_fatal("MEM_GEN", $sformatf("generate_test_case_complex_mem.py failed, rc=%0d", rc))
+        end
+
+        @(posedge vif.nice_clk);
+        vif.mem_reload_req <= 1'b1;
+        @(posedge vif.nice_clk);
+        vif.mem_reload_req <= 1'b0;
+        repeat(2) @(posedge vif.nice_clk);
+
+        mismatch_cnt = 0;
+        $root.tb_top.u_sram_icb.u_sram.u_sirv_sim_ram.check_mem_file("../tb/main_extram.mem", 128, mismatch_cnt);
+        if (mismatch_cnt < 0) begin
+            `uvm_error("MEM_GEN", "RAM check could not open ../tb/main_extram.mem")
+        end else if (mismatch_cnt > 0) begin
+            `uvm_error("MEM_GEN", $sformatf("RAM check mismatch count=%0d (first 128 words)", mismatch_cnt))
+        end else begin
+            `uvm_info("MEM_GEN", "RAM check passed for first 128 words after reload", UVM_MEDIUM)
+        end
+    endtask
+
     task send_mat_mult(ai_nice_seq_item req);
         bit [31:0] cfg;
+
+        gen_mem_info(req);
+
         cfg = 0;
         cfg[9]   = req.per_ch;
         cfg[8:7] = req.a_w;
@@ -272,24 +311,23 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         `uvm_info("drv mult csr", $sformatf("Sending Matrix Mult: OutAddr=0x%08h CFG=0x%08h", out_base_addr, cfg), UVM_MEDIUM)
         `uvm_info("trig mult", $sformatf("MAT_MULT driving: req_valid=1, req_inst=0x%08h, req_rs1=0x%08h, req_rs2=0x%08h",
             {`NICE_MAT_MULT_FUNCT7, 5'b00010, 5'b00001, `NICE_FUNCT3, 5'b00011, `NICE_CUSTOM_1}, out_base_addr, cfg), UVM_HIGH)
-        
+
         @(posedge vif.nice_clk);
         vif.nice_req_valid <= 1'b1;
         vif.nice_req_inst  <= {`NICE_MAT_MULT_FUNCT7, 5'b00010, 5'b00001, `NICE_FUNCT3, 5'b00011, `NICE_CUSTOM_1};
         vif.nice_req_rs1   <= out_base_addr;
         vif.nice_req_rs2   <= cfg;
-        
+
         do begin
             @(posedge vif.nice_clk);
         end while(vif.nice_req_ready !== 1'b1);
-        
+
         vif.nice_req_valid <= 1'b0;
-        
+
         while(vif.nice_rsp_valid !== 1'b1) begin
             @(posedge vif.nice_clk);
         end
         `uvm_info("MULT Done", $sformatf("Matrix Mult Done. Status=0x%08h", vif.nice_rsp_rdat), UVM_HIGH)
-        // 发送完成信号
         drv_done_ap.write(req);
         @(posedge vif.nice_clk);
     endtask

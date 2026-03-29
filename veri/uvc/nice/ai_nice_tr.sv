@@ -16,6 +16,7 @@ class ai_nice_seq_item extends uvm_sequence_item;
     rand bit [15:0]  matrix_n; // Increased width from [5:0] to [15:0]
     rand bit [15:0]  matrix_m; // Increased width from [5:0] to [15:0]
     rand bit        random_matrix_data;
+    rand bit        fix_mode;// 1: use fixed pattern generation in python mem gen
 
     // Configuration bits
     rand bit        per_ch;
@@ -94,6 +95,7 @@ class ai_nice_seq_item extends uvm_sequence_item;
         `uvm_field_int(matrix_n        , UVM_ALL_ON)
         `uvm_field_int(matrix_m        , UVM_ALL_ON)
         `uvm_field_int(random_matrix_data, UVM_ALL_ON)
+        `uvm_field_int(fix_mode         , UVM_ALL_ON)
         
         `uvm_field_int(per_ch          , UVM_ALL_ON)
         `uvm_field_int(a_w             , UVM_ALL_ON)
@@ -158,6 +160,10 @@ class ai_nice_seq_item extends uvm_sequence_item;
     }
     
     // Config constraints (defaults)
+    constraint c_fix_mode_default {
+        soft fix_mode == 0;
+    }
+
     constraint c_cfg_defaults {
         soft per_ch == 0;
         soft a_w == 1; // s8

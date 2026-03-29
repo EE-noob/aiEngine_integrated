@@ -5,8 +5,6 @@
 
 `include "uvm_macros.svh"
 import uvm_pkg::*;
-import ai_env_pkg::*;
-import ai_test_pkg::*;
 
 module tb_top;
 
@@ -147,7 +145,8 @@ module tb_top;
         .i_icb_rsp_rdata (nice_icb_rsp_rdata),
         .i_icb_rsp_usr   (), 
         .tcm_cgstop      (1'b0),
-        .test_mode       (1'b0)
+        .test_mode       (1'b0),
+        .mem_reload_req  (nice_vif.mem_reload_req)
     );
     
     assign nice_icb_rsp_err = 1'b0;

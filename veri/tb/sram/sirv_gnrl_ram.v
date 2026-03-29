@@ -1,21 +1,19 @@
-/*                                                                      
- Copyright 2018-2020 Nuclei System Technology, Inc.                
-                                                                         
- Licensed under the Apache License, Version 2.0 (the "License");         
- you may not use this file except in compliance with the License.        
- You may obtain a copy of the License at                                 
-                                                                         
-     http://www.apache.org/licenses/LICENSE-2.0                          
-                                                                         
-  Unless required by applicable law or agreed to in writing, software    
- distributed under the License is distributed on an "AS IS" BASIS,       
+/*
+ Copyright 2018-2020 Nuclei System Technology, Inc.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and     
- limitations under the License.                                          
- */                                                                      
-                                                                         
-                                                                         
-                                                                         
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
+
 //=====================================================================
 //
 // Designer   : Bob Hu
@@ -31,8 +29,8 @@ module sirv_gnrl_ram
   parameter FORCE_X2ZERO = 1,
   parameter MW = 4,
   parameter AW = 15,
-  parameter MEM_PATH = "",      // 新增：内存初始化文件路径
-  parameter INIT_EN = 0         // 新增：初始化使能
+  parameter MEM_PATH = "",
+  parameter INIT_EN = 0
   ) (
   input            sd,
   input            ds,
@@ -45,7 +43,8 @@ module sirv_gnrl_ram
   input [AW-1:0]   addr,
   input [DW-1:0]   din,
   input [MW-1:0]   wem,
-  output[DW-1:0]   dout
+  output[DW-1:0]   dout,
+  input            mem_reload_req
 );
 
 //To add the ASIC or FPGA or Sim-model control here
@@ -58,8 +57,8 @@ sirv_sim_ram #(
     .AW (AW),
     .MW (MW),
     .DW (DW),
-    .MEM_PATH (MEM_PATH),    // 新增参数传递
-    .INIT_EN (INIT_EN)       // 新增参数传递
+    .MEM_PATH (MEM_PATH),
+    .INIT_EN (INIT_EN)
 )u_sirv_sim_ram (
     .clk   (clk),
     .din   (din),
@@ -67,7 +66,8 @@ sirv_sim_ram #(
     .cs    (cs),
     .we    (we),
     .wem   (wem),
-    .dout  (dout)
+    .dout  (dout),
+    .mem_reload_req(mem_reload_req)
 );
 `else
 
@@ -77,8 +77,8 @@ sirv_sim_ram #(
     .AW (AW),
     .MW (MW),
     .DW (DW),
-    .MEM_PATH (MEM_PATH),    // 新增参数传递
-    .INIT_EN (INIT_EN)       // 新增参数传递
+    .MEM_PATH (MEM_PATH),
+    .INIT_EN (INIT_EN)
 )u_sirv_sim_ram (
     .clk   (clk),
     .din   (din),
@@ -86,7 +86,8 @@ sirv_sim_ram #(
     .cs    (cs),
     .we    (we),
     .wem   (wem),
-    .dout  (dout)
+    .dout  (dout),
+    .mem_reload_req(mem_reload_req)
 );
 `endif
 

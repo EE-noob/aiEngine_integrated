@@ -19,6 +19,9 @@ interface nice_if (
     logic [31:0]                nice_rsp_rdat;
     logic                       nice_rsp_err;
 
+    // Trigger memory reload in SRAM model after python mem generation.
+    logic                       mem_reload_req;
+
     // ICB interface towards memory (monitor only)
     logic                       nice_icb_cmd_valid;
     logic                       nice_icb_cmd_ready;
@@ -39,6 +42,7 @@ interface nice_if (
         output nice_req_rs1;
         output nice_req_rs2;
         output nice_rsp_ready;
+        output mem_reload_req;
         input  nice_req_ready;
         input  nice_rsp_valid;
         input  nice_rsp_rdat;
@@ -59,6 +63,7 @@ interface nice_if (
         input nice_rsp_ready;
         input nice_rsp_rdat;
         input nice_rsp_err;
+        input mem_reload_req;
         input nice_icb_cmd_valid;
         input nice_icb_cmd_ready;
         input nice_icb_cmd_addr;
@@ -86,4 +91,3 @@ interface nice_if (
 endinterface
 
 `endif
-

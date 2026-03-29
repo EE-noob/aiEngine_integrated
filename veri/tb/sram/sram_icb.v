@@ -23,7 +23,8 @@ module sram_icb #(
   output [DW-1:0]         i_icb_rsp_rdata,
   output [USR_W-1:0]      i_icb_rsp_usr,
   input                   tcm_cgstop,
-  input                   test_mode
+  input                   test_mode,
+  input                   mem_reload_req
 );
 
   wire sram_ctrl_active;
@@ -73,8 +74,8 @@ module sram_icb #(
     .DW(DW),
     .MW(MW),
     .AW(AW-AW_LSB),
-    .MEM_PATH(`E203_CFG_EXTRAM_INIT_PATH),    // 新增
-    .INIT_EN(`E203_CFG_EXTRAM_INIT_EN)        // 新增
+    .MEM_PATH(`E203_CFG_EXTRAM_INIT_PATH),
+    .INIT_EN(`E203_CFG_EXTRAM_INIT_EN)
   ) u_sram (
     .sd  (  ),
     .ds  (  ),
@@ -86,7 +87,8 @@ module sram_icb #(
     .cs   (ram_cs),
     .we   (ram_we),
     .wem  (ram_wem),
-    .dout (ram_dout)
+    .dout (ram_dout),
+    .mem_reload_req(mem_reload_req)
   );
 
 endmodule

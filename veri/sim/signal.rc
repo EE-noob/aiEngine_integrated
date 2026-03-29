@@ -2,7 +2,7 @@ Magic 271485
 Revision Verdi_O-2018.09-SP2
 
 ; Window Layout <x> <y> <width> <height> <signalwidth> <valuewidth>
-viewPort 0 27 1846 456 505 65
+viewPort 0 27 1846 332 505 65
 
 ; File list:
 ; openDirFile [-d delimiter] [-s time_offset] [-rf auto_bus_rule_file] path_name file_name
@@ -16,16 +16,16 @@ signalSpacing 5
 
 ; windowTimeUnit is used for zoom, cursor & marker
 ; waveform viewport range
-zoom 26309886.032432 28069761.025099
-cursor 27005000.000000
+zoom 0.000000 52686650.000000
+cursor 25385000.000000
 marker 0.000000
 
 ; user define markers
 ; userMarker time_pos marker_name color linestyle
 ; visible top row signal index
-top 55
+top 36
 ; marker line index
-markerPos 70
+markerPos 91
 
 ; event list
 ; addEvent event_name event_expression
@@ -105,6 +105,72 @@ addSignal -h 15 -holdScope acc_data_valid
 addSignal -h 15 -holdScope tile_calc_over
 addSignal -h 15 -holdScope partial_sum_calc_over
 addGroup "xpro"
+addSignal -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_icb_bridge/m_icb_cmd_wdata[31:0]
+addSignal -h 15 -holdScope wdata_aligned[31:0]
+addSignal -h 15 -holdScope sa_icb_cmd_wdata[31:0]
+addSignal -h 15 -holdScope cur_offsetX8[4:0]
+addSignal -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_mma_top/u_icb_flat_adapter/icb_wr_m.wdata[31:0]
+addSignal -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_mma_top/u_icb_mux/s4_wr.wdata[31:0]
+addSignal -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_mma_top/u_oa_writer/output_valid
+addSignal -h 15 -holdScope output_data[31:0]
+addSignal -h 15 -holdScope output_mask[3:0]
+addSignal -expanded -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_mma_top/u_vec_s8_to_fifo/fifo_mem0[0:15]
+addSignal -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_mma_top/u_vec_requant/rst_n
+addSignal -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_mma_top/u_vec_s8_to_fifo/fifo_sel
+addSignal -h 15 -holdScope in_valid
+addSignal -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_mma_top/u_vec_requant/cfg_per_channel
+addSignal -h 15 -holdScope out_valid_q
+addSignal -h 15 -holdScope quant_params_valid
+addSignal -expanded -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_mma_top/u_compute_core/u_accumulator_array/accumulator_gen[0]/acc_inst/acc_fifo[0:15]
+addSignal -h 15 -holdScope acc_fifo[0][31:0]
+addSignal -h 15 -holdScope acc_fifo[1][31:0]
+addSignal -h 15 -holdScope acc_fifo[2][31:0]
+addSignal -h 15 -holdScope acc_fifo[3][31:0]
+addSignal -h 15 -holdScope acc_fifo[4][31:0]
+addSignal -h 15 -holdScope acc_fifo[5][31:0]
+addSignal -h 15 -holdScope acc_fifo[6][31:0]
+addSignal -h 15 -holdScope acc_fifo[7][31:0]
+addSignal -h 15 -holdScope acc_fifo[8][31:0]
+addSignal -h 15 -holdScope acc_fifo[9][31:0]
+addSignal -h 15 -holdScope acc_fifo[10][31:0]
+addSignal -h 15 -holdScope acc_fifo[11][31:0]
+addSignal -h 15 -holdScope acc_fifo[12][31:0]
+addSignal -h 15 -holdScope acc_fifo[13][31:0]
+addSignal -h 15 -holdScope acc_fifo[14][31:0]
+addSignal -h 15 -holdScope acc_fifo[15][31:0]
+addSignal -expanded -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_mma_top/u_vec_requant/in_vec_s32[0:15]
+addSignal -h 15 -holdScope in_vec_s32[0][31:0]
+addSignal -h 15 -holdScope in_vec_s32[1][31:0]
+addSignal -h 15 -holdScope in_vec_s32[2][31:0]
+addSignal -h 15 -holdScope in_vec_s32[3][31:0]
+addSignal -h 15 -holdScope in_vec_s32[4][31:0]
+addSignal -h 15 -holdScope in_vec_s32[5][31:0]
+addSignal -h 15 -holdScope in_vec_s32[6][31:0]
+addSignal -h 15 -holdScope in_vec_s32[7][31:0]
+addSignal -h 15 -holdScope in_vec_s32[8][31:0]
+addSignal -h 15 -holdScope in_vec_s32[9][31:0]
+addSignal -h 15 -holdScope in_vec_s32[10][31:0]
+addSignal -h 15 -holdScope in_vec_s32[11][31:0]
+addSignal -h 15 -holdScope in_vec_s32[12][31:0]
+addSignal -h 15 -holdScope in_vec_s32[13][31:0]
+addSignal -h 15 -holdScope in_vec_s32[14][31:0]
+addSignal -h 15 -holdScope in_vec_s32[15][31:0]
+addSignal -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_mma_top/u_vec_s8_to_fifo/fifo_mem0[0][127:0]
+addSignal -h 15 -holdScope fifo_mem0[1][127:0]
+addSignal -h 15 -holdScope fifo_mem0[2][127:0]
+addSignal -h 15 -holdScope fifo_mem0[3][127:0]
+addSignal -h 15 -holdScope fifo_mem0[4][127:0]
+addSignal -h 15 -holdScope fifo_mem0[5][127:0]
+addSignal -h 15 -holdScope fifo_mem0[6][127:0]
+addSignal -h 15 -holdScope fifo_mem0[7][127:0]
+addSignal -h 15 -holdScope fifo_mem0[8][127:0]
+addSignal -h 15 -holdScope fifo_mem0[9][127:0]
+addSignal -h 15 -holdScope fifo_mem0[10][127:0]
+addSignal -h 15 -holdScope fifo_mem0[11][127:0]
+addSignal -h 15 -holdScope fifo_mem0[12][127:0]
+addSignal -h 15 -holdScope fifo_mem0[13][127:0]
+addSignal -h 15 -holdScope fifo_mem0[14][127:0]
+addSignal -h 15 -holdScope fifo_mem0[15][127:0]
 addSignal -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_mma_top/sa_icb_cmd_len[3:0]
 addSignal -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_mma_top/u_icb_flat_adapter/icb_cmd_m.len[3:0]
 addSignal -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_mma_top/u_icb_mux/sel[2:0]
@@ -118,7 +184,23 @@ addSignal -h 15 -holdScope beats_per_row[2:0]
 addSignal -h 15 -holdScope cfg_m[31:0]
 addSignal -h 15 -holdScope tile_col_idx[31:0]
 addGroup "G9"
+addSignal -h 15 -UNSIGNED -HEX /tb_top/u_sram_icb/u_sram/u_sirv_sim_ram/mem_r[0:131071]
+addSignal -h 15 -holdScope dout_pre[31:0]
+addGroup "G10"
 
 ; getSignalForm Scope Hierarchy Status
 ; active file of getSignalForm
+activeDirFile "" "/home/posedge/work/aiEngine_integrated/veri/sim/tb_top.fsdb"
+
+GETSIGNALFORM_SCOPE_HIERARCHY_BEGIN
+getSignalForm close
+
+"/_vcs_msglog"
+
+SCOPE_LIST_BEGIN
+"/_vcs_msglog"
+SCOPE_LIST_END
+
+GETSIGNALFORM_SCOPE_HIERARCHY_END
+
 

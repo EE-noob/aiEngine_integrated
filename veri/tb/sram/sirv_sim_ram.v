@@ -1,21 +1,19 @@
-/*                                                                      
- Copyright 2018-2020 Nuclei System Technology, Inc.                
-                                                                         
- Licensed under the Apache License, Version 2.0 (the "License");         
- you may not use this file except in compliance with the License.        
- You may obtain a copy of the License at                                 
-                                                                         
-     http://www.apache.org/licenses/LICENSE-2.0                          
-                                                                         
-  Unless required by applicable law or agreed to in writing, software    
- distributed under the License is distributed on an "AS IS" BASIS,       
+/*
+ Copyright 2018-2020 Nuclei System Technology, Inc.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and     
- limitations under the License.                                          
- */                                                                      
-                                                                         
-                                                                         
-                                                                         
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
+
 //=====================================================================
 //
 // Designer   : Bob Hu
@@ -24,27 +22,26 @@
 //  The simulation model of SRAM
 //
 // ====================================================================
-module sirv_sim_ram 
+module sirv_sim_ram
 #(parameter DP = 512,
   parameter FORCE_X2ZERO = 0,
   parameter DW = 32,
   parameter MW = 4,
   parameter AW = 32,
-  parameter MEM_PATH = "",      // 新增：内存初始化文件路径
-  parameter INIT_EN = 0         // 新增：初始化使能
+  parameter MEM_PATH = "",
+  parameter INIT_EN = 0
 )
 (
-  input             clk, 
-  input  [DW-1  :0] din, 
+  input             clk,
+  input  [DW-1  :0] din,
   (*mark_debug = "true"*)input  [AW-1  :0] addr,
   input             cs,
   input             we,
   input  [MW-1:0]   wem,
-  (*mark_debug = "true"*)output [DW-1:0]   dout
+  (*mark_debug = "true"*)output [DW-1:0]   dout,
+  input             mem_reload_req
 );
 
-    // reg [DW-1:0] mem_r [0:DP-1];  // 移至非综合分支
-    // reg [AW-1:0] addr_r;          // 移至非综合分支
     wire [MW-1:0] wen;
     wire ren;
 
@@ -64,23 +61,19 @@ module sirv_sim_ram
 
 `ifdef SYNTHESIS
   `ifdef USE_XPM
-    // 在综合下用 XPM 单端口 RAM
-    // 若需初始化，请保证：
-    // - INIT_EN = 1
-    // - MEM_PATH 为合法 .mem 文件或 "none"
     xpm_memory_spram #(
       .ADDR_WIDTH_A        (ADDR_BITS),
       .AUTO_SLEEP_TIME     (0),
-      .BYTE_WRITE_WIDTH_A  (BYTEW),        // 例如 8 bit
+      .BYTE_WRITE_WIDTH_A  (BYTEW),
       .ECC_MODE            ("no_ecc"),
-      .MEMORY_INIT_FILE    (MEM_PATH),     // 为空时请改为 "none"
+      .MEMORY_INIT_FILE    (MEM_PATH),
       .MEMORY_INIT_PARAM   ("0"),
       .MEMORY_OPTIMIZATION ("true"),
       .MEMORY_PRIMITIVE    ("block"),
       .MEMORY_SIZE         (MEM_BITS),
       .MESSAGE_CONTROL     (0),
       .READ_DATA_WIDTH_A   (DW),
-      .READ_LATENCY_A      (1),            // 输出寄存 1 拍
+      .READ_LATENCY_A      (1),
       .READ_RESET_VALUE_A  ("0"),
       .RST_MODE_A          ("SYNC"),
       .SIM_ASSERT_CHK      (0),
@@ -91,17 +84,16 @@ module sirv_sim_ram
       .douta               (dout_pre),
       .addra               (addra),
       .clka                (clk),
-      .ena                 (1'b1),         // 读由 regcea 控制，写由 wea 控制
+      .ena                 (1'b1),
       .rsta                (1'b0),
-      .regcea              (ren),          // 仅在读有效时更新输出
+      .regcea              (ren),
       .sleep               (1'b0),
-      .wea                 (wen),          // 宽度 MW，按字节写
+      .wea                 (wen),
       .dina                (din),
       .injectdbiterra      (1'b0),
       .injectsbiterra      (1'b0)
     );
   `else
-    // 非xpm综合分支：行为级RAM模型，仅支持DW为8的整数倍
     initial begin
       if (DW % 8 != 0) begin
         $error("sirv_sim_ram: DW must be a multiple of 8 in non-xpm synthesis mode!");
@@ -112,7 +104,6 @@ module sirv_sim_ram
     reg [AW-1:0] addr_r;
     reg [DW-1:0] dout_reg;
 
-    // 内存初始化
     initial begin
       if (INIT_EN && MEM_PATH != "") begin
         $display("sirv_sim_ram: loading memory from %s", MEM_PATH);
@@ -120,7 +111,6 @@ module sirv_sim_ram
       end
     end
 
-    // 写入逻辑：用generate展开，避免变量位选取
     genvar k;
     generate
       for (k = 0; k < MW; k = k + 1) begin : ram_write
@@ -132,7 +122,6 @@ module sirv_sim_ram
       end
     endgenerate
 
-    // 读出逻辑
     always @(posedge clk) begin
       if (cs && !we) begin
         addr_r <= addr;
@@ -143,7 +132,6 @@ module sirv_sim_ram
     assign dout_pre = dout_reg;
   `endif
 `else
-    // 非综合（仿真）保持原有行为级模型
     (* ram_style="block" *) reg [DW-1:0] mem_r [0:DP-1];//DP个DW位宽的存储单元
     reg [AW-1:0] addr_r;
 
@@ -152,6 +140,45 @@ module sirv_sim_ram
         if (INIT_EN && MEM_PATH != "") begin
             $display("sirv_sim_ram: loading memory from %s", MEM_PATH);
             $readmemh(MEM_PATH, mem_r);
+        end
+    end
+
+    // 支持在仿真运行中重新装载 main_extram.mem
+    task automatic reload_mem_from_file();
+        if (MEM_PATH != "") begin
+            $display("sirv_sim_ram: runtime reload from %s", MEM_PATH);
+            $readmemh(MEM_PATH, mem_r);
+        end
+    endtask
+
+    // Driver 可通过层次化调用该 task 校验内存内容是否与文件一致
+    task automatic check_mem_file(input string file_path, input integer check_words, output integer mismatch_cnt);
+        integer fd;
+        integer ret;
+        integer idx;
+        reg [DW-1:0] exp_word;
+        mismatch_cnt = 0;
+        fd = $fopen(file_path, "r");
+        if (fd == 0) begin
+            $display("sirv_sim_ram: cannot open %s for check", file_path);
+            mismatch_cnt = -1;
+            return;
+        end
+        for (idx = 0; idx < check_words; idx = idx + 1) begin
+            if ($feof(fd)) break;
+            ret = $fscanf(fd, "%h\n", exp_word);
+            if (ret != 1) begin
+                mismatch_cnt = mismatch_cnt + 1;
+            end else if (mem_r[idx] !== exp_word) begin
+                mismatch_cnt = mismatch_cnt + 1;
+            end
+        end
+        $fclose(fd);
+    endtask
+
+    always @(posedge clk) begin
+        if (mem_reload_req) begin
+            reload_mem_from_file();
         end
     end
 
@@ -183,15 +210,10 @@ module sirv_sim_ram
     assign dout_pre = mem_r[addr_r];
 `endif
 
-    // 原有 FORCE_X2ZERO 输出处理保持不变
     generate
      if(FORCE_X2ZERO == 1) begin: force_x_to_zero
-        for (i = 0; i < DW; i = i+1) begin:force_x_gen 
-            // `ifndef SYNTHESIS//{
-            // assign dout[i] = (dout_pre[i] === 1'bx) ? 1'b0 : dout_pre[i];
-            // `else//}{
-            assign dout[i] = $random;//dout_pre[i];
-            // `endif//}
+        for (i = 0; i < DW; i = i+1) begin:force_x_gen
+            assign dout[i] = $random;
         end
      end
      else begin:no_force_x_to_zero
