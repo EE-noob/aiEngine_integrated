@@ -60,7 +60,6 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         forever begin
             seq_item_port.get_next_item(req);
             `uvm_info(get_type_name(), $sformatf("Got transaction: %s", req.convert2string()), UVM_HIGH)
-
             drive_item(req);
 
             item_collected_port.write(req);
@@ -243,6 +242,18 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         return dft;
     endfunction
 
+    function automatic string get_utn_name();
+        string utn_name;
+        if (!$value$plusargs("UVM_TESTNAME=%s", utn_name) || (utn_name == "")) begin
+            utn_name = "test_case_runtime";
+        end
+        return utn_name;
+    endfunction
+
+    function automatic string get_case_dir();
+        return $sformatf("../tb/%s", get_utn_name());
+    endfunction
+
     // Generate memory image from current CSR-shadows and reload SRAM model.
     task gen_mem_info(ai_nice_seq_item req);
         int k_val;
@@ -254,6 +265,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         int mismatch_cnt;
         string fix_mode_arg;
         string cmd;
+        string utn_name;
 
         k_val = get_csr_or_default(`ADDR_MULT_LHS_ROWS, req.matrix_k);
         n_val = get_csr_or_default(`ADDR_MULT_RHS_COLS, req.matrix_n);
@@ -267,10 +279,11 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         lhs_dtype = (req.a_w == 2) ? 2 : 1;
         quant_mode = req.per_ch ? 1 : 0;
         fix_mode_arg = req.fix_mode ? "--fix_mode" : "";
+        utn_name = get_utn_name();
 
         cmd = $sformatf(
-            "cd ../tb && python ./generate_test_case_complex_mem.py --K %0d --N %0d --M %0d --lhs_dtype %0d %s --quant_mode %0d --out_dir ./test_case_runtime",
-            k_val, n_val, m_val, lhs_dtype, fix_mode_arg, quant_mode
+            "cd ../tb && python ./generate_test_case_complex_mem.py --K %0d --N %0d --M %0d --lhs_dtype %0d %s --quant_mode %0d --out_dir ./%s",
+            k_val, n_val, m_val, lhs_dtype, fix_mode_arg, quant_mode, utn_name
         );
 
         `uvm_info("MEM_GEN", {"Run: ", cmd}, UVM_MEDIUM)
@@ -286,20 +299,149 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         repeat(2) @(posedge vif.nice_clk);
 
         mismatch_cnt = 0;
-        $root.tb_top.u_sram_icb.u_sram.u_sirv_sim_ram.check_mem_file("../tb/main_extram.mem", 128, mismatch_cnt);
+        $root.tb_top.u_sram_icb.u_sram.u_sirv_sim_ram.check_mem_file("../tb/main_extram.mem", 0, 127, mismatch_cnt);
         if (mismatch_cnt < 0) begin
             `uvm_error("MEM_GEN", "RAM check could not open ../tb/main_extram.mem")
-        end else if (mismatch_cnt > 0) begin
-            `uvm_error("MEM_GEN", $sformatf("RAM check mismatch count=%0d (first 128 words)", mismatch_cnt))
+        end
+    endtask
+
+    task automatic dump_compare_output_matrix(ai_nice_seq_item req);
+        int k_val;
+        int m_val;
+        int dst_base;
+        int dst_stride;
+        int byte_addr;
+        int word_addr;
+        int lane;
+        int row;
+        int col;
+        int scan_rc;
+        int exp_val;
+        int act_val;
+        int mismatch_cnt;
+        int report_cnt;
+        int exp_extra;
+        integer fd_actual;
+        integer fd_actual_mem;
+        integer fd_expected;
+        bit [31:0] mem_word;
+        bit [31:0] actual_mem_word;
+        int actual_mem_byte_idx;
+        string case_dir;
+        string actual_path;
+        string actual_mem_path;
+        string expected_path;
+
+        k_val = get_csr_or_default(`ADDR_MULT_LHS_ROWS, req.matrix_k);
+        m_val = get_csr_or_default(`ADDR_MULT_RHS_ROWS, req.matrix_m);
+        dst_base = get_csr_or_default(`ADDR_MULT_DST_PTR, out_base_addr);
+        dst_stride = get_csr_or_default(`ADDR_MULT_DST_STRIDE, m_val);
+
+        `uvm_info("MAT_CHK", $sformatf("\033[1;34mCHECK META\033[0m dst_base=0x%08h dst_stride=%0d rows(K)=%0d cols(M)=%0d total_size=%0d byte_range=[0x%08h:0x%08h]",
+            dst_base, dst_stride, k_val, m_val, k_val * m_val, dst_base, dst_base + ((k_val * dst_stride) + m_val - 1)), UVM_LOW)
+
+        if ((k_val <= 0) || (m_val <= 0) || (dst_stride <= 0)) begin
+            `uvm_error("MAT_CHK", $sformatf("Invalid matrix shape/stride for compare: K=%0d M=%0d DST_STRIDE=%0d", k_val, m_val, dst_stride))
+            return;
+        end
+
+        case_dir = get_case_dir();
+        actual_path = {case_dir, "/actual_dst.txt"};
+        actual_mem_path = {case_dir, "/actual_dst.mem"};
+        expected_path = {case_dir, "/expected_dst.txt"};
+
+        fd_actual = $fopen(actual_path, "w");
+        if (fd_actual == 0) begin
+            `uvm_error("MAT_CHK", $sformatf("Cannot open %s for writing", actual_path))
+            return;
+        end
+
+        fd_actual_mem = $fopen(actual_mem_path, "w");
+        if (fd_actual_mem == 0) begin
+            `uvm_error("MAT_CHK", $sformatf("Cannot open %s for writing", actual_mem_path))
+            $fclose(fd_actual);
+            return;
+        end
+
+        fd_expected = $fopen(expected_path, "r");
+        if (fd_expected == 0) begin
+            `uvm_error("MAT_CHK", $sformatf("Cannot open %s for reading", expected_path))
+            $fclose(fd_actual);
+            $fclose(fd_actual_mem);
+            return;
+        end
+
+        mismatch_cnt = 0;
+        report_cnt = 0;
+        actual_mem_word = 32'h0;
+        actual_mem_byte_idx = 0;
+
+        for (row = 0; row < k_val; row = row + 1) begin
+            for (col = 0; col < m_val; col = col + 1) begin
+                byte_addr = dst_base + row * dst_stride + col;
+                word_addr = byte_addr >> 2;
+                lane = byte_addr & 32'h3;
+
+                mem_word = $root.tb_top.u_sram_icb.u_sram.u_sirv_sim_ram.mem_r[word_addr];
+                act_val = $signed(mem_word[(lane * 8) +: 8]);
+
+                if (col == 0) begin
+                    $fwrite(fd_actual, "%0d", act_val);
+                end else begin
+                    $fwrite(fd_actual, " %0d", act_val);
+                end
+
+                actual_mem_word[(actual_mem_byte_idx % 4) * 8 +: 8] = act_val[7:0];
+                actual_mem_byte_idx = actual_mem_byte_idx + 1;
+                if ((actual_mem_byte_idx % 4) == 0) begin
+                    $fwrite(fd_actual_mem, "%08h\n", actual_mem_word);
+                    actual_mem_word = 32'h0;
+                end
+
+                scan_rc = $fscanf(fd_expected, "%d", exp_val);
+                if (scan_rc != 1) begin
+                    mismatch_cnt = mismatch_cnt + 1;
+                    if (report_cnt < 20) begin
+                        `uvm_error("MAT_CHK", $sformatf("Expected file ended early at row=%0d col=%0d", row, col))
+                        report_cnt = report_cnt + 1;
+                    end
+                end else if (act_val != exp_val) begin
+                    mismatch_cnt = mismatch_cnt + 1;
+                    if (report_cnt < 20) begin
+                        `uvm_error("MAT_CHK", $sformatf("Mismatch at row=%0d col=%0d: exp=%0d act=%0d (byte_addr=0x%08h)", row, col, exp_val, act_val, byte_addr))
+                        report_cnt = report_cnt + 1;
+                    end
+                end
+            end
+            $fwrite(fd_actual, "\n");
+        end
+
+        if ((actual_mem_byte_idx % 4) != 0) begin
+            $fwrite(fd_actual_mem, "%08h\n", actual_mem_word);
+        end
+
+        scan_rc = $fscanf(fd_expected, "%d", exp_extra);
+        if (scan_rc == 1) begin
+            mismatch_cnt = mismatch_cnt + 1;
+            `uvm_error("MAT_CHK", "Expected file has extra data beyond KxM matrix")
+        end
+
+        $fclose(fd_expected);
+        $fclose(fd_actual);
+        $fclose(fd_actual_mem);
+
+        if (mismatch_cnt == 0) begin
+            `uvm_info("MAT_CHK", $sformatf("\033[1;32mPASS\033[0m output matrix compare matched (%0d x %0d). actual=%s expected=%s", k_val, m_val, actual_path, expected_path), UVM_LOW)
         end else begin
-            `uvm_info("MEM_GEN", "RAM check passed for first 128 words after reload", UVM_MEDIUM)
+            `uvm_error("MAT_CHK", $sformatf("Output matrix compare failed: mismatch_cnt=%0d, reported=%0d. actual=%s expected=%s", mismatch_cnt, report_cnt, actual_path, expected_path))
         end
     endtask
 
     task send_mat_mult(ai_nice_seq_item req);
         bit [31:0] cfg;
+        bit [31:0] trig_out_base;
 
-        gen_mem_info(req);
+        trig_out_base = get_csr_or_default(`ADDR_MULT_DST_PTR, out_base_addr);
 
         cfg = 0;
         cfg[9]   = req.per_ch;
@@ -308,14 +450,14 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         cfg[4:3] = req.bias_w;
         cfg[2:0] = req.out_w;
 
-        `uvm_info("drv mult csr", $sformatf("Sending Matrix Mult: OutAddr=0x%08h CFG=0x%08h", out_base_addr, cfg), UVM_MEDIUM)
+        `uvm_info("drv mult csr", $sformatf("Sending Matrix Mult: OutAddr=0x%08h CFG=0x%08h", trig_out_base, cfg), UVM_MEDIUM)
         `uvm_info("trig mult", $sformatf("MAT_MULT driving: req_valid=1, req_inst=0x%08h, req_rs1=0x%08h, req_rs2=0x%08h",
-            {`NICE_MAT_MULT_FUNCT7, 5'b00010, 5'b00001, `NICE_FUNCT3, 5'b00011, `NICE_CUSTOM_1}, out_base_addr, cfg), UVM_HIGH)
+            {`NICE_MAT_MULT_FUNCT7, 5'b00010, 5'b00001, `NICE_FUNCT3, 5'b00011, `NICE_CUSTOM_1}, trig_out_base, cfg), UVM_HIGH)
 
         @(posedge vif.nice_clk);
         vif.nice_req_valid <= 1'b1;
         vif.nice_req_inst  <= {`NICE_MAT_MULT_FUNCT7, 5'b00010, 5'b00001, `NICE_FUNCT3, 5'b00011, `NICE_CUSTOM_1};
-        vif.nice_req_rs1   <= out_base_addr;
+        vif.nice_req_rs1   <= trig_out_base;
         vif.nice_req_rs2   <= cfg;
 
         do begin
@@ -327,7 +469,8 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         while(vif.nice_rsp_valid !== 1'b1) begin
             @(posedge vif.nice_clk);
         end
-        `uvm_info("MULT Done", $sformatf("Matrix Mult Done. Status=0x%08h", vif.nice_rsp_rdat), UVM_HIGH)
+        `uvm_info("MULT Done", $sformatf("Matrix Mult Done. Status=0x%08h", vif.nice_rsp_rdat), UVM_NONE)
+        dump_compare_output_matrix(req);
         drv_done_ap.write(req);
         @(posedge vif.nice_clk);
     endtask

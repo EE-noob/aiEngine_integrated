@@ -214,7 +214,9 @@ def generate_test_case(
     # 计算累加结果 (int32)
     sum_result = np.dot(lhs.astype(np.int32), rhs.astype(np.int32))  # [K, M]
     result = sum_result + bias  # broadcasting
-    # quant_mode 在前面已确定（随机或由参数指定），此处不再覆盖。
+
+    # 随机选择量化模式
+    quant_mode = random.choice([0, 1])  # 0: per-tensor, 1: per-channel
 
 
     # 根据结果范围计算 dst_mult / dst_shift
@@ -232,7 +234,6 @@ def generate_test_case(
     os.makedirs(out_dir, exist_ok=True)
     data_mem_path = os.path.join(out_dir, "data.mem")
     expected_mem_path = os.path.join(out_dir, "expected.mem")
-    expected_dst_mem_path = os.path.join(out_dir, "expected_dst.mem")
     config_path = os.path.join(out_dir, "config.txt")
     debug_path = os.path.join(out_dir, "debug_output.txt")
 
@@ -271,23 +272,16 @@ def generate_test_case(
 
     # 准备数据mem：lhs, rhs, bias, quant params
     with open(data_mem_path, 'w') as f:
-        #BF 
         # LHS
         lhs_bytes = lhs.tobytes()
-        #lhs_addr = 0
-        
-        fill0_bytes = 16
-        lhs_addr =2*fill0_bytes # 预留32字节的 config struct + 4字节的填充0
-        write_mem(f, b'\x00' *31)
-
         write_mem(f, lhs_bytes)
+        lhs_addr = 0
         lhs_size = len(lhs_bytes)
         
         # RHS (列优先)
         rhs_bytes = rhs.flatten(order='F').tobytes()
         write_mem(f, rhs_bytes)
-        #rhs_addr = lhs_size
-        rhs_addr = lhs_size+lhs_addr
+        rhs_addr = lhs_size
         rhs_size = len(rhs_bytes)
         
         # Bias
@@ -311,21 +305,12 @@ def generate_test_case(
             mult_addr = shift_addr = 0
             mult_size = shift_size = 0
 
-        # Output matrix base in data.mem address space (bytes).
-        # The DUT writes output to this region, so place it after all input/config blobs.
-        output_base_addr = bias_addr + bias_size + mult_size + shift_size
-        output_size = K * M
-
     # 准备expected mem：expected_dst_data
     with open(expected_mem_path, 'w') as f:
         expected_bytes = quantized.tobytes()
         write_mem(f, expected_bytes)
         expected_addr = 0
         expected_size = len(expected_bytes)
-
-    # 另存一份 expected_dst.mem，便于直接查看输出矩阵对应的 memory image。
-    with open(expected_dst_mem_path, 'w') as f:
-        write_mem(f, quantized.tobytes())
 
     # 复制 data.mem 到 ../veri/memInfo/main_extram.mem
     dest_dir = "./"#os.path.join(os.path.dirname(out_dir), "veri", "memInfo")
@@ -348,12 +333,10 @@ def generate_test_case(
         if quant_mode == 1:
             f.write(f"dst_mult_addr = {mult_addr}\n")
             f.write(f"dst_shift_addr = {shift_addr}\n")
-        f.write(f"output_base_addr = {output_base_addr}\n")
         f.write("\n# Sizes (bytes)\n")
         f.write(f"lhs_size = {lhs_size}\n")
         f.write(f"rhs_size = {rhs_size}\n")
         f.write(f"bias_size = {bias_size}\n")
-        f.write(f"output_size = {output_size}\n")
         f.write(f"expected_dst_size = {expected_size}\n")
         if quant_mode == 1:
             f.write(f"dst_mult_size = {mult_size}\n")

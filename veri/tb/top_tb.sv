@@ -39,7 +39,7 @@ module tb_top;
     logic                       nice_icb_rsp_ready;
     logic [31:0]                nice_icb_rsp_rdata;
     logic                       nice_icb_rsp_err;
-
+    logic [3:0] nice_icb_cmd_wmask;
     // Interface（仅验证 NICE 接口）
     nice_if nice_vif (
         .nice_clk  (nice_clk),

@@ -11,7 +11,7 @@ DEFINES         ?=
 UVM_HOME        ?=$(VCS_HOME)/etc/uvm-1.2/
 UVM_VER         ?= -ntb_opts uvm-1.2
 NOVAS_HOME      ?=
-
+TESTCASE         ?= 
 ifeq ($(DUMPOPTS),1)
 DUMPFSDB        += +dump_fsdb
 endif

@@ -22,6 +22,9 @@
 //  The simulation model of SRAM
 //
 // ====================================================================
+`include "uvm_macros.svh"
+import uvm_pkg::*;
+
 module sirv_sim_ram
 #(parameter DP = 512,
   parameter FORCE_X2ZERO = 0,
@@ -48,10 +51,9 @@ module sirv_sim_ram
     assign ren = cs & (~we);
     assign wen = ({MW{cs & we}} & wem);
 
-    // 统一出口：综合/仿真均驱动到 dout_pre，再经过 FORCE_X2ZERO 逻辑
+    // Unified data-out path for synthesis/simulation branches.
     wire [DW-1:0] dout_pre;
 
-    // 地址与 XPM 参数
     localparam ADDR_BITS = (DP <= 1) ? 1 : $clog2(DP);
     localparam integer BYTEW = (DW/MW);
     localparam integer MEM_BITS = DP*DW;
@@ -132,10 +134,9 @@ module sirv_sim_ram
     assign dout_pre = dout_reg;
   `endif
 `else
-    (* ram_style="block" *) reg [DW-1:0] mem_r [0:DP-1];//DP个DW位宽的存储单元
+    (* ram_style="block" *) reg [DW-1:0] mem_r [0:DP-1];
     reg [AW-1:0] addr_r;
 
-    // 内存初始化逻辑
     initial begin
         if (INIT_EN && MEM_PATH != "") begin
             $display("sirv_sim_ram: loading memory from %s", MEM_PATH);
@@ -143,37 +144,66 @@ module sirv_sim_ram
         end
     end
 
-    // 支持在仿真运行中重新装载 main_extram.mem
     task automatic reload_mem_from_file();
         if (MEM_PATH != "") begin
-            $display("sirv_sim_ram: runtime reload from %s", MEM_PATH);
+            `uvm_info("RAM_RELOAD", $sformatf("sirv_sim_ram runtime reload from %s", MEM_PATH), UVM_LOW)
             $readmemh(MEM_PATH, mem_r);
         end
     endtask
 
-    // Driver 可通过层次化调用该 task 校验内存内容是否与文件一致
-    task automatic check_mem_file(input string file_path, input integer check_words, output integer mismatch_cnt);
+    task automatic check_mem_file(
+        input string file_path,
+        input integer start_word,
+        input integer end_word,
+        output integer mismatch_cnt
+    );
         integer fd;
         integer ret;
         integer idx;
         reg [DW-1:0] exp_word;
+
         mismatch_cnt = 0;
-        fd = $fopen(file_path, "r");
-        if (fd == 0) begin
-            $display("sirv_sim_ram: cannot open %s for check", file_path);
+
+        if ((start_word < 0) || (end_word < start_word)) begin
+            `uvm_error("RAM_CHK", $sformatf("Invalid check range start=%0d end=%0d", start_word, end_word))
             mismatch_cnt = -1;
             return;
         end
-        for (idx = 0; idx < check_words; idx = idx + 1) begin
-            if ($feof(fd)) break;
+
+        fd = $fopen(file_path, "r");
+        if (fd == 0) begin
+            `uvm_error("RAM_CHK", $sformatf("Cannot open %s for check", file_path))
+            mismatch_cnt = -1;
+            return;
+        end
+
+        idx = 0;
+        while ((idx <= end_word) && !$feof(fd)) begin
             ret = $fscanf(fd, "%h\n", exp_word);
             if (ret != 1) begin
-                mismatch_cnt = mismatch_cnt + 1;
-            end else if (mem_r[idx] !== exp_word) begin
-                mismatch_cnt = mismatch_cnt + 1;
+                if (idx >= start_word) begin
+                    mismatch_cnt = mismatch_cnt + 1;
+                    `uvm_error("RAM_CHK", $sformatf("Parse failure at word[%0d] from %s", idx, file_path))
+                end
+            end else if (idx >= start_word) begin
+                if (mem_r[idx] !== exp_word) begin
+                    mismatch_cnt = mismatch_cnt + 1;
+                    `uvm_error("RAM_CHK", $sformatf("Mismatch word[%0d]: exp=0x%08h act=0x%08h", idx, exp_word, mem_r[idx]))
+                end
             end
+            idx = idx + 1;
         end
+
+        if (idx <= end_word) begin
+            mismatch_cnt = mismatch_cnt + 1;
+            `uvm_error("RAM_CHK", $sformatf("File %s ended early at word[%0d], expected up to word[%0d]", file_path, idx, end_word))
+        end
+
         $fclose(fd);
+
+        if (mismatch_cnt == 0) begin
+            `uvm_info("RAM_CHK", $sformatf("\033[1;32mPASS\033[0m RAM check matched %s in range [%0d:%0d]", file_path, start_word, end_word), UVM_LOW)
+        end
     endtask
 
     always @(posedge clk) begin
@@ -212,12 +242,16 @@ module sirv_sim_ram
 
     generate
      if(FORCE_X2ZERO == 1) begin: force_x_to_zero
-        for (i = 0; i < DW; i = i+1) begin:force_x_gen
-            assign dout[i] = $random;
+        for (i = 0; i < DW; i = i+1) begin:force_x_gen 
+            `ifndef SYNTHESIS//{
+            assign dout[i] = (dout_pre[i] === 1'bx) ? 1'b0 : dout_pre[i];
+            `else//}{
+            assign dout[i] = dout_pre[i];
+            `endif//}
         end
      end
      else begin:no_force_x_to_zero
-       assign dout = $random;
+       assign dout = dout_pre;
      end
     endgenerate
 

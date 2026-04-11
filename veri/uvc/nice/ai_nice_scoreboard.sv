@@ -17,7 +17,7 @@ class ai_nice_scoreboard extends uvm_scoreboard;
         // 检查是否为矩阵乘法或触发命令
         if (tr.cmd_kind == NICE_AUTO || tr.cmd_kind == NICE_TRIGGER) begin
             // 打印绿色信息: \033[32m (绿色), \033[0m (重置)
-            `uvm_info("SCB", $sformatf("\033[32m matrix mult pass \033[0m"), UVM_LOW)
+            //`uvm_info("SCB", $sformatf("\033[32m matrix mult pass \033[0m"), UVM_LOW)
         end
     endfunction
 
