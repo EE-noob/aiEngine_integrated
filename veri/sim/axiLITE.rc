@@ -1,0 +1,103 @@
+Magic 271485
+Revision Verdi_O-2018.09-SP2
+
+; Window Layout <x> <y> <width> <height> <signalwidth> <valuewidth>
+viewPort 0 27 1846 332 505 65
+
+; File list:
+; openDirFile [-d delimiter] [-s time_offset] [-rf auto_bus_rule_file] path_name file_name
+openDirFile -d / "" "/home/posedge/work/aiEngine_integrated/veri/sim/runs/axil_smoke/seed_20260413/tb_top.fsdb"
+
+; file time scale:
+; fileTimeScale ### s|ms|us|ns|ps
+
+; signal spacing:
+signalSpacing 5
+
+; windowTimeUnit is used for zoom, cursor & marker
+; waveform viewport range
+zoom 0.000000 14195550.000000
+cursor 3935000.000000
+marker 0.000000
+
+; user define markers
+; userMarker time_pos marker_name color linestyle
+; visible top row signal index
+top 0
+; marker line index
+markerPos 1
+
+; event list
+; addEvent event_name event_expression
+; curEvent event_name
+
+
+
+COMPLEX_EVENT_BEGIN
+
+
+COMPLEX_EVENT_END
+
+
+
+; toolbar current search type
+; curSTATUS search_type
+curSTATUS ByChange
+
+
+addGroup "axiLITE"
+activeDirFile "" "/home/posedge/work/aiEngine_integrated/veri/sim/runs/axil_smoke/seed_20260413/tb_top.fsdb"
+addSignal -h 15 /tb_top/u_mma_axil_top/u_mma_top/calc_start
+addSignal -h 15 /tb_top/u_mma_axil_top/s_axil_awaddr[15:0]
+addSignal -h 15 -holdScope s_axil_awprot[2:0]
+addSignal -h 15 -holdScope s_axil_awvalid
+addSignal -h 15 -holdScope s_axil_awready
+addSignal -h 15 -holdScope s_axil_wdata[31:0]
+addSignal -h 15 -holdScope s_axil_wstrb[3:0]
+addSignal -h 15 -holdScope s_axil_wvalid
+addSignal -h 15 -holdScope s_axil_wready
+addSignal -h 15 -holdScope s_axil_bresp[1:0]
+addSignal -h 15 -holdScope s_axil_bvalid
+addSignal -h 15 /tb_top/u_mma_axil_top/u_axil_reg_if/axil_reg_if_wr_inst/s_axil_bvalid_reg
+addSignal -h 15 -holdScope s_axil_bvalid_next
+addSignal -h 15 -holdScope reg_wr_en_reg
+addSignal -h 15 -holdScope reg_wr_ack
+addSignal -h 15 -holdScope timeout_count_reg[3:0]
+addSignal -h 15 /tb_top/u_mma_axil_top/s_axil_bready
+addSignal -h 15 -holdScope s_axil_araddr[15:0]
+addSignal -h 15 -holdScope s_axil_arprot[2:0]
+addSignal -h 15 -holdScope s_axil_arvalid
+addSignal -h 15 -holdScope s_axil_arready
+addSignal -h 15 -holdScope s_axil_rdata[31:0]
+addSignal -h 15 -holdScope s_axil_rresp[1:0]
+addSignal -h 15 -holdScope s_axil_rvalid
+addSignal -h 15 -holdScope s_axil_rready
+addGroup "G2"
+addGroup "nice control cmd"
+addGroup "rsp"
+addGroup "icb w"
+addGroup "icb r"
+addGroup "MMA ctrl"
+addGroup "compute cor"
+addGroup "xpro"
+addGroup "G9"
+addSignal -h 15 -UNSIGNED -HEX /tb_top/u_sram_icb/u_sram/u_sirv_sim_ram/mem_r[0:131071]
+addSignal -h 15 -holdScope dout_pre[31:0]
+addGroup "G10"
+
+; getSignalForm Scope Hierarchy Status
+; active file of getSignalForm
+activeDirFile "" "/home/posedge/work/aiEngine_integrated/veri/sim/runs/axil_smoke/seed_20260413/tb_top.fsdb"
+
+GETSIGNALFORM_SCOPE_HIERARCHY_BEGIN
+getSignalForm close
+
+"/_vcs_msglog"
+
+SCOPE_LIST_BEGIN
+"/_vcs_msglog"
+SCOPE_LIST_END
+
+GETSIGNALFORM_SCOPE_HIERARCHY_END
+
+

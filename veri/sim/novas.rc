@@ -373,11 +373,11 @@ saveWaveformStat = TRUE
 savePropStat = FALSE
 savePropDtl = TRUE
 [QtDialog]
-saveSigDlg = 718,298,551,386
 qWaveSignalDialog = 594,252,800,479
 GoToLineForm_base = 877,436,234,111
 restoreSigDlg = 718,272,551,438
-QwWarnMsgDlg = 428,294,600,250
+saveSigDlg = 718,298,551,386
+QwWarnMsgDlg = 428,442,600,250
 QwUserAskDlg = 833,426,324,134
 [Relationship]
 hideRecursiceNode = FALSE
@@ -655,9 +655,9 @@ DefaultLogTimeUnit = "1.000000ns"
 [VIA.oneSearch.preference.vgifColumnSettingRC.setting0]
 parRuleSets = ""
 [VIA.oneSearch.preference.vgifColumnSettingRC.setting0.column0]
-name = Code
+name = Severity
 width = 60
-visualIndex = 2
+visualIndex = 1
 isHidden = TRUE
 isUserChangeColumnVisible = FALSE
 [VIA.oneSearch.preference.vgifColumnSettingRC.setting0.column1]
@@ -679,9 +679,9 @@ visualIndex = 0
 isHidden = TRUE
 isUserChangeColumnVisible = FALSE
 [VIA.oneSearch.preference.vgifColumnSettingRC.setting0.column4]
-name = Severity
+name = Code
 width = 60
-visualIndex = 1
+visualIndex = 2
 isHidden = TRUE
 isUserChangeColumnVisible = FALSE
 [Vi]
@@ -703,7 +703,7 @@ scope_to_save_with_macro
 open_file_dir
 open_rc_file_dir
 getSignalForm = 594 215 800 479 245 381 505 183
-viewPort = 0 27 1846 475 505 65
+viewPort = 0 27 1846 332 505 65
 signalSpacing = 5
 digitalSignalHeight = 15
 analogSignalHeight = 98
@@ -974,8 +974,8 @@ curveWindow_Drag&Drop_Mode = TRUE
 hspiceIncOpenMode = TRUE
 pcSelectMode = TRUE
 hierarchyDelimiter = /
-RecentFile1 = "\"/home/posedge/work/aiEngine_integrated/veri/sim/signal.rc\""
-RecentFile2 = "\"/home/posedge/work/aiEngine_integrated/veri/sim/tb_top.fsdb\""
+RecentFile1 = "\"/home/posedge/work/aiEngine_integrated/veri/sim/tb_top.fsdb\""
+RecentFile2 = "\"/home/posedge/work/aiEngine_integrated/veri/sim/signal.rc\""
 open_file_time_range = FALSE
 value_window_aligment = Right
 signal_window_alignment = Auto
@@ -1301,7 +1301,7 @@ AddImportArgument = FALSE
 LineBreakWithScope = TRUE
 StopAfterCompileOption = -s
 [wave.0]
-viewPort = 0 27 1846 475 505 65
+viewPort = 0 27 1846 332 505 65
 [wave.1]
 viewPort = 127 219 960 332 100 65
 [wave.2]

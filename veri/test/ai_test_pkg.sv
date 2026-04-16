@@ -41,14 +41,14 @@ class ai_smoke_test extends ai_base_test;
 
         smoke_seq = ai_smoke_seq::type_id::create("smoke_seq");
 
-        if (env.nice_agent == null) begin
-            `uvm_fatal("TEST", "env.nice_agent is null")
+        if (env.active_seqr == null) begin
+            `uvm_fatal("TEST", "env.active_seqr is null")
         end
 
-        smoke_seq.nice_seqr = env.nice_agent.seqr;
+        smoke_seq.nice_seqr = env.active_seqr;
 
         #100;
-        smoke_seq.start(env.nice_agent.seqr);
+        smoke_seq.start(env.active_seqr);
 
         `uvm_info(get_type_name(), "ai_smoke_test main_phase end, dropping objection", UVM_MEDIUM)
         #100us;
@@ -70,12 +70,12 @@ class smoke_test extends ai_base_test;
         `uvm_info(get_type_name(), "smoke_test main_phase start", UVM_MEDIUM)
 
         nice_seq = ai_smoke_nice_seq::type_id::create("nice_seq");
-        if (env.nice_agent == null) begin
-            `uvm_fatal("TEST", "env.nice_agent is null")
+        if (env.active_seqr == null) begin
+            `uvm_fatal("TEST", "env.active_seqr is null")
         end
 
         #1000ns;
-        nice_seq.start(env.nice_agent.seqr);
+        nice_seq.start(env.active_seqr);
 
         `uvm_info(get_type_name(), "smoke_test main_phase end, dropping objection", UVM_MEDIUM)
         #10us;
@@ -107,7 +107,7 @@ class ai_coverage_test extends ai_base_test;
         cov_seq.cov = this.cov;
 
         if (env.nice_agent != null) begin
-            cov_seq.start(env.nice_agent.seqr);
+            cov_seq.start(env.active_seqr);
         end else begin
             cov_seq.start(null);
         end
@@ -132,14 +132,14 @@ class ai_nice_ral_csr_wr_check_test extends ai_base_test;
 
         ral_seq = ai_nice_ral_csr_wr_check_seq::type_id::create("ral_seq");
 
-        if ((env == null) || (env.nice_agent == null) || (env.regmodel == null)) begin
-            `uvm_fatal("TEST", "env/nice_agent/regmodel is null")
+        if ((env == null) || (env.active_seqr == null) || (env.regmodel == null)) begin
+            `uvm_fatal("TEST", "env/active_seqr/regmodel is null")
         end
 
         ral_seq.regmodel = env.regmodel;
 
         #1000ns;
-        ral_seq.start(env.nice_agent.seqr);
+        ral_seq.start(env.active_seqr);
 
         `uvm_info(get_type_name(), "ai_nice_ral_csr_wr_check_test main_phase end", UVM_MEDIUM)
         #2us;
@@ -160,13 +160,13 @@ class ai_mem_gen_smoke_test extends ai_base_test;
         phase.raise_objection(this);
         `uvm_info(get_type_name(), "ai_mem_gen_smoke_test main_phase start", UVM_MEDIUM)
 
-        if ((env == null) || (env.nice_agent == null)) begin
-            `uvm_fatal("TEST", "env/nice_agent is null")
+        if ((env == null) || (env.active_seqr == null)) begin
+            `uvm_fatal("TEST", "env/active_seqr is null")
         end
 
         mem_seq = ai_mem_gen_smoke_seq::type_id::create("mem_seq");
         #1000ns;
-        mem_seq.start(env.nice_agent.seqr);
+        mem_seq.start(env.active_seqr);
 
         `uvm_info(get_type_name(), "ai_mem_gen_smoke_test main_phase end", UVM_MEDIUM)
         #20us;

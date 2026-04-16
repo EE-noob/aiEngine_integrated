@@ -25,6 +25,12 @@
 `define ADDR_MULT_ACT_MIN        12'h7CF // Activation Min
 `define ADDR_MULT_ACT_MAX        12'h7D0 // Activation Max
 
+// AXI-Lite Special Registers (mma_axil_top)
+`define ADDR_AXIL_REG_CTRL       12'h000
+`define ADDR_AXIL_REG_STATUS     12'h001
+`define ADDR_AXIL_REG_WB_DATA    12'h002
+`define ADDR_AXIL_REG_WB_INFO    12'h003
+
 // Instruction Encodings
 `define NICE_CUSTOM_1            7'b0101011
 `define NICE_CUSTOM_3            7'b1111011

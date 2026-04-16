@@ -16,16 +16,16 @@ signalSpacing 5
 
 ; windowTimeUnit is used for zoom, cursor & marker
 ; waveform viewport range
-zoom 0.000000 52686650.000000
-cursor 25385000.000000
+zoom 0.000000 14195550.000000
+cursor 3935000.000000
 marker 0.000000
 
 ; user define markers
 ; userMarker time_pos marker_name color linestyle
 ; visible top row signal index
-top 36
+top 0
 ; marker line index
-markerPos 91
+markerPos 3
 
 ; event list
 ; addEvent event_name event_expression
@@ -47,6 +47,9 @@ curSTATUS ByChange
 
 addGroup "G1"
 activeDirFile "" "/home/posedge/work/aiEngine_integrated/veri/sim/tb_top.fsdb"
+addSignal -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/u_mma_top/wb_valid
+addSignal -h 15 -holdScope wb_ready
+addSignal -h 15 -holdScope err_code[1:0]
 addSignal -h 15 /tb_top/u_top_ai_engine/e203_subsys_nice_core_inst/nice_clk
 addSignal -h 15 -holdScope nice_rst_n
 addSignal -h 15 -holdScope nice_active

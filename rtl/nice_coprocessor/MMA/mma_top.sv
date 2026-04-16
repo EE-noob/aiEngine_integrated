@@ -24,7 +24,7 @@ module mma_top #(
     //==== 写回握手接口 ====
     output wire       wb_valid,  // 写回有效信号
     input  wire       wb_ready,  // 写回就绪信号
-    output wire [1:0] err_code,  // 写回状态码
+    output wire [1:0] err_code, // 写回状态码: 00=正常, 01=配置错误, 10=资源缺失
 
     // --- base pointers
     input logic [REG_WIDTH-1:0] lhs_base,  // A base         (MULT_LHS_PTR)

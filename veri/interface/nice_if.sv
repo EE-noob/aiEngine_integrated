@@ -34,6 +34,11 @@ interface nice_if (
     logic [31:0]                nice_icb_rsp_rdata;
     logic                       nice_icb_rsp_err;
 
+    // MMA monitor <-> UVM monitor synchronization (no package dependency)
+    logic                       mma_calc_start_toggle;
+    logic                       mma_wb_handshake_toggle;
+    logic [1:0]                 mma_err_code;
+
     // Driver clocking block
     clocking drv_cb @(posedge nice_clk);
         default input #1step output #1step;
@@ -74,7 +79,29 @@ interface nice_if (
         input nice_icb_rsp_ready;
         input nice_icb_rsp_rdata;
         input nice_icb_rsp_err;
+        input mma_calc_start_toggle;
+        input mma_wb_handshake_toggle;
+        input mma_err_code;
     endclocking
+
+
+    // SRAM helpers used by class-based UVM components to avoid illegal package XMR.
+    function automatic bit [31:0] read_sram_word(input int unsigned word_addr);
+`ifndef DUT_AXIL
+        read_sram_word = $root.tb_top.u_sram_icb.u_sram.u_sirv_sim_ram.mem_r[word_addr];
+`else
+        read_sram_word = 32'h0;
+`endif
+    endfunction
+
+    task automatic check_main_extram_mem(output int mismatch_cnt);
+`ifndef DUT_AXIL
+        mismatch_cnt = 0;
+        $root.tb_top.u_sram_icb.u_sram.u_sirv_sim_ram.check_mem_file("../tb/main_extram.mem", 0, 127, mismatch_cnt);
+`else
+        mismatch_cnt = 0;
+`endif
+    endtask
 
     modport drv (
         input  nice_clk,

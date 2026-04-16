@@ -38,6 +38,9 @@ class ai_nice_reg_block extends uvm_reg_block;
     rand ai_nice_csr_reg mult_dst_shift;
     rand ai_nice_csr_reg mult_act_min;
     rand ai_nice_csr_reg mult_act_max;
+`ifdef DUT_AXIL
+    rand ai_nice_csr_reg axil_ctrl;
+`endif
 
     function new(string name = "ai_nice_reg_block");
         super.new(name, UVM_NO_COVERAGE);
@@ -46,7 +49,11 @@ class ai_nice_reg_block extends uvm_reg_block;
     virtual function void build();
         default_map = create_map("default_map", 0, 4, UVM_LITTLE_ENDIAN, 0);
 
+`ifdef DUT_AXIL
+        set_hdl_path_root("tb_top.u_mma_axil_top.u_csr_unit");
+`else
         set_hdl_path_root("tb_top.u_top_ai_engine.e203_subsys_nice_core_inst.u_csr_unit");
+`endif
 
         mult_lhs_ptr = ai_nice_csr_reg::type_id::create("mult_lhs_ptr",,get_full_name());
         mult_lhs_ptr.build();
@@ -150,6 +157,14 @@ class ai_nice_reg_block extends uvm_reg_block;
         mult_act_max.add_hdl_path_slice("csr_act_max", 0, 32);
         default_map.add_reg(mult_act_max, `ADDR_MULT_ACT_MAX, "RW");
 
+`ifdef DUT_AXIL
+        // AXI-Lite special control register at 0x000 (bit0=start pulse).
+        axil_ctrl = ai_nice_csr_reg::type_id::create("axil_ctrl",,get_full_name());
+        axil_ctrl.build();
+        axil_ctrl.configure(this, null, "");
+        default_map.add_reg(axil_ctrl, `ADDR_AXIL_REG_CTRL, "RW");
+
+`endif
         lock_model();
     endfunction
 

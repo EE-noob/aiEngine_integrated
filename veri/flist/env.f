@@ -4,18 +4,20 @@
 +incdir+../test
 +incdir+../test/sequence
 +incdir+../uvc/nice
++incdir+../uvc/axil
 +incdir+../tb/sram
 
 ../interface/nice_if.sv
+../interface/axil_if.sv
 ../uvc/nice/ai_nice_pkg.sv
+../uvc/nice/mma_monitor.sv
 ../env/ai_env_pkg.sv
 ../test/ai_test_pkg.sv
 
 ../tb/top_tb.sv
+../tb/mma_monitor_bind.sv
 
-//./tb/sram/config.v
 ../tb/sram/e203_clkgate.v
-//./tb/sram/e203_defines.v
 ../tb/sram/sirv_1cyc_sram_ctrl.v
 ../tb/sram/sirv_gnrl_bufs.v
 ../tb/sram/sirv_gnrl_dffs.v

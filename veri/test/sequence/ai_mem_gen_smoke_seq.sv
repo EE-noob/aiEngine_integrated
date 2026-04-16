@@ -207,7 +207,7 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(ai_nice_seq_item);
 
         `uvm_info("MEM_GEN_SEQ", $sformatf("Config loaded: K=%0d N=%0d M=%0d lhs=0x%08h rhs=0x%08h bias=0x%08h out=0x%08h",
             cfg_k, cfg_n, cfg_m, lhs_addr, rhs_addr, bias_addr, output_base_addr), UVM_MEDIUM)
-
+        uvm_top.print_topology();
         write_csr(`ADDR_MULT_LHS_PTR,   lhs_addr[31:0]);
         write_csr(`ADDR_MULT_RHS_PTR,   rhs_addr[31:0]);
         write_csr(`ADDR_MULT_BIAS_PTR,  bias_addr[31:0]);
