@@ -50,7 +50,7 @@ class ai_nice_reg_block extends uvm_reg_block;
         default_map = create_map("default_map", 0, 4, UVM_LITTLE_ENDIAN, 0);
 
 `ifdef DUT_AXIL
-        set_hdl_path_root("tb_top.u_mma_axil_top.u_csr_unit");
+        set_hdl_path_root("tb_top.u_soc_top.u_mma_axil_top.u_csr_unit");
 `else
         set_hdl_path_root("tb_top.u_top_ai_engine.e203_subsys_nice_core_inst.u_csr_unit");
 `endif

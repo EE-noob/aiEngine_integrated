@@ -23,5 +23,6 @@
 ../tb/sram/sirv_gnrl_dffs.v
 ../tb/sram/sirv_gnrl_ram.v
 ../tb/sram/sirv_sim_ram.v
+../tb/sram/axi_sim_ram.v
 ../tb/sram/sram_icb.v
 ../tb/sram/sram_icb_ctrl.v

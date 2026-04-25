@@ -9,8 +9,7 @@ DEFINES  ?=
 UVM_HOME ?= $(VCS_HOME)/etc/uvm-1.2/
 UVM_VER  ?= -ntb_opts uvm-1.2
 NOVAS_HOME ?=
-utn      ?= test_case0
-case     ?= $(utn)
+case     ?= test_case0
 seed     ?= 1
 DUT_MODE ?= nice
 
@@ -51,11 +50,11 @@ com:
 sim:
 > @mkdir -p $(OUT_DIR)
 > @echo "[SIM] ./$(SIMV) $(SIM_OPTS) case=$(case) seed=$(seed) FSDB=$(FSDB)"
-> ./$(SIMV) $(SIM_OPTS) $(DUMPFSDB) +fsdbfile+$(FSDB) +UVM_TESTNAME=$(utn) +ntb_random_seed=$(seed) -l $(SIM_LOG) +vcs+initreg+0
+> ./$(SIMV) $(SIM_OPTS) $(DUMPFSDB) +fsdbfile+$(FSDB) +UVM_TESTNAME=$(case) +case=$(case) +ntb_random_seed=$(seed) -l $(SIM_LOG) +vcs+initreg+0
 
 vd:
 > @echo "[VERDI] case=$(case) seed=$(seed) FSDB=$(FSDB)"
-> @if [ ! -f "$(FSDB)" ]; then echo "[ERROR] FSDB not found: $(FSDB)"; echo "        Please run: make run DUT_MODE=$(DUT_MODE) utn=$(utn) case=$(case) seed=$(seed)"; exit 1; fi
+> @if [ ! -f "$(FSDB)" ]; then echo "[ERROR] FSDB not found: $(FSDB)"; echo "        Please run: make run DUT_MODE=$(DUT_MODE) case=$(case) seed=$(seed)"; exit 1; fi
 > verdi -sv $(INCDIRS:%=-y %) $(DEFINES:%=+define+%) $(MODE_DEFINES:%=+define+%) -f $(FILELIST) +incdir+$(UVM_HOME)/src -top $(TOP) $(VERDI_OPTS) -ssf $(FSDB) &
 
 clean:
@@ -63,10 +62,10 @@ clean:
 
 help:
 > @echo "Targets:"
-> @echo "  make run   [DUT_MODE=nice|axil] [utn=<UVM_TESTNAME>] [case=<name>] [seed=<int>]"
-> @echo "  make com   [DUT_MODE=nice|axil] [utn=<UVM_TESTNAME>] [case=<name>] [seed=<int>]"
-> @echo "  make sim   [DUT_MODE=nice|axil] [utn=<UVM_TESTNAME>] [case=<name>] [seed=<int>]"
-> @echo "  make vd    [DUT_MODE=nice|axil] [utn=<UVM_TESTNAME>] [case=<name>] [seed=<int>]"
+> @echo "  make run   [DUT_MODE=nice|axil] [case=<UVM_TESTNAME>] [seed=<int>]"
+> @echo "  make com   [DUT_MODE=nice|axil] [case=<UVM_TESTNAME>] [seed=<int>]"
+> @echo "  make sim   [DUT_MODE=nice|axil] [case=<UVM_TESTNAME>] [seed=<int>]"
+> @echo "  make vd    [DUT_MODE=nice|axil] [case=<UVM_TESTNAME>] [seed=<int>]"
 > @echo "  make clean"
 > @echo "  make help"
 > @echo ""
@@ -75,7 +74,7 @@ help:
 > @echo "  runs/<case>/seed_<seed>/sim.log"
 > @echo "  runs/<case>/seed_<seed>/tb_top.fsdb"
 > @echo ""
-> @echo "UVM_TESTNAME(utn) -> sequence mapping (from veri/test/ai_test_pkg.sv):"
+> @echo "case(also UVM_TESTNAME) -> sequence mapping (from veri/test/ai_test_pkg.sv):"
 > @echo "  smoke_test                    -> ai_smoke_nice_seq"
 > @echo "  ai_smoke_test                 -> ai_smoke_seq"
 > @echo "  ai_coverage_test              -> ai_nice_cov_seq"
@@ -83,8 +82,8 @@ help:
 > @echo "  ai_mem_gen_smoke_test         -> ai_mem_gen_smoke_seq"
 > @echo ""
 > @echo "Common examples:"
-> @echo "  make run DUT_MODE=nice utn=smoke_test case=smoke_test seed=1"
-> @echo "  make run DUT_MODE=axil utn=ai_mem_gen_smoke_test case=axil_smoke seed=20260413"
-> @echo "  make vd DUT_MODE=axil utn=ai_mem_gen_smoke_test case=axil_smoke seed=20260413"
+> @echo "  make run DUT_MODE=nice case=ai_mem_gen_smoke_test seed=1"
+> @echo "  make run DUT_MODE=axil case=ai_mem_gen_smoke_test seed=20260413"
+> @echo "  make vd DUT_MODE=axil case=ai_mem_gen_smoke_test seed=20260413"
 
 .PHONY: run com sim vd clean help

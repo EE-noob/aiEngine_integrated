@@ -377,8 +377,8 @@ qWaveSignalDialog = 594,252,800,479
 GoToLineForm_base = 877,436,234,111
 restoreSigDlg = 718,272,551,438
 saveSigDlg = 718,298,551,386
-QwWarnMsgDlg = 428,442,600,250
-QwUserAskDlg = 833,426,324,134
+QwWarnMsgDlg = 428,479,600,250
+QwUserAskDlg = 833,463,324,130
 [Relationship]
 hideRecursiceNode = FALSE
 [Session Cache]
@@ -565,7 +565,7 @@ pdmlMacro = ID_BLACK
 font = COURIER12
 annotFont = Helvetica_M_R_10
 [Text.1]
-viewport = 71 26 1846 857 45
+viewport = 71 26 2486 1174 45
 [TextPrinter]
 Orientation = Landscape
 Indicator = FALSE
@@ -655,33 +655,33 @@ DefaultLogTimeUnit = "1.000000ns"
 [VIA.oneSearch.preference.vgifColumnSettingRC.setting0]
 parRuleSets = ""
 [VIA.oneSearch.preference.vgifColumnSettingRC.setting0.column0]
-name = Severity
-width = 60
-visualIndex = 1
-isHidden = TRUE
-isUserChangeColumnVisible = FALSE
-[VIA.oneSearch.preference.vgifColumnSettingRC.setting0.column1]
-name = Type
-width = 60
-visualIndex = 3
-isHidden = TRUE
-isUserChangeColumnVisible = FALSE
-[VIA.oneSearch.preference.vgifColumnSettingRC.setting0.column2]
 name = Message
 width = 2000
 visualIndex = 4
 isHidden = FALSE
 isUserChangeColumnVisible = FALSE
-[VIA.oneSearch.preference.vgifColumnSettingRC.setting0.column3]
+[VIA.oneSearch.preference.vgifColumnSettingRC.setting0.column1]
 name = Time
 width = 60
 visualIndex = 0
 isHidden = TRUE
 isUserChangeColumnVisible = FALSE
-[VIA.oneSearch.preference.vgifColumnSettingRC.setting0.column4]
+[VIA.oneSearch.preference.vgifColumnSettingRC.setting0.column2]
 name = Code
 width = 60
 visualIndex = 2
+isHidden = TRUE
+isUserChangeColumnVisible = FALSE
+[VIA.oneSearch.preference.vgifColumnSettingRC.setting0.column3]
+name = Type
+width = 60
+visualIndex = 3
+isHidden = TRUE
+isUserChangeColumnVisible = FALSE
+[VIA.oneSearch.preference.vgifColumnSettingRC.setting0.column4]
+name = Severity
+width = 60
+visualIndex = 1
 isHidden = TRUE
 isUserChangeColumnVisible = FALSE
 [Vi]
@@ -703,7 +703,7 @@ scope_to_save_with_macro
 open_file_dir
 open_rc_file_dir
 getSignalForm = 594 215 800 479 245 381 505 183
-viewPort = 0 27 1846 332 505 65
+viewPort = 0 27 2486 491 505 65
 signalSpacing = 5
 digitalSignalHeight = 15
 analogSignalHeight = 98
@@ -1008,6 +1008,7 @@ SEQAddDriverLoadInSameGroup = TRUE
 autoSyncCursorMarker = FALSE
 autoSyncHorizontalRange = FALSE
 autoSyncVerticalScroll = FALSE
+RecentFile3 = "\"/home/posedge/work/aiEngine_integrated/veri/sim/tb_top.fsdb\""
 [cov_hier_name_column]
 justify = TRUE
 [coverageColors]
@@ -1301,7 +1302,7 @@ AddImportArgument = FALSE
 LineBreakWithScope = TRUE
 StopAfterCompileOption = -s
 [wave.0]
-viewPort = 0 27 1846 332 505 65
+viewPort = 0 27 2486 491 505 65
 [wave.1]
 viewPort = 127 219 960 332 100 65
 [wave.2]

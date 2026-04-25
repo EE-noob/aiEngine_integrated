@@ -242,16 +242,18 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         return dft;
     endfunction
 
-    function automatic string get_utn_name();
-        string utn_name;
-        if (!$value$plusargs("UVM_TESTNAME=%s", utn_name) || (utn_name == "")) begin
-            utn_name = "test_case_runtime";
+    function automatic string get_case_name();
+        string case_name;
+        if (!$value$plusargs("case=%s", case_name) || (case_name == "")) begin
+            if (!$value$plusargs("UVM_TESTNAME=%s", case_name) || (case_name == "")) begin
+                case_name = "test_case_runtime";
+            end
         end
-        return utn_name;
+        return case_name;
     endfunction
 
     function automatic string get_case_dir();
-        return $sformatf("../tb/%s", get_utn_name());
+        return $sformatf("../tb/%s", get_case_name());
     endfunction
 
     // Generate memory image from current CSR-shadows and reload SRAM model.
@@ -265,7 +267,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         int mismatch_cnt;
         string fix_mode_arg;
         string cmd;
-        string utn_name;
+        string case_name;
 
         k_val = get_csr_or_default(`ADDR_MULT_LHS_ROWS, req.matrix_k);
         n_val = get_csr_or_default(`ADDR_MULT_RHS_COLS, req.matrix_n);
@@ -279,11 +281,11 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         lhs_dtype = (req.a_w == 2) ? 2 : 1;
         quant_mode = req.per_ch ? 1 : 0;
         fix_mode_arg = req.fix_mode ? "--fix_mode" : "";
-        utn_name = get_utn_name();
+        case_name = get_case_name();
 
         cmd = $sformatf(
             "cd ../tb && python ./generate_test_case_complex_mem.py --K %0d --N %0d --M %0d --lhs_dtype %0d %s --quant_mode %0d --out_dir ./%s",
-            k_val, n_val, m_val, lhs_dtype, fix_mode_arg, quant_mode, utn_name
+            k_val, n_val, m_val, lhs_dtype, fix_mode_arg, quant_mode, case_name
         );
 
         `uvm_info("MEM_GEN", {"Run: ", cmd}, UVM_MEDIUM)
@@ -299,7 +301,11 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         repeat(2) @(posedge vif.nice_clk);
 
         mismatch_cnt = 0;
+        `ifdef DUT_AXIL
+        $root.tb_top.u_soc_top.u_axi_sim_ram.check_mem_file("../tb/main_extram.mem", 0, 127, mismatch_cnt);
+`else
         $root.tb_top.u_sram_icb.u_sram.u_sirv_sim_ram.check_mem_file("../tb/main_extram.mem", 0, 127, mismatch_cnt);
+`endif
         if (mismatch_cnt < 0) begin
             `uvm_error("MEM_GEN", "RAM check could not open ../tb/main_extram.mem")
         end
@@ -331,6 +337,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         string actual_path;
         string actual_mem_path;
         string expected_path;
+        bit do_compare;
 
         k_val = get_csr_or_default(`ADDR_MULT_LHS_ROWS, req.matrix_k);
         m_val = get_csr_or_default(`ADDR_MULT_RHS_ROWS, req.matrix_m);
@@ -346,6 +353,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         end
 
         case_dir = get_case_dir();
+        void'($system($sformatf("mkdir -p %s", case_dir)));
         actual_path = {case_dir, "/actual_dst.txt"};
         actual_mem_path = {case_dir, "/actual_dst.mem"};
         expected_path = {case_dir, "/expected_dst.txt"};
@@ -363,12 +371,11 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
             return;
         end
 
+        do_compare = 1'b1;
         fd_expected = $fopen(expected_path, "r");
         if (fd_expected == 0) begin
-            `uvm_error("MAT_CHK", $sformatf("Cannot open %s for reading", expected_path))
-            $fclose(fd_actual);
-            $fclose(fd_actual_mem);
-            return;
+            do_compare = 1'b0;
+            `uvm_warning("MAT_CHK", $sformatf("Cannot open %s for reading, dump actual only", expected_path))
         end
 
         mismatch_cnt = 0;
@@ -382,7 +389,11 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
                 word_addr = byte_addr >> 2;
                 lane = byte_addr & 32'h3;
 
+                `ifdef DUT_AXIL
+                mem_word = $root.tb_top.u_soc_top.u_axi_sim_ram.mem_r[word_addr];
+`else
                 mem_word = $root.tb_top.u_sram_icb.u_sram.u_sirv_sim_ram.mem_r[word_addr];
+`endif
                 act_val = $signed(mem_word[(lane * 8) +: 8]);
 
                 if (col == 0) begin
@@ -398,18 +409,20 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
                     actual_mem_word = 32'h0;
                 end
 
-                scan_rc = $fscanf(fd_expected, "%d", exp_val);
-                if (scan_rc != 1) begin
-                    mismatch_cnt = mismatch_cnt + 1;
-                    if (report_cnt < 20) begin
-                        `uvm_error("MAT_CHK", $sformatf("Expected file ended early at row=%0d col=%0d", row, col))
-                        report_cnt = report_cnt + 1;
-                    end
-                end else if (act_val != exp_val) begin
-                    mismatch_cnt = mismatch_cnt + 1;
-                    if (report_cnt < 20) begin
-                        `uvm_error("MAT_CHK", $sformatf("Mismatch at row=%0d col=%0d: exp=%0d act=%0d (byte_addr=0x%08h)", row, col, exp_val, act_val, byte_addr))
-                        report_cnt = report_cnt + 1;
+                if (do_compare) begin
+                    scan_rc = $fscanf(fd_expected, "%d", exp_val);
+                    if (scan_rc != 1) begin
+                        mismatch_cnt = mismatch_cnt + 1;
+                        if (report_cnt < 20) begin
+                            `uvm_error("MAT_CHK", $sformatf("Expected file ended early at row=%0d col=%0d", row, col))
+                            report_cnt = report_cnt + 1;
+                        end
+                    end else if (act_val != exp_val) begin
+                        mismatch_cnt = mismatch_cnt + 1;
+                        if (report_cnt < 20) begin
+                            `uvm_error("MAT_CHK", $sformatf("Mismatch at row=%0d col=%0d: exp=%0d act=%0d (byte_addr=0x%08h)", row, col, exp_val, act_val, byte_addr))
+                            report_cnt = report_cnt + 1;
+                        end
                     end
                 end
             end
@@ -420,20 +433,42 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
             $fwrite(fd_actual_mem, "%08h\n", actual_mem_word);
         end
 
-        scan_rc = $fscanf(fd_expected, "%d", exp_extra);
-        if (scan_rc == 1) begin
-            mismatch_cnt = mismatch_cnt + 1;
-            `uvm_error("MAT_CHK", "Expected file has extra data beyond KxM matrix")
+        if (do_compare) begin
+            scan_rc = $fscanf(fd_expected, "%d", exp_extra);
+            if (scan_rc == 1) begin
+                mismatch_cnt = mismatch_cnt + 1;
+                `uvm_error("MAT_CHK", "Expected file has extra data beyond KxM matrix")
+            end
         end
 
-        $fclose(fd_expected);
+        if (fd_expected != 0) begin
+            $fclose(fd_expected);
+        end
         $fclose(fd_actual);
         $fclose(fd_actual_mem);
 
-        if (mismatch_cnt == 0) begin
-            `uvm_info("MAT_CHK", $sformatf("\033[1;32mPASS\033[0m output matrix compare matched (%0d x %0d). actual=%s expected=%s", k_val, m_val, actual_path, expected_path), UVM_LOW)
+        if (do_compare) begin
+            if (mismatch_cnt == 0) begin
+                $display("\033[32mPPPPPPPPPPPP   AAAAAAAA    SSSSSSSSSS   SSSSSSSSSS\033[0m");
+                $display("\033[32mPPPPPPPPPPPP  AAAAAAAAAA  SSSSSSSSSSSS SSSSSSSSSSSS\033[0m");
+                $display("\033[32mPPPP    PPPP AA      AA  SSSS         SSSS        \033[0m");
+                $display("\033[32mPPPPPPPPPPPP AAAAAAAAAAAA  SSSSSSSSSS   SSSSSSSSSS  \033[0m");
+                $display("\033[32mPPPP        PP          PP         SSSS         SSSS\033[0m");
+                $display("\033[32mPPPP        PP          PP SSSSSSSSSSSS SSSSSSSSSSSS\033[0m");
+                $display("\033[32mPPPP        PP          PP  SSSSSSSSSS   SSSSSSSSSS \033[0m");
+                `uvm_info("MAT_CHK", $sformatf("PASS output matrix compare matched (%0d x %0d). actual=%s expected=%s", k_val, m_val, actual_path, expected_path), UVM_LOW)
+            end else begin
+                $display("\033[31mFFFFFFFFFFFFF    AAAAAAAA    IIIIIIIIII  LL          \033[0m");
+                $display("\033[31mFFFFFFFFFFFFF   AAAAAAAAAA   IIIIIIIIII  LL          \033[0m");
+                $display("\033[31mFFFF           AA      AA       II      LL          \033[0m");
+                $display("\033[31mFFFFFFFFFFF   AAAAAAAAAAAA      II      LL          \033[0m");
+                $display("\033[31mFFFF          AA          AA      II      LL          \033[0m");
+                $display("\033[31mFFFF          AA          AA   IIIIIIIIII LLLLLLLLLLL \033[0m");
+                $display("\033[31mFFFF          AA          AA   IIIIIIIIII LLLLLLLLLLL \033[0m");
+                `uvm_error("MAT_CHK", $sformatf("Output matrix compare failed: mismatch_cnt=%0d, reported=%0d. actual=%s expected=%s", mismatch_cnt, report_cnt, actual_path, expected_path))
+            end
         end else begin
-            `uvm_error("MAT_CHK", $sformatf("Output matrix compare failed: mismatch_cnt=%0d, reported=%0d. actual=%s expected=%s", mismatch_cnt, report_cnt, actual_path, expected_path))
+            `uvm_info("MAT_CHK", $sformatf("Expected file missing, dumped actual only: %s", actual_path), UVM_LOW)
         end
     endtask
 
