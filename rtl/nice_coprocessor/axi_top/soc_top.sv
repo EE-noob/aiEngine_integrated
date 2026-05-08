@@ -10,7 +10,8 @@ module soc_top #(
     parameter ICB_LEN_W       = 4,
     parameter MEM_DP          = 512,
     parameter MEM_PATH        = "",
-    parameter MEM_INIT_EN     = 0
+    parameter MEM_INIT_EN     = 0,
+    parameter [31:0] IRQ_STATUS_MASK = 32'h0000_0004
 ) (
     input  wire clk,
     input  wire rst_n,
@@ -35,6 +36,9 @@ module soc_top #(
     output wire [1:0]                     s_axil_rresp,
     output wire                           s_axil_rvalid,
     input  wire                           s_axil_rready,
+
+    output wire [31:0]                    irq,
+    input  wire [31:0]                    eoi,
 
     input  wire                           mem_reload_req,
     output wire                           mma_busy
@@ -96,7 +100,8 @@ module soc_top #(
         .BUS_WIDTH(BUS_WIDTH),
         .REG_WIDTH(REG_WIDTH),
         .ICB_ADDR_WIDTH(ICB_ADDR_WIDTH),
-        .ICB_LEN_W(ICB_LEN_W)
+        .ICB_LEN_W(ICB_LEN_W),
+        .IRQ_STATUS_MASK(IRQ_STATUS_MASK)
     ) u_mma_axil_top (
         .clk(clk),
         .rst_n(rst_n),
@@ -169,6 +174,9 @@ module soc_top #(
         .m_axi_bvalid(m_axi_bvalid),
         .m_axi_bready(m_axi_bready),
         .m_axi_bresp(m_axi_bresp),
+
+        .irq(irq),
+        .eoi(eoi),
 
         .mma_busy(mma_busy)
     );

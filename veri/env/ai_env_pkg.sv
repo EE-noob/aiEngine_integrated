@@ -44,9 +44,10 @@ class ai_env extends uvm_env;
         regmodel.build();
         regmodel.reset();
 
+        nice_scb = ai_nice_scoreboard::type_id::create("nice_scb", this);
+
         if (cfg.dut_kind == AI_DUT_NICE) begin
             nice_agent = ai_nice_agent::type_id::create("nice_agent", this);
-            nice_scb   = ai_nice_scoreboard::type_id::create("nice_scb", this);
         end else begin
             axil_agent = ai_axil_agent::type_id::create("axil_agent", this);
         end
@@ -58,10 +59,16 @@ class ai_env extends uvm_env;
         if (cfg.dut_kind == AI_DUT_NICE) begin
             nice_agent.req_ap.connect(nice_scb.analysis_req_imp);
             nice_agent.rsp_ap.connect(nice_scb.analysis_rsp_imp);
+            nice_scb.regmodel = regmodel;
+            nice_agent.monitor.regmodel = regmodel;
             regmodel.default_map.set_sequencer(nice_agent.seqr, reg_adapter);
             regmodel.default_map.set_auto_predict(1);
             active_seqr = nice_agent.seqr;
         end else begin
+            axil_agent.req_ap.connect(nice_scb.analysis_req_imp);
+            axil_agent.rsp_ap.connect(nice_scb.analysis_rsp_imp);
+            nice_scb.regmodel = regmodel;
+            axil_agent.monitor.regmodel = regmodel;
             regmodel.default_map.set_sequencer(axil_agent.seqr, reg_adapter);
             regmodel.default_map.set_auto_predict(1);
             active_seqr = axil_agent.seqr;

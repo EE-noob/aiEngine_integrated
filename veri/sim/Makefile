@@ -80,10 +80,12 @@ help:
 > @echo "  ai_coverage_test              -> ai_nice_cov_seq"
 > @echo "  ai_nice_ral_csr_wr_check_test -> ai_nice_ral_csr_wr_check_seq"
 > @echo "  ai_mem_gen_smoke_test         -> ai_mem_gen_smoke_seq"
+> @echo "  ai_ral_mem_gen_on_calc_start_test -> ai_ral_mem_gen_on_calc_start_seq"
 > @echo ""
 > @echo "Common examples:"
 > @echo "  make run DUT_MODE=nice case=ai_mem_gen_smoke_test seed=1"
+> @echo "  make run DUT_MODE=nice case=ai_ral_mem_gen_on_calc_start_test seed=1"
 > @echo "  make run DUT_MODE=axil case=ai_mem_gen_smoke_test seed=20260413"
+> @echo "  make run DUT_MODE=axil case=ai_ral_mem_gen_on_calc_start_test seed=20260413"
 > @echo "  make vd DUT_MODE=axil case=ai_mem_gen_smoke_test seed=20260413"
-
 .PHONY: run com sim vd clean help

@@ -162,8 +162,13 @@ def generate_test_case(
     lhs_dtype=None,
     fix_mode=False,
     quant_mode=None,
+    seed=None,
     out_dir="./test_case",
 ):
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
+
     # 随机生成矩阵尺寸 (128~256)
     if K is None:
         K = random.randint(16, 256)
@@ -393,6 +398,7 @@ def generate_test_case(
         "lhs_dtype": lhs_dtype,
         "fix_mode": fix_mode,
         "quant_mode": quant_mode,
+        "seed": seed,
         "out_dir": out_dir,
     }
 
@@ -406,6 +412,7 @@ if __name__ == "__main__":
     parser.add_argument("--lhs_dtype", type=int, choices=[1, 2], default=None)
     parser.add_argument("--fix_mode", action="store_true")
     parser.add_argument("--quant_mode", type=int, choices=[0, 1], default=None)
+    parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--out_dir", type=str, default="./test_case")
     args = parser.parse_args()
 
@@ -416,5 +423,6 @@ if __name__ == "__main__":
         lhs_dtype=args.lhs_dtype,
         fix_mode=args.fix_mode,
         quant_mode=args.quant_mode,
+        seed=args.seed,
         out_dir=args.out_dir,
     )

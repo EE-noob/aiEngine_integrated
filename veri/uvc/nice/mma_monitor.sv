@@ -14,7 +14,7 @@ module mma_monitor (
 );
   logic calc_start_d;
 
-  always_ff @(posedge clk or negedge rst_n) begin
+  always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       calc_start_d <= 1'b0;
     end else begin

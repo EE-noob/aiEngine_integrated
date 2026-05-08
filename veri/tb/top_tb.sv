@@ -43,7 +43,13 @@ module tb_top;
 
 `ifdef DUT_AXIL
     logic                       mma_busy;
+    logic [31:0]                mma_irq;
+    logic [31:0]                mma_eoi;
     localparam int unsigned     AXIL_MEM_DP = 131072;
+
+    assign mma_eoi = 32'h0;
+    assign axil_vif.mma_irq = mma_irq;
+    assign axil_vif.mma_status = u_soc_top.u_mma_axil_top.status_bits;
 `endif
 
 `ifndef DUT_AXIL
@@ -141,6 +147,8 @@ module tb_top;
         .s_axil_rresp    (axil_vif.rresp),
         .s_axil_rvalid   (axil_vif.rvalid),
         .s_axil_rready   (axil_vif.rready),
+        .irq             (mma_irq),
+        .eoi             (mma_eoi),
         .mem_reload_req  (nice_vif.mem_reload_req),
         .mma_busy        (mma_busy)
     );

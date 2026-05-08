@@ -11,6 +11,8 @@ class ai_nice_scoreboard extends uvm_scoreboard;
     uvm_analysis_imp_rsp #(ai_nice_seq_item, ai_nice_scoreboard) analysis_rsp_imp;
     ai_nice_seq_item pending_q[$];
     virtual nice_if vif;
+    ai_nice_reg_block regmodel;
+    bit [31:0] csr_shadow[bit [11:0]];
 
     virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
@@ -27,6 +29,10 @@ class ai_nice_scoreboard extends uvm_scoreboard;
 
     virtual function void write_req(ai_nice_seq_item tr);
         ai_nice_seq_item cpy;
+        if (tr.cmd_kind == NICE_WR_CSR) begin
+            csr_shadow[tr.csr_addr[11:0]] = tr.csr_data;
+        end
+
         if ((tr.cmd_kind == NICE_AUTO) || (tr.cmd_kind == NICE_TRIGGER)) begin
             cpy = ai_nice_seq_item::type_id::create("pending_req_cpy");
             cpy.copy(tr);
@@ -39,15 +45,14 @@ class ai_nice_scoreboard extends uvm_scoreboard;
     virtual function void write_rsp(ai_nice_seq_item tr);
         ai_nice_seq_item req;
         if (pending_q.size() == 0) begin
-            `uvm_info("ai_nice_seq_item req q empty", $sformatf("Compare trigger arrived but no pending req. Status=0x%08h", tr.csr_data), UVM_LOW)
-            return;
+            req = ai_nice_seq_item::type_id::create("mirror_only_req");
+            req.cmd_kind = NICE_TRIGGER;
+            `uvm_info("ai_nice_seq_item req q empty", $sformatf("Compare trigger arrived with no pending req, using RAL mirror only. Status=0x%08h", tr.csr_data), UVM_LOW)
+        end else begin
+            req = pending_q.pop_front();
         end
-
-        req = pending_q.pop_front();
         `uvm_info("MULT_DONE", $sformatf("Matrix compare triggered. Status=0x%08h", tr.csr_data), UVM_LOW)
-        //if (req.cmd_kind == NICE_AUTO) begin
-            dump_compare_output_matrix(req);
-        //end
+        dump_compare_output_matrix(req);
     endfunction
 
     function automatic string get_utn_name();
@@ -74,6 +79,25 @@ class ai_nice_scoreboard extends uvm_scoreboard;
         wgt_base = ia_base + ((ia_size + 3) & 32'hFFFF_FF01);
         bias_base = wgt_base + ((wgt_size + 3) & 32'hFFFF_FF01);
         return bias_base + ((bias_size + 3) & 32'hFFFF_FF01);
+    endfunction
+
+    function automatic bit mirror_is_valid();
+        if (regmodel == null) begin
+            return 1'b0;
+        end
+        return ((regmodel.mult_lhs_rows.get_mirrored_value() != 0) &&
+                (regmodel.mult_rhs_rows.get_mirrored_value() != 0) &&
+                (regmodel.mult_dst_stride.get_mirrored_value() != 0));
+    endfunction
+
+    function automatic bit shadow_is_valid();
+        return csr_shadow.exists(`ADDR_MULT_LHS_ROWS) &&
+               csr_shadow.exists(`ADDR_MULT_RHS_ROWS) &&
+               csr_shadow.exists(`ADDR_MULT_DST_PTR) &&
+               csr_shadow.exists(`ADDR_MULT_DST_STRIDE) &&
+               (csr_shadow[`ADDR_MULT_LHS_ROWS] != 0) &&
+               (csr_shadow[`ADDR_MULT_RHS_ROWS] != 0) &&
+               (csr_shadow[`ADDR_MULT_DST_STRIDE] != 0);
     endfunction
 
     function automatic void dump_compare_output_matrix(ai_nice_seq_item req);
@@ -103,10 +127,35 @@ class ai_nice_scoreboard extends uvm_scoreboard;
         string actual_mem_path;
         string expected_path;
 
-        k_val = req.matrix_k;
-        m_val = req.matrix_m;
-        dst_base = infer_out_base(req);
-        dst_stride = req.matrix_m;
+        if (mirror_is_valid()) begin
+            uvm_reg_data_t mirror_k;
+            uvm_reg_data_t mirror_m;
+            uvm_reg_data_t mirror_dst_base;
+            uvm_reg_data_t mirror_dst_stride;
+
+            mirror_k = regmodel.mult_lhs_rows.get_mirrored_value();
+            mirror_m = regmodel.mult_rhs_rows.get_mirrored_value();
+            mirror_dst_base = regmodel.mult_dst_ptr.get_mirrored_value();
+            mirror_dst_stride = regmodel.mult_dst_stride.get_mirrored_value();
+
+            k_val = int'(mirror_k[31:0]);
+            m_val = int'(mirror_m[31:0]);
+            dst_base = int'(mirror_dst_base[31:0]);
+            dst_stride = int'(mirror_dst_stride[31:0]);
+        end else if (shadow_is_valid()) begin
+            k_val = int'(csr_shadow[`ADDR_MULT_LHS_ROWS]);
+            m_val = int'(csr_shadow[`ADDR_MULT_RHS_ROWS]);
+            dst_base = int'(csr_shadow[`ADDR_MULT_DST_PTR]);
+            dst_stride = int'(csr_shadow[`ADDR_MULT_DST_STRIDE]);
+        end else begin
+            k_val = req.matrix_k;
+            m_val = req.matrix_m;
+            dst_base = infer_out_base(req);
+            dst_stride = req.matrix_m;
+        end
+
+        `uvm_info("MAT_CHK", $sformatf("Compare window: dst_base=0x%08h dst_stride=%0d K=%0d M=%0d mirror_valid=%0b shadow_valid=%0b",
+            dst_base, dst_stride, k_val, m_val, mirror_is_valid(), shadow_is_valid()), UVM_MEDIUM)
 
         if ((k_val <= 0) || (m_val <= 0) || (dst_stride <= 0)) begin
             `uvm_error("MAT_CHK", $sformatf("Invalid matrix shape/stride for compare: K=%0d M=%0d DST_STRIDE=%0d", k_val, m_val, dst_stride))

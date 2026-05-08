@@ -12,6 +12,7 @@ import uvm_pkg::*;
 `include "ai_nice_driver.sv"
 `include "ai_nice_monitor.sv"
 `include "../axil/ai_axil_driver.sv"
+`include "../axil/ai_axil_monitor.sv"
 `include "../axil/ai_axil_agent.sv"
 `include "ai_nice_coverage.sv"
 `include "ai_nice_scoreboard.sv"

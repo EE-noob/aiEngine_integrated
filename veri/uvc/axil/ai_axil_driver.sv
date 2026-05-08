@@ -48,8 +48,8 @@ class ai_axil_driver extends uvm_driver #(ai_nice_seq_item);
         ai_nice_seq_item req;
         forever begin
             seq_item_port.get_next_item(req);
-            drive_item(req);
             item_collected_port.write(req);
+            drive_item(req);
             seq_item_port.item_done();
         end
     endtask
@@ -202,7 +202,7 @@ class ai_axil_driver extends uvm_driver #(ai_nice_seq_item);
         csr_shadow[addr] = data;
     endtask
 
-    task csr_rd(bit [11:0] addr, inout bit [31:0] data, bit check_en = 1'b1);
+    task csr_rd(input bit [11:0] addr, inout bit [31:0] data, input bit check_en = 1'b1);
         bit [31:0] rdata;
         bit [31:0] expected;
         string name;
@@ -418,11 +418,6 @@ class ai_axil_driver extends uvm_driver #(ai_nice_seq_item);
 
     task send_mat_mult(ai_nice_seq_item req);
         bit [31:0] ctrl;
-        bit [31:0] status;
-        bit [1:0] err_code;
-        int timeout;
-        int timeout_max;
-        int poll_cnt;
 
         ctrl = 32'h0;
         ctrl[2] = req.per_ch;
@@ -431,37 +426,6 @@ class ai_axil_driver extends uvm_driver #(ai_nice_seq_item);
 
         // Trigger MMA through AXIL special CTRL register (bit0=start pulse).
         csr_wr(`ADDR_AXIL_REG_CTRL, ctrl);
-
-        timeout_max = 500_000_000;
-        void'($value$plusargs("AXIL_DONE_TIMEOUT=%d", timeout_max));
-        timeout = timeout_max;
-        poll_cnt = 0;
-
-        while (timeout > 0) begin
-            axil_read(csr_axil_addr(`ADDR_AXIL_REG_STATUS), status);
-            poll_cnt++;
-
-            if (status[2]) begin
-                err_code = status[5:4];
-                case (err_code)
-                    2'b00: begin
-                        `uvm_info("AXIL_DONE", $sformatf("MMA done after %0d polls, status=0x%08h err=00", poll_cnt, status), UVM_LOW)
-                        dump_compare_output_matrix(req);
-                    end
-                    2'b01: `uvm_error("AXIL_DONE", $sformatf("MMA done but err=01(配置错误), status=0x%08h", status))
-                    2'b10: `uvm_error("AXIL_DONE", $sformatf("MMA done but err=10(资源缺失), status=0x%08h", status))
-                    default: `uvm_error("AXIL_DONE", $sformatf("MMA done but err=%b(未知), status=0x%08h", err_code, status))
-                endcase
-                return;
-            end
-
-            if ((poll_cnt % 10000) == 0) begin
-                `uvm_info("AXIL_WAIT", $sformatf("Waiting MMA done... polls=%0d/%0d status=0x%08h", poll_cnt, timeout_max, status), UVM_LOW)
-            end
-            timeout--;
-        end
-
-        `uvm_error("AXIL_TIMEOUT", $sformatf("Timeout waiting MMA done (REG_STATUS[2]); polls=%0d status=0x%08h", poll_cnt, status))
     endtask
 
 endclass

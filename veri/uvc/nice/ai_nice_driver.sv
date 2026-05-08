@@ -60,9 +60,9 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         forever begin
             seq_item_port.get_next_item(req);
             `uvm_info(get_type_name(), $sformatf("Got transaction: %s", req.convert2string()), UVM_HIGH)
+            item_collected_port.write(req);
             drive_item(req);
 
-            item_collected_port.write(req);
             seq_item_port.item_done();
         end
     endtask
@@ -178,7 +178,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         @(posedge vif.nice_clk);
     endtask
 
-    task csr_rd(bit [11:0] addr, inout bit [31:0] data, bit check_en = 1'b1);
+    task csr_rd(input bit [11:0] addr, inout bit [31:0] data, input bit check_en = 1'b1);
         bit [31:0] expected;
         bit [31:0] rdata;
         string name = csr_name(addr);
@@ -440,7 +440,6 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
             @(posedge vif.nice_clk);
         end
         `uvm_info("MULT Done", $sformatf("Matrix Mult Done. Status=0x%08h", vif.nice_rsp_rdat), UVM_NONE)
-        dump_compare_output_matrix(req);
         drv_done_ap.write(req);
         @(posedge vif.nice_clk);
     endtask

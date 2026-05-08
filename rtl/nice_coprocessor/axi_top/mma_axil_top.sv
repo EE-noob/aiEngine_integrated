@@ -11,7 +11,8 @@ module mma_axil_top #(
     parameter ICB_ADDR_WIDTH  = 32,
     parameter ICB_LEN_W       = 4,
     parameter AXI_FIFO_DP     = 2,
-    parameter AXI_FIFO_OUTS   = 8
+    parameter AXI_FIFO_OUTS   = 8,
+    parameter [31:0] IRQ_STATUS_MASK = 32'h0000_0004
 ) (
     input  wire clk,
     input  wire rst_n,
@@ -88,6 +89,10 @@ module mma_axil_top #(
     input  wire                         m_axi_bvalid,
     output wire                         m_axi_bready,
     input  wire [1:0]                   m_axi_bresp,
+
+    // PicoRV32-style interrupt interface
+    output wire [31:0]                  irq,
+    input  wire [31:0]                  eoi,
 
     // Optional status output
     output wire                         mma_busy
@@ -193,6 +198,12 @@ module mma_axil_top #(
     reg done_sticky;
     reg [REG_WIDTH-1:0] last_wb_data;
     reg last_wb_valid;
+    reg [31:0] irq_req_reg;
+    reg [31:0] status_irq_bits_d;
+
+    wire [31:0] status_bits;
+    wire [31:0] status_irq_bits;
+    wire [31:0] status_irq_set;
 
     wire [11:0] wr_word_addr = reg_wr_addr[13:2];
     wire [11:0] rd_word_addr = reg_rd_addr[13:2];
@@ -211,6 +222,11 @@ module mma_axil_top #(
     assign nice_rsp_ready = 1'b1;
     assign mma_wb_data = {{(REG_WIDTH-2){1'b0}}, mma_err_code};
     assign mma_busy = mma_busy_reg;
+    assign irq = irq_req_reg;
+    assign status_bits = {24'b0, csr_ready, nice_rsp_err, mma_err_code,
+                          last_wb_valid, done_sticky, mma_busy_reg, mma_sa_ready};
+    assign status_irq_bits = status_bits & IRQ_STATUS_MASK;
+    assign status_irq_set = status_irq_bits & ~status_irq_bits_d;
 
     // Keep legacy ICB ports visible for compatibility/debug.
     assign m_icb_cmd_valid = sa_icb_cmd_valid;
@@ -292,13 +308,7 @@ module mma_axil_top #(
                 reg_rd_data_r[2:1] = {use_per_channel_reg, cfg_16bits_ia_reg};
             end
             REG_STATUS: begin
-                reg_rd_data_r[0] = mma_sa_ready;
-                reg_rd_data_r[1] = mma_busy_reg;
-                reg_rd_data_r[2] = done_sticky;
-                reg_rd_data_r[3] = last_wb_valid;
-                reg_rd_data_r[5:4] = mma_err_code;
-                reg_rd_data_r[6] = nice_rsp_err;
-                reg_rd_data_r[7] = csr_ready;
+                reg_rd_data_r[7:0] = status_bits[7:0];
             end
             REG_WB_DATA: begin
                 reg_rd_data_r = last_wb_data;
@@ -325,8 +335,12 @@ module mma_axil_top #(
             done_sticky         <= 1'b0;
             last_wb_data        <= {REG_WIDTH{1'b0}};
             last_wb_valid       <= 1'b0;
+            irq_req_reg         <= 32'b0;
+            status_irq_bits_d   <= 32'b0;
         end else begin
             calc_start_pulse <= 1'b0;
+            irq_req_reg <= (irq_req_reg | status_irq_set) & ~eoi;
+            status_irq_bits_d <= status_irq_bits;
 
             if (wr_is_ctrl) begin
                 if (reg_wr_strb[0]) begin

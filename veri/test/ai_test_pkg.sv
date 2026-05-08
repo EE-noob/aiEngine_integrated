@@ -10,6 +10,7 @@ import uvm_pkg::*;
 `include "sequence/ai_nice_cov_seq.sv"
 `include "sequence/ai_nice_ral_csr_wr_check_seq.sv"
 `include "sequence/ai_mem_gen_smoke_seq.sv"
+`include "sequence/ai_ral_mem_gen_on_calc_start_seq.sv"
 
 class ai_base_test extends uvm_test;
     `uvm_component_utils(ai_base_test)
@@ -209,6 +210,41 @@ class ai_mem_gen_smoke_test extends ai_base_test;
         mem_seq.start(env.active_seqr);
 
         `uvm_info(get_type_name(), "ai_mem_gen_smoke_test main_phase end", UVM_MEDIUM)
+        #20us;
+        phase.drop_objection(this);
+    endtask
+endclass
+
+class ai_ral_mem_gen_on_calc_start_test extends ai_base_test;
+    `uvm_component_utils(ai_ral_mem_gen_on_calc_start_test)
+
+    function new(string name = "ai_ral_mem_gen_on_calc_start_test", uvm_component parent = null);
+        super.new(name, parent);
+    endfunction
+
+    virtual function void build_phase(uvm_phase phase);
+        uvm_config_db#(bit)::set(this, "env.nice_agent.monitor", "enable_mem_gen_on_calc_start", 1'b1);
+        uvm_config_db#(bit)::set(this, "env.axil_agent.monitor", "enable_mem_gen_on_calc_start", 1'b1);
+        super.build_phase(phase);
+    endfunction
+
+    virtual task main_phase(uvm_phase phase);
+        ai_ral_mem_gen_on_calc_start_seq ral_mem_seq;
+
+        phase.raise_objection(this);
+        `uvm_info(get_type_name(), "ai_ral_mem_gen_on_calc_start_test main_phase start", UVM_MEDIUM)
+
+        if ((env == null) || (env.active_seqr == null) || (env.regmodel == null)) begin
+            `uvm_fatal("TEST", "env/active_seqr/regmodel is null")
+        end
+
+        ral_mem_seq = ai_ral_mem_gen_on_calc_start_seq::type_id::create("ral_mem_seq");
+        ral_mem_seq.regmodel = env.regmodel;
+
+        #1000ns;
+        ral_mem_seq.start(env.active_seqr);
+
+        `uvm_info(get_type_name(), "ai_ral_mem_gen_on_calc_start_test main_phase end", UVM_MEDIUM)
         #20us;
         phase.drop_objection(this);
     endtask
