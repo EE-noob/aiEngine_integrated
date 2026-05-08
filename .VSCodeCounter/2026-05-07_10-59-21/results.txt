@@ -1,0 +1,189 @@
+Date : 2026-05-07 10:59:21
+Directory : /home/posedge/work/aiEngine_integrated/picorv32
+Total : 133 files,  15176 codes, 907 comments, 2919 blanks, all 19002 lines
+
+Languages
++---------------------------+------------+------------+------------+------------+------------+
+| language                  | files      | code       | comment    | blank      | total      |
++---------------------------+------------+------------+------------+------------+------------+
+| Verilog                   |         41 |      7,951 |        132 |      1,091 |      9,174 |
+| C                         |         20 |      2,274 |        316 |        474 |      3,064 |
+| Markdown                  |          6 |      1,575 |          0 |        701 |      2,276 |
+| C++                       |          9 |        789 |        370 |        150 |      1,309 |
+| XML                       |          1 |        755 |          1 |          2 |        758 |
+| Makefile                  |         11 |        648 |         28 |        233 |        909 |
+| Shell Script              |         16 |        373 |         37 |        126 |        536 |
+| Python                    |          8 |        349 |         17 |         69 |        435 |
+| Diff                      |          5 |        264 |          0 |         26 |        290 |
+| gtkw_waveconfig           |          1 |         71 |          0 |          1 |         72 |
+| Tcl                       |          8 |         64 |          2 |         30 |         96 |
+| YAML                      |          1 |         33 |          0 |          5 |         38 |
+| Xilinx Design Constraints |          6 |         30 |          4 |         11 |         45 |
++---------------------------+------------+------------+------------+------------+------------+
+
+Directories
++--------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                       | files      | code       | comment    | blank      | total      |
++--------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                          |        133 |     15,176 |        907 |      2,919 |     19,002 |
+| . (Files)                                                                                  |         10 |      5,097 |         62 |      1,134 |      6,293 |
+| .github                                                                                    |          1 |         33 |          0 |          5 |         38 |
+| .github/workflows                                                                          |          1 |         33 |          0 |          5 |         38 |
+| dhrystone                                                                                  |          9 |      1,217 |        573 |        246 |      2,036 |
+| firmware                                                                                   |          8 |        384 |         62 |        104 |        550 |
+| picosoc                                                                                    |         15 |      3,690 |         73 |        545 |      4,308 |
+| scripts                                                                                    |         88 |      4,193 |        136 |        797 |      5,126 |
+| scripts/csmith                                                                             |          5 |        299 |         10 |         56 |        365 |
+| scripts/cxxdemo                                                                            |          5 |        310 |          7 |         56 |        373 |
+| scripts/icestorm                                                                           |          5 |        202 |         22 |         65 |        289 |
+| scripts/presyn                                                                             |          3 |        125 |          1 |         23 |        149 |
+| scripts/quartus                                                                            |         12 |        528 |         10 |         91 |        629 |
+| scripts/romload                                                                            |          6 |        295 |         17 |         55 |        367 |
+| scripts/smtbmc                                                                             |         16 |      1,040 |         24 |        169 |      1,233 |
+| scripts/tomthumbtg                                                                         |          2 |        103 |          3 |         22 |        128 |
+| scripts/torture                                                                            |         11 |        496 |          9 |         98 |        603 |
+| scripts/vivado                                                                             |         17 |        623 |         15 |        116 |        754 |
+| scripts/yosys                                                                              |          2 |         35 |          1 |          4 |         40 |
+| scripts/yosys-cmp                                                                          |          4 |        137 |         17 |         42 |        196 |
+| tests                                                                                      |          2 |        562 |          1 |         88 |        651 |
++--------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++--------------------------------------------------------------------------------------------+---------------------------+------------+------------+------------+------------+
+| filename                                                                                   | language                  | code       | comment    | blank      | total      |
++--------------------------------------------------------------------------------------------+---------------------------+------------+------------+------------+------------+
+| /home/posedge/work/aiEngine_integrated/picorv32/.github/workflows/ci.yml                   | YAML                      |         33 |          0 |          5 |         38 |
+| /home/posedge/work/aiEngine_integrated/picorv32/Makefile                                   | Makefile                  |        140 |          3 |         42 |        185 |
+| /home/posedge/work/aiEngine_integrated/picorv32/README.md                                  | Markdown                  |        515 |          0 |        226 |        741 |
+| /home/posedge/work/aiEngine_integrated/picorv32/README_中文翻译.md                             | Markdown                  |        317 |          0 |        226 |        543 |
+| /home/posedge/work/aiEngine_integrated/picorv32/USAGE_LEARNING_CN.md                       | Markdown                  |        600 |          0 |        201 |        801 |
+| /home/posedge/work/aiEngine_integrated/picorv32/dhrystone/Makefile                         | Makefile                  |         51 |          0 |         19 |         70 |
+| /home/posedge/work/aiEngine_integrated/picorv32/dhrystone/dhry.h                           | C++                       |         60 |        355 |         14 |        429 |
+| /home/posedge/work/aiEngine_integrated/picorv32/dhrystone/dhry_1.c                         | C                         |        297 |         75 |         56 |        428 |
+| /home/posedge/work/aiEngine_integrated/picorv32/dhrystone/dhry_1_orig.c                    | C                         |        262 |         73 |         51 |        386 |
+| /home/posedge/work/aiEngine_integrated/picorv32/dhrystone/dhry_2.c                         | C                         |        115 |         53 |         25 |        193 |
+| /home/posedge/work/aiEngine_integrated/picorv32/dhrystone/stdlib.c                         | C                         |        165 |         10 |         36 |        211 |
+| /home/posedge/work/aiEngine_integrated/picorv32/dhrystone/syscalls.c                       | C                         |         76 |          6 |         14 |         96 |
+| /home/posedge/work/aiEngine_integrated/picorv32/dhrystone/testbench.v                      | Verilog                   |        111 |          0 |         16 |        127 |
+| /home/posedge/work/aiEngine_integrated/picorv32/dhrystone/testbench_nola.v                 | Verilog                   |         80 |          1 |         15 |         96 |
+| /home/posedge/work/aiEngine_integrated/picorv32/firmware/firmware.h                        | C++                       |         22 |         12 |         10 |         44 |
+| /home/posedge/work/aiEngine_integrated/picorv32/firmware/hello.c                           | C                         |          5 |          6 |          4 |         15 |
+| /home/posedge/work/aiEngine_integrated/picorv32/firmware/irq.c                             | C                         |        107 |         10 |         24 |        141 |
+| /home/posedge/work/aiEngine_integrated/picorv32/firmware/makehex.py                        | Python                    |         13 |          8 |          7 |         28 |
+| /home/posedge/work/aiEngine_integrated/picorv32/firmware/multest.c                         | C                         |        114 |          6 |         32 |        152 |
+| /home/posedge/work/aiEngine_integrated/picorv32/firmware/print.c                           | C                         |         28 |          6 |          8 |         42 |
+| /home/posedge/work/aiEngine_integrated/picorv32/firmware/sieve.c                           | C                         |         63 |          8 |         14 |         85 |
+| /home/posedge/work/aiEngine_integrated/picorv32/firmware/stats.c                           | C                         |         32 |          6 |          5 |         43 |
+| /home/posedge/work/aiEngine_integrated/picorv32/picorv32.v                                 | Verilog                   |      2,704 |         42 |        304 |      3,050 |
+| /home/posedge/work/aiEngine_integrated/picorv32/picosoc/Makefile                           | Makefile                  |         79 |          5 |         40 |        124 |
+| /home/posedge/work/aiEngine_integrated/picorv32/picosoc/README.md                          | Markdown                  |         87 |          0 |         28 |        115 |
+| /home/posedge/work/aiEngine_integrated/picorv32/picosoc/firmware.c                         | C                         |        596 |         39 |        136 |        771 |
+| /home/posedge/work/aiEngine_integrated/picorv32/picosoc/hx8kdemo.v                         | Verilog                   |        117 |          0 |         23 |        140 |
+| /home/posedge/work/aiEngine_integrated/picorv32/picosoc/hx8kdemo_tb.v                      | Verilog                   |         89 |          0 |         20 |        109 |
+| /home/posedge/work/aiEngine_integrated/picorv32/picosoc/ice40up5k_spram.v                  | Verilog                   |         81 |          1 |         10 |         92 |
+| /home/posedge/work/aiEngine_integrated/picorv32/picosoc/icebreaker.v                       | Verilog                   |        126 |          0 |         26 |        152 |
+| /home/posedge/work/aiEngine_integrated/picorv32/picosoc/icebreaker_tb.v                    | Verilog                   |         99 |          3 |         21 |        123 |
+| /home/posedge/work/aiEngine_integrated/picorv32/picosoc/overview.svg                       | XML                       |        755 |          1 |          2 |        758 |
+| /home/posedge/work/aiEngine_integrated/picorv32/picosoc/performance.py                     | Python                    |        149 |          3 |         14 |        166 |
+| /home/posedge/work/aiEngine_integrated/picorv32/picosoc/picosoc.v                          | Verilog                   |        214 |          4 |         45 |        263 |
+| /home/posedge/work/aiEngine_integrated/picorv32/picosoc/simpleuart.v                       | Verilog                   |        125 |          0 |         13 |        138 |
+| /home/posedge/work/aiEngine_integrated/picorv32/picosoc/spiflash.v                         | Verilog                   |        339 |         17 |         54 |        410 |
+| /home/posedge/work/aiEngine_integrated/picorv32/picosoc/spiflash_tb.v                      | Verilog                   |        318 |          0 |         49 |        367 |
+| /home/posedge/work/aiEngine_integrated/picorv32/picosoc/spimemio.v                         | Verilog                   |        516 |          0 |         64 |        580 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/csmith/Makefile                    | Makefile                  |         67 |          0 |         19 |         86 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/csmith/riscv-isa-sim.diff          | Diff                      |         59 |          0 |          4 |         63 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/csmith/syscalls.c                  | C                         |         76 |          6 |         14 |         96 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/csmith/testbench.cc                | C++                       |         14 |          0 |          5 |         19 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/csmith/testbench.v                 | Verilog                   |         83 |          4 |         14 |        101 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/cxxdemo/Makefile                   | Makefile                  |         31 |          0 |          8 |         39 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/cxxdemo/firmware.cc                | C++                       |         71 |          0 |         17 |         88 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/cxxdemo/hex8tohex32.py             | Python                    |         27 |          1 |          7 |         35 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/cxxdemo/syscalls.c                 | C                         |         76 |          6 |         14 |         96 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/cxxdemo/testbench.v                | Verilog                   |        105 |          0 |         10 |        115 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/icestorm/Makefile                  | Makefile                  |         58 |         15 |         32 |        105 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/icestorm/example.v                 | Verilog                   |         61 |          7 |         13 |         81 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/icestorm/example_tb.v              | Verilog                   |         26 |          0 |          5 |         31 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/icestorm/firmware.c                | C                         |         49 |          0 |         10 |         59 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/icestorm/readme.md                 | Markdown                  |          8 |          0 |          5 |         13 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/presyn/Makefile                    | Makefile                  |         15 |          0 |          8 |         23 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/presyn/firmware.c                  | C                         |         40 |          0 |          4 |         44 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/presyn/testbench.v                 | Verilog                   |         70 |          1 |         11 |         82 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/Makefile                   | Makefile                  |         49 |          0 |         14 |         63 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/firmware.c                 | C                         |         40 |          0 |          4 |         44 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/synth_area.sdc             | Xilinx Design Constraints |          1 |          0 |          1 |          2 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/synth_area_top.v           | Verilog                   |        122 |          4 |         15 |        141 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/synth_speed.sdc            | Xilinx Design Constraints |          1 |          0 |          1 |          2 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/synth_system.sdc           | Xilinx Design Constraints |          1 |          0 |          1 |          2 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/synth_system.tcl           | Tcl                       |         11 |          1 |          6 |         18 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/system.v                   | Verilog                   |         88 |          2 |         12 |        102 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/system_tb.v                | Verilog                   |         33 |          0 |          6 |         39 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/table.sh                   | Shell Script              |         14 |          1 |          3 |         18 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/tabtest.sh                 | Shell Script              |         61 |          2 |         16 |         79 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/tabtest.v                  | Verilog                   |        107 |          0 |         12 |        119 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/romload/Makefile                   | Makefile                  |         31 |          1 |         10 |         42 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/romload/firmware.c                 | C                         |         17 |          0 |          5 |         22 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/romload/hex8tohex32.py             | Python                    |         27 |          1 |          7 |         35 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/romload/map2debug.py               | Python                    |         24 |          1 |          6 |         31 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/romload/syscalls.c                 | C                         |         76 |          6 |         14 |         96 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/romload/testbench.v                | Verilog                   |        120 |          8 |         13 |        141 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/axicheck.sh                 | Shell Script              |          7 |          2 |          5 |         14 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/axicheck.v                  | Verilog                   |        178 |          3 |         30 |        211 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/axicheck2.sh                | Shell Script              |          7 |          1 |          5 |         13 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/axicheck2.v                 | Verilog                   |        132 |          0 |         16 |        148 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/mulcmp.sh                   | Shell Script              |          7 |          1 |          5 |         13 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/mulcmp.v                    | Verilog                   |         73 |          0 |         15 |         88 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/notrap_validop.sh           | Shell Script              |          8 |          1 |          5 |         14 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/notrap_validop.v            | Verilog                   |         55 |          1 |         12 |         68 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/opcode.v                    | Verilog                   |         96 |          0 |          9 |        105 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/tracecmp.gtkw               | gtkw_waveconfig           |         71 |          0 |          1 |         72 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/tracecmp.sh                 | Shell Script              |          7 |          1 |          5 |         13 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/tracecmp.v                  | Verilog                   |         91 |          5 |         14 |        110 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/tracecmp2.sh                | Shell Script              |          7 |          1 |          5 |         13 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/tracecmp2.v                 | Verilog                   |        175 |          5 |         17 |        197 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/tracecmp3.sh                | Shell Script              |         12 |          1 |          5 |         18 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/tracecmp3.v                 | Verilog                   |        114 |          2 |         20 |        136 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/tomthumbtg/run.sh                  | Shell Script              |         32 |          1 |         11 |         44 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/tomthumbtg/testbench.v             | Verilog                   |         71 |          2 |         11 |         84 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/Makefile                   | Makefile                  |         73 |          3 |         26 |        102 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/asmcheck.py                | Python                    |         29 |          1 |          7 |         37 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/config.py                  | Python                    |         29 |          1 |          6 |         36 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/riscv-isa-sim-notrap.diff  | Diff                      |         14 |          0 |          3 |         17 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/riscv-isa-sim-sbreak.diff  | Diff                      |         26 |          0 |          1 |         27 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/riscv-torture-genloop.diff | Diff                      |         37 |          0 |          4 |         41 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/riscv-torture-rv32.diff    | Diff                      |        128 |          0 |         14 |        142 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/riscv_test.h               | C++                       |         10 |          0 |          4 |         14 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/test.sh                    | Shell Script              |         16 |          4 |         13 |         33 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/testbench.cc               | C++                       |         14 |          0 |          5 |         19 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/testbench.v                | Verilog                   |        120 |          0 |         15 |        135 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/Makefile                    | Makefile                  |         54 |          1 |         15 |         70 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/firmware.c                  | C                         |         40 |          0 |          4 |         44 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_area.tcl              | Tcl                       |          6 |          0 |          3 |          9 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_area.xdc              | Xilinx Design Constraints |          1 |          0 |          1 |          2 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_area_large.tcl        | Tcl                       |          8 |          0 |          3 |         11 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_area_regular.tcl      | Tcl                       |          8 |          0 |          3 |         11 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_area_small.tcl        | Tcl                       |          8 |          0 |          3 |         11 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_area_top.v            | Verilog                   |        122 |          4 |         15 |        141 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_speed.tcl             | Tcl                       |          9 |          0 |          5 |         14 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_speed.xdc             | Xilinx Design Constraints |          1 |          0 |          1 |          2 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_system.tcl            | Tcl                       |         11 |          1 |          6 |         18 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_system.xdc            | Xilinx Design Constraints |         25 |          4 |          6 |         35 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/system.v                    | Verilog                   |         88 |          2 |         12 |        102 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/system_tb.v                 | Verilog                   |         33 |          0 |          6 |         39 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/table.sh                    | Shell Script              |         18 |          1 |          3 |         22 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/tabtest.sh                  | Shell Script              |         84 |          2 |         18 |        104 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/tabtest.v                   | Verilog                   |        107 |          0 |         12 |        119 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/yosys-cmp/README.md                | Markdown                  |         48 |          0 |         15 |         63 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/yosys-cmp/lse.sh                   | Shell Script              |         38 |          6 |         10 |         54 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/yosys-cmp/synplify.sh              | Shell Script              |         48 |         11 |         16 |         75 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/yosys-cmp/vivado.tcl               | Tcl                       |          3 |          0 |          1 |          4 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/yosys/synth_gates.v                | Verilog                   |         28 |          0 |          3 |         31 |
+| /home/posedge/work/aiEngine_integrated/picorv32/scripts/yosys/synth_osu018.sh              | Shell Script              |          7 |          1 |          1 |          9 |
+| /home/posedge/work/aiEngine_integrated/picorv32/showtrace.py                               | Python                    |         51 |          1 |         15 |         67 |
+| /home/posedge/work/aiEngine_integrated/picorv32/testbench.cc                               | C++                       |         36 |          2 |          7 |         45 |
+| /home/posedge/work/aiEngine_integrated/picorv32/testbench.v                                | Verilog                   |        414 |          7 |         59 |        480 |
+| /home/posedge/work/aiEngine_integrated/picorv32/testbench_ez.v                             | Verilog                   |         70 |          6 |         11 |         87 |
+| /home/posedge/work/aiEngine_integrated/picorv32/testbench_wb.v                             | Verilog                   |        250 |          1 |         43 |        294 |
+| /home/posedge/work/aiEngine_integrated/picorv32/tests/riscv_test.h                         | C++                       |         57 |          0 |          8 |         65 |
+| /home/posedge/work/aiEngine_integrated/picorv32/tests/test_macros.h                        | C++                       |        505 |          1 |         80 |        586 |
+| Total                                                                                      |                           |     15,176 |        907 |      2,919 |     19,002 |
++--------------------------------------------------------------------------------------------+---------------------------+------------+------------+------------+------------+

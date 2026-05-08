@@ -256,60 +256,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         return $sformatf("../tb/%s", get_case_name());
     endfunction
 
-    // Generate memory image from current CSR-shadows and reload SRAM model.
-    task gen_mem_info(ai_nice_seq_item req);
-        int k_val;
-        int n_val;
-        int m_val;
-        int lhs_dtype;
-        int quant_mode;
-        int rc;
-        int mismatch_cnt;
-        string fix_mode_arg;
-        string cmd;
-        string case_name;
 
-        k_val = get_csr_or_default(`ADDR_MULT_LHS_ROWS, req.matrix_k);
-        n_val = get_csr_or_default(`ADDR_MULT_RHS_COLS, req.matrix_n);
-        m_val = get_csr_or_default(`ADDR_MULT_RHS_ROWS, req.matrix_m);
-
-        if ((k_val <= 0) || (n_val <= 0) || (m_val <= 0)) begin
-            `uvm_warning("MEM_GEN", $sformatf("Skip gen_mem_info due to invalid dims K=%0d N=%0d M=%0d", k_val, n_val, m_val))
-            return;
-        end
-
-        lhs_dtype = (req.a_w == 2) ? 2 : 1;
-        quant_mode = req.per_ch ? 1 : 0;
-        fix_mode_arg = req.fix_mode ? "--fix_mode" : "";
-        case_name = get_case_name();
-
-        cmd = $sformatf(
-            "cd ../tb && python ./generate_test_case_complex_mem.py --K %0d --N %0d --M %0d --lhs_dtype %0d %s --quant_mode %0d --out_dir ./%s",
-            k_val, n_val, m_val, lhs_dtype, fix_mode_arg, quant_mode, case_name
-        );
-
-        `uvm_info("MEM_GEN", {"Run: ", cmd}, UVM_MEDIUM)
-        rc = $system(cmd);
-        if (rc != 0) begin
-            `uvm_fatal("MEM_GEN", $sformatf("generate_test_case_complex_mem.py failed, rc=%0d", rc))
-        end
-
-        @(posedge vif.nice_clk);
-        vif.mem_reload_req <= 1'b1;
-        @(posedge vif.nice_clk);
-        vif.mem_reload_req <= 1'b0;
-        repeat(2) @(posedge vif.nice_clk);
-
-        mismatch_cnt = 0;
-        `ifdef DUT_AXIL
-        $root.tb_top.u_soc_top.u_axi_sim_ram.check_mem_file("../tb/main_extram.mem", 0, 127, mismatch_cnt);
-`else
-        $root.tb_top.u_sram_icb.u_sram.u_sirv_sim_ram.check_mem_file("../tb/main_extram.mem", 0, 127, mismatch_cnt);
-`endif
-        if (mismatch_cnt < 0) begin
-            `uvm_error("MEM_GEN", "RAM check could not open ../tb/main_extram.mem")
-        end
-    endtask
 
     task automatic dump_compare_output_matrix(ai_nice_seq_item req);
         int k_val;
@@ -449,22 +396,10 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
 
         if (do_compare) begin
             if (mismatch_cnt == 0) begin
-                $display("\033[32mPPPPPPPPPPPP   AAAAAAAA    SSSSSSSSSS   SSSSSSSSSS\033[0m");
-                $display("\033[32mPPPPPPPPPPPP  AAAAAAAAAA  SSSSSSSSSSSS SSSSSSSSSSSS\033[0m");
-                $display("\033[32mPPPP    PPPP AA      AA  SSSS         SSSS        \033[0m");
-                $display("\033[32mPPPPPPPPPPPP AAAAAAAAAAAA  SSSSSSSSSS   SSSSSSSSSS  \033[0m");
-                $display("\033[32mPPPP        PP          PP         SSSS         SSSS\033[0m");
-                $display("\033[32mPPPP        PP          PP SSSSSSSSSSSS SSSSSSSSSSSS\033[0m");
-                $display("\033[32mPPPP        PP          PP  SSSSSSSSSS   SSSSSSSSSS \033[0m");
+                $display("\033[32m[PASS] NICE output matrix compare matched (%0d x %0d)\033[0m", k_val, m_val);
                 `uvm_info("MAT_CHK", $sformatf("PASS output matrix compare matched (%0d x %0d). actual=%s expected=%s", k_val, m_val, actual_path, expected_path), UVM_LOW)
             end else begin
-                $display("\033[31mFFFFFFFFFFFFF    AAAAAAAA    IIIIIIIIII  LL          \033[0m");
-                $display("\033[31mFFFFFFFFFFFFF   AAAAAAAAAA   IIIIIIIIII  LL          \033[0m");
-                $display("\033[31mFFFF           AA      AA       II      LL          \033[0m");
-                $display("\033[31mFFFFFFFFFFF   AAAAAAAAAAAA      II      LL          \033[0m");
-                $display("\033[31mFFFF          AA          AA      II      LL          \033[0m");
-                $display("\033[31mFFFF          AA          AA   IIIIIIIIII LLLLLLLLLLL \033[0m");
-                $display("\033[31mFFFF          AA          AA   IIIIIIIIII LLLLLLLLLLL \033[0m");
+                $display("\033[31m[FAIL] NICE output matrix compare failed: mismatch_cnt=%0d\033[0m", mismatch_cnt);
                 `uvm_error("MAT_CHK", $sformatf("Output matrix compare failed: mismatch_cnt=%0d, reported=%0d. actual=%s expected=%s", mismatch_cnt, report_cnt, actual_path, expected_path))
             end
         end else begin

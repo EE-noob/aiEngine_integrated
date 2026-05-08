@@ -1,0 +1,135 @@
+"filename", "language", "C", "C++", "Verilog", "Makefile", "YAML", "Markdown", "XML", "Python", "Xilinx Design Constraints", "Tcl", "Shell Script", "Diff", "gtkw_waveconfig", "comment", "blank", "total"
+"/home/posedge/work/aiEngine_integrated/picorv32/.github/workflows/ci.yml", "YAML", 0, 0, 0, 0, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 38
+"/home/posedge/work/aiEngine_integrated/picorv32/Makefile", "Makefile", 0, 0, 0, 140, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 42, 185
+"/home/posedge/work/aiEngine_integrated/picorv32/README.md", "Markdown", 0, 0, 0, 0, 0, 515, 0, 0, 0, 0, 0, 0, 0, 0, 226, 741
+"/home/posedge/work/aiEngine_integrated/picorv32/README_中文翻译.md", "Markdown", 0, 0, 0, 0, 0, 317, 0, 0, 0, 0, 0, 0, 0, 0, 226, 543
+"/home/posedge/work/aiEngine_integrated/picorv32/USAGE_LEARNING_CN.md", "Markdown", 0, 0, 0, 0, 0, 600, 0, 0, 0, 0, 0, 0, 0, 0, 201, 801
+"/home/posedge/work/aiEngine_integrated/picorv32/dhrystone/Makefile", "Makefile", 0, 0, 0, 51, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 19, 70
+"/home/posedge/work/aiEngine_integrated/picorv32/dhrystone/dhry.h", "C++", 0, 60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 355, 14, 429
+"/home/posedge/work/aiEngine_integrated/picorv32/dhrystone/dhry_1.c", "C", 297, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 75, 56, 428
+"/home/posedge/work/aiEngine_integrated/picorv32/dhrystone/dhry_1_orig.c", "C", 262, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 73, 51, 386
+"/home/posedge/work/aiEngine_integrated/picorv32/dhrystone/dhry_2.c", "C", 115, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 53, 25, 193
+"/home/posedge/work/aiEngine_integrated/picorv32/dhrystone/stdlib.c", "C", 165, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 36, 211
+"/home/posedge/work/aiEngine_integrated/picorv32/dhrystone/syscalls.c", "C", 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 14, 96
+"/home/posedge/work/aiEngine_integrated/picorv32/dhrystone/testbench.v", "Verilog", 0, 0, 111, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 127
+"/home/posedge/work/aiEngine_integrated/picorv32/dhrystone/testbench_nola.v", "Verilog", 0, 0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 15, 96
+"/home/posedge/work/aiEngine_integrated/picorv32/firmware/firmware.h", "C++", 0, 22, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 10, 44
+"/home/posedge/work/aiEngine_integrated/picorv32/firmware/hello.c", "C", 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 4, 15
+"/home/posedge/work/aiEngine_integrated/picorv32/firmware/irq.c", "C", 107, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 24, 141
+"/home/posedge/work/aiEngine_integrated/picorv32/firmware/makehex.py", "Python", 0, 0, 0, 0, 0, 0, 0, 13, 0, 0, 0, 0, 0, 8, 7, 28
+"/home/posedge/work/aiEngine_integrated/picorv32/firmware/multest.c", "C", 114, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 32, 152
+"/home/posedge/work/aiEngine_integrated/picorv32/firmware/print.c", "C", 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 8, 42
+"/home/posedge/work/aiEngine_integrated/picorv32/firmware/sieve.c", "C", 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 14, 85
+"/home/posedge/work/aiEngine_integrated/picorv32/firmware/stats.c", "C", 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 5, 43
+"/home/posedge/work/aiEngine_integrated/picorv32/picorv32.v", "Verilog", 0, 0, 2704, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 304, 3050
+"/home/posedge/work/aiEngine_integrated/picorv32/picosoc/Makefile", "Makefile", 0, 0, 0, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 40, 124
+"/home/posedge/work/aiEngine_integrated/picorv32/picosoc/README.md", "Markdown", 0, 0, 0, 0, 0, 87, 0, 0, 0, 0, 0, 0, 0, 0, 28, 115
+"/home/posedge/work/aiEngine_integrated/picorv32/picosoc/firmware.c", "C", 596, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 39, 136, 771
+"/home/posedge/work/aiEngine_integrated/picorv32/picosoc/hx8kdemo.v", "Verilog", 0, 0, 117, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 23, 140
+"/home/posedge/work/aiEngine_integrated/picorv32/picosoc/hx8kdemo_tb.v", "Verilog", 0, 0, 89, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20, 109
+"/home/posedge/work/aiEngine_integrated/picorv32/picosoc/ice40up5k_spram.v", "Verilog", 0, 0, 81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 10, 92
+"/home/posedge/work/aiEngine_integrated/picorv32/picosoc/icebreaker.v", "Verilog", 0, 0, 126, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 26, 152
+"/home/posedge/work/aiEngine_integrated/picorv32/picosoc/icebreaker_tb.v", "Verilog", 0, 0, 99, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 21, 123
+"/home/posedge/work/aiEngine_integrated/picorv32/picosoc/overview.svg", "XML", 0, 0, 0, 0, 0, 0, 755, 0, 0, 0, 0, 0, 0, 1, 2, 758
+"/home/posedge/work/aiEngine_integrated/picorv32/picosoc/performance.py", "Python", 0, 0, 0, 0, 0, 0, 0, 149, 0, 0, 0, 0, 0, 3, 14, 166
+"/home/posedge/work/aiEngine_integrated/picorv32/picosoc/picosoc.v", "Verilog", 0, 0, 214, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 45, 263
+"/home/posedge/work/aiEngine_integrated/picorv32/picosoc/simpleuart.v", "Verilog", 0, 0, 125, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13, 138
+"/home/posedge/work/aiEngine_integrated/picorv32/picosoc/spiflash.v", "Verilog", 0, 0, 339, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 54, 410
+"/home/posedge/work/aiEngine_integrated/picorv32/picosoc/spiflash_tb.v", "Verilog", 0, 0, 318, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 49, 367
+"/home/posedge/work/aiEngine_integrated/picorv32/picosoc/spimemio.v", "Verilog", 0, 0, 516, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 580
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/csmith/Makefile", "Makefile", 0, 0, 0, 67, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 19, 86
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/csmith/riscv-isa-sim.diff", "Diff", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 59, 0, 0, 4, 63
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/csmith/syscalls.c", "C", 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 14, 96
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/csmith/testbench.cc", "C++", 0, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 19
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/csmith/testbench.v", "Verilog", 0, 0, 83, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 14, 101
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/cxxdemo/Makefile", "Makefile", 0, 0, 0, 31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 39
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/cxxdemo/firmware.cc", "C++", 0, 71, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 88
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/cxxdemo/hex8tohex32.py", "Python", 0, 0, 0, 0, 0, 0, 0, 27, 0, 0, 0, 0, 0, 1, 7, 35
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/cxxdemo/syscalls.c", "C", 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 14, 96
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/cxxdemo/testbench.v", "Verilog", 0, 0, 105, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 115
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/icestorm/Makefile", "Makefile", 0, 0, 0, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 32, 105
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/icestorm/example.v", "Verilog", 0, 0, 61, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 13, 81
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/icestorm/example_tb.v", "Verilog", 0, 0, 26, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 31
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/icestorm/firmware.c", "C", 49, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 59
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/icestorm/readme.md", "Markdown", 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 5, 13
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/presyn/Makefile", "Makefile", 0, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 23
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/presyn/firmware.c", "C", 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 44
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/presyn/testbench.v", "Verilog", 0, 0, 70, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 11, 82
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/Makefile", "Makefile", 0, 0, 0, 49, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 63
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/firmware.c", "C", 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 44
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/synth_area.sdc", "Xilinx Design Constraints", 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 2
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/synth_area_top.v", "Verilog", 0, 0, 122, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 15, 141
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/synth_speed.sdc", "Xilinx Design Constraints", 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 2
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/synth_system.sdc", "Xilinx Design Constraints", 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 2
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/synth_system.tcl", "Tcl", 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0, 0, 0, 1, 6, 18
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/system.v", "Verilog", 0, 0, 88, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 12, 102
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/system_tb.v", "Verilog", 0, 0, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 39
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/table.sh", "Shell Script", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 0, 0, 1, 3, 18
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/tabtest.sh", "Shell Script", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 61, 0, 0, 2, 16, 79
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/quartus/tabtest.v", "Verilog", 0, 0, 107, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 119
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/romload/Makefile", "Makefile", 0, 0, 0, 31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 10, 42
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/romload/firmware.c", "C", 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 22
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/romload/hex8tohex32.py", "Python", 0, 0, 0, 0, 0, 0, 0, 27, 0, 0, 0, 0, 0, 1, 7, 35
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/romload/map2debug.py", "Python", 0, 0, 0, 0, 0, 0, 0, 24, 0, 0, 0, 0, 0, 1, 6, 31
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/romload/syscalls.c", "C", 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 14, 96
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/romload/testbench.v", "Verilog", 0, 0, 120, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 13, 141
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/axicheck.sh", "Shell Script", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 2, 5, 14
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/axicheck.v", "Verilog", 0, 0, 178, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 30, 211
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/axicheck2.sh", "Shell Script", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 1, 5, 13
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/axicheck2.v", "Verilog", 0, 0, 132, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 148
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/mulcmp.sh", "Shell Script", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 1, 5, 13
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/mulcmp.v", "Verilog", 0, 0, 73, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 88
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/notrap_validop.sh", "Shell Script", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 1, 5, 14
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/notrap_validop.v", "Verilog", 0, 0, 55, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 12, 68
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/opcode.v", "Verilog", 0, 0, 96, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 105
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/tracecmp.gtkw", "gtkw_waveconfig", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 71, 0, 1, 72
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/tracecmp.sh", "Shell Script", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 1, 5, 13
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/tracecmp.v", "Verilog", 0, 0, 91, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 14, 110
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/tracecmp2.sh", "Shell Script", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 1, 5, 13
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/tracecmp2.v", "Verilog", 0, 0, 175, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 17, 197
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/tracecmp3.sh", "Shell Script", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 1, 5, 18
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/smtbmc/tracecmp3.v", "Verilog", 0, 0, 114, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 20, 136
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/tomthumbtg/run.sh", "Shell Script", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 1, 11, 44
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/tomthumbtg/testbench.v", "Verilog", 0, 0, 71, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 11, 84
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/Makefile", "Makefile", 0, 0, 0, 73, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 26, 102
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/asmcheck.py", "Python", 0, 0, 0, 0, 0, 0, 0, 29, 0, 0, 0, 0, 0, 1, 7, 37
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/config.py", "Python", 0, 0, 0, 0, 0, 0, 0, 29, 0, 0, 0, 0, 0, 1, 6, 36
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/riscv-isa-sim-notrap.diff", "Diff", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 0, 0, 3, 17
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/riscv-isa-sim-sbreak.diff", "Diff", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 26, 0, 0, 1, 27
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/riscv-torture-genloop.diff", "Diff", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 37, 0, 0, 4, 41
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/riscv-torture-rv32.diff", "Diff", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 0, 0, 14, 142
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/riscv_test.h", "C++", 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 14
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/test.sh", "Shell Script", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 0, 0, 4, 13, 33
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/testbench.cc", "C++", 0, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 19
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/torture/testbench.v", "Verilog", 0, 0, 120, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 135
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/Makefile", "Makefile", 0, 0, 0, 54, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 15, 70
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/firmware.c", "C", 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 44
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_area.tcl", "Tcl", 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 3, 9
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_area.xdc", "Xilinx Design Constraints", 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 2
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_area_large.tcl", "Tcl", 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 3, 11
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_area_regular.tcl", "Tcl", 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 3, 11
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_area_small.tcl", "Tcl", 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 3, 11
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_area_top.v", "Verilog", 0, 0, 122, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 15, 141
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_speed.tcl", "Tcl", 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 5, 14
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_speed.xdc", "Xilinx Design Constraints", 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 2
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_system.tcl", "Tcl", 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0, 0, 0, 1, 6, 18
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/synth_system.xdc", "Xilinx Design Constraints", 0, 0, 0, 0, 0, 0, 0, 0, 25, 0, 0, 0, 0, 4, 6, 35
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/system.v", "Verilog", 0, 0, 88, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 12, 102
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/system_tb.v", "Verilog", 0, 0, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 39
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/table.sh", "Shell Script", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 18, 0, 0, 1, 3, 22
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/tabtest.sh", "Shell Script", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 84, 0, 0, 2, 18, 104
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/vivado/tabtest.v", "Verilog", 0, 0, 107, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 119
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/yosys-cmp/README.md", "Markdown", 0, 0, 0, 0, 0, 48, 0, 0, 0, 0, 0, 0, 0, 0, 15, 63
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/yosys-cmp/lse.sh", "Shell Script", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 38, 0, 0, 6, 10, 54
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/yosys-cmp/synplify.sh", "Shell Script", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 48, 0, 0, 11, 16, 75
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/yosys-cmp/vivado.tcl", "Tcl", 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 1, 4
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/yosys/synth_gates.v", "Verilog", 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 31
+"/home/posedge/work/aiEngine_integrated/picorv32/scripts/yosys/synth_osu018.sh", "Shell Script", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 1, 1, 9
+"/home/posedge/work/aiEngine_integrated/picorv32/showtrace.py", "Python", 0, 0, 0, 0, 0, 0, 0, 51, 0, 0, 0, 0, 0, 1, 15, 67
+"/home/posedge/work/aiEngine_integrated/picorv32/testbench.cc", "C++", 0, 36, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 7, 45
+"/home/posedge/work/aiEngine_integrated/picorv32/testbench.v", "Verilog", 0, 0, 414, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 59, 480
+"/home/posedge/work/aiEngine_integrated/picorv32/testbench_ez.v", "Verilog", 0, 0, 70, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 11, 87
+"/home/posedge/work/aiEngine_integrated/picorv32/testbench_wb.v", "Verilog", 0, 0, 250, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 43, 294
+"/home/posedge/work/aiEngine_integrated/picorv32/tests/riscv_test.h", "C++", 0, 57, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 65
+"/home/posedge/work/aiEngine_integrated/picorv32/tests/test_macros.h", "C++", 0, 505, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 80, 586
+"Total", "-", 2274, 789, 7951, 648, 33, 1575, 755, 349, 30, 64, 373, 264, 71, 907, 2919, 19002
