@@ -6,3 +6,6 @@ veri/work/*
 !veri/sim/Makefile
 !veri/sim/.gitignore
 !veri/sim/*.rc
+
+# Local E203 SoC reference workspace
+e203_soc/
