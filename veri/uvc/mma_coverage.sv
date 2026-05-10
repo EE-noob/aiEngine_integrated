@@ -1,8 +1,8 @@
-`ifndef AI_NICE_COVERAGE_SV
-`define AI_NICE_COVERAGE_SV
+`ifndef MMA_COVERAGE_SV
+`define MMA_COVERAGE_SV
 
-class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
-    `uvm_component_utils(ai_nice_coverage) // FIX: 使用正确的类名
+class mma_coverage extends uvm_subscriber#(mma_seq_item);
+    `uvm_component_utils(mma_coverage) // FIX: 使用正确的类名
 
     // FIX: 将成员变量声明移到 covergroup 之前，确保 coverpoint 能识别到
     int m_rows, n_cols, k_inner;
@@ -286,7 +286,7 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
         }
     endgroup
 
-    function new(string name = "ai_nice_coverage", uvm_component parent = null); // FIX: 默认名字修正
+    function new(string name = "mma_coverage", uvm_component parent = null); // FIX: 默认名字修正
         super.new(name, parent);
         cg_matrix_dimension = new();
         cg_quantization_config = new();
@@ -298,7 +298,7 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
         cg_exception = new();
     endfunction
 
-    function void write(ai_nice_seq_item t); // FIX: 参数类型修正为 ai_nice_seq_item
+    function void write(mma_seq_item t); // FIX: 参数类型修正为 mma_seq_item
         // 更新覆盖率变量
         m_rows = t.matrix_m;      // FIX: Name mapping
         n_cols = t.matrix_n;      // FIX: Name mapping
@@ -345,7 +345,7 @@ class ai_nice_coverage extends uvm_subscriber#(ai_nice_seq_item);
 
 endclass
 
-`endif // AI_NICE_COVERAGE_SV
+`endif // MMA_COVERAGE_SV
 
 
 

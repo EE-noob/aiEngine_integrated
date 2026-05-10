@@ -1,17 +1,17 @@
-`ifndef AI_NICE_SCOREBOARD_SV
-`define AI_NICE_SCOREBOARD_SV
+`ifndef MMA_SCOREBOARD_SV
+`define MMA_SCOREBOARD_SV
 
 `uvm_analysis_imp_decl(_req)
 `uvm_analysis_imp_decl(_rsp)
 
-class ai_nice_scoreboard extends uvm_scoreboard;
-    `uvm_component_utils(ai_nice_scoreboard)
+class mma_scoreboard extends uvm_scoreboard;
+    `uvm_component_utils(mma_scoreboard)
 
-    uvm_analysis_imp_req #(ai_nice_seq_item, ai_nice_scoreboard) analysis_req_imp;
-    uvm_analysis_imp_rsp #(ai_nice_seq_item, ai_nice_scoreboard) analysis_rsp_imp;
-    ai_nice_seq_item pending_q[$];
+    uvm_analysis_imp_req #(mma_seq_item, mma_scoreboard) analysis_req_imp;
+    uvm_analysis_imp_rsp #(mma_seq_item, mma_scoreboard) analysis_rsp_imp;
+    mma_seq_item pending_q[$];
     virtual nice_if vif;
-    ai_nice_reg_block regmodel;
+    mma_reg_block regmodel;
     bit [31:0] csr_shadow[bit [11:0]];
 
     virtual function void build_phase(uvm_phase phase);
@@ -27,14 +27,14 @@ class ai_nice_scoreboard extends uvm_scoreboard;
         analysis_rsp_imp = new("analysis_rsp_imp", this);
     endfunction
 
-    virtual function void write_req(ai_nice_seq_item tr);
-        ai_nice_seq_item cpy;
-        if (tr.cmd_kind == NICE_WR_CSR) begin
+    virtual function void write_req(mma_seq_item tr);
+        mma_seq_item cpy;
+        if (tr.cmd_kind == MMA_WR_CSR) begin
             csr_shadow[tr.csr_addr[11:0]] = tr.csr_data;
         end
 
-        if ((tr.cmd_kind == NICE_AUTO) || (tr.cmd_kind == NICE_TRIGGER)) begin
-            cpy = ai_nice_seq_item::type_id::create("pending_req_cpy");
+        if ((tr.cmd_kind == MMA_AUTO) || (tr.cmd_kind == MMA_TRIGGER)) begin
+            cpy = mma_seq_item::type_id::create("pending_req_cpy");
             cpy.copy(tr);
             pending_q.push_back(cpy);
             tr.print();
@@ -42,12 +42,12 @@ class ai_nice_scoreboard extends uvm_scoreboard;
     endfunction
 
     // NOTE: scoreboard只接收“启动比对”信号，是否启动由monitor决定。
-    virtual function void write_rsp(ai_nice_seq_item tr);
-        ai_nice_seq_item req;
+    virtual function void write_rsp(mma_seq_item tr);
+        mma_seq_item req;
         if (pending_q.size() == 0) begin
-            req = ai_nice_seq_item::type_id::create("mirror_only_req");
-            req.cmd_kind = NICE_TRIGGER;
-            `uvm_info("ai_nice_seq_item req q empty", $sformatf("Compare trigger arrived with no pending req, using RAL mirror only. Status=0x%08h", tr.csr_data), UVM_LOW)
+            req = mma_seq_item::type_id::create("mirror_only_req");
+            req.cmd_kind = MMA_TRIGGER;
+            `uvm_info("mma_seq_item req q empty", $sformatf("Compare trigger arrived with no pending req, using RAL mirror only. Status=0x%08h", tr.csr_data), UVM_LOW)
         end else begin
             req = pending_q.pop_front();
         end
@@ -67,7 +67,7 @@ class ai_nice_scoreboard extends uvm_scoreboard;
         return $sformatf("../tb/%s", get_utn_name());
     endfunction
 
-    function automatic int infer_out_base(ai_nice_seq_item req);
+    function automatic int infer_out_base(mma_seq_item req);
         int ia_size, wgt_size, bias_size;
         int ia_base, wgt_base, bias_base;
 
@@ -100,7 +100,7 @@ class ai_nice_scoreboard extends uvm_scoreboard;
                (csr_shadow[`ADDR_MULT_DST_STRIDE] != 0);
     endfunction
 
-    function automatic void dump_compare_output_matrix(ai_nice_seq_item req);
+    function automatic void dump_compare_output_matrix(mma_seq_item req);
         int k_val;
         int m_val;
         int dst_base;

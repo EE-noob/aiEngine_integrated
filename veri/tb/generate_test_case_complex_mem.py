@@ -142,7 +142,7 @@ def requantize_array(acc: np.ndarray, mults, shifts) -> np.ndarray:
     使用 CMSIS-NN 兼容的量化函数对整个 acc 数组做 requant。
     支持 mults 和 shifts 为标量或数组（广播）。
     """
-    output = np.zeros_like(acc, dtype=np.int8)
+    output = np.zeros_like(acc, dtype=np.int32)
     
     # 转换为数组以支持广播
     mults_array = np.broadcast_to(mults, acc.shape)
@@ -151,8 +151,8 @@ def requantize_array(acc: np.ndarray, mults, shifts) -> np.ndarray:
     # 逐元素应用量化
     for idx in np.ndindex(acc.shape):
         quantized_val = riscv_nn_requantize(acc[idx], mults_array[idx], shifts_array[idx])
-        output[idx] = np.clip(quantized_val, -128, 127)
-    
+        output[idx] = quantized_val
+
     return output
 
 def generate_test_case(
@@ -163,6 +163,13 @@ def generate_test_case(
     fix_mode=False,
     quant_mode=None,
     seed=None,
+    lhs_offset=0,
+    rhs_offset=0,
+    dst_offset=0,
+    dst_mult=None,
+    dst_shift=None,
+    act_min=-128,
+    act_max=127,
     out_dir="./test_case",
 ):
     if seed is not None:
@@ -217,21 +224,33 @@ def generate_test_case(
     # bias = np.zeros(M, dtype=np.int32)
 
     # 计算累加结果 (int32)
-    sum_result = np.dot(lhs.astype(np.int32), rhs.astype(np.int32))  # [K, M]
+    sum_result = np.dot(lhs.astype(np.int32) + int(lhs_offset),
+                        rhs.astype(np.int32) + int(rhs_offset))  # [K, M]
     result = sum_result + bias  # broadcasting
     # quant_mode 在前面已确定（随机或由参数指定），此处不再覆盖。
 
 
     # 根据结果范围计算 dst_mult / dst_shift
     if quant_mode == 0:  # per-tensor
-        dst_mult, dst_shift = compute_requant_params(result)
+        if dst_mult is None or dst_shift is None:
+            dst_mult, dst_shift = compute_requant_params(result)
+        else:
+            dst_mult = int(dst_mult)
+            dst_shift = int(dst_shift)
         dst_mults = dst_mult
         dst_shifts = dst_shift
     else:  # per-channel
-        dst_mults, dst_shifts = compute_requant_params_per_channel(result, axis=1)
+        if dst_mult is None or dst_shift is None:
+            dst_mults, dst_shifts = compute_requant_params_per_channel(result, axis=1)
+        else:
+            dst_mults = np.full(M, int(dst_mult), dtype=np.int32)
+            dst_shifts = np.full(M, int(dst_shift), dtype=np.int32)
 
     # 使用同样公式生成预期输出
-    quantized = requantize_array(result, dst_mults, dst_shifts)
+    quantized_s32 = requantize_array(result, dst_mults, dst_shifts).astype(np.int32)
+    quantized_s32 = quantized_s32 + int(dst_offset)
+    quantized_s32 = np.clip(quantized_s32, int(act_min), int(act_max))
+    quantized = np.clip(quantized_s32, -128, 127).astype(np.int8)
 
     # 输出目录：./test_case
     os.makedirs(out_dir, exist_ok=True)
@@ -379,17 +398,17 @@ def generate_test_case(
         f.write("bias_dtype = DSA_DTYPE_S32\n")
         f.write("out_dtype = DSA_DTYPE_S8\n")
         f.write(f"quant_mode = {quant_mode}\n")
-        f.write("lhs_offset = 0\n")
-        f.write("rhs_offset = 0\n")
-        f.write("dst_offset = 0\n")
+        f.write(f"lhs_offset = {int(lhs_offset)}\n")
+        f.write(f"rhs_offset = {int(rhs_offset)}\n")
+        f.write(f"dst_offset = {int(dst_offset)}\n")
         if quant_mode == 0:
             f.write(f"dst_mult = {dst_mult}\n")
             f.write(f"dst_shift = {dst_shift}\n")
         else:
             f.write("dst_mult = 0\n")
             f.write("dst_shift = 0\n")
-        f.write("act_min = -128\n")
-        f.write("act_max = 127\n")
+        f.write(f"act_min = {int(act_min)}\n")
+        f.write(f"act_max = {int(act_max)}\n")
 
     return {
         "K": K,
@@ -399,6 +418,11 @@ def generate_test_case(
         "fix_mode": fix_mode,
         "quant_mode": quant_mode,
         "seed": seed,
+        "lhs_offset": lhs_offset,
+        "rhs_offset": rhs_offset,
+        "dst_offset": dst_offset,
+        "act_min": act_min,
+        "act_max": act_max,
         "out_dir": out_dir,
     }
 
@@ -413,6 +437,13 @@ if __name__ == "__main__":
     parser.add_argument("--fix_mode", action="store_true")
     parser.add_argument("--quant_mode", type=int, choices=[0, 1], default=None)
     parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--lhs_offset", type=int, default=0)
+    parser.add_argument("--rhs_offset", type=int, default=0)
+    parser.add_argument("--dst_offset", type=int, default=0)
+    parser.add_argument("--dst_mult", type=int, default=None)
+    parser.add_argument("--dst_shift", type=int, default=None)
+    parser.add_argument("--act_min", type=int, default=-128)
+    parser.add_argument("--act_max", type=int, default=127)
     parser.add_argument("--out_dir", type=str, default="./test_case")
     args = parser.parse_args()
 
@@ -424,5 +455,12 @@ if __name__ == "__main__":
         fix_mode=args.fix_mode,
         quant_mode=args.quant_mode,
         seed=args.seed,
+        lhs_offset=args.lhs_offset,
+        rhs_offset=args.rhs_offset,
+        dst_offset=args.dst_offset,
+        dst_mult=args.dst_mult,
+        dst_shift=args.dst_shift,
+        act_min=args.act_min,
+        act_max=args.act_max,
         out_dir=args.out_dir,
     )

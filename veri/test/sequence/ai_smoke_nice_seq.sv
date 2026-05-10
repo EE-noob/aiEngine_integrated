@@ -3,7 +3,7 @@
 
 // Smoke sequence for nice-core request/response interface.
 // Sends a few random instructions through ai_nice_agent.
-class ai_smoke_nice_seq extends uvm_sequence#(ai_nice_seq_item);
+class ai_smoke_nice_seq extends uvm_sequence#(mma_seq_item);
     `uvm_object_utils(ai_smoke_nice_seq)
 
     function new(string name = "ai_smoke_nice_seq");
@@ -11,27 +11,27 @@ class ai_smoke_nice_seq extends uvm_sequence#(ai_nice_seq_item);
     endfunction
 
     virtual task body();
-        ai_nice_seq_item tr;
+        mma_seq_item tr;
 
         `uvm_info(get_type_name(), "Starting smoke nice sequence...", UVM_MEDIUM)
 
         // 1. CSR Write Test
         `uvm_do_with(tr, {
-            cmd_kind == NICE_WR_CSR;
+            cmd_kind == MMA_WR_CSR;
             csr_addr == 32'h7C6; // MULT_LHS_ROWS
             csr_data == 32'd16;
         })
 
         // 2. CSR Read Test
         `uvm_do_with(tr, {
-            cmd_kind == NICE_RD_CSR;
+            cmd_kind == MMA_RD_CSR;
             csr_addr == 32'h7C6;
             csr_data == 32'd16; // Expected value
         })
 
         // 3. Auto Matrix Multiplication Test
         `uvm_do_with(tr, {
-            cmd_kind == NICE_AUTO;
+            cmd_kind == MMA_AUTO;
             matrix_m == 56;
             matrix_k == 16;
             matrix_n == 49;
@@ -51,7 +51,7 @@ repeat(0)
 begin
         // 3. Auto Matrix Multiplication Test
         `uvm_do_with(tr, {
-            cmd_kind == NICE_AUTO;
+            cmd_kind == MMA_AUTO;
             // matrix_m == 6;
             // matrix_k == 16;
             // matrix_n == 49;
@@ -69,7 +69,7 @@ begin
     end
         // // 3. Auto Matrix Multiplication Test
         // `uvm_do_with(tr, {
-        //     cmd_kind == NICE_AUTO;
+        //     cmd_kind == MMA_AUTO;
         //     matrix_m == 56;
         //     matrix_k == 16;
         //     matrix_n == 49;
@@ -89,7 +89,7 @@ begin
 // begin
 //         // 3. Auto Matrix Multiplication Test
 //         `uvm_do_with(tr, {
-//             cmd_kind == NICE_AUTO;
+//             cmd_kind == MMA_AUTO;
 //             // matrix_m == 6;
 //             // matrix_k == 16;
 //             // matrix_n == 49;

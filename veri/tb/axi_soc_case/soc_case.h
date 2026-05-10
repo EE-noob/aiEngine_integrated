@@ -1,0 +1,28 @@
+#ifndef SOC_CASE_H
+#define SOC_CASE_H
+
+#define SOC_K 24
+#define SOC_N 32
+#define SOC_M 16
+#define SOC_LHS_ADDR 32
+#define SOC_RHS_ADDR 800
+#define SOC_BIAS_ADDR 1312
+#define SOC_OUTPUT_BASE_ADDR 1376
+#define SOC_DST_MULT_ADDR 0
+#define SOC_DST_SHIFT_ADDR 0
+#define SOC_LHS_ROW_STRIDE 32
+#define SOC_RHS_ROW_STRIDE 32
+#define SOC_DST_ROW_STRIDE 16
+#define SOC_LHS_DTYPE DSA_DTYPE_S8
+#define SOC_QUANT_MODE 0
+#define SOC_LHS_OFFSET 0
+#define SOC_RHS_OFFSET 0
+#define SOC_DST_OFFSET 0
+#define SOC_DST_MULT 1593567853
+#define SOC_DST_SHIFT -9
+#define SOC_ACT_MIN -128
+#define SOC_ACT_MAX 127
+#define SOC_OUTPUT_SIZE 384
+#define SOC_EXPECTED_DST_SIZE 384
+
+#endif

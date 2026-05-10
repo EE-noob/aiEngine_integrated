@@ -4,7 +4,7 @@
 import uvm_pkg::*;
 `include "uvm_macros.svh"
 
-typedef enum int { AI_DUT_NICE = 0, AI_DUT_AXIL = 1 } ai_dut_kind_e;
+typedef enum int { AI_DUT_NICE = 0, AI_DUT_AXIL = 1, AI_DUT_AXI_SOC = 2 } ai_dut_kind_e;
 
 class ai_env_cfg extends uvm_object;
     `uvm_object_utils(ai_env_cfg)
@@ -22,10 +22,10 @@ class ai_env extends uvm_env;
     ai_env_cfg          cfg;
     ai_nice_agent       nice_agent;
     ai_axil_agent       axil_agent;
-    ai_nice_scoreboard  nice_scb;
-    ai_nice_reg_block   regmodel;
-    ai_nice_reg_adapter reg_adapter;
-    ai_nice_sequencer   active_seqr;
+    mma_scoreboard     mma_scb;
+    mma_reg_block      regmodel;
+    mma_reg_adapter    reg_adapter;
+    mma_sequencer      active_seqr;
 
     function new(string name, uvm_component parent);
         super.new(name, parent);
@@ -39,16 +39,16 @@ class ai_env extends uvm_env;
             cfg.dut_kind = AI_DUT_NICE;
         end
 
-        regmodel   = ai_nice_reg_block::type_id::create("regmodel", this);
-        reg_adapter = ai_nice_reg_adapter::type_id::create("reg_adapter");
+        regmodel   = mma_reg_block::type_id::create("regmodel", this);
+        reg_adapter = mma_reg_adapter::type_id::create("reg_adapter");
         regmodel.build();
         regmodel.reset();
 
-        nice_scb = ai_nice_scoreboard::type_id::create("nice_scb", this);
+        mma_scb = mma_scoreboard::type_id::create("mma_scb", this);
 
         if (cfg.dut_kind == AI_DUT_NICE) begin
             nice_agent = ai_nice_agent::type_id::create("nice_agent", this);
-        end else begin
+        end else if (cfg.dut_kind == AI_DUT_AXIL) begin
             axil_agent = ai_axil_agent::type_id::create("axil_agent", this);
         end
     endfunction
@@ -57,21 +57,24 @@ class ai_env extends uvm_env;
         super.connect_phase(phase);
 
         if (cfg.dut_kind == AI_DUT_NICE) begin
-            nice_agent.req_ap.connect(nice_scb.analysis_req_imp);
-            nice_agent.rsp_ap.connect(nice_scb.analysis_rsp_imp);
-            nice_scb.regmodel = regmodel;
+            nice_agent.req_ap.connect(mma_scb.analysis_req_imp);
+            nice_agent.rsp_ap.connect(mma_scb.analysis_rsp_imp);
+            mma_scb.regmodel = regmodel;
             nice_agent.monitor.regmodel = regmodel;
             regmodel.default_map.set_sequencer(nice_agent.seqr, reg_adapter);
             regmodel.default_map.set_auto_predict(1);
             active_seqr = nice_agent.seqr;
-        end else begin
-            axil_agent.req_ap.connect(nice_scb.analysis_req_imp);
-            axil_agent.rsp_ap.connect(nice_scb.analysis_rsp_imp);
-            nice_scb.regmodel = regmodel;
+        end else if (cfg.dut_kind == AI_DUT_AXIL) begin
+            axil_agent.req_ap.connect(mma_scb.analysis_req_imp);
+            axil_agent.rsp_ap.connect(mma_scb.analysis_rsp_imp);
+            mma_scb.regmodel = regmodel;
             axil_agent.monitor.regmodel = regmodel;
             regmodel.default_map.set_sequencer(axil_agent.seqr, reg_adapter);
             regmodel.default_map.set_auto_predict(1);
             active_seqr = axil_agent.seqr;
+        end else begin
+            mma_scb.regmodel = regmodel;
+            active_seqr = null;
         end
     endfunction
 endclass

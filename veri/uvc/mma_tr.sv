@@ -1,16 +1,16 @@
-`ifndef AI_NICE_TR_SV
-`define AI_NICE_TR_SV
+`ifndef MMA_TR_SV
+`define MMA_TR_SV
 
 // Define command types for driver interaction
 typedef enum bit [2:0] {
-    NICE_AUTO      = 0, // Auto: Calc Addr -> Load Mem -> Config CSR -> Trigger
-    NICE_WR_CSR    = 1, // Single CSR Write
-    NICE_RD_CSR    = 2, // Single CSR Read
-    NICE_TRIGGER   = 3, // Just trigger the engine
-    NICE_LOAD_MEM  = 4  // Just load memory
-} nice_cmd_t;
+    MMA_AUTO      = 0, // Auto: Calc Addr -> Load Mem -> Config CSR -> Trigger
+    MMA_WR_CSR    = 1, // Single CSR Write
+    MMA_RD_CSR    = 2, // Single CSR Read
+    MMA_TRIGGER   = 3, // Just trigger the engine
+    MMA_LOAD_MEM  = 4  // Just load memory
+} mma_cmd_t;
 
-class ai_nice_seq_item extends uvm_sequence_item;
+class mma_seq_item extends uvm_sequence_item;
     // Low level fields
     rand bit [15:0]  matrix_k; // Increased width from [5:0] to [15:0]
     rand bit [15:0]  matrix_n; // Increased width from [5:0] to [15:0]
@@ -33,12 +33,12 @@ class ai_nice_seq_item extends uvm_sequence_item;
     rand bit signed [31:0] dst_offset; // Widened to 32-bit
     rand bit [31:0]        quant_multiplier;
     rand bit signed [5:0]  quant_shift;
-    rand nice_cmd_t cmd_kind;
+    rand mma_cmd_t cmd_kind;
 
     // CSR Direct Access Fields
     rand bit [31:0] csr_addr;
     rand bit [31:0] csr_data;
-    rand bit        csr_check_en;// enable compare for direct NICE_RD_CSR
+    rand bit        csr_check_en;// enable compare for direct MMA_RD_CSR
 
     // File based loading (optional)
     string ia_matrix_file = "";
@@ -67,8 +67,8 @@ class ai_nice_seq_item extends uvm_sequence_item;
     int task_interval_cycles;
     int csr_mma_order;
 
-    `uvm_object_utils_begin(ai_nice_seq_item)
-        `uvm_field_enum(nice_cmd_t, cmd_kind, UVM_ALL_ON)
+    `uvm_object_utils_begin(mma_seq_item)
+        `uvm_field_enum(mma_cmd_t, cmd_kind, UVM_ALL_ON)
         `uvm_field_int(csr_addr, UVM_ALL_ON)
         `uvm_field_int(csr_data, UVM_ALL_ON)
         `uvm_field_int(csr_check_en, UVM_ALL_ON)
@@ -131,7 +131,7 @@ class ai_nice_seq_item extends uvm_sequence_item;
     }
     // Default command is AUTO for simple sequences
     constraint c_default_cmd {
-        soft cmd_kind == NICE_AUTO;
+        soft cmd_kind == MMA_AUTO;
     }
     constraint c_csr_check_default {
         soft csr_check_en == 1;
@@ -172,7 +172,7 @@ class ai_nice_seq_item extends uvm_sequence_item;
         soft out_w == 1; // s8
     }
 
-    function new(string name = "ai_nice_seq_item");
+    function new(string name = "mma_seq_item");
         super.new(name);
     endfunction
 

@@ -7,10 +7,10 @@
         `uvm_error("COV_SEQ", "Randomization failed"); \
     sample_tr(TR);
 
-class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
+class ai_nice_cov_seq extends uvm_sequence #(mma_seq_item);
     `uvm_object_utils(ai_nice_cov_seq)
 
-    ai_nice_coverage cov;
+    mma_coverage cov;
 
     function new(string name = "ai_nice_cov_seq");
         super.new(name);
@@ -19,7 +19,7 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
     endfunction
 
     task body();
-        ai_nice_seq_item tr;
+        mma_seq_item tr;
         // Move declarations to top to satisfy older compilers
         int vals_m[];
         int vals_n[];
@@ -43,7 +43,7 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
             `uvm_fatal("COV_SEQ", "Coverage component handle 'cov' is null. It must be assigned by the test.")
         end
 
-        tr = ai_nice_seq_item::type_id::create("tr");
+        tr = mma_seq_item::type_id::create("tr");
         
         // 关闭默认的尺寸限制约束，以便覆盖更大范围 (原约束限制在64以内)
         //tr.c_matrix_dims.constraint_mode(0);
@@ -272,7 +272,7 @@ class ai_nice_cov_seq extends uvm_sequence #(ai_nice_seq_item);
     endtask
 
     // 采样函数
-    function void sample_tr(ai_nice_seq_item t);
+    function void sample_tr(mma_seq_item t);
         // 填充 Monitor 通常负责的分析字段 (Dummy values if not set)
         if (t.latency_cycles == 0) t.latency_cycles = 100;
         if (t.throughput_ops_per_cycle == 0) t.throughput_ops_per_cycle = 20.0;

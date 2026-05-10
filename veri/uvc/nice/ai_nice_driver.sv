@@ -1,9 +1,9 @@
 `ifndef AI_NICE_DRIVER_SV
 `define AI_NICE_DRIVER_SV
 
-`include "ai_csr_defines.svh"
+`include "mma_csr_defines.svh"
 
-class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
+class ai_nice_driver extends uvm_driver#(mma_seq_item);
     `uvm_component_utils(ai_nice_driver)
 
     // Virtual interface
@@ -21,8 +21,8 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
     // Memory Map Constants
     localparam MEM_START_ADDR = 32'h0000_0001;
 
-    uvm_analysis_port #(ai_nice_seq_item) drv_done_ap;
-    uvm_analysis_port #(ai_nice_seq_item) item_collected_port;
+    uvm_analysis_port #(mma_seq_item) drv_done_ap;
+    uvm_analysis_port #(mma_seq_item) item_collected_port;
 
     function new(string name, uvm_component parent);
         super.new(name, parent);
@@ -67,31 +67,31 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         end
     endtask
 
-    task drive_item(ai_nice_seq_item req);
+    task drive_item(mma_seq_item req);
         case (req.cmd_kind)
-            NICE_AUTO: begin
+            MMA_AUTO: begin
                 addr_generate(req);
                 mat_wr(req);
                 csr_wr_all_config(req);
                 send_mat_mult(req);
             end
-            NICE_WR_CSR: begin
+            MMA_WR_CSR: begin
                 csr_wr(req.csr_addr[11:0], req.csr_data);
             end
-            NICE_RD_CSR: begin
+            MMA_RD_CSR: begin
                 csr_rd(req.csr_addr[11:0], req.csr_data, req.csr_check_en);
             end
-            NICE_TRIGGER: begin
+            MMA_TRIGGER: begin
                 send_mat_mult(req);
             end
-            NICE_LOAD_MEM: begin
+            MMA_LOAD_MEM: begin
                 addr_generate(req);
                 mat_wr(req);
             end
         endcase
     endtask
 
-    task addr_generate(ai_nice_seq_item req);
+    task addr_generate(mma_seq_item req);
         int ia_size, wgt_size, out_size, bias_size;
 
         ia_size = req.matrix_k * req.matrix_n;
@@ -108,7 +108,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
             ia_base_addr, wgt_base_addr, bias_base_addr, out_base_addr), UVM_HIGH)
     endtask
 
-    task mat_wr(ai_nice_seq_item req);
+    task mat_wr(mma_seq_item req);
         if (req.ia_matrix_file != "") begin
             `uvm_info("DRV_MEM", $sformatf("Loading IA from file: %s", req.ia_matrix_file), UVM_MEDIUM)
         end else begin
@@ -211,7 +211,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         @(posedge vif.nice_clk);
     endtask
 
-    task csr_wr_all_config(ai_nice_seq_item req);
+    task csr_wr_all_config(mma_seq_item req);
         csr_wr(`ADDR_MULT_LHS_PTR, ia_base_addr);
         csr_wr(`ADDR_MULT_RHS_PTR, wgt_base_addr);
         csr_wr(`ADDR_MULT_DST_PTR, out_base_addr);
@@ -258,7 +258,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
 
 
 
-    task automatic dump_compare_output_matrix(ai_nice_seq_item req);
+    task automatic dump_compare_output_matrix(mma_seq_item req);
         int k_val;
         int m_val;
         int dst_base;
@@ -336,8 +336,10 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
                 word_addr = byte_addr >> 2;
                 lane = byte_addr & 32'h3;
 
-                `ifdef DUT_AXIL
-                mem_word = $root.tb_top.u_soc_top.u_axi_sim_ram.mem_r[word_addr];
+                `ifdef DUT_AXI_SOC
+                mem_word = $root.tb_top.u_soc_top.u_axil_top_with_ram.u_axi_sim_ram.mem_r[word_addr];
+`elsif DUT_AXIL
+                mem_word = $root.tb_top.u_axil_top_with_ram.u_axi_sim_ram.mem_r[word_addr];
 `else
                 mem_word = $root.tb_top.u_sram_icb.u_sram.u_sirv_sim_ram.mem_r[word_addr];
 `endif
@@ -407,7 +409,7 @@ class ai_nice_driver extends uvm_driver#(ai_nice_seq_item);
         end
     endtask
 
-    task send_mat_mult(ai_nice_seq_item req);
+    task send_mat_mult(mma_seq_item req);
         bit [31:0] cfg;
         bit [31:0] trig_out_base;
 

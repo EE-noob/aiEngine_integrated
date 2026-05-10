@@ -90,6 +90,7 @@ module axi_sim_ram #(
     assign s_axi_arready = (!s_axi_rvalid);
 
     integer i;
+    string mem_path_q;
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             aw_pending   <= 1'b0;
@@ -162,16 +163,18 @@ module axi_sim_ram #(
     end
 
     initial begin
-        if (INIT_EN && MEM_PATH != "") begin
-            $display("axi_sim_ram: loading memory from %s", MEM_PATH);
-            $readmemh(MEM_PATH, mem_r);
+        mem_path_q = MEM_PATH;
+        void'($value$plusargs("SOC_MMA_MEM=%s", mem_path_q));
+        if (INIT_EN && mem_path_q != "") begin
+            $display("axi_sim_ram: loading memory from %s", mem_path_q);
+            $readmemh(mem_path_q, mem_r);
         end
     end
 
     task automatic reload_mem_from_file();
-        if (MEM_PATH != "") begin
-            `uvm_info("RAM_RELOAD", $sformatf("axi_sim_ram runtime reload from %s", MEM_PATH), UVM_LOW)
-            $readmemh(MEM_PATH, mem_r);
+        if (mem_path_q != "") begin
+            `uvm_info("RAM_RELOAD", $sformatf("axi_sim_ram runtime reload from %s", mem_path_q), UVM_LOW)
+            $readmemh(mem_path_q, mem_r);
         end
     endtask
 

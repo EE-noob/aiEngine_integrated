@@ -1,4 +1,4 @@
-module soc_top #(
+module axil_top_with_ram #(
     parameter AXIL_DATA_WIDTH = 32,
     parameter AXIL_ADDR_WIDTH = 16,
     parameter WEIGHT_WIDTH    = 8,

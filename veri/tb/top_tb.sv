@@ -28,6 +28,7 @@ module tb_top;
     );
 
 `ifndef DUT_AXIL
+`ifndef DUT_AXI_SOC
     logic                       nice_icb_cmd_valid;
     logic                       nice_icb_cmd_ready;
     logic [31:0]                nice_icb_cmd_addr;
@@ -40,6 +41,7 @@ module tb_top;
     logic                       nice_icb_rsp_err;
     logic [3:0]                 nice_icb_cmd_wmask;
 `endif
+`endif
 
 `ifdef DUT_AXIL
     logic                       mma_busy;
@@ -49,10 +51,105 @@ module tb_top;
 
     assign mma_eoi = 32'h0;
     assign axil_vif.mma_irq = mma_irq;
-    assign axil_vif.mma_status = u_soc_top.u_mma_axil_top.status_bits;
+    assign axil_vif.mma_status = u_axil_top_with_ram.u_mma_axil_top.status_bits;
 `endif
 
-`ifndef DUT_AXIL
+`ifdef DUT_AXI_SOC
+    logic                       soc_mma_busy;
+    logic [31:0]                soc_mma_irq;
+    logic [31:0]                soc_mma_eoi;
+    logic                       soc_finish;
+    logic [31:0]                soc_status;
+    logic                       cpu_trap;
+    localparam int unsigned     AXI_SOC_CPU_MEM_DP = 65536;
+    localparam int unsigned     AXI_SOC_MMA_MEM_DP = 131072;
+
+    soc_top #(
+        .CPU_MEM_DP(AXI_SOC_CPU_MEM_DP),
+        .MMA_MEM_DP(AXI_SOC_MMA_MEM_DP),
+        .CPU_MEM_PATH("../tb/axi_soc_case/cpu.mem"),
+        .MMA_MEM_PATH("../tb/main_extram.mem")
+    ) u_soc_top (
+        .clk            (nice_clk),
+        .rst_n          (nice_rst_n),
+        .mem_reload_req (nice_vif.mem_reload_req),
+        .mma_busy       (soc_mma_busy),
+        .mma_irq        (soc_mma_irq),
+        .mma_eoi        (soc_mma_eoi),
+        .soc_finish     (soc_finish),
+        .soc_status     (soc_status),
+        .cpu_trap       (cpu_trap)
+    );
+
+    assign nice_vif.nice_active     = 1'b0;
+    assign nice_vif.nice_mem_holdup = 1'b0;
+    assign nice_vif.nice_req_ready  = 1'b0;
+    assign nice_vif.nice_rsp_valid  = 1'b0;
+    assign nice_vif.nice_rsp_rdat   = 32'h0;
+    assign nice_vif.nice_rsp_err    = 1'b0;
+    assign nice_vif.nice_icb_cmd_valid = 1'b0;
+    assign nice_vif.nice_icb_cmd_ready = 1'b0;
+    assign nice_vif.nice_icb_cmd_addr  = 32'h0;
+    assign nice_vif.nice_icb_cmd_read  = 1'b0;
+    assign nice_vif.nice_icb_cmd_wdata = 32'h0;
+    assign nice_vif.nice_icb_cmd_size  = 2'b0;
+    assign nice_vif.nice_icb_rsp_valid = 1'b0;
+    assign nice_vif.nice_icb_rsp_ready = 1'b0;
+    assign nice_vif.nice_icb_rsp_rdata = 32'h0;
+    assign nice_vif.nice_icb_rsp_err   = 1'b0;
+`elsif DUT_AXIL
+    axil_top_with_ram #(
+        .AXIL_DATA_WIDTH(32),
+        .AXIL_ADDR_WIDTH(16),
+        .ICB_ADDR_WIDTH(32),
+        .ICB_LEN_W(4),
+        .MEM_DP(AXIL_MEM_DP),
+        .MEM_PATH("../tb/main_extram.mem"),
+        .MEM_INIT_EN(1)
+    ) u_axil_top_with_ram (
+        .clk             (nice_clk),
+        .rst_n           (nice_rst_n),
+        .s_axil_awaddr   (axil_vif.awaddr),
+        .s_axil_awprot   (axil_vif.awprot),
+        .s_axil_awvalid  (axil_vif.awvalid),
+        .s_axil_awready  (axil_vif.awready),
+        .s_axil_wdata    (axil_vif.wdata),
+        .s_axil_wstrb    (axil_vif.wstrb),
+        .s_axil_wvalid   (axil_vif.wvalid),
+        .s_axil_wready   (axil_vif.wready),
+        .s_axil_bresp    (axil_vif.bresp),
+        .s_axil_bvalid   (axil_vif.bvalid),
+        .s_axil_bready   (axil_vif.bready),
+        .s_axil_araddr   (axil_vif.araddr),
+        .s_axil_arprot   (axil_vif.arprot),
+        .s_axil_arvalid  (axil_vif.arvalid),
+        .s_axil_arready  (axil_vif.arready),
+        .s_axil_rdata    (axil_vif.rdata),
+        .s_axil_rresp    (axil_vif.rresp),
+        .s_axil_rvalid   (axil_vif.rvalid),
+        .s_axil_rready   (axil_vif.rready),
+        .irq             (mma_irq),
+        .eoi             (mma_eoi),
+        .mem_reload_req  (nice_vif.mem_reload_req),
+        .mma_busy        (mma_busy)
+    );
+    assign nice_vif.nice_active     = 1'b0;
+    assign nice_vif.nice_mem_holdup = 1'b0;
+    assign nice_vif.nice_req_ready  = 1'b0;
+    assign nice_vif.nice_rsp_valid  = 1'b0;
+    assign nice_vif.nice_rsp_rdat   = 32'h0;
+    assign nice_vif.nice_rsp_err    = 1'b0;
+    assign nice_vif.nice_icb_cmd_valid = 1'b0;
+    assign nice_vif.nice_icb_cmd_ready = 1'b0;
+    assign nice_vif.nice_icb_cmd_addr  = 32'h0;
+    assign nice_vif.nice_icb_cmd_read  = 1'b0;
+    assign nice_vif.nice_icb_cmd_wdata = 32'h0;
+    assign nice_vif.nice_icb_cmd_size  = 2'b0;
+    assign nice_vif.nice_icb_rsp_valid = 1'b0;
+    assign nice_vif.nice_icb_rsp_ready = 1'b0;
+    assign nice_vif.nice_icb_rsp_rdata = 32'h0;
+    assign nice_vif.nice_icb_rsp_err   = 1'b0;
+`else
     top_ai_engine u_top_ai_engine (
         .nice_clk          (nice_clk),
         .nice_rst_n        (nice_rst_n),
@@ -114,60 +211,7 @@ module tb_top;
         .test_mode       (1'b0),
         .mem_reload_req  (nice_vif.mem_reload_req)
     );
-
     assign nice_icb_rsp_err = 1'b0;
-`else
-    soc_top #(
-        .AXIL_DATA_WIDTH(32),
-        .AXIL_ADDR_WIDTH(16),
-        .ICB_ADDR_WIDTH(32),
-        .ICB_LEN_W(4),
-        .MEM_DP(AXIL_MEM_DP),
-        .MEM_PATH("../tb/main_extram.mem"),
-        .MEM_INIT_EN(1)
-    ) u_soc_top (
-        .clk             (nice_clk),
-        .rst_n           (nice_rst_n),
-        .s_axil_awaddr   (axil_vif.awaddr),
-        .s_axil_awprot   (axil_vif.awprot),
-        .s_axil_awvalid  (axil_vif.awvalid),
-        .s_axil_awready  (axil_vif.awready),
-        .s_axil_wdata    (axil_vif.wdata),
-        .s_axil_wstrb    (axil_vif.wstrb),
-        .s_axil_wvalid   (axil_vif.wvalid),
-        .s_axil_wready   (axil_vif.wready),
-        .s_axil_bresp    (axil_vif.bresp),
-        .s_axil_bvalid   (axil_vif.bvalid),
-        .s_axil_bready   (axil_vif.bready),
-        .s_axil_araddr   (axil_vif.araddr),
-        .s_axil_arprot   (axil_vif.arprot),
-        .s_axil_arvalid  (axil_vif.arvalid),
-        .s_axil_arready  (axil_vif.arready),
-        .s_axil_rdata    (axil_vif.rdata),
-        .s_axil_rresp    (axil_vif.rresp),
-        .s_axil_rvalid   (axil_vif.rvalid),
-        .s_axil_rready   (axil_vif.rready),
-        .irq             (mma_irq),
-        .eoi             (mma_eoi),
-        .mem_reload_req  (nice_vif.mem_reload_req),
-        .mma_busy        (mma_busy)
-    );
-    assign nice_vif.nice_active     = 1'b0;
-    assign nice_vif.nice_mem_holdup = 1'b0;
-    assign nice_vif.nice_req_ready  = 1'b0;
-    assign nice_vif.nice_rsp_valid  = 1'b0;
-    assign nice_vif.nice_rsp_rdat   = 32'h0;
-    assign nice_vif.nice_rsp_err    = 1'b0;
-    assign nice_vif.nice_icb_cmd_valid = 1'b0;
-    assign nice_vif.nice_icb_cmd_ready = 1'b0;
-    assign nice_vif.nice_icb_cmd_addr  = 32'h0;
-    assign nice_vif.nice_icb_cmd_read  = 1'b0;
-    assign nice_vif.nice_icb_cmd_wdata = 32'h0;
-    assign nice_vif.nice_icb_cmd_size  = 2'b0;
-    assign nice_vif.nice_icb_rsp_valid = 1'b0;
-    assign nice_vif.nice_icb_rsp_ready = 1'b0;
-    assign nice_vif.nice_icb_rsp_rdata = 32'h0;
-    assign nice_vif.nice_icb_rsp_err   = 1'b0;
 `endif
 
     initial begin
@@ -197,6 +241,8 @@ module tb_top;
         cfg = ai_env_cfg::type_id::create("cfg");
 `ifdef DUT_AXIL
         cfg.dut_kind = AI_DUT_AXIL;
+`elsif DUT_AXI_SOC
+        cfg.dut_kind = AI_DUT_AXI_SOC;
 `else
         cfg.dut_kind = AI_DUT_NICE;
 `endif
@@ -204,6 +250,8 @@ module tb_top;
         if ($value$plusargs("DUT_SEL=%s", dut_sel)) begin
             if ((dut_sel == "axil") || (dut_sel == "AXIL")) begin
                 cfg.dut_kind = AI_DUT_AXIL;
+            end else if ((dut_sel == "axi_soc") || (dut_sel == "AXI_SOC")) begin
+                cfg.dut_kind = AI_DUT_AXI_SOC;
             end else begin
                 cfg.dut_kind = AI_DUT_NICE;
             end

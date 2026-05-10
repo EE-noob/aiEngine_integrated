@@ -3,14 +3,15 @@
 +incdir+../env
 +incdir+../test
 +incdir+../test/sequence
++incdir+../uvc
 +incdir+../uvc/nice
 +incdir+../uvc/axil
 +incdir+../tb/sram
 
 ../interface/nice_if.sv
 ../interface/axil_if.sv
-../uvc/nice/ai_nice_pkg.sv
-../uvc/nice/mma_monitor.sv
+../uvc/mma_pkg.sv
+../uvc/mma_monitor.sv
 ../env/ai_env_pkg.sv
 ../test/ai_test_pkg.sv
 

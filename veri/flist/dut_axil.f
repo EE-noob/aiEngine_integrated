@@ -8,7 +8,7 @@
 ../../rtl/nice_coprocessor/inst_pingpong_buf.v
 ../../rtl/nice_coprocessor/inst_tracker.v
 ../../rtl/nice_coprocessor/axi_top/mma_axil_top.sv
-../../rtl/nice_coprocessor/axi_top/soc_top.sv
+../../rtl/nice_coprocessor/axi_top/axil_top_with_ram.sv
 ../../rtl/nice_coprocessor/axil_reg_if.v
 ../../rtl/nice_coprocessor/axil_reg_if_wr.v
 ../../rtl/nice_coprocessor/axil_reg_if_rd.v

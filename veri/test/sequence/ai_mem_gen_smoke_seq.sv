@@ -1,9 +1,9 @@
 `ifndef AI_MEM_GEN_SMOKE_SEQ_SV
 `define AI_MEM_GEN_SMOKE_SEQ_SV
 
-`include "ai_csr_defines.svh"
+`include "mma_csr_defines.svh"
 
-class ai_mem_gen_smoke_seq extends uvm_sequence#(ai_nice_seq_item);
+class ai_mem_gen_smoke_seq extends uvm_sequence#(mma_seq_item);
     `uvm_object_utils(ai_mem_gen_smoke_seq)
 
     virtual nice_if vif;
@@ -21,9 +21,9 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(ai_nice_seq_item);
     endfunction
 
     task automatic write_csr(bit [31:0] addr, bit [31:0] data);
-        ai_nice_seq_item tr;
+        mma_seq_item tr;
         `uvm_do_with(tr, {
-            cmd_kind == NICE_WR_CSR;
+            cmd_kind == MMA_WR_CSR;
             csr_addr == addr;
             csr_data == data;
         })
@@ -111,7 +111,7 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(ai_nice_seq_item);
     endtask
 
     virtual task body();
-        ai_nice_seq_item tr;
+        mma_seq_item tr;
         string utn_name;
         string case_dir;
         string cfg_path;
@@ -231,7 +231,7 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(ai_nice_seq_item);
 
         // Trigger calc_mult after seq-side mem generation/reload and config programming.
         `uvm_do_with(tr, {
-            cmd_kind == NICE_TRIGGER;
+            cmd_kind == MMA_TRIGGER;
             matrix_k == cfg_k;
             matrix_n == cfg_n;
             matrix_m == cfg_m;

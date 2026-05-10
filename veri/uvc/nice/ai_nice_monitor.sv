@@ -1,14 +1,14 @@
 `ifndef AI_NICE_MONITOR_SV
 `define AI_NICE_MONITOR_SV
 
-`include "ai_csr_defines.svh"
+`include "mma_csr_defines.svh"
 
 class ai_nice_monitor extends uvm_monitor;
     `uvm_component_utils(ai_nice_monitor)
 
     virtual nice_if vif;
-    ai_nice_reg_block regmodel;
-    uvm_analysis_port#(ai_nice_seq_item) rsp_ap;
+    mma_reg_block regmodel;
+    uvm_analysis_port#(mma_seq_item) rsp_ap;
     int unsigned pending_calc_cnt;
     bit prev_calc_tog;
     bit prev_wb_tog;
@@ -43,7 +43,7 @@ class ai_nice_monitor extends uvm_monitor;
         return case_name;
     endfunction
 
-    function automatic int unsigned get_reg_mirror(ai_nice_csr_reg rg, string name);
+    function automatic int unsigned get_reg_mirror(mma_csr_reg rg, string name);
         uvm_reg_data_t value;
         if (rg == null) begin
             `uvm_fatal(get_type_name(), $sformatf("regmodel.%s is null", name))
@@ -122,7 +122,7 @@ class ai_nice_monitor extends uvm_monitor;
     endtask
 
     task automatic wait_rsp_and_trigger_scb(uvm_phase phase);
-        ai_nice_seq_item tr;
+        mma_seq_item tr;
         bit [31:0] status;
 
         while (vif.mon_cb.nice_rsp_valid !== 1'b1) begin
@@ -136,8 +136,8 @@ class ai_nice_monitor extends uvm_monitor;
             case (status[1:0])
                 2'b00: begin
                     `uvm_info(get_type_name(), $sformatf("nice_rsp_valid normal response, status=0x%08h", status), UVM_LOW)
-                    tr = ai_nice_seq_item::type_id::create("mon_rsp_tr", this);
-                    tr.cmd_kind = NICE_TRIGGER;
+                    tr = mma_seq_item::type_id::create("mon_rsp_tr", this);
+                    tr.cmd_kind = MMA_TRIGGER;
                     tr.csr_data = status;
                     rsp_ap.write(tr);
                 end

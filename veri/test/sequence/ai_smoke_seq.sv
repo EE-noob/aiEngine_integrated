@@ -3,11 +3,11 @@
 
 // Top-level smoke sequence:
 // 在一个 sequence 里统一调度对 NICE UVC 的激励。
-class ai_smoke_seq extends uvm_sequence#(ai_nice_seq_item);
+class ai_smoke_seq extends uvm_sequence#(mma_seq_item);
     `uvm_object_utils(ai_smoke_seq)
 
     // 由 test 在启动前填充该句柄
-    ai_nice_sequencer nice_seqr;
+    mma_sequencer nice_seqr;
 
     function new(string name = "ai_smoke_seq");
         super.new(name);

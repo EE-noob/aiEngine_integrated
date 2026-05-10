@@ -1,15 +1,15 @@
 `ifndef AI_AXIL_MONITOR_SV
 `define AI_AXIL_MONITOR_SV
 
-`include "ai_csr_defines.svh"
+`include "mma_csr_defines.svh"
 
 class ai_axil_monitor extends uvm_monitor;
     `uvm_component_utils(ai_axil_monitor)
 
     virtual axil_if axil_vif;
     virtual nice_if nice_vif;
-    ai_nice_reg_block regmodel;
-    uvm_analysis_port#(ai_nice_seq_item) rsp_ap;
+    mma_reg_block regmodel;
+    uvm_analysis_port#(mma_seq_item) rsp_ap;
 
     bit enable_mem_gen_on_calc_start;
     bit prev_calc_tog;
@@ -46,7 +46,7 @@ class ai_axil_monitor extends uvm_monitor;
         return case_name;
     endfunction
 
-    function automatic int unsigned get_reg_mirror(ai_nice_csr_reg rg, string name);
+    function automatic int unsigned get_reg_mirror(mma_csr_reg rg, string name);
         uvm_reg_data_t value;
         if (rg == null) begin
             `uvm_fatal(get_type_name(), $sformatf("regmodel.%s is null", name))
@@ -115,7 +115,7 @@ class ai_axil_monitor extends uvm_monitor;
     endtask
 
     task automatic wait_irq_and_trigger_scb();
-        ai_nice_seq_item tr;
+        mma_seq_item tr;
         bit [31:0] status;
         int timeout;
         int timeout_max;
@@ -150,8 +150,8 @@ class ai_axil_monitor extends uvm_monitor;
         case (status[5:4])
             2'b00: begin
                 `uvm_info("AXIL_DONE", $sformatf("MMA done by irq[2] after %0d polls, status=0x%08h err=00", poll_cnt, status), UVM_LOW)
-                tr = ai_nice_seq_item::type_id::create("axil_mon_rsp_tr", this);
-                tr.cmd_kind = NICE_TRIGGER;
+                tr = mma_seq_item::type_id::create("axil_mon_rsp_tr", this);
+                tr.cmd_kind = MMA_TRIGGER;
                 tr.csr_data = status;
                 rsp_ap.write(tr);
             end

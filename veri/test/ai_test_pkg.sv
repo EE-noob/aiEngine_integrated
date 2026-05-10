@@ -97,6 +97,157 @@ class ai_smoke_test extends ai_base_test;
     endtask
 endclass
 
+class ai_axi_soc_c_test extends ai_base_test;
+    `uvm_component_utils(ai_axi_soc_c_test)
+
+    function new(string name = "ai_axi_soc_c_test", uvm_component parent = null);
+        super.new(name, parent);
+    endfunction
+
+    task automatic parse_soc_config(
+        input string cfg_path,
+        output int output_base_addr,
+        output int expected_dst_size
+    );
+        integer fd;
+        string line;
+        int tmp;
+
+        output_base_addr = 0;
+        expected_dst_size = 0;
+
+        fd = $fopen(cfg_path, "r");
+        if (fd == 0) begin
+            `uvm_fatal("SOC_CFG", $sformatf("Cannot open %s", cfg_path))
+        end
+
+        while (!$feof(fd)) begin
+            void'($fgets(line, fd));
+            if ($sscanf(line, "output_base_addr = %d", tmp) == 1) output_base_addr = tmp;
+            else if ($sscanf(line, "expected_dst_size = %d", tmp) == 1) expected_dst_size = tmp;
+        end
+        $fclose(fd);
+
+        if (expected_dst_size <= 0) begin
+            `uvm_fatal("SOC_CFG", $sformatf("Invalid expected_dst_size=%0d from %s", expected_dst_size, cfg_path))
+        end
+    endtask
+
+    task automatic check_soc_output(
+        input string expected_path,
+        input int output_base_addr,
+        input int expected_dst_size
+    );
+`ifdef DUT_AXI_SOC
+        integer fd;
+        integer ret;
+        int byte_idx;
+        int word_addr;
+        int lane;
+        int mismatch_cnt;
+        reg [31:0] exp_word;
+        reg [31:0] act_word;
+        reg [7:0] exp_byte;
+        reg [7:0] act_byte;
+
+        fd = $fopen(expected_path, "r");
+        if (fd == 0) begin
+            `uvm_fatal("SOC_CHK", $sformatf("Cannot open %s", expected_path))
+        end
+
+        mismatch_cnt = 0;
+        exp_word = 32'h0;
+
+        for (byte_idx = 0; byte_idx < expected_dst_size; byte_idx = byte_idx + 1) begin
+            if ((byte_idx % 4) == 0) begin
+                ret = $fscanf(fd, "%h\n", exp_word);
+                if (ret != 1) begin
+                    `uvm_fatal("SOC_CHK", $sformatf("Cannot parse expected word at byte %0d from %s", byte_idx, expected_path))
+                end
+            end
+
+            word_addr = (output_base_addr + byte_idx) >> 2;
+            lane = (output_base_addr + byte_idx) & 32'h3;
+            act_word = $root.tb_top.u_soc_top.u_axil_top_with_ram.u_axi_sim_ram.mem_r[word_addr];
+            exp_byte = exp_word[((byte_idx & 3) * 8) +: 8];
+            act_byte = act_word[(lane * 8) +: 8];
+
+            if (act_byte !== exp_byte) begin
+                mismatch_cnt++;
+                if (mismatch_cnt <= 16) begin
+                    `uvm_error("SOC_CHK", $sformatf("Mismatch byte[%0d] mem_byte_addr=0x%08h exp=0x%02h act=0x%02h",
+                        byte_idx, output_base_addr + byte_idx, exp_byte, act_byte))
+                end
+            end
+        end
+
+        $fclose(fd);
+
+        if (mismatch_cnt != 0) begin
+            `uvm_error("SOC_CHK", $sformatf("AXI SoC output mismatches: %0d bytes", mismatch_cnt))
+        end else begin
+            `uvm_info("SOC_CHK", $sformatf("AXI SoC output matched %0d bytes at base 0x%08h",
+                expected_dst_size, output_base_addr), UVM_LOW)
+        end
+`else
+        `uvm_fatal("SOC_CHK", "ai_axi_soc_c_test must run with DUT_MODE=axi_soc")
+`endif
+    endtask
+
+    virtual task main_phase(uvm_phase phase);
+        string soc_case_dir;
+        string cfg_path;
+        string expected_path;
+        int output_base_addr;
+        int expected_dst_size;
+        int timeout_cycles;
+        int cycles;
+
+        phase.raise_objection(this);
+
+        if (!$value$plusargs("SOC_CASE_DIR=%s", soc_case_dir)) begin
+            soc_case_dir = "../tb/axi_soc_case";
+        end
+        if (!$value$plusargs("SOC_TIMEOUT_CYCLES=%d", timeout_cycles)) begin
+            timeout_cycles = 2000000;
+        end
+
+        cfg_path = {soc_case_dir, "/config.txt"};
+        expected_path = {soc_case_dir, "/expected.mem"};
+        parse_soc_config(cfg_path, output_base_addr, expected_dst_size);
+
+`ifdef DUT_AXI_SOC
+        `uvm_info(get_type_name(), $sformatf("Waiting for PicoRV32 C test finish, timeout=%0d cycles", timeout_cycles), UVM_LOW)
+        cycles = 0;
+        while (!$root.tb_top.soc_finish && (cycles < timeout_cycles)) begin
+            @(posedge $root.tb_top.nice_clk);
+            cycles++;
+        end
+
+        if (!$root.tb_top.soc_finish) begin
+            `uvm_error("SOC_TEST", $sformatf("Timeout waiting for soc_finish after %0d cycles", cycles))
+        end else begin
+            `uvm_info("SOC_TEST", $sformatf("soc_finish asserted after %0d cycles, soc_status=0x%08h cpu_trap=%0b",
+                cycles, $root.tb_top.soc_status, $root.tb_top.cpu_trap), UVM_LOW)
+        end
+
+        if ($root.tb_top.cpu_trap) begin
+            `uvm_error("SOC_TEST", "PicoRV32 cpu_trap asserted")
+        end
+
+        if ($root.tb_top.soc_status !== 32'h1) begin
+            `uvm_error("SOC_TEST", $sformatf("C program reported failure status=0x%08h", $root.tb_top.soc_status))
+        end
+
+        check_soc_output(expected_path, output_base_addr, expected_dst_size);
+`else
+        `uvm_fatal("SOC_TEST", "ai_axi_soc_c_test must run with DUT_MODE=axi_soc")
+`endif
+
+        phase.drop_objection(this);
+    endtask
+endclass
+
 class smoke_test extends ai_base_test;
     `uvm_component_utils(smoke_test)
 
@@ -127,7 +278,7 @@ endclass
 class ai_coverage_test extends ai_base_test;
     `uvm_component_utils(ai_coverage_test)
 
-    ai_nice_coverage cov;
+    mma_coverage cov;
 
     function new(string name = "ai_coverage_test", uvm_component parent = null);
         super.new(name, parent);
@@ -135,7 +286,7 @@ class ai_coverage_test extends ai_base_test;
 
     virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
-        cov = ai_nice_coverage::type_id::create("cov", this);
+        cov = mma_coverage::type_id::create("cov", this);
     endfunction
 
     virtual task main_phase(uvm_phase phase);

@@ -1,10 +1,10 @@
 `ifndef AI_NICE_RAL_CSR_WR_CHECK_SEQ_SV
 `define AI_NICE_RAL_CSR_WR_CHECK_SEQ_SV
 
-class ai_nice_ral_csr_wr_check_seq extends uvm_sequence#(ai_nice_seq_item);
+class ai_nice_ral_csr_wr_check_seq extends uvm_sequence#(mma_seq_item);
     `uvm_object_utils(ai_nice_ral_csr_wr_check_seq)
 
-    ai_nice_reg_block regmodel;
+    mma_reg_block regmodel;
 
     function new(string name = "ai_nice_ral_csr_wr_check_seq");
         super.new(name);

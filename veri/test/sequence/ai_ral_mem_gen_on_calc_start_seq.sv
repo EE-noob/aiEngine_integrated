@@ -1,12 +1,12 @@
 `ifndef AI_RAL_MEM_GEN_ON_CALC_START_SEQ_SV
 `define AI_RAL_MEM_GEN_ON_CALC_START_SEQ_SV
 
-`include "ai_csr_defines.svh"
+`include "mma_csr_defines.svh"
 
 class ai_ral_mem_gen_on_calc_start_seq extends ai_mem_gen_smoke_seq;
     `uvm_object_utils(ai_ral_mem_gen_on_calc_start_seq)
 
-    ai_nice_reg_block regmodel;
+    mma_reg_block regmodel;
 
     function new(string name = "ai_ral_mem_gen_on_calc_start_seq");
         super.new(name);
@@ -68,7 +68,7 @@ class ai_ral_mem_gen_on_calc_start_seq extends ai_mem_gen_smoke_seq;
         end
     endtask
 
-    task automatic ral_write(ai_nice_csr_reg rg, bit [31:0] data, string name);
+    task automatic ral_write(mma_csr_reg rg, bit [31:0] data, string name);
         uvm_status_e status;
 
         if (rg == null) begin
@@ -83,7 +83,7 @@ class ai_ral_mem_gen_on_calc_start_seq extends ai_mem_gen_smoke_seq;
     endtask
 
     virtual task body();
-        ai_nice_seq_item tr;
+        mma_seq_item tr;
         string utn_name;
         string case_dir;
         string cfg_path;
@@ -203,7 +203,7 @@ class ai_ral_mem_gen_on_calc_start_seq extends ai_mem_gen_smoke_seq;
         ral_write(regmodel.mult_act_max,    act_max[31:0],           "mult_act_max");
 
         `uvm_do_with(tr, {
-            cmd_kind == NICE_TRIGGER;
+            cmd_kind == MMA_TRIGGER;
             matrix_k == cfg_k;
             matrix_n == cfg_n;
             matrix_m == cfg_m;
