@@ -50,7 +50,7 @@ class mma_reg_block extends uvm_reg_block;
         default_map = create_map("default_map", 0, 4, UVM_LITTLE_ENDIAN, 0);
 
 `ifdef DUT_AXI_SOC
-        set_hdl_path_root("tb_top.u_soc_top.u_axil_top_with_ram.u_mma_axil_top.u_csr_unit");
+        set_hdl_path_root("tb_top.u_soc_top.u_mma_axil_top.u_csr_unit");
 `elsif DUT_AXIL
         set_hdl_path_root("tb_top.u_axil_top_with_ram.u_mma_axil_top.u_csr_unit");
 `else

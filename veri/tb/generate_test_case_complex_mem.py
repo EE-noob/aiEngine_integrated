@@ -170,19 +170,36 @@ def generate_test_case(
     dst_shift=None,
     act_min=-128,
     act_max=127,
+    min_dim=16,
+    max_dim=256,
+    dim_multiple=1,
     out_dir="./test_case",
 ):
     if seed is not None:
         random.seed(seed)
         np.random.seed(seed)
 
+    if min_dim > max_dim:
+        raise ValueError(f"min_dim ({min_dim}) must be <= max_dim ({max_dim})")
+    if dim_multiple < 1:
+        raise ValueError(f"dim_multiple ({dim_multiple}) must be >= 1")
+
+    def random_dim():
+        lo = (min_dim + dim_multiple - 1) // dim_multiple
+        hi = max_dim // dim_multiple
+        if lo > hi:
+            raise ValueError(
+                f"no multiple of {dim_multiple} in range [{min_dim}, {max_dim}]"
+            )
+        return random.randint(lo, hi) * dim_multiple
+
     # 随机生成矩阵尺寸 (128~256)
     if K is None:
-        K = random.randint(16, 256)
+        K = random_dim()
     if N is None:
-        N = random.randint(16, 256)
+        N = random_dim()
     if M is None:
-        M = random.randint(16, 256)
+        M = random_dim()
 
     # 随机选择 lhs 数据类型
     if lhs_dtype is None:
@@ -360,6 +377,8 @@ def generate_test_case(
     # 生成配置文件
     with open(config_path, 'w') as f:
         f.write("# Human-readable config file\n")
+        if seed is not None:
+            f.write(f"seed = {seed}\n")
         f.write(f"K = {K}\n")
         f.write(f"N = {N}\n")
         f.write(f"M = {M}\n")
@@ -423,6 +442,9 @@ def generate_test_case(
         "dst_offset": dst_offset,
         "act_min": act_min,
         "act_max": act_max,
+        "min_dim": min_dim,
+        "max_dim": max_dim,
+        "dim_multiple": dim_multiple,
         "out_dir": out_dir,
     }
 
@@ -444,6 +466,9 @@ if __name__ == "__main__":
     parser.add_argument("--dst_shift", type=int, default=None)
     parser.add_argument("--act_min", type=int, default=-128)
     parser.add_argument("--act_max", type=int, default=127)
+    parser.add_argument("--min_dim", type=int, default=16)
+    parser.add_argument("--max_dim", type=int, default=256)
+    parser.add_argument("--dim_multiple", type=int, default=1)
     parser.add_argument("--out_dir", type=str, default="./test_case")
     args = parser.parse_args()
 
@@ -462,5 +487,8 @@ if __name__ == "__main__":
         dst_shift=args.dst_shift,
         act_min=args.act_min,
         act_max=args.act_max,
+        min_dim=args.min_dim,
+        max_dim=args.max_dim,
+        dim_multiple=args.dim_multiple,
         out_dir=args.out_dir,
     )

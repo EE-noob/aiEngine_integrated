@@ -61,14 +61,11 @@ module tb_top;
     logic                       soc_finish;
     logic [31:0]                soc_status;
     logic                       cpu_trap;
-    localparam int unsigned     AXI_SOC_CPU_MEM_DP = 65536;
-    localparam int unsigned     AXI_SOC_MMA_MEM_DP = 131072;
+    localparam int unsigned     AXI_SOC_CPU_MEM_DP = 524288;
 
     soc_top #(
         .CPU_MEM_DP(AXI_SOC_CPU_MEM_DP),
-        .MMA_MEM_DP(AXI_SOC_MMA_MEM_DP),
-        .CPU_MEM_PATH("../tb/axi_soc_case/cpu.mem"),
-        .MMA_MEM_PATH("../tb/main_extram.mem")
+        .CPU_MEM_PATH("../tb/axi_soc_case/cpu.mem")
     ) u_soc_top (
         .clk            (nice_clk),
         .rst_n          (nice_rst_n),

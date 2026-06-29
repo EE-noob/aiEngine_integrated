@@ -5,7 +5,8 @@
 #include <stdint.h>
 
 /* ========== AXI-Lite MMIO 基地址 ========== */
-#define DSA_MMIO_BASE 0xA0000000u
+/* axi_soc maps the accelerator window at 0x1000_0000 in soc_top.sv. */
+#define DSA_MMIO_BASE 0x10000000u
 
 /* ========== 寄存器地址（按 word 编址） ========== */
 #define DSA_REG_CTRL    0x000u

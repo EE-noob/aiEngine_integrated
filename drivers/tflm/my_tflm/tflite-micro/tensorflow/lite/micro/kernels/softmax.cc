@@ -29,6 +29,14 @@ limitations under the License.
 namespace tflite {
 namespace {
 
+#if defined(TFLM_SOC_PROGRESS)
+void SocProgress(uint32_t value) {
+  *reinterpret_cast<volatile uint32_t*>(0x2000000cu) = value;
+}
+#else
+void SocProgress(uint32_t value) { (void)value; }
+#endif
+
 void SoftmaxQuantized(const TfLiteEvalTensor* input, TfLiteEvalTensor* output,
                       const SoftmaxParams& op_data) {
   if (input->type == kTfLiteInt8) {
@@ -55,6 +63,7 @@ void SoftmaxQuantized(const TfLiteEvalTensor* input, TfLiteEvalTensor* output,
 }
 
 TfLiteStatus SoftmaxEval(TfLiteContext* context, TfLiteNode* node) {
+  SocProgress(0x5b330001u);
   const TfLiteEvalTensor* input = tflite::micro::GetEvalInput(context, node, 0);
   TfLiteEvalTensor* output = tflite::micro::GetEvalOutput(context, node, 0);
 
@@ -73,6 +82,7 @@ TfLiteStatus SoftmaxEval(TfLiteContext* context, TfLiteNode* node) {
     case kTfLiteInt8:
     case kTfLiteInt16: {
       SoftmaxQuantized(input, output, op_data);
+      SocProgress(0x5b3300ffu);
       return kTfLiteOk;
     }
     default:

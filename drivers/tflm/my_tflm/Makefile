@@ -12,6 +12,9 @@ DOWNLOADS_DIR := $(MAKEFILE_DIR)/downloads
 # 构建目录：存放所有构建产物
 BUILD_DIR := build
 
+TARGET_FLAGS ?=
+AR ?= ar
+
 # 生成目录：存放生成的代码
 GENERATED_SUBDIR := gen
 GENERATED_DIR := $(BUILD_DIR)/$(GENERATED_SUBDIR)
@@ -58,6 +61,7 @@ CC_WARNINGS := \
 
 # C/C++通用编译选项
 COMMON_FLAGS := \
+  $(TARGET_FLAGS) \
   -Werror \
   -fno-unwind-tables \
   -ffunction-sections \
@@ -332,7 +336,7 @@ $(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
 
 # 创建TFLM静态库
 $(MICROLITE_LIB_NAME): $(MICROLITE_OBJS) $(MICROLITE_KERNEL_OBJS) | $(BUILD_DIR)
-	ar rcs $@ $^
+	$(AR) rcs $@ $^
 
 # 数据生成函数
 define generate_cc_array

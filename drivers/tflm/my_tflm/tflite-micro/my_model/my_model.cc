@@ -7,6 +7,8 @@
 #include "tensorflow/lite/micro/system_setup.h"
 #include "tensorflow/lite/schema/schema_generated.h"
 
+#include <stdint.h>
+
 // 包含生成的模型数据
 #include "gen/my_model/models/justure_detect_model_data.h"
 
@@ -21,23 +23,37 @@ TfLiteTensor* input = nullptr;
 // Tensor arena - 与justure_detection保持一致的大小和对齐
 constexpr int kTensorArenaSize = TENSOR_ARENA_SIZE;
 alignas(16) static uint8_t tensor_arena[kTensorArenaSize];
+
+#if defined(TFLM_SOC_PROGRESS)
+void SocProgress(uint32_t value) {
+  *reinterpret_cast<volatile uint32_t*>(0x2000000cu) = value;
+}
+#else
+void SocProgress(uint32_t value) { (void)value; }
+#endif
 }  // namespace
 
 // Setup函数 - 完全参考justure_detection的setup()实现
 int Setup() {
+  SocProgress(0x5a110001u);
   tflite::InitializeTarget();
 
   // 映射模型到可用数据结构 - 使用justure_detection模型
+  SocProgress(0x5a110002u);
   model = tflite::GetModel(g_justure_detect_model_data);
+  SocProgress(0x5a110003u);
   if (model->version() != TFLITE_SCHEMA_VERSION) {
+#if !defined(TFLM_SOC_QUIET)
     MicroPrintf(
         "Model provided is schema version %d not equal "
         "to supported version %d.",
         model->version(), TFLITE_SCHEMA_VERSION);
+#endif
     return -1;
   }
 
   // 2 注册算子（见第3步）
+  SocProgress(0x5a110004u);
   static tflite::MicroMutableOpResolver<11> resolver;
   resolver.AddConv2D();
   resolver.AddDepthwiseConv2D();
@@ -52,30 +68,42 @@ int Setup() {
   resolver.AddAdd();
 
   // 3 创建解释器并分配 tensor
+  SocProgress(0x5a110005u);
   static tflite::MicroInterpreter static_interpreter(
       model, resolver, tensor_arena, kTensorArenaSize);
+  SocProgress(0x5a110006u);
   interpreter = &static_interpreter;
+  SocProgress(0x5a110007u);
   TfLiteStatus allocate_status = interpreter->AllocateTensors();
+  SocProgress(0x5a110100u | (allocate_status & 0xff));
   if (allocate_status != kTfLiteOk) {
+#if !defined(TFLM_SOC_QUIET)
     MicroPrintf("AllocateTensors() failed");
+#endif
     return -2;
   }
 
   // 获取模型输入的内存区域信息
+  SocProgress(0x5a110008u);
   input = interpreter->input(0);
 
   // 检查输入张量的数据类型
   if (input->type != kTfLiteUInt8) {
+#if !defined(TFLM_SOC_QUIET)
     MicroPrintf("Input tensor type is not uint8, got %d", input->type);
+#endif
     return -3;
   }
 
   // 获取模型输出张量
+  SocProgress(0x5a110009u);
   TfLiteTensor* output = interpreter->output(0);
 
   // 检查输出张量的数据类型
   if (output->type != kTfLiteUInt8) {
+#if !defined(TFLM_SOC_QUIET)
     MicroPrintf("Output tensor type is not uint8, got %d", output->type);
+#endif
     return -4;
   }
 
@@ -85,25 +113,34 @@ int Setup() {
 // RunInference函数重载 - 直接返回模型输出数据指针
 uint8_t* RunInference(const uint8_t* image_data) {
   if (!interpreter || !input) {
+#if !defined(TFLM_SOC_QUIET)
     MicroPrintf("Model not initialized");
+#endif
     return nullptr;
   }
 
   // 检查输入数据
   if (!image_data) {
+#if !defined(TFLM_SOC_QUIET)
     MicroPrintf("Image data is null");
+#endif
     return nullptr;
   }
 
   // 将图像数据复制到输入张量
+  SocProgress(0x5a210001u);
   memcpy(input->data.uint8, image_data, kMaxImageSize);
 
   // 运行模型推理
+  SocProgress(0x5a210002u);
   if (kTfLiteOk != interpreter->Invoke()) {
+#if !defined(TFLM_SOC_QUIET)
     MicroPrintf("Invoke failed.");
+#endif
     return nullptr;
   }
 
+  SocProgress(0x5a210003u);
   TfLiteTensor* output = interpreter->output(0);
 
   // 直接返回模型输出数据指针

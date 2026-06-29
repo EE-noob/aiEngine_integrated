@@ -6,6 +6,20 @@ veri/work/*
 !veri/sim/Makefile
 !veri/sim/.gitignore
 !veri/sim/*.rc
+!veri/sim/run_simv_lxc.sh
+!veri/sim/run_axi_soc_c_regression.py
 
 # Local E203 SoC reference workspace
 e203_soc/
+
+# Generated AXI SoC C regression cases
+veri/tb/axi_soc_case/soc_case.c
+veri/tb/axi_soc_c_regress_*/
+veri/tb/__pycache__/
+
+# Generated TFLM cross-build artifacts
+drivers/tflm/my_tflm/build-rv32/
+drivers/tflm/my_tflm/build-rv32im/
+drivers/tflm/my_tflm/build-host/
+veri/tb/axi_soc_tflm/
+veri/tb/axi_soc_tflm_*/

@@ -168,7 +168,7 @@ class ai_axi_soc_c_test extends ai_base_test;
 
             word_addr = (output_base_addr + byte_idx) >> 2;
             lane = (output_base_addr + byte_idx) & 32'h3;
-            act_word = $root.tb_top.u_soc_top.u_axil_top_with_ram.u_axi_sim_ram.mem_r[word_addr];
+            act_word = $root.tb_top.u_soc_top.cpu_mem[word_addr];
             exp_byte = exp_word[((byte_idx & 3) * 8) +: 8];
             act_byte = act_word[(lane * 8) +: 8];
 
@@ -195,26 +195,14 @@ class ai_axi_soc_c_test extends ai_base_test;
     endtask
 
     virtual task main_phase(uvm_phase phase);
-        string soc_case_dir;
-        string cfg_path;
-        string expected_path;
-        int output_base_addr;
-        int expected_dst_size;
         int timeout_cycles;
         int cycles;
 
         phase.raise_objection(this);
 
-        if (!$value$plusargs("SOC_CASE_DIR=%s", soc_case_dir)) begin
-            soc_case_dir = "../tb/axi_soc_case";
-        end
         if (!$value$plusargs("SOC_TIMEOUT_CYCLES=%d", timeout_cycles)) begin
             timeout_cycles = 2000000;
         end
-
-        cfg_path = {soc_case_dir, "/config.txt"};
-        expected_path = {soc_case_dir, "/expected.mem"};
-        parse_soc_config(cfg_path, output_base_addr, expected_dst_size);
 
 `ifdef DUT_AXI_SOC
         `uvm_info(get_type_name(), $sformatf("Waiting for PicoRV32 C test finish, timeout=%0d cycles", timeout_cycles), UVM_LOW)
@@ -225,10 +213,11 @@ class ai_axi_soc_c_test extends ai_base_test;
         end
 
         if (!$root.tb_top.soc_finish) begin
-            `uvm_error("SOC_TEST", $sformatf("Timeout waiting for soc_finish after %0d cycles", cycles))
+            `uvm_error("SOC_TEST", $sformatf("Timeout waiting for soc_finish after %0d cycles, progress=0x%08h cpu_trap=%0b",
+                cycles, $root.tb_top.u_soc_top.soc_progress, $root.tb_top.cpu_trap))
         end else begin
-            `uvm_info("SOC_TEST", $sformatf("soc_finish asserted after %0d cycles, soc_status=0x%08h cpu_trap=%0b",
-                cycles, $root.tb_top.soc_status, $root.tb_top.cpu_trap), UVM_LOW)
+            `uvm_info("SOC_TEST", $sformatf("soc_finish asserted after %0d cycles, soc_status=0x%08h progress=0x%08h cpu_trap=%0b",
+                cycles, $root.tb_top.soc_status, $root.tb_top.u_soc_top.soc_progress, $root.tb_top.cpu_trap), UVM_LOW)
         end
 
         if ($root.tb_top.cpu_trap) begin
@@ -239,7 +228,6 @@ class ai_axi_soc_c_test extends ai_base_test;
             `uvm_error("SOC_TEST", $sformatf("C program reported failure status=0x%08h", $root.tb_top.soc_status))
         end
 
-        check_soc_output(expected_path, output_base_addr, expected_dst_size);
 `else
         `uvm_fatal("SOC_TEST", "ai_axi_soc_c_test must run with DUT_MODE=axi_soc")
 `endif

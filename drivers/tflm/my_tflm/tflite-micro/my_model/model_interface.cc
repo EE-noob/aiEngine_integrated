@@ -3,6 +3,18 @@
 #include "model_settings.h"
 #include "tensorflow/lite/micro/micro_time.h"
 
+namespace {
+
+#if defined(TFLM_SOC_PROGRESS)
+void SocProgress(uint32_t value) {
+    *reinterpret_cast<volatile uint32_t*>(0x2000000cu) = value;
+}
+#else
+void SocProgress(uint32_t value) { (void)value; }
+#endif
+
+}  // namespace
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -10,13 +22,21 @@ extern "C" {
 // 模型初始化函数
 // 返回值: 0表示成功，非0表示失败
 int ModelInit(void) {
+#if !defined(TFLM_SOC_QUIET)
     MicroPrintf("Initializing model...");
+#endif
+    SocProgress(0x5a101001u);
     int setup_result = my_model::Setup();
+    SocProgress(0x5a101100u | (setup_result & 0xff));
     if (setup_result != 0) {
+#if !defined(TFLM_SOC_QUIET)
         MicroPrintf("Model initialization failed, error code: %d", setup_result);
+#endif
         return setup_result;
     }
+#if !defined(TFLM_SOC_QUIET)
     MicroPrintf("Model initialized successfully");
+#endif
     return 0;
 }
 
@@ -25,7 +45,9 @@ int ModelInference(const uint8_t* image_data) {
     if (image_data == nullptr) {
         return -1;
     }
+    SocProgress(0x5a201001u);
     uint8_t* scores = my_model::RunInference(image_data);
+    SocProgress(0x5a201100u | (scores == nullptr ? 0xffu : 0u));
     if (scores == nullptr) {
         return -1;
     }

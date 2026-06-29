@@ -26,6 +26,14 @@ limitations under the License.
 namespace tflite {
 namespace {
 
+#if defined(TFLM_SOC_PROGRESS)
+void SocProgress(uint32_t value) {
+  *reinterpret_cast<volatile uint32_t*>(0x2000000cu) = value;
+}
+#else
+void SocProgress(uint32_t value) { (void)value; }
+#endif
+
 void* FullyConnectedInit(TfLiteContext* context, const char* buffer,
                          size_t length) {
   TFLITE_DCHECK(context->AllocatePersistentBuffer != nullptr);
@@ -106,6 +114,7 @@ TfLiteStatus FullyConnectedPrepare(TfLiteContext* context, TfLiteNode* node) {
 }
 
 TfLiteStatus FullyConnectedEval(TfLiteContext* context, TfLiteNode* node) {
+  SocProgress(0x5b320001u);
   TFLITE_DCHECK(node->builtin_data != nullptr);
   const auto* params =
       static_cast<const TfLiteFullyConnectedParams*>(node->builtin_data);
@@ -161,6 +170,7 @@ TfLiteStatus FullyConnectedEval(TfLiteContext* context, TfLiteNode* node) {
     }
 
     case kTfLiteInt8: {
+      SocProgress(0x5b320200u | (filter->type & 0xff));
       switch (filter->type) {
         case kTfLiteInt4: {
           int8_t* unpacked_filter_data = static_cast<int8_t*>(
@@ -181,6 +191,7 @@ TfLiteStatus FullyConnectedEval(TfLiteContext* context, TfLiteNode* node) {
           break;
         }
         case kTfLiteInt8: {
+          SocProgress(0x5b320210u);
           data.is_per_channel
               ? tflite::reference_integer_ops::FullyConnectedPerChannel(
                     FullyConnectedParamsQuantized(data),
@@ -224,6 +235,7 @@ TfLiteStatus FullyConnectedEval(TfLiteContext* context, TfLiteNode* node) {
 #endif  // USE_TFLM_COMPRESSION
                     tflite::micro::GetTensorShape(output),
                     tflite::micro::GetTensorData<int8_t>(output));
+          SocProgress(0x5b320211u);
           break;
         }
         default: {
@@ -346,6 +358,7 @@ TfLiteStatus FullyConnectedEval(TfLiteContext* context, TfLiteNode* node) {
       return kTfLiteError;
     }
   }
+  SocProgress(0x5b3200ffu);
   return kTfLiteOk;
 }
 

@@ -9,6 +9,12 @@ DEFINES  ?=
 UVM_HOME ?= $(VCS_HOME)/etc/uvm-1.2/
 UVM_VER  ?= -ntb_opts uvm-1.2
 NOVAS_HOME ?=
+VCS ?= vcs
+VERDI ?= verdi
+SIM_LAUNCHER ?= ./run_simv_lxc.sh
+SIM_RUNNER ?= $(SIM_LAUNCHER) ./$(SIMV)
+VCS_CC ?= gcc
+VCS_CXX ?= g++
 case     ?= test_case0
 seed     ?= 1
 DUT_MODE ?= nice
@@ -19,8 +25,12 @@ SOC_N ?= 32
 SOC_M ?= 16
 SOC_LHS_DTYPE ?= 1
 SOC_QUANT_MODE ?= 0
+SOC_RANDOM ?= 0
 SOC_FIX_MODE ?= 1
 SOC_SEED ?= 1
+SOC_MIN_DIM ?=
+SOC_MAX_DIM ?=
+SOC_DIM_MULTIPLE ?= 16
 SOC_LHS_OFFSET ?= 0
 SOC_RHS_OFFSET ?= 0
 SOC_DST_OFFSET ?= 0
@@ -28,21 +38,110 @@ SOC_ACT_MIN ?= -128
 SOC_ACT_MAX ?= 127
 SOC_DST_MULT ?=
 SOC_DST_SHIFT ?=
-SOC_CPU_MEM_DP ?= 65536
+SOC_CPU_MEM_DP ?= 524288
+SOC_TIMEOUT_CYCLES ?=
 SOC_C_SRC ?= ../soc_csrc/soc_main.c
-SOC_GCC ?= $(or $(shell command -v riscv64-unknown-elf-gcc 2>/dev/null),$(abspath ../../e203_soc/deps/software-level/bin/gcc_open/bin/riscv64-unknown-elf-gcc))
-SOC_OBJCOPY ?= $(or $(shell command -v riscv64-unknown-elf-objcopy 2>/dev/null),$(abspath ../../e203_soc/deps/software-level/bin/gcc_open/bin/riscv64-unknown-elf-objcopy))
+SOC_APP ?= mma
+E203_SIM_ROOT ?= /home/etc/FPGA/e203_simulator
+SOC_TOOLCHAIN_DIR ?= $(E203_SIM_ROOT)/deps/software-level/bin/gcc_open/bin
+SOC_GCC_FROM_PATH := $(shell command -v riscv64-unknown-elf-gcc 2>/dev/null)
+SOC_GXX_FROM_PATH := $(shell command -v riscv64-unknown-elf-g++ 2>/dev/null)
+SOC_AR_FROM_PATH := $(shell command -v riscv64-unknown-elf-ar 2>/dev/null)
+SOC_OBJCOPY_FROM_PATH := $(shell command -v riscv64-unknown-elf-objcopy 2>/dev/null)
+SOC_GCC ?= $(if $(SOC_GCC_FROM_PATH),$(SOC_GCC_FROM_PATH),$(SOC_TOOLCHAIN_DIR)/riscv64-unknown-elf-gcc)
+SOC_GXX ?= $(if $(SOC_GXX_FROM_PATH),$(SOC_GXX_FROM_PATH),$(SOC_TOOLCHAIN_DIR)/riscv64-unknown-elf-g++)
+SOC_AR ?= $(if $(SOC_AR_FROM_PATH),$(SOC_AR_FROM_PATH),$(SOC_TOOLCHAIN_DIR)/riscv64-unknown-elf-ar)
+SOC_OBJCOPY ?= $(if $(SOC_OBJCOPY_FROM_PATH),$(SOC_OBJCOPY_FROM_PATH),$(SOC_TOOLCHAIN_DIR)/riscv64-unknown-elf-objcopy)
+SOC_REGRESS_ITERS ?= 10
+SOC_REGRESS_START_SEED ?= 1
+SOC_REGRESS_TIMEOUT ?= 300
+SOC_REGRESS_LOG_ROOT ?= runs/axi_soc_c_regression
+TFLM_DIR ?= ../../drivers/tflm/my_tflm
+TFLM_ROOT ?= $(TFLM_DIR)/tflite-micro
+TFLM_BUILD_DIR ?= build-rv32im
+TFLM_LIB ?= $(TFLM_DIR)/$(TFLM_BUILD_DIR)/libtflite-micro.a
+TFLM_GENFILES ?= $(TFLM_ROOT)/gen/linux_x86_64_default/genfiles
+TFLM_HOST_BUILD_DIR ?= build-host
+TFLM_HOST_LIB ?= $(TFLM_DIR)/$(TFLM_HOST_BUILD_DIR)/libtflite-micro.a
+TFLM_MICRO_SPEECH_FEATURES_CC ?= ../soc_csrc/tflm_micro_speech_features.cc
+TFLM_MICRO_SPEECH_FEATURE_DUMP ?= $(TFLM_DIR)/$(TFLM_HOST_BUILD_DIR)/dump_micro_speech_features
+
+TFLM_INCLUDES = -I$(TFLM_ROOT) \
+                -I$(TFLM_ROOT)/gen \
+                -I$(TFLM_GENFILES) \
+                -I$(TFLM_ROOT)/my_model \
+                -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads \
+                -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/gemmlowp \
+                -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/flatbuffers/include \
+                -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/kissfft \
+                -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/ruy
+TFLM_CXXFLAGS = -march=rv32im -mabi=ilp32 -O2 \
+                -std=c++17 -fno-rtti -fno-exceptions -fno-threadsafe-statics \
+                -fno-unwind-tables -ffunction-sections -fdata-sections \
+                -fmessage-length=0 -DNDEBUG -DTF_LITE_STRIP_ERROR_STRINGS \
+                -DTF_LITE_DISABLE_X86_NEON -DTFLM_SOC_QUIET \
+                -DTFLM_SOC_PROGRESS -DTFLM_SOC_MMA $(TFLM_INCLUDES)
+TFLM_APP_SRCS = ../soc_csrc/start.S \
+                ../soc_csrc/tflm_soc_runtime.cc \
+                ../soc_csrc/tflm_soc_main.cc \
+                $(TFLM_ROOT)/my_model/my_model.cc \
+                $(TFLM_ROOT)/my_model/model_interface.cc \
+                $(TFLM_ROOT)/my_model/model_settings.cc \
+                $(TFLM_ROOT)/gen/my_model/models/justure_detect_model_data.cc \
+                $(TFLM_ROOT)/gen/my_model/testdata/Z_test_image_data.cc \
+                $(TFLM_ROOT)/gen/my_model/testdata/W_test_image_data.cc
+TFLM_MICRO_SPEECH_MODEL_DATA_CC = $(TFLM_GENFILES)/tensorflow/lite/micro/examples/micro_speech/models/micro_speech_quantized_model_data.cc
+TFLM_MICRO_SPEECH_AUDIO_DATA_SRCS = $(TFLM_GENFILES)/tensorflow/lite/micro/examples/micro_speech/models/audio_preprocessor_int8_model_data.cc \
+                                    $(TFLM_GENFILES)/tensorflow/lite/micro/examples/micro_speech/testdata/yes_1000ms_audio_data.cc \
+                                    $(TFLM_GENFILES)/tensorflow/lite/micro/examples/micro_speech/testdata/no_1000ms_audio_data.cc
+TFLM_MICRO_SPEECH_APP_SRCS = ../soc_csrc/start.S \
+                             ../soc_csrc/tflm_soc_runtime.cc \
+                             ../soc_csrc/tflm_micro_speech_soc_main.cc \
+                             $(TFLM_MICRO_SPEECH_FEATURES_CC) \
+                             $(TFLM_MICRO_SPEECH_MODEL_DATA_CC)
+TFLM_HELLO_WORLD_MODEL_DATA_CC = $(TFLM_GENFILES)/tensorflow/lite/micro/examples/hello_world/models/hello_world_int8_model_data.cc
+TFLM_HELLO_WORLD_APP_SRCS = ../soc_csrc/start.S \
+                            ../soc_csrc/tflm_soc_runtime.cc \
+                            ../soc_csrc/tflm_hello_world_soc_main.cc \
+                            $(TFLM_HELLO_WORLD_MODEL_DATA_CC)
+
+SOC_GEN_ARGS = --seed $(SOC_SEED) \
+               $(if $(filter 1 yes true TRUE,$(SOC_FIX_MODE)),--fix_mode,) \
+               --lhs_offset $(SOC_LHS_OFFSET) \
+               --rhs_offset $(SOC_RHS_OFFSET) \
+               --dst_offset $(SOC_DST_OFFSET) \
+               --act_min $(SOC_ACT_MIN) \
+               --act_max $(SOC_ACT_MAX) \
+               $(if $(SOC_DST_MULT),--dst_mult $(SOC_DST_MULT),) \
+               $(if $(SOC_DST_SHIFT),--dst_shift $(SOC_DST_SHIFT),) \
+               $(if $(SOC_MIN_DIM),--min_dim $(SOC_MIN_DIM),) \
+               $(if $(SOC_MAX_DIM),--max_dim $(SOC_MAX_DIM),) \
+               --dim_multiple $(SOC_DIM_MULTIPLE)
+ifneq ($(filter 1 yes true TRUE,$(SOC_RANDOM)),)
+SOC_GEN_ARGS += --random
+else
+SOC_GEN_ARGS += --K $(SOC_K) --N $(SOC_N) --M $(SOC_M) --lhs_dtype $(SOC_LHS_DTYPE) --quant_mode $(SOC_QUANT_MODE)
+endif
 
 OUT_DIR     ?= runs/$(case)/seed_$(seed)
 FSDB        ?= $(OUT_DIR)/tb_top.fsdb
 COMPILE_LOG ?= $(OUT_DIR)/compile.log
 SIM_LOG     ?= $(OUT_DIR)/sim.log
+SIM_OPTS    += $(if $(SOC_TIMEOUT_CYCLES),+SOC_TIMEOUT_CYCLES=$(SOC_TIMEOUT_CYCLES),)
 
 ifeq ($(DUT_MODE),axi_soc)
 FILELIST     ?= ../flist/tb_axi_soc.f
 MODE_DEFINES += DUT_AXI_SOC
-SIM_OPTS     += +DUT_SEL=axi_soc +SOC_CASE_DIR=$(SOC_CASE_DIR) +SOC_CPU_MEM=$(SOC_CASE_DIR)/cpu.mem +SOC_MMA_MEM=$(SOC_CASE_DIR)/data.mem
+SIM_OPTS     += +DUT_SEL=axi_soc +SOC_CASE_DIR=$(SOC_CASE_DIR) +SOC_CPU_MEM=$(SOC_CASE_DIR)/cpu.mem
+ifeq ($(SOC_APP),tflm)
+COMPILE_DEPS += tflm_soc_c
+else ifeq ($(SOC_APP),tflm_micro_speech)
+COMPILE_DEPS += tflm_micro_speech_soc_c
+else ifeq ($(SOC_APP),tflm_hello_world)
+COMPILE_DEPS += tflm_hello_world_soc_c
+else
 COMPILE_DEPS += soc_c
+endif
 else ifeq ($(DUT_MODE),axil)
 FILELIST     ?= ../flist/tb_axil.f
 MODE_DEFINES += DUT_AXIL
@@ -56,8 +155,10 @@ ifeq ($(DUMPOPTS),1)
 DUMPFSDB += +dump_fsdb
 endif
 
+ifneq ($(strip $(NOVAS_HOME)),)
 FSDB_PLI = -P $(NOVAS_HOME)/share/PLI/VCS/LINUX64/novas.tab $(NOVAS_HOME)/share/PLI/VCS/LINUX64/pli.a
-VCS_OPTS = -cpp g++-4.8 -cc gcc-4.8 -LDFLAGS -Wl,--no-as-needed \
+endif
+VCS_OPTS = -cpp $(VCS_CXX) -cc $(VCS_CC) -LDFLAGS -Wl,--no-as-needed \
            -full64 -sverilog -timescale=1ns/1ps -debug_access+all -kdb -lca \
            $(UVM_VER) \
            $(FSDB_PLI)
@@ -69,40 +170,90 @@ run: com sim
 
 soc_case:
 > @mkdir -p $(SOC_CASE_DIR)
-> @python ../tb/generate_axi_soc_case.py --K $(SOC_K) --N $(SOC_N) --M $(SOC_M) --lhs_dtype $(SOC_LHS_DTYPE) --quant_mode $(SOC_QUANT_MODE) $(if $(filter 1 yes true TRUE,$(SOC_FIX_MODE)),--fix_mode,) --seed $(SOC_SEED) --lhs_offset $(SOC_LHS_OFFSET) --rhs_offset $(SOC_RHS_OFFSET) --dst_offset $(SOC_DST_OFFSET) --act_min $(SOC_ACT_MIN) --act_max $(SOC_ACT_MAX) $(if $(SOC_DST_MULT),--dst_mult $(SOC_DST_MULT),) $(if $(SOC_DST_SHIFT),--dst_shift $(SOC_DST_SHIFT),) --out_dir $(SOC_CASE_DIR)
-> @cp $(SOC_CASE_DIR)/data.mem ../tb/main_extram.mem
+> @python ../tb/generate_axi_soc_case.py $(SOC_GEN_ARGS) --out_dir $(SOC_CASE_DIR)
 
 soc_c: soc_case
 > @mkdir -p $(SOC_CASE_DIR)
 > @echo "[SOC_C] $(SOC_C_SRC) -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GCC) -march=rv32im -mabi=ilp32 -O2 -ffreestanding -nostdlib -nostartfiles -I../soc_csrc -I$(SOC_CASE_DIR) -T ../soc_csrc/link.ld ../soc_csrc/start.S ../soc_csrc/dsa_accel_mmio.c $(SOC_C_SRC) -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_GCC) -march=rv32im -mabi=ilp32 -O2 -ffreestanding -nostdlib -nostartfiles -I../soc_csrc -I$(SOC_CASE_DIR) -T ../soc_csrc/link.ld ../soc_csrc/start.S ../soc_csrc/dsa_accel_mmio.c $(SOC_CASE_DIR)/soc_case.c $(SOC_C_SRC) -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+> python ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+
+$(TFLM_LIB):
+> $(MAKE) -C $(TFLM_DIR) BUILD_DIR=$(TFLM_BUILD_DIR) CC=$(SOC_GCC) CXX=$(SOC_GXX) AR=$(SOC_AR) TARGET_FLAGS="-march=rv32im -mabi=ilp32 -DTFLM_SOC_PROGRESS -DTFLM_SOC_MMA" BUILD_TYPE=Release $(TFLM_BUILD_DIR)/libtflite-micro.a
+
+$(TFLM_HOST_LIB):
+> $(MAKE) -C $(TFLM_DIR) BUILD_DIR=$(TFLM_HOST_BUILD_DIR) BUILD_TYPE=Release $(TFLM_HOST_BUILD_DIR)/libtflite-micro.a
+
+$(TFLM_MICRO_SPEECH_FEATURE_DUMP): ../tools/dump_micro_speech_features.cc $(TFLM_HOST_LIB) $(TFLM_MICRO_SPEECH_MODEL_DATA_CC) $(TFLM_MICRO_SPEECH_AUDIO_DATA_SRCS)
+> $(CXX) -std=c++17 -O2 -fno-rtti -fno-exceptions -fno-threadsafe-statics -DTF_LITE_DISABLE_X86_NEON -DTF_LITE_STRIP_ERROR_STRINGS -I$(TFLM_ROOT) -I$(TFLM_GENFILES) -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/gemmlowp -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/flatbuffers/include -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/kissfft -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/ruy ../tools/dump_micro_speech_features.cc $(TFLM_MICRO_SPEECH_MODEL_DATA_CC) $(TFLM_MICRO_SPEECH_AUDIO_DATA_SRCS) $(TFLM_HOST_LIB) -lm -o $@
+
+$(TFLM_MICRO_SPEECH_FEATURES_CC): $(TFLM_MICRO_SPEECH_FEATURE_DUMP)
+> $< > $@
+
+tflm_soc_c: $(TFLM_LIB)
+> @mkdir -p $(SOC_CASE_DIR)
+> @echo "[TFLM_SOC_C] my_model -> $(SOC_CASE_DIR)/cpu.mem"
+> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles -T ../soc_csrc/link.ld $(TFLM_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+> python ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+
+tflm_micro_speech_soc_c: $(TFLM_LIB) $(TFLM_MICRO_SPEECH_FEATURES_CC)
+> @mkdir -p $(SOC_CASE_DIR)
+> @echo "[TFLM_SOC_C] micro_speech -> $(SOC_CASE_DIR)/cpu.mem"
+> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles -T ../soc_csrc/link.ld $(TFLM_MICRO_SPEECH_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+> python ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+
+tflm_hello_world_soc_c: $(TFLM_LIB)
+> @mkdir -p $(SOC_CASE_DIR)
+> @echo "[TFLM_SOC_C] hello_world -> $(SOC_CASE_DIR)/cpu.mem"
+> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles -T ../soc_csrc/link.ld $(TFLM_HELLO_WORLD_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
 > $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
 > python ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 com: $(COMPILE_DEPS)
 > @mkdir -p $(OUT_DIR)
 > @echo "[COMPILE] VCS -> $(SIMV) (DUT_MODE=$(DUT_MODE), case=$(case), seed=$(seed))"
-> vcs $(VCS_OPTS) $(INCDIRS:%=-y %) $(DEFINES:%=+define+%) $(MODE_DEFINES:%=+define+%) -f $(FILELIST) -fsdb -top $(TOP) -l $(COMPILE_LOG) -o $(SIMV) +vcs+initreg+random
+> $(VCS) $(VCS_OPTS) $(INCDIRS:%=-y %) $(DEFINES:%=+define+%) $(MODE_DEFINES:%=+define+%) -f $(FILELIST) -top $(TOP) -l $(COMPILE_LOG) -o $(SIMV) +vcs+initreg+random
 
 sim:
 > @mkdir -p $(OUT_DIR)
-> @echo "[SIM] ./$(SIMV) $(SIM_OPTS) case=$(case) seed=$(seed) FSDB=$(FSDB)"
-> ./$(SIMV) $(SIM_OPTS) $(DUMPFSDB) +fsdbfile+$(FSDB) +UVM_TESTNAME=$(case) +case=$(case) +ntb_random_seed=$(seed) -l $(SIM_LOG) +vcs+initreg+0
+> @echo "[SIM] $(SIM_RUNNER) $(SIM_OPTS) case=$(case) seed=$(seed) FSDB=$(FSDB)"
+> $(SIM_RUNNER) $(SIM_OPTS) $(DUMPFSDB) +fsdbfile+$(FSDB) +UVM_TESTNAME=$(case) +case=$(case) +ntb_random_seed=$(seed) -l $(SIM_LOG) +vcs+initreg+0
+
+soc_regress:
+> @python3 ./run_axi_soc_c_regression.py --iterations $(SOC_REGRESS_ITERS) --start-seed $(SOC_REGRESS_START_SEED) --timeout $(SOC_REGRESS_TIMEOUT) --log-root $(SOC_REGRESS_LOG_ROOT) --dim-multiple $(SOC_DIM_MULTIPLE) $(if $(SOC_MIN_DIM),--min-dim $(SOC_MIN_DIM),) $(if $(SOC_MAX_DIM),--max-dim $(SOC_MAX_DIM),)
+
+tflm_my_model_run:
+> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm SOC_CASE=axi_soc_tflm case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=50000000
+
+tflm_micro_speech_run:
+> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_micro_speech SOC_CASE=axi_soc_tflm_micro_speech case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=50000000
+
+tflm_hello_world_run:
+> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_hello_world SOC_CASE=axi_soc_tflm_hello_world case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=5000000
+
+tflm_run: tflm_hello_world_run
 
 vd:
 > @echo "[VERDI] case=$(case) seed=$(seed) FSDB=$(FSDB)"
 > @if [ ! -f "$(FSDB)" ]; then echo "[ERROR] FSDB not found: $(FSDB)"; echo "        Please run: make run DUT_MODE=$(DUT_MODE) case=$(case) seed=$(seed)"; exit 1; fi
-> verdi -sv $(INCDIRS:%=-y %) $(DEFINES:%=+define+%) $(MODE_DEFINES:%=+define+%) -f $(FILELIST) +incdir+$(UVM_HOME)/src -top $(TOP) $(VERDI_OPTS) -ssf $(FSDB) &
+> $(VERDI) -sv $(INCDIRS:%=-y %) $(DEFINES:%=+define+%) $(MODE_DEFINES:%=+define+%) -f $(FILELIST) +incdir+$(UVM_HOME)/src -top $(TOP) $(VERDI_OPTS) -ssf $(FSDB) &
 
 clean:
 > rm -rf $(SIMV) csrc simv.daidir *.log *.key novas.* verdiLog runs
 
 help:
 > @echo "Targets:"
-> @echo "  make run   [DUT_MODE=nice|axil] [case=<UVM_TESTNAME>] [seed=<int>]"
-> @echo "  make com   [DUT_MODE=nice|axil] [case=<UVM_TESTNAME>] [seed=<int>]"
-> @echo "  make sim   [DUT_MODE=nice|axil] [case=<UVM_TESTNAME>] [seed=<int>]"
-> @echo "  make vd    [DUT_MODE=nice|axil] [case=<UVM_TESTNAME>] [seed=<int>]"
+> @echo "  make run   [DUT_MODE=nice|axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
+> @echo "  make com   [DUT_MODE=nice|axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
+> @echo "  make sim   [DUT_MODE=nice|axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
+> @echo "  make soc_regress [SOC_REGRESS_ITERS=<n>] [SOC_REGRESS_START_SEED=<int>] [SOC_MIN_DIM=<n>] [SOC_MAX_DIM=<n>] [SOC_DIM_MULTIPLE=<n>]"
+> @echo "  make tflm_run"
+> @echo "  make tflm_hello_world_run"
+> @echo "  make tflm_my_model_run"
+> @echo "  make vd    [DUT_MODE=nice|axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
 > @echo "  make clean"
 > @echo "  make help"
 > @echo ""
@@ -125,5 +276,11 @@ help:
 > @echo "  make run DUT_MODE=axil case=ai_mem_gen_smoke_test seed=20260413"
 > @echo "  make run DUT_MODE=axil case=ai_ral_mem_gen_on_calc_start_test seed=20260413"
 > @echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test SOC_K=24 SOC_N=32 SOC_M=16 SOC_LHS_DTYPE=1 SOC_QUANT_MODE=0 SOC_LHS_OFFSET=0 SOC_RHS_OFFSET=0 SOC_DST_OFFSET=0"
+> @echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test SOC_RANDOM=1 SOC_FIX_MODE=0 SOC_SEED=20260629"
+> @echo "  make soc_regress SOC_REGRESS_ITERS=20 SOC_MIN_DIM=16 SOC_MAX_DIM=32"
+> @echo "  make tflm_run"
+> @echo "  make tflm_hello_world_run"
+> @echo "  make tflm_my_model_run"
+> @echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test VCS_CC=gcc-4.8 VCS_CXX=g++-4.8"
 > @echo "  make vd DUT_MODE=axil case=ai_mem_gen_smoke_test seed=20260413"
-.PHONY: run soc_case soc_c com sim vd clean help
+.PHONY: run soc_case soc_c tflm_soc_c tflm_micro_speech_soc_c tflm_hello_world_soc_c tflm_run tflm_micro_speech_run tflm_hello_world_run tflm_my_model_run com sim soc_regress vd clean help
