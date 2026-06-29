@@ -42,6 +42,7 @@ SOC_CPU_MEM_DP ?= 524288
 SOC_TIMEOUT_CYCLES ?=
 SOC_C_SRC ?= ../soc_csrc/soc_main.c
 SOC_APP ?= mma
+SOC_UART_CLKDIV ?= 8
 E203_SIM_ROOT ?= /home/etc/FPGA/e203_simulator
 SOC_TOOLCHAIN_DIR ?= $(E203_SIM_ROOT)/deps/software-level/bin/gcc_open/bin
 SOC_GCC_FROM_PATH := $(shell command -v riscv64-unknown-elf-gcc 2>/dev/null)
@@ -79,7 +80,7 @@ TFLM_CXXFLAGS = -march=rv32im -mabi=ilp32 -O2 \
                 -std=c++17 -fno-rtti -fno-exceptions -fno-threadsafe-statics \
                 -fno-unwind-tables -ffunction-sections -fdata-sections \
                 -fmessage-length=0 -DNDEBUG -DTF_LITE_STRIP_ERROR_STRINGS \
-                -DTF_LITE_DISABLE_X86_NEON -DTFLM_SOC_QUIET \
+                -DTF_LITE_DISABLE_X86_NEON -DPICOSOC_UART_CLKDIV=$(SOC_UART_CLKDIV) \
                 -DTFLM_SOC_PROGRESS -DTFLM_SOC_MMA $(TFLM_INCLUDES)
 TFLM_APP_SRCS = ../soc_csrc/start.S \
                 ../soc_csrc/tflm_soc_runtime.cc \
@@ -175,7 +176,7 @@ soc_case:
 soc_c: soc_case
 > @mkdir -p $(SOC_CASE_DIR)
 > @echo "[SOC_C] $(SOC_C_SRC) -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GCC) -march=rv32im -mabi=ilp32 -O2 -ffreestanding -nostdlib -nostartfiles -I../soc_csrc -I$(SOC_CASE_DIR) -T ../soc_csrc/link.ld ../soc_csrc/start.S ../soc_csrc/dsa_accel_mmio.c $(SOC_CASE_DIR)/soc_case.c $(SOC_C_SRC) -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_GCC) -march=rv32im -mabi=ilp32 -O2 -ffreestanding -nostdlib -nostartfiles -DPICOSOC_UART_CLKDIV=$(SOC_UART_CLKDIV) -I../soc_csrc -I$(SOC_CASE_DIR) -T ../soc_csrc/link.ld ../soc_csrc/start.S ../soc_csrc/picosoc_bsp.c ../soc_csrc/dsa_accel_mmio.c $(SOC_CASE_DIR)/soc_case.c $(SOC_C_SRC) -o $(SOC_CASE_DIR)/cpu.elf
 > $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
 > python ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 

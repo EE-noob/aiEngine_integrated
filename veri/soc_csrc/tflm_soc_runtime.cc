@@ -12,6 +12,34 @@ extern char _stack_top;
 
 void* __dso_handle __attribute__((visibility("hidden"))) = 0;
 
+static const uintptr_t kPicosocUartClkdivAddr = 0x02000004u;
+static const uintptr_t kPicosocUartDataAddr = 0x02000008u;
+
+#ifndef PICOSOC_UART_CLKDIV
+#define PICOSOC_UART_CLKDIV 8u
+#endif
+
+static bool g_uart_initialized = false;
+
+static void PicosocUartInit() {
+  if (!g_uart_initialized) {
+    *reinterpret_cast<volatile uint32_t*>(kPicosocUartClkdivAddr) =
+        PICOSOC_UART_CLKDIV;
+    g_uart_initialized = true;
+  }
+}
+
+static void PicosocUartPutChar(char ch) {
+  PicosocUartInit();
+  if (ch == '\n') {
+    PicosocUartPutChar('\r');
+  }
+  *reinterpret_cast<volatile uint32_t*>(kPicosocUartDataAddr) =
+      static_cast<uint32_t>(static_cast<unsigned char>(ch));
+}
+
+void picosoc_uart_init(void) { PicosocUartInit(); }
+
 void _init(void) {}
 void _fini(void) {}
 
@@ -32,7 +60,12 @@ void* _sbrk(ptrdiff_t incr) {
 
 int _write(int file, const char* ptr, int len) {
   (void)file;
-  (void)ptr;
+  if (ptr == nullptr) {
+    return 0;
+  }
+  for (int i = 0; i < len; ++i) {
+    PicosocUartPutChar(ptr[i]);
+  }
   return len;
 }
 

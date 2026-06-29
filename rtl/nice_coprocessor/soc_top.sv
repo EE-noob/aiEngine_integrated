@@ -20,6 +20,8 @@ module soc_top #(
     output wire        mma_busy,
     output wire [31:0] mma_irq,
     output wire [31:0] mma_eoi,
+    output wire        uart_tx,
+    input  wire        uart_rx,
     output reg         soc_finish,
     output reg  [31:0] soc_status,
     output wire        cpu_trap
@@ -27,6 +29,8 @@ module soc_top #(
 
     localparam integer CPU_ADDR_LSB  = 2;
     localparam integer CPU_ADDR_BITS = (CPU_MEM_DP <= 1) ? 1 : $clog2(CPU_MEM_DP);
+    localparam [31:0] PICOSOC_UART_CLKDIV_ADDR = 32'h0200_0004;
+    localparam [31:0] PICOSOC_UART_DATA_ADDR   = 32'h0200_0008;
 
     localparam [2:0] S_IDLE    = 3'd0;
     localparam [2:0] S_AXIL_WR = 3'd1;
@@ -46,13 +50,17 @@ module soc_top #(
     reg  [31:0] mem_rdata;
 
     wire mem_is_write = |mem_wstrb;
-    wire mem_sel_cpu = (mem_addr[31:28] == CPU_RAM_BASE[31:28]);
+    wire [31:0] cpu_mem_offset = mem_addr[31:0] - CPU_RAM_BASE;
+    wire mem_sel_cpu = (mem_addr[31:0] >= CPU_RAM_BASE) &&
+                       (cpu_mem_offset[31:CPU_ADDR_LSB] < CPU_MEM_DP);
     wire mem_sel_mma = (mem_addr[31:28] == MMA_AXIL_BASE[31:28]);
     wire mem_sel_soc = (mem_addr[31:28] == SOC_CTRL_BASE[31:28]);
+    wire mem_sel_uart_div  = (mem_addr[31:0] == PICOSOC_UART_CLKDIV_ADDR);
+    wire mem_sel_uart_data = (mem_addr[31:0] == PICOSOC_UART_DATA_ADDR);
 
     reg [31:0] cpu_mem [0:CPU_MEM_DP-1];
     wire [CPU_ADDR_BITS-1:0] cpu_mem_idx =
-        mem_addr[CPU_ADDR_LSB + CPU_ADDR_BITS - 1:CPU_ADDR_LSB];
+        cpu_mem_offset[CPU_ADDR_LSB + CPU_ADDR_BITS - 1:CPU_ADDR_LSB];
 
     integer i;
     string cpu_mem_path_q;
@@ -136,6 +144,19 @@ module soc_top #(
     wire [31:0]               axil_rdata;
     wire [1:0]                axil_rresp;
     wire                      axil_rvalid;
+
+    wire [31:0]               uart_div_rdata;
+    wire [31:0]               uart_data_rdata;
+    wire                      uart_data_wait;
+    wire                      uart_access = mem_sel_uart_div || mem_sel_uart_data;
+    wire                      uart_access_ready = mem_sel_uart_div ||
+                                                  (mem_sel_uart_data && !uart_data_wait);
+    wire                      uart_issue = (state_q == S_IDLE) && mem_valid && uart_access;
+    wire [3:0]                uart_div_we = (uart_issue && mem_sel_uart_div &&
+                                             mem_is_write) ? mem_wstrb : 4'b0000;
+    wire                      uart_data_we = (uart_issue && mem_sel_uart_data &&
+                                              mem_is_write) ? mem_wstrb[0] : 1'b0;
+    wire                      uart_data_re = uart_issue && mem_sel_uart_data && !mem_is_write;
 
     wire                          legacy_icb_cmd_valid;
     wire [ICB_ADDR_WIDTH-1:0]     legacy_icb_cmd_addr;
@@ -311,6 +332,21 @@ module soc_top #(
 
     assign mma_eoi = 32'h0;
 
+    simpleuart u_simpleuart (
+        .clk          (clk),
+        .resetn       (rst_n),
+        .ser_tx       (uart_tx),
+        .ser_rx       (uart_rx),
+        .reg_div_we   (uart_div_we),
+        .reg_div_di   (mem_wdata),
+        .reg_div_do   (uart_div_rdata),
+        .reg_dat_we   (uart_data_we),
+        .reg_dat_re   (uart_data_re),
+        .reg_dat_di   (mem_wdata),
+        .reg_dat_do   (uart_data_rdata),
+        .reg_dat_wait (uart_data_wait)
+    );
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state_q        <= S_IDLE;
@@ -413,6 +449,11 @@ module soc_top #(
                                 end
                             end
                             mem_ready <= 1'b1;
+                        end else if (uart_access) begin
+                            if (uart_access_ready) begin
+                                mem_rdata <= mem_sel_uart_div ? uart_div_rdata : uart_data_rdata;
+                                mem_ready <= 1'b1;
+                            end
                         end else if (mem_sel_soc) begin
                             mem_rdata <= (mem_addr[3:2] == 2'b00) ? soc_status :
                                          (mem_addr[3:2] == 2'b01) ? {31'b0, soc_finish} :

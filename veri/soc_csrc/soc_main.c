@@ -1,4 +1,5 @@
 #include "dsa_accel_mmio.h"
+#include "picosoc_bsp.h"
 #include "soc_case.h"
 
 #define SOC_TEST_OK           0x00000000u
@@ -122,7 +123,18 @@ static uint32_t test_high_level_api(void)
 int main(void) {
     uint32_t status;
 
+    picosoc_uart_init();
+    printf("[soc] case seed=%u random=%u K=%u N=%u M=%u lhs_dtype=%u quant=%u\n",
+           SOC_CASE_SEED, SOC_CASE_RANDOM, SOC_K, SOC_N, SOC_M,
+           (uint32_t)SOC_LHS_DTYPE, (uint32_t)SOC_QUANT_MODE);
+
     status = test_high_level_api();
+    if (status == SOC_TEST_OK) {
+        printf("[soc] PASS\n");
+    } else {
+        printf("[soc] FAIL status=0x%08x\n", status);
+    }
+
     soc_finish((status == SOC_TEST_OK) ? SOC_STATUS_PASS : status);
     return (int)status;
 }

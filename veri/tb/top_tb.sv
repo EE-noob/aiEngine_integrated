@@ -61,7 +61,11 @@ module tb_top;
     logic                       soc_finish;
     logic [31:0]                soc_status;
     logic                       cpu_trap;
+    logic                       soc_uart_tx;
+    logic                       soc_uart_rx;
     localparam int unsigned     AXI_SOC_CPU_MEM_DP = 524288;
+
+    assign soc_uart_rx = 1'b1;
 
     soc_top #(
         .CPU_MEM_DP(AXI_SOC_CPU_MEM_DP),
@@ -73,6 +77,8 @@ module tb_top;
         .mma_busy       (soc_mma_busy),
         .mma_irq        (soc_mma_irq),
         .mma_eoi        (soc_mma_eoi),
+        .uart_tx        (soc_uart_tx),
+        .uart_rx        (soc_uart_rx),
         .soc_finish     (soc_finish),
         .soc_status     (soc_status),
         .cpu_trap       (cpu_trap)
@@ -229,6 +235,47 @@ module tb_top;
         nice_rst_n = 1'b1;
         icb_rst_n  = 1'b1;
     end
+
+`ifdef DUT_AXI_SOC
+    integer pico_uart_half_period;
+    reg [7:0] pico_uart_buffer;
+
+    initial begin : pico_uart_monitor
+        pico_uart_buffer = 8'h00;
+        wait (nice_rst_n === 1'b1);
+        repeat (4) @(posedge nice_clk);
+        $display("[PICO_UART] monitor enabled on soc_top.u_simpleuart.ser_tx");
+        forever begin
+            @(negedge soc_uart_tx);
+
+            pico_uart_half_period = ($root.tb_top.u_soc_top.u_simpleuart.cfg_divider / 2) + 1;
+            if (pico_uart_half_period < 1) begin
+                pico_uart_half_period = 1;
+            end
+
+            repeat (pico_uart_half_period) @(posedge nice_clk);
+
+            repeat (8) begin
+                repeat (pico_uart_half_period) @(posedge nice_clk);
+                repeat (pico_uart_half_period) @(posedge nice_clk);
+                pico_uart_buffer = {soc_uart_tx, pico_uart_buffer[7:1]};
+            end
+
+            repeat (pico_uart_half_period) @(posedge nice_clk);
+            repeat (pico_uart_half_period) @(posedge nice_clk);
+
+            if (pico_uart_buffer == 8'h0d) begin
+                // Drop CR; BSP prints CRLF and the simulator console only needs LF.
+            end else if (pico_uart_buffer == 8'h0a) begin
+                $write("\n");
+            end else if ((pico_uart_buffer >= 8'h20) && (pico_uart_buffer < 8'h7f)) begin
+                $write("%c", pico_uart_buffer);
+            end else begin
+                $write("<%02x>", pico_uart_buffer);
+            end
+        end
+    end
+`endif
 
     initial begin
         string testname;
