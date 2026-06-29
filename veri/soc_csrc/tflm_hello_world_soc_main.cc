@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 
 #include "tensorflow/lite/core/c/common.h"
 #include "tensorflow/lite/kernels/internal/tensor_ctypes.h"
@@ -7,6 +8,8 @@
 #include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
 #include "tensorflow/lite/micro/system_setup.h"
 #include "tensorflow/lite/schema/schema_generated.h"
+
+extern "C" void picosoc_uart_init(void);
 
 namespace {
 
@@ -51,21 +54,23 @@ int RunOne(tflite::MicroInterpreter* interpreter, int8_t input_value) {
   return tflite::GetTensorData<int8_t>(output)[0];
 }
 
-}  // namespace
-
-extern "C" int main(void) {
+uint32_t RunHelloWorldInferenceTest() {
+  printf("[tflm] hello_world start\n");
   WriteProgress(0x5c100001u);
   tflite::InitializeTarget();
 
   const tflite::Model* model = tflite::GetModel(g_hello_world_int8_model_data);
   if (model->version() != TFLITE_SCHEMA_VERSION) {
     WriteProgress(0x5c10e001u);
+    printf("[tflm] schema mismatch model=%d expected=%d\n", model->version(),
+           TFLITE_SCHEMA_VERSION);
     return 0x96000001u;
   }
 
   static tflite::MicroMutableOpResolver<1> resolver;
   if (RegisterHelloWorldOps(resolver) != kTfLiteOk) {
     WriteProgress(0x5c10e002u);
+    printf("[tflm] op registration failed\n");
     return 0x96000002u;
   }
 
@@ -73,27 +78,32 @@ extern "C" int main(void) {
                                               kTensorArenaSize);
   if (interpreter.AllocateTensors() != kTfLiteOk) {
     WriteProgress(0x5c10e003u);
+    printf("[tflm] AllocateTensors failed\n");
     return 0x96000003u;
   }
   WriteProgress(0x5c100002u);
+  printf("[tflm] tensors allocated arena=%d\n", kTensorArenaSize);
 
   TfLiteTensor* output = interpreter.output(0);
   int zero_point = output->params.zero_point;
 
   int score_077 = RunOne(&interpreter, -96);
   WriteProgress(0x5c200000u | ((score_077 + 128) & 0xff));
+  printf("[tflm] x=0.77 score=%d zero=%d\n", score_077, zero_point);
   if (score_077 < -128 || score_077 <= zero_point + 10) {
     return EncodeUnexpectedScore(1, score_077, zero_point);
   }
 
   int score_157 = RunOne(&interpreter, -63);
   WriteProgress(0x5c210000u | ((score_157 + 128) & 0xff));
+  printf("[tflm] x=1.57 score=%d zero=%d\n", score_157, zero_point);
   if (score_157 < -128 || score_157 <= score_077) {
     return EncodeUnexpectedScore(2, score_157, zero_point);
   }
 
   int score_230 = RunOne(&interpreter, -34);
   WriteProgress(0x5c220000u | ((score_230 + 128) & 0xff));
+  printf("[tflm] x=2.30 score=%d zero=%d\n", score_230, zero_point);
   if (score_230 < -128 || score_230 <= zero_point + 10 ||
       score_230 >= score_157) {
     return EncodeUnexpectedScore(3, score_230, zero_point);
@@ -101,10 +111,19 @@ extern "C" int main(void) {
 
   int score_314 = RunOne(&interpreter, 0);
   WriteProgress(0x5c230000u | ((score_314 + 128) & 0xff));
+  printf("[tflm] x=3.14 score=%d zero=%d\n", score_314, zero_point);
   if (score_314 < -128 || AbsInt(score_314 - zero_point) > 24) {
     return EncodeUnexpectedScore(4, score_314, zero_point);
   }
 
   WriteProgress(0x5c100003u);
+  printf("[tflm] hello_world PASS\n");
   return 1;
+}
+
+}  // namespace
+
+extern "C" int main(void) {
+  picosoc_uart_init();
+  return static_cast<int>(RunHelloWorldInferenceTest());
 }

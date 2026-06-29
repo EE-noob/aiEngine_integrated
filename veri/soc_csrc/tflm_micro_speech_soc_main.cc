@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 
 #include "tensorflow/lite/core/c/common.h"
 #include "tensorflow/lite/kernels/internal/tensor_ctypes.h"
@@ -8,6 +9,8 @@
 #include "tensorflow/lite/micro/system_setup.h"
 #include "tensorflow/lite/schema/schema_generated.h"
 #include "tflm_micro_speech_features.h"
+
+extern "C" void picosoc_uart_init(void);
 
 namespace {
 
@@ -72,9 +75,8 @@ int RunInference(tflite::MicroInterpreter* interpreter,
   return best;
 }
 
-}  // namespace
-
-extern "C" int main(void) {
+uint32_t RunMicroSpeechInferenceTest() {
+  printf("[tflm] micro_speech start\n");
   WriteProgress(0x5b100001u);
   tflite::InitializeTarget();
 
@@ -82,13 +84,17 @@ extern "C" int main(void) {
       tflite::GetModel(g_micro_speech_quantized_model_data);
   if (model->version() != TFLITE_SCHEMA_VERSION) {
     WriteProgress(0x5b10e001u);
+    printf("[tflm] schema mismatch model=%d expected=%d\n", model->version(),
+           TFLITE_SCHEMA_VERSION);
     return 0x94000001u;
   }
   WriteProgress(0x5b100002u);
+  printf("[tflm] model ok\n");
 
   static tflite::MicroMutableOpResolver<4> resolver;
   if (RegisterMicroSpeechOps(resolver) != kTfLiteOk) {
     WriteProgress(0x5b10e002u);
+    printf("[tflm] op registration failed\n");
     return 0x94000002u;
   }
   WriteProgress(0x5b100003u);
@@ -98,13 +104,17 @@ extern "C" int main(void) {
   WriteProgress(0x5b100004u);
   if (interpreter.AllocateTensors() != kTfLiteOk) {
     WriteProgress(0x5b10e003u);
+    printf("[tflm] AllocateTensors failed\n");
     return 0x94000003u;
   }
   WriteProgress(0x5b100005u);
+  printf("[tflm] tensors allocated arena=%d\n", kTensorArenaSize);
 
   int yes_result =
       RunInference(&interpreter, g_tflm_micro_speech_yes_features);
   WriteProgress(0x5b210000u | (yes_result & 0xff));
+  printf("[tflm] yes result=%d expected=%d\n", yes_result,
+         kTflmMicroSpeechYesIndex);
   if (yes_result != kTflmMicroSpeechYesIndex) {
     return EncodeMismatch(1, kTflmMicroSpeechYesIndex, yes_result);
   }
@@ -112,11 +122,21 @@ extern "C" int main(void) {
 #if defined(TFLM_MICRO_SPEECH_FULL) && TFLM_MICRO_SPEECH_FULL
   int no_result = RunInference(&interpreter, g_tflm_micro_speech_no_features);
   WriteProgress(0x5b220000u | (no_result & 0xff));
+  printf("[tflm] no result=%d expected=%d\n", no_result,
+         kTflmMicroSpeechNoIndex);
   if (no_result != kTflmMicroSpeechNoIndex) {
     return EncodeMismatch(2, kTflmMicroSpeechNoIndex, no_result);
   }
 #endif
 
   WriteProgress(0x5b100006u);
+  printf("[tflm] micro_speech PASS\n");
   return 1;
+}
+
+}  // namespace
+
+extern "C" int main(void) {
+  picosoc_uart_init();
+  return static_cast<int>(RunMicroSpeechInferenceTest());
 }

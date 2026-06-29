@@ -105,6 +105,15 @@ TFLM_HELLO_WORLD_APP_SRCS = ../soc_csrc/start.S \
                             ../soc_csrc/tflm_soc_runtime.cc \
                             ../soc_csrc/tflm_hello_world_soc_main.cc \
                             $(TFLM_HELLO_WORLD_MODEL_DATA_CC)
+TFLM_PERSON_DETECTION_MODEL_DATA_CC = $(TFLM_GENFILES)/tensorflow/lite/micro/models/person_detect_model_data.cc
+TFLM_PERSON_DETECTION_TESTDATA_SRCS = $(TFLM_GENFILES)/tensorflow/lite/micro/examples/person_detection/testdata/person_image_data.cc \
+                                      $(TFLM_GENFILES)/tensorflow/lite/micro/examples/person_detection/testdata/no_person_image_data.cc
+TFLM_PERSON_DETECTION_APP_SRCS = ../soc_csrc/start.S \
+                                 ../soc_csrc/tflm_soc_runtime.cc \
+                                 ../soc_csrc/tflm_person_detection_soc_main.cc \
+                                 $(TFLM_ROOT)/tensorflow/lite/micro/examples/person_detection/model_settings.cc \
+                                 $(TFLM_PERSON_DETECTION_MODEL_DATA_CC) \
+                                 $(TFLM_PERSON_DETECTION_TESTDATA_SRCS)
 
 SOC_GEN_ARGS = --seed $(SOC_SEED) \
                $(if $(filter 1 yes true TRUE,$(SOC_FIX_MODE)),--fix_mode,) \
@@ -140,6 +149,8 @@ else ifeq ($(SOC_APP),tflm_micro_speech)
 COMPILE_DEPS += tflm_micro_speech_soc_c
 else ifeq ($(SOC_APP),tflm_hello_world)
 COMPILE_DEPS += tflm_hello_world_soc_c
+else ifeq ($(SOC_APP),tflm_person_detection)
+COMPILE_DEPS += tflm_person_detection_soc_c
 else
 COMPILE_DEPS += soc_c
 endif
@@ -213,6 +224,13 @@ tflm_hello_world_soc_c: $(TFLM_LIB)
 > $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
 > python ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
+tflm_person_detection_soc_c: $(TFLM_LIB)
+> @mkdir -p $(SOC_CASE_DIR)
+> @echo "[TFLM_SOC_C] person_detection -> $(SOC_CASE_DIR)/cpu.mem"
+> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles -T ../soc_csrc/link.ld $(TFLM_PERSON_DETECTION_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+> python ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+
 com: $(COMPILE_DEPS)
 > @mkdir -p $(OUT_DIR)
 > @echo "[COMPILE] VCS -> $(SIMV) (DUT_MODE=$(DUT_MODE), case=$(case), seed=$(seed))"
@@ -235,6 +253,10 @@ tflm_micro_speech_run:
 tflm_hello_world_run:
 > $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_hello_world SOC_CASE=axi_soc_tflm_hello_world case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=5000000
 
+tflm_person_detection_run: DUMPOPTS = 0
+tflm_person_detection_run:
+> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_person_detection SOC_CASE=axi_soc_tflm_person_detection case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=200000000 DUMPOPTS=$(DUMPOPTS)
+
 tflm_run: tflm_hello_world_run
 
 vd:
@@ -253,6 +275,8 @@ help:
 > @echo "  make soc_regress [SOC_REGRESS_ITERS=<n>] [SOC_REGRESS_START_SEED=<int>] [SOC_MIN_DIM=<n>] [SOC_MAX_DIM=<n>] [SOC_DIM_MULTIPLE=<n>]"
 > @echo "  make tflm_run"
 > @echo "  make tflm_hello_world_run"
+> @echo "  make tflm_micro_speech_run"
+> @echo "  make tflm_person_detection_run"
 > @echo "  make tflm_my_model_run"
 > @echo "  make vd    [DUT_MODE=nice|axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
 > @echo "  make clean"
@@ -278,10 +302,13 @@ help:
 > @echo "  make run DUT_MODE=axil case=ai_ral_mem_gen_on_calc_start_test seed=20260413"
 > @echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test SOC_K=24 SOC_N=32 SOC_M=16 SOC_LHS_DTYPE=1 SOC_QUANT_MODE=0 SOC_LHS_OFFSET=0 SOC_RHS_OFFSET=0 SOC_DST_OFFSET=0"
 > @echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test SOC_RANDOM=1 SOC_FIX_MODE=0 SOC_SEED=20260629"
+> @echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test SOC_UART_CLKDIV=8"
 > @echo "  make soc_regress SOC_REGRESS_ITERS=20 SOC_MIN_DIM=16 SOC_MAX_DIM=32"
 > @echo "  make tflm_run"
 > @echo "  make tflm_hello_world_run"
+> @echo "  make tflm_micro_speech_run"
+> @echo "  make tflm_person_detection_run"
 > @echo "  make tflm_my_model_run"
 > @echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test VCS_CC=gcc-4.8 VCS_CXX=g++-4.8"
 > @echo "  make vd DUT_MODE=axil case=ai_mem_gen_smoke_test seed=20260413"
-.PHONY: run soc_case soc_c tflm_soc_c tflm_micro_speech_soc_c tflm_hello_world_soc_c tflm_run tflm_micro_speech_run tflm_hello_world_run tflm_my_model_run com sim soc_regress vd clean help
+.PHONY: run soc_case soc_c tflm_soc_c tflm_micro_speech_soc_c tflm_hello_world_soc_c tflm_person_detection_soc_c tflm_run tflm_micro_speech_run tflm_hello_world_run tflm_person_detection_run tflm_my_model_run com sim soc_regress vd clean help
