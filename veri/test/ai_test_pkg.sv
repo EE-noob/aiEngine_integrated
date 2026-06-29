@@ -47,23 +47,23 @@ class ai_base_test extends uvm_test;
     endfunction
 
     virtual function void print_big_pass();
-        $display("\033[32mPPPPPPPPPPPP   AAAAAAAA    SSSSSSSSSS   SSSSSSSSSS\033[0m");
-        $display("\033[32mPPPPPPPPPPPP  AAAAAAAAAA  SSSSSSSSSSSS SSSSSSSSSSSS\033[0m");
-        $display("\033[32mPPPP    PPPP AA      AA  SSSS         SSSS        \033[0m");
-        $display("\033[32mPPPPPPPPPPPP AAAAAAAAAAAA  SSSSSSSSSS   SSSSSSSSSS  \033[0m");
-        $display("\033[32mPPPP        PP          PP         SSSS         SSSS\033[0m");
-        $display("\033[32mPPPP        PP          PP SSSSSSSSSSSS SSSSSSSSSSSS\033[0m");
-        $display("\033[32mPPPP        PP          PP  SSSSSSSSSS   SSSSSSSSSS \033[0m");
+        $display("PPPPPPPPPPPP   AAAAAAAA    SSSSSSSSSS   SSSSSSSSSS");
+        $display("PPPPPPPPPPPP  AAAAAAAAAA  SSSSSSSSSSSS SSSSSSSSSSSS");
+        $display("PPPP    PPPP AA      AA  SSSS         SSSS        ");
+        $display("PPPPPPPPPPPP AAAAAAAAAAAA  SSSSSSSSSS   SSSSSSSSSS  ");
+        $display("PPPP        PP          PP         SSSS         SSSS");
+        $display("PPPP        PP          PP SSSSSSSSSSSS SSSSSSSSSSSS");
+        $display("PPPP        PP          PP  SSSSSSSSSS   SSSSSSSSSS ");
     endfunction
 
     virtual function void print_big_fail();
-        $display("\033[31mFFFFFFFFFFFFF    AAAAAAAA    IIIIIIIIII  LL          \033[0m");
-        $display("\033[31mFFFFFFFFFFFFF   AAAAAAAAAA   IIIIIIIIII  LL          \033[0m");
-        $display("\033[31mFFFF           AA      AA       II      LL          \033[0m");
-        $display("\033[31mFFFFFFFFFFF   AAAAAAAAAAAA      II      LL          \033[0m");
-        $display("\033[31mFFFF          AA          AA      II      LL          \033[0m");
-        $display("\033[31mFFFF          AA          AA   IIIIIIIIII LLLLLLLLLLL \033[0m");
-        $display("\033[31mFFFF          AA          AA   IIIIIIIIII LLLLLLLLLLL \033[0m");
+        $display("FFFFFFFFFFFFF    AAAAAAAA    IIIIIIIIII  LL          ");
+        $display("FFFFFFFFFFFFF   AAAAAAAAAA   IIIIIIIIII  LL          ");
+        $display("FFFF           AA      AA       II      LL          ");
+        $display("FFFFFFFFFFF   AAAAAAAAAAAA      II      LL          ");
+        $display("FFFF          AA          AA      II      LL          ");
+        $display("FFFF          AA          AA   IIIIIIIIII LLLLLLLLLLL ");
+        $display("FFFF          AA          AA   IIIIIIIIII LLLLLLLLLLL ");
     endfunction
 endclass
 
