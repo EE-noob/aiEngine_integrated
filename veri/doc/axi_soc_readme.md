@@ -29,11 +29,13 @@ axil_top_with_ram
         +-- axi_sim_ram: data.mem, 存放 lhs/rhs/bias/quant/output
 ```
 
-`soc_top` 内部把 PicoRV32 的 `mem_valid/mem_ready/mem_addr/mem_wdata/mem_wstrb/mem_rdata` 总线译码到三个地址窗：
+`soc_top` 内部把 PicoRV32 的 `mem_valid/mem_ready/mem_addr/mem_wdata/mem_wstrb/mem_rdata` 总线译码到几个地址窗：
 
 | 地址范围 | 用途 |
 | --- | --- |
-| `0x0000_0000` | PicoRV32 程序 RAM，默认深度 `CPU_MEM_DP=65536` words |
+| `0x0000_0000` | PicoRV32 程序 RAM，默认深度 `CPU_MEM_DP=524288` words |
+| `0x0200_0004` | PicoSoC `simpleuart` clock divider |
+| `0x0200_0008` | PicoSoC `simpleuart` send/recv data |
 | `0x1000_0000` | MMA AXI-Lite CSR 访问窗口，低位地址传给 `axil_top_with_ram` |
 | `0x2000_0000` | SoC 控制寄存器，C 程序写这里通知 UVM 测试结束 |
 
@@ -44,6 +46,16 @@ SoC 控制寄存器目前定义为：
 | `0x0` | RW | `soc_status`。C 程序写入后 `soc_finish` 置 1 |
 | `0x4` | R | `{31'b0, soc_finish}` |
 | `0x8` | R | `{31'b0, cpu_trap}` |
+| `0xc` | RW | `soc_progress`，软件写入阶段码，UVM timeout 时打印 |
+
+UART 使用 PicoSoC 原生 `simpleuart`，软件侧地址和 PicoSoC BSP 保持一致：
+
+| 地址 | 读写 | 含义 |
+| --- | --- | --- |
+| `0x0200_0004` | RW | UART clock divider，仿真默认由 `SOC_UART_CLKDIV=8` 设置 |
+| `0x0200_0008` | RW | UART data，写入 8-bit 字符会通过 `ser_tx` 发出 |
+
+`veri/tb/top_tb.sv` 在 `DUT_MODE=axi_soc` 下打开 UART TX monitor，按 `soc_top.u_simpleuart.cfg_divider` 解码 `ser_tx`，并把 PicoRV32 侧 `printf`/`print` 输出直接写到 VCS 终端和 `sim.log`。
 
 PicoRV32 程序镜像通过 `+SOC_CPU_MEM=<path>` 指定，MMA 数据 RAM 镜像通过 `+SOC_MMA_MEM=<path>` 指定。没有 plusarg 时使用 RTL 参数默认路径。
 
@@ -73,7 +85,7 @@ PicoRV32 程序镜像通过 `+SOC_CPU_MEM=<path>` 指定，MMA 数据 RAM 镜像
    - 生成的 `data.mem` 会作为 MMA 数据 RAM 初值。
 
 2. `soc_c`
-   - 使用 `riscv64-unknown-elf-gcc` 编译 `veri/soc_csrc/start.S`、`dsa_accel_mmio.c` 和 `SOC_C_SRC`。
+   - 使用 `riscv64-unknown-elf-gcc` 编译 `veri/soc_csrc/start.S`、`picosoc_bsp.c`、`dsa_accel_mmio.c` 和 `SOC_C_SRC`。
    - 默认 `SOC_C_SRC=../soc_csrc/soc_main.c`。
    - 使用 `veri/soc_csrc/link.ld` 链接到 `0x0000_0000`。
    - 通过 `elf_to_mem.py` 把 binary 转成 `cpu.mem`。
@@ -127,6 +139,17 @@ make run DUT_MODE=axi_soc case=ai_axi_soc_c_test \
   SOC_FIX_MODE=1 SOC_SEED=9 seed=9
 ```
 
+TFLM 推理示例：
+
+```bash
+make tflm_hello_world_run
+make tflm_micro_speech_run
+make tflm_my_model_run
+make tflm_person_detection_run
+```
+
+`tflm_person_detection_run` 默认关闭 `DUMPOPTS`，只保留终端/UART 日志，避免 96x96 person_detection 模型的长仿真同时写全量 FSDB。
+
 ## 可配置参数
 
 | Make 变量 | 默认值 | 说明 |
@@ -147,8 +170,9 @@ make run DUT_MODE=axi_soc case=ai_axi_soc_c_test \
 | `SOC_ACT_MAX` | `127` | activation clamp 上限 |
 | `SOC_DST_MULT` | 空 | 指定时覆盖自动生成的 quant multiplier |
 | `SOC_DST_SHIFT` | 空 | 指定时覆盖自动生成的 quant shift |
+| `SOC_UART_CLKDIV` | `8` | PicoSoC UART divider。数值越大越接近真实低速 UART，数值越小仿真打印越快 |
 | `SOC_C_SRC` | `../soc_csrc/soc_main.c` | C 激励源文件 |
-| `SOC_CPU_MEM_DP` | `65536` | `cpu.mem` 输出深度，单位 word |
+| `SOC_CPU_MEM_DP` | `524288` | `cpu.mem` 输出深度，单位 word |
 
 `SOC_DST_MULT` 和 `SOC_DST_SHIFT` 要一起使用。为空时，Python 根据参考结果自动生成量化参数。
 
@@ -193,6 +217,8 @@ soc_finish(SOC_STATUS_PASS);
 ```
 
 `soc_finish()` 写 `SOC_CTRL_BASE`，RTL 置位 `soc_finish`，UVM test 随后开始检查输出。
+
+普通 C case 会链接 `veri/soc_csrc/picosoc_bsp.c`，其中 `printf()`、`puts()`、`print()`、`print_hex()` 和 `print_dec()` 都写 PicoSoC UART。TFLM 程序继续使用 newlib `printf()`，`veri/soc_csrc/tflm_soc_runtime.cc` 的 `_write()` 会把 stdout/stderr 字符发送到同一个 PicoSoC UART。
 
 ## Debug 提示
 
