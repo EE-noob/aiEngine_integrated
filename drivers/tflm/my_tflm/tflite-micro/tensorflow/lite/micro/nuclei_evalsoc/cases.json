@@ -1,0 +1,26 @@
+{
+  "dtln": [
+    "dtln_test"
+  ],
+
+  "hello_world": [
+    "hello_world",
+    "hello_world_test"
+  ],
+
+  "micro_speech": [
+    "micro_speech",
+    "micro_speech_test"
+  ],
+
+  "network_tester": [
+    "network_tester_test"
+  ],
+
+  "person_detection": [
+    "person_detection",
+    "person_detection_test",
+    "detection_responder_test",
+    "image_provider_test"
+  ]
+}

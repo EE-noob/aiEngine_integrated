@@ -1,0 +1,3 @@
+{
+    "cmake.sourceDirectory": "/home/etc/FPGA/e203_simulator/deps/software-level/test/tflm/my_tflm/tflite-micro/tensorflow/lite/micro/tools/make/downloads/pigweed/pw_trace"
+}

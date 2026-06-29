@@ -1,0 +1,22 @@
+/home/etc/FPGA/e203_simulator/deps//software-level/test//tflm/src/micro_time.cc.o: \
+ /home/etc/FPGA/e203_simulator/deps//software-level/test//tflm/src/micro_time.cc \
+ /home/etc/FPGA/e203_simulator/deps//software-level/test//tflm/my_tflm/tflite-micro/tensorflow/lite/micro/micro_time.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/SoC/hbirdv2/Common/Include/hbird_sdk_soc.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/SoC/hbirdv2/Common/Include/hbirdv2.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/NMSIS/Core/Include/nmsis_core.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/NMSIS/Core/Include/nmsis_version.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/NMSIS/Core/Include/nmsis_compiler.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/NMSIS/Core/Include/nmsis_gcc.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/NMSIS/Core/Include/riscv_encoding.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/NMSIS/Core/Include/riscv_bits.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/NMSIS/Core/Include/core_feature_base.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/NMSIS/Core/Include/core_feature_plic.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/NMSIS/Core/Include/core_feature_timer.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/NMSIS/Core/Include/core_feature_fpu.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/NMSIS/Core/Include/core_compatiable.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/SoC/hbirdv2/Common/Include/system_hbirdv2.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/SoC/hbirdv2/Common/Include/hbirdv2_uart.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/SoC/hbirdv2/Common/Include/hbirdv2_gpio.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/SoC/hbirdv2/Common/Include/hbirdv2_i2c.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/SoC/hbirdv2/Common/Include/hbirdv2_spi.h \
+ /home/etc/FPGA/e203_simulator/deps//software-level/libs/SoC/hbirdv2/Common/Include/hbirdv2_pwm.h
