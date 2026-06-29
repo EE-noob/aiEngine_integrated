@@ -7,6 +7,7 @@
 #define TEST_PASS "\033[32m[PASS]\033[0m"
 #define TEST_FAIL "\033[31m[FAIL]\033[0m"
 #define TEST_INFO "\033[34m[INFO]\033[0m"
+#define DSA_ADDR(ptr) ((uint32_t)(uintptr_t)(ptr))
 
 #define ASSERT_EQ(actual, expected, msg) \
     do { \
@@ -144,10 +145,10 @@ void test_matmul_instruction_per_tensor(void) {
     
     dsa_matmul_config_t config;
     dsa_matmul_config_init(&config);
-    config.lhs_ptr = lhs_data;
-    config.rhs_ptr = rhs_data;
-    config.dst_ptr = dst_data;
-    config.bias_ptr = bias_data;
+    config.lhs_ptr = DSA_ADDR(lhs_data);
+    config.rhs_ptr = DSA_ADDR(rhs_data);
+    config.dst_ptr = DSA_ADDR(dst_data);
+    config.bias_ptr = DSA_ADDR(bias_data);
     config.K = 16;
     config.N = 32;
     config.M = 64;
@@ -217,10 +218,10 @@ void test_matmul_instruction_per_channel(void) {
     
     dsa_matmul_config_t config;
     dsa_matmul_config_init(&config);
-    config.lhs_ptr = lhs_data;
-    config.rhs_ptr = rhs_data;
-    config.dst_ptr = dst_data;
-    config.bias_ptr = bias_data;
+    config.lhs_ptr = DSA_ADDR(lhs_data);
+    config.rhs_ptr = DSA_ADDR(rhs_data);
+    config.dst_ptr = DSA_ADDR(dst_data);
+    config.bias_ptr = DSA_ADDR(bias_data);
     config.K = 8;
     config.N = 16;
     config.M = 32;
@@ -235,8 +236,8 @@ void test_matmul_instruction_per_channel(void) {
     config.lhs_offset = -10;
     config.rhs_offset = 0;
     config.dst_offset = 5;
-    config.dst_mult_ptr = mult_array;
-    config.dst_shift_ptr = shift_array;
+    config.dst_mult_ptr = DSA_ADDR(mult_array);
+    config.dst_shift_ptr = DSA_ADDR(shift_array);
     config.act_min = -128;
     config.act_max = 127;
 
@@ -276,10 +277,10 @@ void test_high_level_api(void) {
     /* 初始化配置 */
     dsa_matmul_config_init(&config);
     
-    config.lhs_ptr = lhs_data;
-    config.rhs_ptr = rhs_data;
-    config.dst_ptr = dst_data;
-    config.bias_ptr = bias_data;
+    config.lhs_ptr = DSA_ADDR(lhs_data);
+    config.rhs_ptr = DSA_ADDR(rhs_data);
+    config.dst_ptr = DSA_ADDR(dst_data);
+    config.bias_ptr = DSA_ADDR(bias_data);
     
     config.K = 4;
     config.N = 8;

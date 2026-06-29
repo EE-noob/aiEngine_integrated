@@ -25,23 +25,25 @@
 ```c
 #include "dsa_accel.h"
 
-int8_t A[128 * 256];  // M=128, K=256
-int8_t B[256 * 64];   // K=256, N=64
-int8_t C[128 * 64];   // M=128, N=64
-int32_t bias[64];     // N=64
+int8_t A[128 * 256];  // K=128, N=256
+int8_t B[256 * 64];   // N=256, M=64, column-major
+int8_t C[128 * 64];   // K=128, M=64
+int32_t bias[64];     // M=64
 
 dsa_matmul_config_t config;
 dsa_matmul_config_init(&config);
 
-config.lhs_ptr = A;
-config.rhs_ptr = B;
-config.dst_ptr = C;
-config.bias_ptr = bias;
+config.lhs_ptr = (uint32_t)(uintptr_t)A;
+config.rhs_ptr = (uint32_t)(uintptr_t)B;
+config.dst_ptr = (uint32_t)(uintptr_t)C;
+config.bias_ptr = (uint32_t)(uintptr_t)bias;
 
-config.M = 128;
-config.K = 256;
-config.N = 64;
+config.K = 128;
+config.N = 256;
+config.M = 64;
 config.lhs_row_stride = 256;  // 每行 256 字节
+config.rhs_row_stride = 256;  // 每列 256 字节
+config.dst_row_stride = 64;   // 每行 64 字节
 
 config.lhs_offset = 128;  // 零点偏移
 config.dst_mult = 1234567;
@@ -63,8 +65,8 @@ dsa_matmul_config_init(&config);
 // ...existing code...
 
 config.quant_mode = DSA_QUANT_PER_CHANNEL;
-config.dst_mult_ptr = mult_per_ch;
-config.dst_shift_ptr = shift_per_ch;
+config.dst_mult_ptr = (uint32_t)(uintptr_t)mult_per_ch;
+config.dst_shift_ptr = (uint32_t)(uintptr_t)shift_per_ch;
 
 uint32_t status = dsa_matmul_execute(&config);
 ```
@@ -73,7 +75,7 @@ uint32_t status = dsa_matmul_execute(&config);
 
 ```c
 // 写入寄存器
-dsa_reg_write(CSR_MULT_LHS_PTR, (uint32_t)A);
+dsa_reg_write(CSR_MULT_LHS_PTR, (uint32_t)(uintptr_t)A);
 
 // 读取寄存器
 uint32_t value = dsa_reg_read(CSR_MULT_LHS_ROWS);
@@ -91,13 +93,13 @@ uint32_t status = dsa_matmul_execute(&config);
 ## 编译说明
 
 ```bash
-riscv32-unknown-elf-gcc -c dsa_accel.c -o dsa_accel.o
+riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -c dsa_accel.c -o dsa_accel.o
 ```
 
 ## 注意事项
 
-1. `DSA_MMIO_BASE` 目前先预设为 `0xA0000000u`，实际接入 SoC 时需要和地址映射保持一致
-2. 所有指针必须是有效的物理地址
-3. Per-channel模式下，mult/shift数组长度必须等于N
+1. `DSA_MMIO_BASE` 当前与 `soc_top.sv` 保持一致，为 `0x10000000u`
+2. 配置结构中的地址字段是 RV32 物理地址值，赋值时使用 `(uint32_t)(uintptr_t)ptr`
+3. Per-channel模式下，mult/shift数组长度必须等于M
 4. 激活范围需根据输出数据类型合理设置
-5. 步进值为0时，驱动会自动计算默认步进
+5. 步进值按字节配置；当前 SoC 回归使用显式 stride

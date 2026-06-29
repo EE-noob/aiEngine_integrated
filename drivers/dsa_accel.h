@@ -1,7 +1,6 @@
 #ifndef DSA_ACCEL_H
 #define DSA_ACCEL_H
 
-#include <stddef.h>
 #include <stdint.h>
 
 /* ========== AXI-Lite MMIO 基地址 ========== */
@@ -72,27 +71,27 @@ static inline uint32_t dsa_reg_read(uint32_t word_addr)
 #define CSR_MULT_ACT_MAX    0x7D0u
 
 /* ========== 配置字位域定义 ========== */
-#define CFG_OUT_W_S4   0x0
-#define CFG_OUT_W_S8   0x1
-#define CFG_OUT_W_S16  0x2
-#define CFG_OUT_W_S32  0x3
-#define CFG_OUT_W_S64  0x4
+#define CFG_OUT_W_S4   0x0u
+#define CFG_OUT_W_S8   0x1u
+#define CFG_OUT_W_S16  0x2u
+#define CFG_OUT_W_S32  0x3u
+#define CFG_OUT_W_S64  0x4u
 
-#define CFG_BIAS_W_S8  (0x0 << 3)
-#define CFG_BIAS_W_S16 (0x1 << 3)
-#define CFG_BIAS_W_S32 (0x2 << 3)
-#define CFG_BIAS_W_S64 (0x3 << 3)
+#define CFG_BIAS_W_S8  (0x0u << 3)
+#define CFG_BIAS_W_S16 (0x1u << 3)
+#define CFG_BIAS_W_S32 (0x2u << 3)
+#define CFG_BIAS_W_S64 (0x3u << 3)
 
-#define CFG_B_W_S4  (0x0 << 5)
-#define CFG_B_W_S8  (0x1 << 5)
-#define CFG_B_W_S16 (0x2 << 5)
+#define CFG_B_W_S4  (0x0u << 5)
+#define CFG_B_W_S8  (0x1u << 5)
+#define CFG_B_W_S16 (0x2u << 5)
 
-#define CFG_A_W_S4  (0x0 << 7)
-#define CFG_A_W_S8  (0x1 << 7)
-#define CFG_A_W_S16 (0x2 << 7)
+#define CFG_A_W_S4  (0x0u << 7)
+#define CFG_A_W_S8  (0x1u << 7)
+#define CFG_A_W_S16 (0x2u << 7)
 
-#define CFG_PER_TENSOR  (0x0 << 9)
-#define CFG_PER_CHANNEL (0x1 << 9)
+#define CFG_PER_TENSOR  (0x0u << 9)
+#define CFG_PER_CHANNEL (0x1u << 9)
 
 /* ========== 返回状态码 ========== */
 #define DSA_SUCCESS         0x00000000u
@@ -115,10 +114,10 @@ typedef enum {
 
 /* ========== 矩阵乘法配置结构 ========== */
 typedef struct {
-    const void *lhs_ptr;
-    const void *rhs_ptr;
-    void *dst_ptr;
-    const int32_t *bias_ptr;
+    uint32_t lhs_ptr;
+    uint32_t rhs_ptr;
+    uint32_t dst_ptr;
+    uint32_t bias_ptr;
 
     uint32_t K;
     uint32_t N;
@@ -141,8 +140,8 @@ typedef struct {
     int32_t dst_mult;
     int32_t dst_shift;
 
-    const int32_t *dst_mult_ptr;
-    const int32_t *dst_shift_ptr;
+    uint32_t dst_mult_ptr;
+    uint32_t dst_shift_ptr;
 
     int32_t act_min;
     int32_t act_max;
