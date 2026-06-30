@@ -168,7 +168,7 @@ class ai_axi_soc_c_test extends ai_base_test;
 
             word_addr = (output_base_addr + byte_idx) >> 2;
             lane = (output_base_addr + byte_idx) & 32'h3;
-            act_word = $root.tb_top.u_soc_top.cpu_mem[word_addr];
+	            act_word = $root.tb_top.u_soc_top.u_axi_sim_ram.mem_r[word_addr];
             exp_byte = exp_word[((byte_idx & 3) * 8) +: 8];
             act_byte = act_word[(lane * 8) +: 8];
 

@@ -354,3 +354,34 @@ EAI 同步验证：
 - IS+s16 的小矩阵非对齐 case 已经闭环，说明目前 LHS 16bit 的 IS 数据预转置、kernel 侧读取和写回转置路径至少在边界尺寸下功能正确。
 - 非对齐写回不再依赖外部拆包桥，因此 OA writer 只需要提供连续逻辑 beat 和 `WSTRB`；字节 lane 对齐、尾 beat 和 AXI `WLAST` 都由 DMA 统一处理。
 - DDR 随机延迟下 PASS，说明 `AR/R`、`AW/W/B` 的 ready/valid 语义没有依赖零延迟内存模型。
+
+### 2026-07-01 补充：SoC 顶层 AXI 化和双向 outstanding
+
+本轮对 `rtl/nice_coprocessor/soc_top.sv` 做了结构收敛：顶层只保留 Pico、Pico-to-AXI bridge、AXI interconnect、MMA、RAM、UART 和 SoC ctrl 的实例化与连线。具体功能下沉到 `rtl/nice_coprocessor/soc/`：
+
+- `pico_native_to_axi.sv`：封装 PicoRV32 官方 AXI adapter 语义，并补齐 AXI4 burst/size/cache/wlast 属性。修复了早期自写 FSM 中 `mem_ready` 寄存后一拍导致 `_start` 在 `progress=0x5a000001` 后 trap 的问题。
+- `soc_axi_interconnect.sv`：连接 Pico 和 MMA 两个 AXI master，RAM 读写通道分别按 owner 锁定，并允许同一 owner 连续发起多笔 outstanding。读写 outstanding 深度分别由 `READ_OUTSTANDING/WRITE_OUTSTANDING` 参数限制。
+- `soc_axi_ram.sv`：统一承载 CPU 程序和 MMA runtime 数据，支持 AXI burst、读写 outstanding、随机命令/写/响应延迟。修复了读通道在“同周期接收新 AR 且返回非最后一拍 R”时 outstanding 计数不增加的边界问题。
+- `soc_axil_simpleuart.sv`、`soc_axil_ctrl.sv`：UART 和 SoC finish/status/progress 通过 AXI-Lite 接入 interconnect，不再在 `soc_top` 中直接译码。
+
+MMA AXI 写侧同步改为真正 outstanding：
+
+- `axi_dual_block_dma` 新增 `WRITE_OUTSTANDING` 参数，`AW` 可按行提前排队，`W` 按已接收地址顺序连续流式发送，`B` 独立回收。
+- `axi_block_dma_arbiter`、`mma_top`、`mma_axil_top`、`soc_top` 均透传 `AXI_WRITE_OUTSTANDING`，默认值跟随 `AXI_READ_OUTSTANDING`，也可以从 Makefile 用 `SOC_AXI_WRITE_OUTSTANDING` 单独覆盖。
+- `veri/sim/Makefile` 新增 `SOC_AXI_READ_OUTSTANDING` 和 `SOC_AXI_WRITE_OUTSTANDING`，用于 SoC 仿真 elaboration；这与此前 ro=4 的性能测试入口保持一致。
+
+新增验证结果：
+
+| 测试 | 配置 | 结果 |
+|---|---|---|
+| AXI SoC 编译 | `SIZE=4,CACHE=2,PS_FRAME=8,RO=4,WO=4` | PASS |
+| Pico 启动 trace | `+SOC_CPU_AXI_TRACE +SOC_PROGRESS_TRACE,DDR_RAND_LAT=0` | PASS，`progress=0x5a000001/2/3` 均到达 |
+| SoC runtime smoke | `unaligned_layout,DDR_RAND_LAT=0,RO=4,WO=4` | PASS，24409 cycles |
+| SoC runtime 随机 DDR 延迟 | `cmd/w/rsp max=3/2/8,RO=4,WO=4` | PASS，38360 cycles |
+| outstanding 最小深度边界 | `cmd/w/rsp max=3/2/8,RO=1,WO=1` | PASS |
+
+对性能语义的影响：
+
+- Pico 和 UART 接入 AXI interconnect 后，CPU 启动、UART 打印和 MMA CSR 都走同一套 AXI-Lite/AXI 路径，后续 SoC 级性能统计不会再绕过 interconnect。
+- RAM/interconnect 读写 outstanding 对称后，DMA 读侧 ro=4 的收益不会被写回侧串行 B 响应拖住；OA 写回可在写通道内排队，读侧仍能继续推进 IA/kernel 预取。
+- outstanding=1 边界仍通过，说明新增节流逻辑没有依赖“深度大于 1”这一隐含条件；后续性能 sweep 可以安全比较 `RO/WO=1/2/4/8` 的曲线。

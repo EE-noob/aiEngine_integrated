@@ -12,8 +12,9 @@ module mma_top #(
     parameter int unsigned ADDR_WIDTH = 19,  // 地址宽度
     parameter int unsigned ICB_LEN_W = 4,  // ICB 突发长度宽度
     parameter int unsigned IA_CACHE_BLOCKS = 4,  // IA loader cache slots；默认 IA reuse = IA_CACHE_BLOCKS/2
-    parameter int unsigned PS_FRAME_COUNT = SIZE,  // PS buffer 可保留的输出列 tile 数
-    parameter int unsigned AXI_READ_OUTSTANDING = 4  // AXI 读通道最多提前排队的 burst 数
+	    parameter int unsigned PS_FRAME_COUNT = SIZE,  // PS buffer 可保留的输出列 tile 数
+	    parameter int unsigned AXI_READ_OUTSTANDING = 4,  // AXI 读通道最多提前排队的 burst 数
+	    parameter int unsigned AXI_WRITE_OUTSTANDING = AXI_READ_OUTSTANDING  // AXI 写通道最多提前排队的 burst 数
 ) (
     //==== 时钟与复位 ====
     input wire clk,   // 系统时钟
@@ -292,7 +293,8 @@ module mma_top #(
 	        .BUS_WIDTH   (BUS_WIDTH),
 	        .REG_WIDTH   (REG_WIDTH),
 	        .CACHE_BLOCKS(IA_CACHE_BLOCKS),
-	        .READ_OUTSTANDING(AXI_READ_OUTSTANDING)
+	        .READ_OUTSTANDING(AXI_READ_OUTSTANDING),
+	        .WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING)
 	    ) u_block_dma_arbiter (
 	        .clk                     (clk),
 	        .rst_n                   (rst_n),

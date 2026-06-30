@@ -88,7 +88,7 @@ interface nice_if (
     // SRAM helpers used by class-based UVM components to avoid illegal package XMR.
     function automatic bit [31:0] read_sram_word(input int unsigned word_addr);
 `ifdef DUT_AXI_SOC
-        read_sram_word = $root.tb_top.u_soc_top.cpu_mem[word_addr];
+	        read_sram_word = $root.tb_top.u_soc_top.u_axi_sim_ram.mem_r[word_addr];
 `elsif DUT_AXIL
         read_sram_word = $root.tb_top.u_axil_top_with_ram.u_axi_sim_ram.mem_r[word_addr];
 `else

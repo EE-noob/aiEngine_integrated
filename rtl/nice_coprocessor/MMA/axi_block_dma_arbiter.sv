@@ -16,7 +16,8 @@ module axi_block_dma_arbiter #(
     parameter int unsigned BUS_WIDTH    = 32,
     parameter int unsigned REG_WIDTH    = 32,
     parameter int unsigned CACHE_BLOCKS = 4,
-    parameter int unsigned READ_OUTSTANDING = 4
+    parameter int unsigned READ_OUTSTANDING = 4,
+    parameter int unsigned WRITE_OUTSTANDING = READ_OUTSTANDING
 ) (
     input logic clk,
     input logic rst_n,
@@ -385,7 +386,8 @@ module axi_block_dma_arbiter #(
         .BUS_WIDTH   (BUS_WIDTH),
         .REG_WIDTH   (REG_WIDTH),
         .CACHE_BLOCKS(CACHE_BLOCKS),
-        .READ_OUTSTANDING(READ_OUTSTANDING)
+	        .READ_OUTSTANDING(READ_OUTSTANDING),
+	        .WRITE_OUTSTANDING(WRITE_OUTSTANDING)
     ) u_dma (
         .clk                (clk),
         .rst_n              (rst_n),

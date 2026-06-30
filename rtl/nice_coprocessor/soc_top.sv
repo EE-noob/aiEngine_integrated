@@ -10,10 +10,13 @@ module soc_top #(
     parameter ICB_LEN_W       = 4,
     parameter IA_CACHE_BLOCKS = 4,
     parameter PS_FRAME_COUNT  = SIZE,
+    parameter AXI_READ_OUTSTANDING  = 4,
+    parameter AXI_WRITE_OUTSTANDING = AXI_READ_OUTSTANDING,
     parameter CPU_MEM_DP      = 524288,
     parameter CPU_MEM_PATH    = "../tb/axi_soc_case/cpu.mem",
     parameter [31:0] CPU_RAM_BASE   = 32'h0000_0000,
     parameter [31:0] MMA_AXIL_BASE  = 32'h1000_0000,
+    parameter [31:0] UART_BASE      = 32'h0200_0000,
     parameter [31:0] SOC_CTRL_BASE  = 32'h2000_0000
 ) (
     input  wire        clk,
@@ -24,74 +27,178 @@ module soc_top #(
     output wire [31:0] mma_eoi,
     output wire        uart_tx,
     input  wire        uart_rx,
-    output reg         soc_finish,
-    output reg  [31:0] soc_status,
+    output wire        soc_finish,
+    output wire [31:0] soc_status,
     output wire        cpu_trap
 );
 
-    localparam integer CPU_ADDR_LSB  = 2;
-    localparam integer CPU_ADDR_BITS = (CPU_MEM_DP <= 1) ? 1 : $clog2(CPU_MEM_DP);
-    localparam [31:0] PICOSOC_UART_CLKDIV_ADDR = 32'h0200_0004;
-    localparam [31:0] PICOSOC_UART_DATA_ADDR   = 32'h0200_0008;
+    wire        pico_mem_valid;
+    wire        pico_mem_instr;
+    wire        pico_mem_ready;
+    wire [31:0] pico_mem_addr;
+    wire [31:0] pico_mem_wdata;
+    wire [3:0]  pico_mem_wstrb;
+    wire [31:0] pico_mem_rdata;
 
-    localparam [2:0] S_IDLE    = 3'd0;
-    localparam [2:0] S_AXIL_WR = 3'd1;
-    localparam [2:0] S_AXIL_WB = 3'd2;
-    localparam [2:0] S_AXIL_RD = 3'd3;
-    localparam [2:0] S_AXIL_RB = 3'd4;
+    wire        cpu_axi_arvalid;
+    wire        cpu_axi_arready;
+    wire [REG_WIDTH-1:0] cpu_axi_araddr;
+    wire [3:0]  cpu_axi_arcache;
+    wire [2:0]  cpu_axi_arprot;
+    wire [1:0]  cpu_axi_arlock;
+    wire [1:0]  cpu_axi_arburst;
+    wire [7:0]  cpu_axi_arlen;
+    wire [2:0]  cpu_axi_arsize;
+    wire        cpu_axi_rvalid;
+    wire        cpu_axi_rready;
+    wire [BUS_WIDTH-1:0] cpu_axi_rdata;
+    wire [1:0]  cpu_axi_rresp;
+    wire        cpu_axi_rlast;
+    wire        cpu_axi_awvalid;
+    wire        cpu_axi_awready;
+    wire [REG_WIDTH-1:0] cpu_axi_awaddr;
+    wire [3:0]  cpu_axi_awcache;
+    wire [2:0]  cpu_axi_awprot;
+    wire [1:0]  cpu_axi_awlock;
+    wire [1:0]  cpu_axi_awburst;
+    wire [7:0]  cpu_axi_awlen;
+    wire [2:0]  cpu_axi_awsize;
+    wire        cpu_axi_wvalid;
+    wire        cpu_axi_wready;
+    wire [BUS_WIDTH-1:0] cpu_axi_wdata;
+    wire [BUS_WIDTH/8-1:0] cpu_axi_wstrb;
+    wire        cpu_axi_wlast;
+    wire        cpu_axi_bvalid;
+    wire        cpu_axi_bready;
+    wire [1:0]  cpu_axi_bresp;
 
-    reg [2:0] state_q;
-    reg [31:0] soc_progress;
+    wire        mma_axi_arvalid;
+    wire        mma_axi_arready;
+    wire [ICB_ADDR_WIDTH-1:0] mma_axi_araddr;
+    wire [3:0]  mma_axi_arcache;
+    wire [2:0]  mma_axi_arprot;
+    wire [1:0]  mma_axi_arlock;
+    wire [1:0]  mma_axi_arburst;
+    wire [7:0]  mma_axi_arlen;
+    wire [2:0]  mma_axi_arsize;
+    wire        mma_axi_rvalid;
+    wire        mma_axi_rready;
+    wire [BUS_WIDTH-1:0] mma_axi_rdata;
+    wire [1:0]  mma_axi_rresp;
+    wire        mma_axi_rlast;
+    wire        mma_axi_awvalid;
+    wire        mma_axi_awready;
+    wire [ICB_ADDR_WIDTH-1:0] mma_axi_awaddr;
+    wire [3:0]  mma_axi_awcache;
+    wire [2:0]  mma_axi_awprot;
+    wire [1:0]  mma_axi_awlock;
+    wire [1:0]  mma_axi_awburst;
+    wire [7:0]  mma_axi_awlen;
+    wire [2:0]  mma_axi_awsize;
+    wire        mma_axi_wvalid;
+    wire        mma_axi_wready;
+    wire [BUS_WIDTH-1:0] mma_axi_wdata;
+    wire [BUS_WIDTH/8-1:0] mma_axi_wstrb;
+    wire        mma_axi_wlast;
+    wire        mma_axi_bvalid;
+    wire        mma_axi_bready;
+    wire [1:0]  mma_axi_bresp;
 
-    wire        mem_valid;
-    wire        mem_instr;
-    reg         mem_ready;
-    wire [31:0] mem_addr;
-    wire [31:0] mem_wdata;
-    wire [3:0]  mem_wstrb;
-    reg  [31:0] mem_rdata;
+    wire        ram_axi_arvalid;
+    wire        ram_axi_arready;
+    wire [REG_WIDTH-1:0] ram_axi_araddr;
+    wire [3:0]  ram_axi_arcache;
+    wire [2:0]  ram_axi_arprot;
+    wire [1:0]  ram_axi_arlock;
+    wire [1:0]  ram_axi_arburst;
+    wire [7:0]  ram_axi_arlen;
+    wire [2:0]  ram_axi_arsize;
+    wire        ram_axi_rvalid;
+    wire        ram_axi_rready;
+    wire [BUS_WIDTH-1:0] ram_axi_rdata;
+    wire [1:0]  ram_axi_rresp;
+    wire        ram_axi_rlast;
+    wire        ram_axi_awvalid;
+    wire        ram_axi_awready;
+    wire [REG_WIDTH-1:0] ram_axi_awaddr;
+    wire [3:0]  ram_axi_awcache;
+    wire [2:0]  ram_axi_awprot;
+    wire [1:0]  ram_axi_awlock;
+    wire [1:0]  ram_axi_awburst;
+    wire [7:0]  ram_axi_awlen;
+    wire [2:0]  ram_axi_awsize;
+    wire        ram_axi_wvalid;
+    wire        ram_axi_wready;
+    wire [BUS_WIDTH-1:0] ram_axi_wdata;
+    wire [BUS_WIDTH/8-1:0] ram_axi_wstrb;
+    wire        ram_axi_wlast;
+    wire        ram_axi_bvalid;
+    wire        ram_axi_bready;
+    wire [1:0]  ram_axi_bresp;
 
-    wire mem_is_write = |mem_wstrb;
-    wire [31:0] cpu_mem_offset = mem_addr[31:0] - CPU_RAM_BASE;
-    wire mem_sel_cpu = (mem_addr[31:0] >= CPU_RAM_BASE) &&
-                       (cpu_mem_offset[31:CPU_ADDR_LSB] < CPU_MEM_DP);
-    wire mem_sel_mma = (mem_addr[31:28] == MMA_AXIL_BASE[31:28]);
-    wire mem_sel_soc = (mem_addr[31:28] == SOC_CTRL_BASE[31:28]);
-    wire mem_sel_uart_div  = (mem_addr[31:0] == PICOSOC_UART_CLKDIV_ADDR);
-    wire mem_sel_uart_data = (mem_addr[31:0] == PICOSOC_UART_DATA_ADDR);
+    wire [AXIL_ADDR_WIDTH-1:0] mma_axil_awaddr;
+    wire [2:0]  mma_axil_awprot;
+    wire        mma_axil_awvalid;
+    wire        mma_axil_awready;
+    wire [31:0] mma_axil_wdata;
+    wire [3:0]  mma_axil_wstrb;
+    wire        mma_axil_wvalid;
+    wire        mma_axil_wready;
+    wire [1:0]  mma_axil_bresp;
+    wire        mma_axil_bvalid;
+    wire        mma_axil_bready;
+    wire [AXIL_ADDR_WIDTH-1:0] mma_axil_araddr;
+    wire [2:0]  mma_axil_arprot;
+    wire        mma_axil_arvalid;
+    wire        mma_axil_arready;
+    wire [31:0] mma_axil_rdata;
+    wire [1:0]  mma_axil_rresp;
+    wire        mma_axil_rvalid;
+    wire        mma_axil_rready;
 
-    reg [31:0] cpu_mem [0:CPU_MEM_DP-1];
-    wire [CPU_ADDR_BITS-1:0] cpu_mem_idx =
-        cpu_mem_offset[CPU_ADDR_LSB + CPU_ADDR_BITS - 1:CPU_ADDR_LSB];
+    wire [31:0] uart_axil_awaddr;
+    wire [2:0]  uart_axil_awprot;
+    wire        uart_axil_awvalid;
+    wire        uart_axil_awready;
+    wire [31:0] uart_axil_wdata;
+    wire [3:0]  uart_axil_wstrb;
+    wire        uart_axil_wvalid;
+    wire        uart_axil_wready;
+    wire [1:0]  uart_axil_bresp;
+    wire        uart_axil_bvalid;
+    wire        uart_axil_bready;
+    wire [31:0] uart_axil_araddr;
+    wire [2:0]  uart_axil_arprot;
+    wire        uart_axil_arvalid;
+    wire        uart_axil_arready;
+    wire [31:0] uart_axil_rdata;
+    wire [1:0]  uart_axil_rresp;
+    wire        uart_axil_rvalid;
+    wire        uart_axil_rready;
+    wire [31:0] uart_cfg_divider;
 
-    integer i;
-    string cpu_mem_path_q;
-    string data_mem_path_q;
-    integer data_mem_base_word_q;
-    initial begin
-        cpu_mem_path_q = CPU_MEM_PATH;
-        data_mem_path_q = "";
-        data_mem_base_word_q = 0;
-        void'($value$plusargs("SOC_CPU_MEM=%s", cpu_mem_path_q));
-        void'($value$plusargs("SOC_DATA_MEM=%s", data_mem_path_q));
-        void'($value$plusargs("SOC_DATA_MEM_BASE_WORD=%d", data_mem_base_word_q));
-        if (cpu_mem_path_q != "") begin
-            $display("soc_top: loading PicoRV32 program memory from %s", cpu_mem_path_q);
-            $readmemh(cpu_mem_path_q, cpu_mem);
-        end
-        if (data_mem_path_q != "") begin
-            $display("soc_top: overlay runtime case memory from %s at word %0d",
-                     data_mem_path_q, data_mem_base_word_q);
-            $readmemh(data_mem_path_q, cpu_mem, data_mem_base_word_q);
-        end
-    end
+    wire [31:0] ctrl_axil_awaddr;
+    wire [2:0]  ctrl_axil_awprot;
+    wire        ctrl_axil_awvalid;
+    wire        ctrl_axil_awready;
+    wire [31:0] ctrl_axil_wdata;
+    wire [3:0]  ctrl_axil_wstrb;
+    wire        ctrl_axil_wvalid;
+    wire        ctrl_axil_wready;
+    wire [1:0]  ctrl_axil_bresp;
+    wire        ctrl_axil_bvalid;
+    wire        ctrl_axil_bready;
+    wire [31:0] ctrl_axil_araddr;
+    wire [2:0]  ctrl_axil_arprot;
+    wire        ctrl_axil_arvalid;
+    wire        ctrl_axil_arready;
+    wire [31:0] ctrl_axil_rdata;
+    wire [1:0]  ctrl_axil_rresp;
+    wire        ctrl_axil_rvalid;
+    wire        ctrl_axil_rready;
+    wire [31:0] soc_progress;
 
-    task automatic reload_cpu_mem_from_file(input string file_path);
-        if (file_path != "") begin
-            $display("soc_top: runtime reload PicoRV32 program memory from %s", file_path);
-            $readmemh(file_path, cpu_mem);
-        end
-    endtask
+    assign mma_eoi = 32'h0;
 
     picorv32 #(
         .ENABLE_COUNTERS(1),
@@ -114,13 +221,13 @@ module soc_top #(
         .clk(clk),
         .resetn(rst_n),
         .trap(cpu_trap),
-        .mem_valid(mem_valid),
-        .mem_addr(mem_addr),
-        .mem_wdata(mem_wdata),
-        .mem_wstrb(mem_wstrb),
-        .mem_instr(mem_instr),
-        .mem_ready(mem_ready),
-        .mem_rdata(mem_rdata),
+        .mem_valid(pico_mem_valid),
+        .mem_addr(pico_mem_addr),
+        .mem_wdata(pico_mem_wdata),
+        .mem_wstrb(pico_mem_wstrb),
+        .mem_instr(pico_mem_instr),
+        .mem_ready(pico_mem_ready),
+        .mem_rdata(pico_mem_rdata),
         .mem_la_read(),
         .mem_la_write(),
         .mem_la_addr(),
@@ -140,160 +247,216 @@ module soc_top #(
         .trace_data()
     );
 
-    reg [AXIL_ADDR_WIDTH-1:0] axil_addr_q;
-    reg [31:0]                axil_wdata_q;
-    reg [3:0]                 axil_wstrb_q;
-    reg                       axil_awvalid_q;
-    reg                       axil_wvalid_q;
-    reg                       axil_bready_q;
-    reg                       axil_arvalid_q;
-    reg                       axil_rready_q;
+    pico_native_to_axi #(
+        .ADDR_WIDTH(REG_WIDTH),
+        .DATA_WIDTH(BUS_WIDTH)
+    ) u_pico_axi_bridge (
+        .clk(clk),
+        .rst_n(rst_n),
+        .mem_valid(pico_mem_valid),
+        .mem_instr(pico_mem_instr),
+        .mem_addr(pico_mem_addr),
+        .mem_wdata(pico_mem_wdata),
+        .mem_wstrb(pico_mem_wstrb),
+        .mem_ready(pico_mem_ready),
+        .mem_rdata(pico_mem_rdata),
+        .m_axi_arvalid(cpu_axi_arvalid),
+        .m_axi_arready(cpu_axi_arready),
+        .m_axi_araddr(cpu_axi_araddr),
+        .m_axi_arcache(cpu_axi_arcache),
+        .m_axi_arprot(cpu_axi_arprot),
+        .m_axi_arlock(cpu_axi_arlock),
+        .m_axi_arburst(cpu_axi_arburst),
+        .m_axi_arlen(cpu_axi_arlen),
+        .m_axi_arsize(cpu_axi_arsize),
+        .m_axi_awvalid(cpu_axi_awvalid),
+        .m_axi_awready(cpu_axi_awready),
+        .m_axi_awaddr(cpu_axi_awaddr),
+        .m_axi_awcache(cpu_axi_awcache),
+        .m_axi_awprot(cpu_axi_awprot),
+        .m_axi_awlock(cpu_axi_awlock),
+        .m_axi_awburst(cpu_axi_awburst),
+        .m_axi_awlen(cpu_axi_awlen),
+        .m_axi_awsize(cpu_axi_awsize),
+        .m_axi_rvalid(cpu_axi_rvalid),
+        .m_axi_rready(cpu_axi_rready),
+        .m_axi_rdata(cpu_axi_rdata),
+        .m_axi_rresp(cpu_axi_rresp),
+        .m_axi_rlast(cpu_axi_rlast),
+        .m_axi_wvalid(cpu_axi_wvalid),
+        .m_axi_wready(cpu_axi_wready),
+        .m_axi_wdata(cpu_axi_wdata),
+        .m_axi_wstrb(cpu_axi_wstrb),
+        .m_axi_wlast(cpu_axi_wlast),
+        .m_axi_bvalid(cpu_axi_bvalid),
+        .m_axi_bready(cpu_axi_bready),
+        .m_axi_bresp(cpu_axi_bresp)
+    );
 
-    wire                      axil_awready;
-    wire                      axil_wready;
-    wire [1:0]                axil_bresp;
-    wire                      axil_bvalid;
-    wire                      axil_arready;
-    wire [31:0]               axil_rdata;
-    wire [1:0]                axil_rresp;
-    wire                      axil_rvalid;
-
-    wire [31:0]               uart_div_rdata;
-    wire [31:0]               uart_data_rdata;
-    wire                      uart_data_wait;
-    wire                      uart_access = mem_sel_uart_div || mem_sel_uart_data;
-    wire                      uart_access_ready = mem_sel_uart_div ||
-                                                  (mem_sel_uart_data && !uart_data_wait);
-    wire                      uart_issue = (state_q == S_IDLE) && mem_valid && uart_access;
-    wire [3:0]                uart_div_we = (uart_issue && mem_sel_uart_div &&
-                                             mem_is_write) ? mem_wstrb : 4'b0000;
-    wire                      uart_data_we = (uart_issue && mem_sel_uart_data &&
-                                              mem_is_write) ? mem_wstrb[0] : 1'b0;
-    wire                      uart_data_re = uart_issue && mem_sel_uart_data && !mem_is_write;
-
-    wire                          m_axi_arvalid;
-    wire                          m_axi_arready;
-    wire [ICB_ADDR_WIDTH-1:0]     m_axi_araddr;
-    wire [3:0]                    m_axi_arcache;
-    wire [2:0]                    m_axi_arprot;
-    wire [1:0]                    m_axi_arlock;
-    wire [1:0]                    m_axi_arburst;
-    wire [7:0]                    m_axi_arlen;
-    wire [2:0]                    m_axi_arsize;
-
-    wire                          m_axi_awvalid;
-    wire                          m_axi_awready;
-    wire [ICB_ADDR_WIDTH-1:0]     m_axi_awaddr;
-    wire [3:0]                    m_axi_awcache;
-    wire [2:0]                    m_axi_awprot;
-    wire [1:0]                    m_axi_awlock;
-    wire [1:0]                    m_axi_awburst;
-    wire [7:0]                    m_axi_awlen;
-    wire [2:0]                    m_axi_awsize;
-
-    wire                          m_axi_rvalid;
-    wire                          m_axi_rready;
-    wire [BUS_WIDTH-1:0]          m_axi_rdata;
-    wire [1:0]                    m_axi_rresp;
-    wire                          m_axi_rlast;
-
-    wire                          m_axi_wvalid;
-    wire                          m_axi_wready;
-    wire [BUS_WIDTH-1:0]          m_axi_wdata;
-    wire [BUS_WIDTH/8-1:0]        m_axi_wstrb;
-    wire                          m_axi_wlast;
-
-    wire                          m_axi_bvalid;
-    wire                          m_axi_bready;
-    wire [1:0]                    m_axi_bresp;
-
-    reg                           mma_aw_pending;
-    reg [ICB_ADDR_WIDTH-1:0]      mma_aw_addr_q;
-    reg [7:0]                     mma_aw_len_q;
-    reg [7:0]                     mma_w_beat_cnt;
-    reg                           mma_wr_error_q;
-    reg                           mma_rd_active;
-    reg [ICB_ADDR_WIDTH-1:0]      mma_rd_addr_q;
-    reg [7:0]                     mma_rd_len_q;
-    reg [7:0]                     mma_rd_beat_cnt;
-    reg                           mma_rd_error_q;
-    reg [7:0]                     mma_aw_ready_delay;
-    reg [7:0]                     mma_w_ready_delay;
-    reg [7:0]                     mma_ar_ready_delay;
-    reg                           mma_wr_rsp_pending;
-    reg [7:0]                     mma_wr_rsp_delay;
-    reg                           mma_rd_rsp_pending;
-    reg [7:0]                     mma_rd_rsp_delay;
-    reg                           m_axi_bvalid_q;
-    reg [1:0]                     m_axi_bresp_q;
-    reg                           m_axi_rvalid_q;
-    reg [BUS_WIDTH-1:0]           m_axi_rdata_q;
-    reg [1:0]                     m_axi_rresp_q;
-    reg                           m_axi_rlast_q;
-
-    integer                       ddr_rand_lat_en;
-    integer                       ddr_cmd_max_lat;
-    integer                       ddr_w_max_lat;
-    integer                       ddr_rsp_max_lat;
-
-    wire mma_aw_fire = m_axi_awvalid & m_axi_awready;
-    wire mma_w_fire  = m_axi_wvalid  & m_axi_wready;
-    wire mma_ar_fire = m_axi_arvalid & m_axi_arready;
-
-    wire [31:0] mma_wr_cur_addr = mma_aw_addr_q[31:0] +
-                                  ((32'(mma_w_beat_cnt)) << CPU_ADDR_LSB);
-    wire [31:0] mma_rd_cur_addr = mma_rd_addr_q[31:0] +
-                                  ((32'(mma_rd_beat_cnt)) << CPU_ADDR_LSB);
-    wire [31:0] mma_aw_offset = mma_wr_cur_addr - CPU_RAM_BASE;
-    wire [31:0] mma_ar_offset = mma_rd_cur_addr - CPU_RAM_BASE;
-    wire [CPU_ADDR_BITS-1:0] mma_wr_idx =
-        mma_aw_offset[CPU_ADDR_LSB + CPU_ADDR_BITS - 1:CPU_ADDR_LSB];
-    wire [CPU_ADDR_BITS-1:0] mma_rd_idx =
-        mma_ar_offset[CPU_ADDR_LSB + CPU_ADDR_BITS - 1:CPU_ADDR_LSB];
-    wire mma_wr_addr_oob = (mma_wr_cur_addr < CPU_RAM_BASE) ||
-                           (mma_aw_offset[31:CPU_ADDR_LSB] >= CPU_MEM_DP);
-    wire mma_rd_addr_oob = (mma_rd_cur_addr < CPU_RAM_BASE) ||
-                           (mma_ar_offset[31:CPU_ADDR_LSB] >= CPU_MEM_DP);
-
-    assign m_axi_awready = (!mma_aw_pending) && (!m_axi_bvalid_q) &&
-                           (!mma_wr_rsp_pending) && (mma_aw_ready_delay == 8'd0);
-    assign m_axi_wready  = mma_aw_pending && (!m_axi_bvalid_q) &&
-                           (!mma_wr_rsp_pending) && (mma_w_ready_delay == 8'd0);
-    assign m_axi_arready = (!mma_rd_active) && (!m_axi_rvalid_q) && (!mma_rd_rsp_pending) &&
-                           (mma_ar_ready_delay == 8'd0);
-    assign m_axi_bvalid  = m_axi_bvalid_q;
-    assign m_axi_bresp   = m_axi_bresp_q;
-    assign m_axi_rvalid  = m_axi_rvalid_q;
-    assign m_axi_rdata   = m_axi_rdata_q;
-    assign m_axi_rresp   = m_axi_rresp_q;
-    assign m_axi_rlast   = m_axi_rlast_q;
-
-    function automatic [7:0] random_ddr_delay(input integer max_lat);
-        integer value;
-        begin
-            if ((ddr_rand_lat_en == 0) || (max_lat <= 0)) begin
-                random_ddr_delay = 8'd0;
-            end else begin
-                value = $urandom_range(max_lat, 0);
-                random_ddr_delay = (value > 255) ? 8'hff : value[7:0];
-            end
-        end
-    endfunction
-
-    initial begin
-        ddr_rand_lat_en = 0;
-        ddr_cmd_max_lat = 0;
-        ddr_w_max_lat   = 0;
-        ddr_rsp_max_lat = 0;
-        void'($value$plusargs("DDR_RAND_LAT=%d", ddr_rand_lat_en));
-        void'($value$plusargs("DDR_CMD_MAX_LAT=%d", ddr_cmd_max_lat));
-        void'($value$plusargs("DDR_W_MAX_LAT=%d", ddr_w_max_lat));
-        void'($value$plusargs("DDR_RSP_MAX_LAT=%d", ddr_rsp_max_lat));
-        if (ddr_rand_lat_en != 0) begin
-            $display("soc_top: DDR random latency enabled cmd_max=%0d w_max=%0d rsp_max=%0d",
-                     ddr_cmd_max_lat, ddr_w_max_lat, ddr_rsp_max_lat);
-        end
-    end
+    soc_axi_interconnect #(
+        .ADDR_WIDTH(REG_WIDTH),
+        .DATA_WIDTH(BUS_WIDTH),
+        .CPU_MEM_DP(CPU_MEM_DP),
+        .READ_OUTSTANDING(AXI_READ_OUTSTANDING),
+        .WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING),
+        .CPU_RAM_BASE(CPU_RAM_BASE),
+        .MMA_AXIL_BASE(MMA_AXIL_BASE),
+        .UART_BASE(UART_BASE),
+        .SOC_CTRL_BASE(SOC_CTRL_BASE)
+    ) u_axi_interconnect (
+        .clk(clk),
+        .rst_n(rst_n),
+        .s0_axi_arvalid(cpu_axi_arvalid),
+        .s0_axi_arready(cpu_axi_arready),
+        .s0_axi_araddr(cpu_axi_araddr),
+        .s0_axi_arcache(cpu_axi_arcache),
+        .s0_axi_arprot(cpu_axi_arprot),
+        .s0_axi_arlock(cpu_axi_arlock),
+        .s0_axi_arburst(cpu_axi_arburst),
+        .s0_axi_arlen(cpu_axi_arlen),
+        .s0_axi_arsize(cpu_axi_arsize),
+        .s0_axi_rvalid(cpu_axi_rvalid),
+        .s0_axi_rready(cpu_axi_rready),
+        .s0_axi_rdata(cpu_axi_rdata),
+        .s0_axi_rresp(cpu_axi_rresp),
+        .s0_axi_rlast(cpu_axi_rlast),
+        .s0_axi_awvalid(cpu_axi_awvalid),
+        .s0_axi_awready(cpu_axi_awready),
+        .s0_axi_awaddr(cpu_axi_awaddr),
+        .s0_axi_awcache(cpu_axi_awcache),
+        .s0_axi_awprot(cpu_axi_awprot),
+        .s0_axi_awlock(cpu_axi_awlock),
+        .s0_axi_awburst(cpu_axi_awburst),
+        .s0_axi_awlen(cpu_axi_awlen),
+        .s0_axi_awsize(cpu_axi_awsize),
+        .s0_axi_wvalid(cpu_axi_wvalid),
+        .s0_axi_wready(cpu_axi_wready),
+        .s0_axi_wdata(cpu_axi_wdata),
+        .s0_axi_wstrb(cpu_axi_wstrb),
+        .s0_axi_wlast(cpu_axi_wlast),
+        .s0_axi_bvalid(cpu_axi_bvalid),
+        .s0_axi_bready(cpu_axi_bready),
+        .s0_axi_bresp(cpu_axi_bresp),
+        .s1_axi_arvalid(mma_axi_arvalid),
+        .s1_axi_arready(mma_axi_arready),
+        .s1_axi_araddr(mma_axi_araddr),
+        .s1_axi_arcache(mma_axi_arcache),
+        .s1_axi_arprot(mma_axi_arprot),
+        .s1_axi_arlock(mma_axi_arlock),
+        .s1_axi_arburst(mma_axi_arburst),
+        .s1_axi_arlen(mma_axi_arlen),
+        .s1_axi_arsize(mma_axi_arsize),
+        .s1_axi_rvalid(mma_axi_rvalid),
+        .s1_axi_rready(mma_axi_rready),
+        .s1_axi_rdata(mma_axi_rdata),
+        .s1_axi_rresp(mma_axi_rresp),
+        .s1_axi_rlast(mma_axi_rlast),
+        .s1_axi_awvalid(mma_axi_awvalid),
+        .s1_axi_awready(mma_axi_awready),
+        .s1_axi_awaddr(mma_axi_awaddr),
+        .s1_axi_awcache(mma_axi_awcache),
+        .s1_axi_awprot(mma_axi_awprot),
+        .s1_axi_awlock(mma_axi_awlock),
+        .s1_axi_awburst(mma_axi_awburst),
+        .s1_axi_awlen(mma_axi_awlen),
+        .s1_axi_awsize(mma_axi_awsize),
+        .s1_axi_wvalid(mma_axi_wvalid),
+        .s1_axi_wready(mma_axi_wready),
+        .s1_axi_wdata(mma_axi_wdata),
+        .s1_axi_wstrb(mma_axi_wstrb),
+        .s1_axi_wlast(mma_axi_wlast),
+        .s1_axi_bvalid(mma_axi_bvalid),
+        .s1_axi_bready(mma_axi_bready),
+        .s1_axi_bresp(mma_axi_bresp),
+        .m_ram_arvalid(ram_axi_arvalid),
+        .m_ram_arready(ram_axi_arready),
+        .m_ram_araddr(ram_axi_araddr),
+        .m_ram_arcache(ram_axi_arcache),
+        .m_ram_arprot(ram_axi_arprot),
+        .m_ram_arlock(ram_axi_arlock),
+        .m_ram_arburst(ram_axi_arburst),
+        .m_ram_arlen(ram_axi_arlen),
+        .m_ram_arsize(ram_axi_arsize),
+        .m_ram_rvalid(ram_axi_rvalid),
+        .m_ram_rready(ram_axi_rready),
+        .m_ram_rdata(ram_axi_rdata),
+        .m_ram_rresp(ram_axi_rresp),
+        .m_ram_rlast(ram_axi_rlast),
+        .m_ram_awvalid(ram_axi_awvalid),
+        .m_ram_awready(ram_axi_awready),
+        .m_ram_awaddr(ram_axi_awaddr),
+        .m_ram_awcache(ram_axi_awcache),
+        .m_ram_awprot(ram_axi_awprot),
+        .m_ram_awlock(ram_axi_awlock),
+        .m_ram_awburst(ram_axi_awburst),
+        .m_ram_awlen(ram_axi_awlen),
+        .m_ram_awsize(ram_axi_awsize),
+        .m_ram_wvalid(ram_axi_wvalid),
+        .m_ram_wready(ram_axi_wready),
+        .m_ram_wdata(ram_axi_wdata),
+        .m_ram_wstrb(ram_axi_wstrb),
+        .m_ram_wlast(ram_axi_wlast),
+        .m_ram_bvalid(ram_axi_bvalid),
+        .m_ram_bready(ram_axi_bready),
+        .m_ram_bresp(ram_axi_bresp),
+        .m_mma_awaddr(mma_axil_awaddr),
+        .m_mma_awprot(mma_axil_awprot),
+        .m_mma_awvalid(mma_axil_awvalid),
+        .m_mma_awready(mma_axil_awready),
+        .m_mma_wdata(mma_axil_wdata),
+        .m_mma_wstrb(mma_axil_wstrb),
+        .m_mma_wvalid(mma_axil_wvalid),
+        .m_mma_wready(mma_axil_wready),
+        .m_mma_bresp(mma_axil_bresp),
+        .m_mma_bvalid(mma_axil_bvalid),
+        .m_mma_bready(mma_axil_bready),
+        .m_mma_araddr(mma_axil_araddr),
+        .m_mma_arprot(mma_axil_arprot),
+        .m_mma_arvalid(mma_axil_arvalid),
+        .m_mma_arready(mma_axil_arready),
+        .m_mma_rdata(mma_axil_rdata),
+        .m_mma_rresp(mma_axil_rresp),
+        .m_mma_rvalid(mma_axil_rvalid),
+        .m_mma_rready(mma_axil_rready),
+        .m_uart_awaddr(uart_axil_awaddr),
+        .m_uart_awprot(uart_axil_awprot),
+        .m_uart_awvalid(uart_axil_awvalid),
+        .m_uart_awready(uart_axil_awready),
+        .m_uart_wdata(uart_axil_wdata),
+        .m_uart_wstrb(uart_axil_wstrb),
+        .m_uart_wvalid(uart_axil_wvalid),
+        .m_uart_wready(uart_axil_wready),
+        .m_uart_bresp(uart_axil_bresp),
+        .m_uart_bvalid(uart_axil_bvalid),
+        .m_uart_bready(uart_axil_bready),
+        .m_uart_araddr(uart_axil_araddr),
+        .m_uart_arprot(uart_axil_arprot),
+        .m_uart_arvalid(uart_axil_arvalid),
+        .m_uart_arready(uart_axil_arready),
+        .m_uart_rdata(uart_axil_rdata),
+        .m_uart_rresp(uart_axil_rresp),
+        .m_uart_rvalid(uart_axil_rvalid),
+        .m_uart_rready(uart_axil_rready),
+        .m_ctrl_awaddr(ctrl_axil_awaddr),
+        .m_ctrl_awprot(ctrl_axil_awprot),
+        .m_ctrl_awvalid(ctrl_axil_awvalid),
+        .m_ctrl_awready(ctrl_axil_awready),
+        .m_ctrl_wdata(ctrl_axil_wdata),
+        .m_ctrl_wstrb(ctrl_axil_wstrb),
+        .m_ctrl_wvalid(ctrl_axil_wvalid),
+        .m_ctrl_wready(ctrl_axil_wready),
+        .m_ctrl_bresp(ctrl_axil_bresp),
+        .m_ctrl_bvalid(ctrl_axil_bvalid),
+        .m_ctrl_bready(ctrl_axil_bready),
+        .m_ctrl_araddr(ctrl_axil_araddr),
+        .m_ctrl_arprot(ctrl_axil_arprot),
+        .m_ctrl_arvalid(ctrl_axil_arvalid),
+        .m_ctrl_arready(ctrl_axil_arready),
+        .m_ctrl_rdata(ctrl_axil_rdata),
+        .m_ctrl_rresp(ctrl_axil_rresp),
+        .m_ctrl_rvalid(ctrl_axil_rvalid),
+        .m_ctrl_rready(ctrl_axil_rready)
+    );
 
     mma_axil_top #(
         .AXIL_DATA_WIDTH(AXIL_DATA_WIDTH),
@@ -306,325 +469,173 @@ module soc_top #(
         .ICB_ADDR_WIDTH(ICB_ADDR_WIDTH),
         .ICB_LEN_W(ICB_LEN_W),
         .IA_CACHE_BLOCKS(IA_CACHE_BLOCKS),
-        .PS_FRAME_COUNT(PS_FRAME_COUNT)
+        .PS_FRAME_COUNT(PS_FRAME_COUNT),
+        .AXI_READ_OUTSTANDING(AXI_READ_OUTSTANDING),
+        .AXI_WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING)
     ) u_mma_axil_top (
         .clk(clk),
         .rst_n(rst_n),
-        .s_axil_awaddr(axil_addr_q),
-        .s_axil_awprot(3'b000),
-        .s_axil_awvalid(axil_awvalid_q),
-        .s_axil_awready(axil_awready),
-        .s_axil_wdata(axil_wdata_q),
-        .s_axil_wstrb(axil_wstrb_q),
-        .s_axil_wvalid(axil_wvalid_q),
-        .s_axil_wready(axil_wready),
-        .s_axil_bresp(axil_bresp),
-        .s_axil_bvalid(axil_bvalid),
-        .s_axil_bready(axil_bready_q),
-        .s_axil_araddr(axil_addr_q),
-        .s_axil_arprot(3'b000),
-        .s_axil_arvalid(axil_arvalid_q),
-        .s_axil_arready(axil_arready),
-        .s_axil_rdata(axil_rdata),
-        .s_axil_rresp(axil_rresp),
-        .s_axil_rvalid(axil_rvalid),
-        .s_axil_rready(axil_rready_q),
-
-        .m_axi_arvalid(m_axi_arvalid),
-        .m_axi_arready(m_axi_arready),
-        .m_axi_araddr(m_axi_araddr),
-        .m_axi_arcache(m_axi_arcache),
-        .m_axi_arprot(m_axi_arprot),
-        .m_axi_arlock(m_axi_arlock),
-        .m_axi_arburst(m_axi_arburst),
-        .m_axi_arlen(m_axi_arlen),
-        .m_axi_arsize(m_axi_arsize),
-
-        .m_axi_awvalid(m_axi_awvalid),
-        .m_axi_awready(m_axi_awready),
-        .m_axi_awaddr(m_axi_awaddr),
-        .m_axi_awcache(m_axi_awcache),
-        .m_axi_awprot(m_axi_awprot),
-        .m_axi_awlock(m_axi_awlock),
-        .m_axi_awburst(m_axi_awburst),
-        .m_axi_awlen(m_axi_awlen),
-        .m_axi_awsize(m_axi_awsize),
-
-        .m_axi_rvalid(m_axi_rvalid),
-        .m_axi_rready(m_axi_rready),
-        .m_axi_rdata(m_axi_rdata),
-        .m_axi_rresp(m_axi_rresp),
-        .m_axi_rlast(m_axi_rlast),
-
-        .m_axi_wvalid(m_axi_wvalid),
-        .m_axi_wready(m_axi_wready),
-        .m_axi_wdata(m_axi_wdata),
-        .m_axi_wstrb(m_axi_wstrb),
-        .m_axi_wlast(m_axi_wlast),
-
-        .m_axi_bvalid(m_axi_bvalid),
-        .m_axi_bready(m_axi_bready),
-        .m_axi_bresp(m_axi_bresp),
-
+        .s_axil_awaddr(mma_axil_awaddr),
+        .s_axil_awprot(mma_axil_awprot),
+        .s_axil_awvalid(mma_axil_awvalid),
+        .s_axil_awready(mma_axil_awready),
+        .s_axil_wdata(mma_axil_wdata),
+        .s_axil_wstrb(mma_axil_wstrb),
+        .s_axil_wvalid(mma_axil_wvalid),
+        .s_axil_wready(mma_axil_wready),
+        .s_axil_bresp(mma_axil_bresp),
+        .s_axil_bvalid(mma_axil_bvalid),
+        .s_axil_bready(mma_axil_bready),
+        .s_axil_araddr(mma_axil_araddr),
+        .s_axil_arprot(mma_axil_arprot),
+        .s_axil_arvalid(mma_axil_arvalid),
+        .s_axil_arready(mma_axil_arready),
+        .s_axil_rdata(mma_axil_rdata),
+        .s_axil_rresp(mma_axil_rresp),
+        .s_axil_rvalid(mma_axil_rvalid),
+        .s_axil_rready(mma_axil_rready),
+        .m_axi_arvalid(mma_axi_arvalid),
+        .m_axi_arready(mma_axi_arready),
+        .m_axi_araddr(mma_axi_araddr),
+        .m_axi_arcache(mma_axi_arcache),
+        .m_axi_arprot(mma_axi_arprot),
+        .m_axi_arlock(mma_axi_arlock),
+        .m_axi_arburst(mma_axi_arburst),
+        .m_axi_arlen(mma_axi_arlen),
+        .m_axi_arsize(mma_axi_arsize),
+        .m_axi_awvalid(mma_axi_awvalid),
+        .m_axi_awready(mma_axi_awready),
+        .m_axi_awaddr(mma_axi_awaddr),
+        .m_axi_awcache(mma_axi_awcache),
+        .m_axi_awprot(mma_axi_awprot),
+        .m_axi_awlock(mma_axi_awlock),
+        .m_axi_awburst(mma_axi_awburst),
+        .m_axi_awlen(mma_axi_awlen),
+        .m_axi_awsize(mma_axi_awsize),
+        .m_axi_rvalid(mma_axi_rvalid),
+        .m_axi_rready(mma_axi_rready),
+        .m_axi_rdata(mma_axi_rdata),
+        .m_axi_rresp(mma_axi_rresp),
+        .m_axi_rlast(mma_axi_rlast),
+        .m_axi_wvalid(mma_axi_wvalid),
+        .m_axi_wready(mma_axi_wready),
+        .m_axi_wdata(mma_axi_wdata),
+        .m_axi_wstrb(mma_axi_wstrb),
+        .m_axi_wlast(mma_axi_wlast),
+        .m_axi_bvalid(mma_axi_bvalid),
+        .m_axi_bready(mma_axi_bready),
+        .m_axi_bresp(mma_axi_bresp),
         .irq(mma_irq),
         .eoi(mma_eoi),
         .mma_busy(mma_busy)
     );
 
-    assign mma_eoi = 32'h0;
-
-    simpleuart u_simpleuart (
-        .clk          (clk),
-        .resetn       (rst_n),
-        .ser_tx       (uart_tx),
-        .ser_rx       (uart_rx),
-        .reg_div_we   (uart_div_we),
-        .reg_div_di   (mem_wdata),
-        .reg_div_do   (uart_div_rdata),
-        .reg_dat_we   (uart_data_we),
-        .reg_dat_re   (uart_data_re),
-        .reg_dat_di   (mem_wdata),
-        .reg_dat_do   (uart_data_rdata),
-        .reg_dat_wait (uart_data_wait)
+    soc_axi_ram #(
+        .DP(CPU_MEM_DP),
+        .DW(BUS_WIDTH),
+        .AW(REG_WIDTH),
+        .MEM_PATH(CPU_MEM_PATH),
+        .INIT_EN(1),
+        .READ_OUTSTANDING(AXI_READ_OUTSTANDING),
+        .WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING)
+    ) u_axi_sim_ram (
+        .clk(clk),
+        .rst_n(rst_n),
+        .s_axi_awvalid(ram_axi_awvalid),
+        .s_axi_awready(ram_axi_awready),
+        .s_axi_awaddr(ram_axi_awaddr),
+        .s_axi_awcache(ram_axi_awcache),
+        .s_axi_awprot(ram_axi_awprot),
+        .s_axi_awlock(ram_axi_awlock),
+        .s_axi_awburst(ram_axi_awburst),
+        .s_axi_awlen(ram_axi_awlen),
+        .s_axi_awsize(ram_axi_awsize),
+        .s_axi_wvalid(ram_axi_wvalid),
+        .s_axi_wready(ram_axi_wready),
+        .s_axi_wdata(ram_axi_wdata),
+        .s_axi_wstrb(ram_axi_wstrb),
+        .s_axi_wlast(ram_axi_wlast),
+        .s_axi_bvalid(ram_axi_bvalid),
+        .s_axi_bready(ram_axi_bready),
+        .s_axi_bresp(ram_axi_bresp),
+        .s_axi_arvalid(ram_axi_arvalid),
+        .s_axi_arready(ram_axi_arready),
+        .s_axi_araddr(ram_axi_araddr),
+        .s_axi_arcache(ram_axi_arcache),
+        .s_axi_arprot(ram_axi_arprot),
+        .s_axi_arlock(ram_axi_arlock),
+        .s_axi_arburst(ram_axi_arburst),
+        .s_axi_arlen(ram_axi_arlen),
+        .s_axi_arsize(ram_axi_arsize),
+        .s_axi_rvalid(ram_axi_rvalid),
+        .s_axi_rready(ram_axi_rready),
+        .s_axi_rdata(ram_axi_rdata),
+        .s_axi_rresp(ram_axi_rresp),
+        .s_axi_rlast(ram_axi_rlast),
+        .mem_reload_req(mem_reload_req)
     );
 
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            state_q        <= S_IDLE;
-            mem_ready      <= 1'b0;
-            mem_rdata      <= 32'b0;
-            axil_addr_q    <= {AXIL_ADDR_WIDTH{1'b0}};
-            axil_wdata_q   <= 32'b0;
-            axil_wstrb_q   <= 4'b0;
-            axil_awvalid_q <= 1'b0;
-            axil_wvalid_q  <= 1'b0;
-            axil_bready_q  <= 1'b0;
-            axil_arvalid_q <= 1'b0;
-            axil_rready_q  <= 1'b0;
-            mma_aw_pending <= 1'b0;
-            mma_aw_addr_q  <= {ICB_ADDR_WIDTH{1'b0}};
-            mma_aw_len_q   <= 8'b0;
-            mma_w_beat_cnt <= 8'b0;
-            mma_wr_error_q <= 1'b0;
-            mma_rd_active  <= 1'b0;
-            mma_rd_addr_q  <= {ICB_ADDR_WIDTH{1'b0}};
-            mma_rd_len_q   <= 8'b0;
-            mma_rd_beat_cnt <= 8'b0;
-            mma_rd_error_q <= 1'b0;
-            mma_aw_ready_delay <= 8'd0;
-            mma_w_ready_delay  <= 8'd0;
-            mma_ar_ready_delay <= 8'd0;
-            mma_wr_rsp_pending <= 1'b0;
-            mma_wr_rsp_delay   <= 8'd0;
-            mma_rd_rsp_pending <= 1'b0;
-            mma_rd_rsp_delay   <= 8'd0;
-            m_axi_bvalid_q <= 1'b0;
-            m_axi_bresp_q  <= 2'b00;
-            m_axi_rvalid_q <= 1'b0;
-            m_axi_rdata_q  <= {BUS_WIDTH{1'b0}};
-            m_axi_rresp_q  <= 2'b00;
-            m_axi_rlast_q  <= 1'b0;
-            soc_finish     <= 1'b0;
-            soc_status     <= 32'b0;
-            soc_progress   <= 32'b0;
-        end else begin
-            mem_ready <= 1'b0;
+    soc_axil_simpleuart #(
+        .AXIL_ADDR_WIDTH(REG_WIDTH),
+        .AXIL_DATA_WIDTH(BUS_WIDTH)
+    ) u_soc_uart (
+        .clk(clk),
+        .rst_n(rst_n),
+        .s_axil_awaddr(uart_axil_awaddr),
+        .s_axil_awprot(uart_axil_awprot),
+        .s_axil_awvalid(uart_axil_awvalid),
+        .s_axil_awready(uart_axil_awready),
+        .s_axil_wdata(uart_axil_wdata),
+        .s_axil_wstrb(uart_axil_wstrb),
+        .s_axil_wvalid(uart_axil_wvalid),
+        .s_axil_wready(uart_axil_wready),
+        .s_axil_bresp(uart_axil_bresp),
+        .s_axil_bvalid(uart_axil_bvalid),
+        .s_axil_bready(uart_axil_bready),
+        .s_axil_araddr(uart_axil_araddr),
+        .s_axil_arprot(uart_axil_arprot),
+        .s_axil_arvalid(uart_axil_arvalid),
+        .s_axil_arready(uart_axil_arready),
+        .s_axil_rdata(uart_axil_rdata),
+        .s_axil_rresp(uart_axil_rresp),
+        .s_axil_rvalid(uart_axil_rvalid),
+        .s_axil_rready(uart_axil_rready),
+        .uart_tx(uart_tx),
+        .uart_rx(uart_rx),
+        .cfg_divider(uart_cfg_divider)
+    );
 
-            if (mem_reload_req) begin
-                reload_cpu_mem_from_file(cpu_mem_path_q);
-            end
+    soc_axil_ctrl #(
+        .AXIL_ADDR_WIDTH(REG_WIDTH),
+        .AXIL_DATA_WIDTH(BUS_WIDTH)
+    ) u_soc_ctrl (
+        .clk(clk),
+        .rst_n(rst_n),
+        .s_axil_awaddr(ctrl_axil_awaddr),
+        .s_axil_awprot(ctrl_axil_awprot),
+        .s_axil_awvalid(ctrl_axil_awvalid),
+        .s_axil_awready(ctrl_axil_awready),
+        .s_axil_wdata(ctrl_axil_wdata),
+        .s_axil_wstrb(ctrl_axil_wstrb),
+        .s_axil_wvalid(ctrl_axil_wvalid),
+        .s_axil_wready(ctrl_axil_wready),
+        .s_axil_bresp(ctrl_axil_bresp),
+        .s_axil_bvalid(ctrl_axil_bvalid),
+        .s_axil_bready(ctrl_axil_bready),
+        .s_axil_araddr(ctrl_axil_araddr),
+        .s_axil_arprot(ctrl_axil_arprot),
+        .s_axil_arvalid(ctrl_axil_arvalid),
+        .s_axil_arready(ctrl_axil_arready),
+        .s_axil_rdata(ctrl_axil_rdata),
+        .s_axil_rresp(ctrl_axil_rresp),
+        .s_axil_rvalid(ctrl_axil_rvalid),
+        .s_axil_rready(ctrl_axil_rready),
+        .cpu_trap(cpu_trap),
+        .soc_finish(soc_finish),
+        .soc_status(soc_status),
+        .soc_progress(soc_progress)
+    );
 
-            if (mma_aw_fire) begin
-                mma_aw_pending <= 1'b1;
-                mma_aw_addr_q  <= m_axi_awaddr;
-                mma_aw_len_q   <= m_axi_awlen;
-                mma_w_beat_cnt <= 8'd0;
-                mma_wr_error_q <= 1'b0;
-                mma_aw_ready_delay <= random_ddr_delay(ddr_cmd_max_lat);
-            end else if (mma_aw_ready_delay != 8'd0) begin
-                mma_aw_ready_delay <= mma_aw_ready_delay - 8'd1;
-            end
-
-            if (mma_w_fire) begin
-                if (mma_wr_addr_oob) begin
-                    mma_wr_error_q <= 1'b1;
-                end else begin
-                    for (i = 0; i < BUS_WIDTH/8; i = i + 1) begin
-                        if (m_axi_wstrb[i]) begin
-                            cpu_mem[mma_wr_idx][8*i +: 8] <= m_axi_wdata[8*i +: 8];
-                        end
-                    end
-                end
-                if (m_axi_wlast != (mma_w_beat_cnt == mma_aw_len_q)) begin
-                    mma_wr_error_q <= 1'b1;
-                end
-                if (m_axi_wlast || (mma_w_beat_cnt == mma_aw_len_q)) begin
-                    mma_aw_pending <= 1'b0;
-                    mma_wr_rsp_pending <= 1'b1;
-                    mma_wr_rsp_delay <= random_ddr_delay(ddr_rsp_max_lat);
-                end else begin
-                    mma_w_beat_cnt <= mma_w_beat_cnt + 8'd1;
-                end
-                mma_w_ready_delay <= random_ddr_delay(ddr_w_max_lat);
-            end else if (mma_w_ready_delay != 8'd0) begin
-                mma_w_ready_delay <= mma_w_ready_delay - 8'd1;
-            end
-
-            if (mma_wr_rsp_pending && (!m_axi_bvalid_q)) begin
-                if (mma_wr_rsp_delay == 8'd0) begin
-                    m_axi_bvalid_q <= 1'b1;
-                    m_axi_bresp_q <= mma_wr_error_q ? 2'b10 : 2'b00;
-                    mma_wr_rsp_pending <= 1'b0;
-                end else begin
-                    mma_wr_rsp_delay <= mma_wr_rsp_delay - 8'd1;
-                end
-            end
-
-            if (m_axi_bvalid_q && m_axi_bready) begin
-                m_axi_bvalid_q <= 1'b0;
-            end
-
-            if (mma_ar_fire) begin
-                mma_rd_active <= 1'b1;
-                mma_rd_addr_q <= m_axi_araddr;
-                mma_rd_len_q <= m_axi_arlen;
-                mma_rd_beat_cnt <= 8'd0;
-                mma_rd_error_q <= 1'b0;
-                mma_rd_rsp_pending <= 1'b1;
-                mma_ar_ready_delay <= random_ddr_delay(ddr_cmd_max_lat);
-                mma_rd_rsp_delay <= random_ddr_delay(ddr_rsp_max_lat);
-            end else if (mma_ar_ready_delay != 8'd0) begin
-                mma_ar_ready_delay <= mma_ar_ready_delay - 8'd1;
-            end
-
-            if (mma_rd_rsp_pending && (!m_axi_rvalid_q)) begin
-                if (mma_rd_rsp_delay == 8'd0) begin
-                    m_axi_rvalid_q <= 1'b1;
-                    m_axi_rlast_q <= (mma_rd_beat_cnt == mma_rd_len_q);
-                    if (mma_rd_addr_oob) begin
-                        m_axi_rresp_q <= 2'b10;
-                        m_axi_rdata_q <= {BUS_WIDTH{1'b0}};
-                        mma_rd_error_q <= 1'b1;
-                    end else begin
-                        m_axi_rresp_q <= mma_rd_error_q ? 2'b10 : 2'b00;
-                        m_axi_rdata_q <= cpu_mem[mma_rd_idx];
-                    end
-                    mma_rd_rsp_pending <= 1'b0;
-                end else begin
-                    mma_rd_rsp_delay <= mma_rd_rsp_delay - 8'd1;
-                end
-            end
-
-            if (m_axi_rvalid_q && m_axi_rready) begin
-                m_axi_rvalid_q <= 1'b0;
-                m_axi_rlast_q  <= 1'b0;
-                if (mma_rd_beat_cnt == mma_rd_len_q) begin
-                    mma_rd_active <= 1'b0;
-                end else begin
-                    mma_rd_beat_cnt <= mma_rd_beat_cnt + 8'd1;
-                    mma_rd_rsp_pending <= 1'b1;
-                    mma_rd_rsp_delay <= random_ddr_delay(ddr_rsp_max_lat);
-                end
-            end
-
-            case (state_q)
-                S_IDLE: begin
-                    if (mem_valid && !mem_ready) begin
-                        if (mem_sel_cpu) begin
-                            mem_rdata <= cpu_mem[cpu_mem_idx];
-                            if (mem_is_write) begin
-                                for (i = 0; i < 4; i = i + 1) begin
-                                    if (mem_wstrb[i]) begin
-                                        cpu_mem[cpu_mem_idx][8*i +: 8] <= mem_wdata[8*i +: 8];
-                                    end
-                                end
-                            end
-                            mem_ready <= 1'b1;
-                        end else if (uart_access) begin
-                            if (uart_access_ready) begin
-                                mem_rdata <= mem_sel_uart_div ? uart_div_rdata : uart_data_rdata;
-                                mem_ready <= 1'b1;
-                            end
-                        end else if (mem_sel_soc) begin
-                            mem_rdata <= (mem_addr[3:2] == 2'b00) ? soc_status :
-                                         (mem_addr[3:2] == 2'b01) ? {31'b0, soc_finish} :
-                                         (mem_addr[3:2] == 2'b10) ? {31'b0, cpu_trap} :
-                                         (mem_addr[3:2] == 2'b11) ? soc_progress : 32'b0;
-                            if (mem_is_write && (mem_addr[3:2] == 2'b00)) begin
-                                soc_finish <= 1'b1;
-                                soc_status <= mem_wdata;
-                            end else if (mem_is_write && (mem_addr[3:2] == 2'b11)) begin
-                                soc_progress <= mem_wdata;
-                            end
-                            mem_ready <= 1'b1;
-                        end else if (mem_sel_mma) begin
-                            axil_addr_q  <= mem_addr[AXIL_ADDR_WIDTH-1:0];
-                            if (mem_is_write) begin
-                                axil_wdata_q   <= mem_wdata;
-                                axil_wstrb_q   <= mem_wstrb;
-                                axil_awvalid_q <= 1'b1;
-                                axil_wvalid_q  <= 1'b1;
-                                state_q        <= S_AXIL_WR;
-                            end else begin
-                                axil_arvalid_q <= 1'b1;
-                                state_q        <= S_AXIL_RD;
-                            end
-                        end else begin
-                            mem_rdata <= 32'hDEAD_BEEF;
-                            mem_ready <= 1'b1;
-                        end
-                    end
-                end
-
-                S_AXIL_WR: begin
-                    if (axil_awvalid_q && axil_awready) begin
-                        axil_awvalid_q <= 1'b0;
-                    end
-                    if (axil_wvalid_q && axil_wready) begin
-                        axil_wvalid_q <= 1'b0;
-                    end
-                    if ((!axil_awvalid_q || axil_awready) && (!axil_wvalid_q || axil_wready)) begin
-                        axil_bready_q <= 1'b1;
-                        state_q       <= S_AXIL_WB;
-                    end
-                end
-
-                S_AXIL_WB: begin
-                    if (axil_bvalid) begin
-                        axil_bready_q <= 1'b0;
-                        mem_rdata     <= {30'b0, axil_bresp};
-                        mem_ready     <= 1'b1;
-                        state_q       <= S_IDLE;
-                    end
-                end
-
-                S_AXIL_RD: begin
-                    if (axil_arvalid_q && axil_arready) begin
-                        axil_arvalid_q <= 1'b0;
-                        axil_rready_q  <= 1'b1;
-                        state_q        <= S_AXIL_RB;
-                    end
-                end
-
-                S_AXIL_RB: begin
-                    if (axil_rvalid) begin
-                        axil_rready_q <= 1'b0;
-                        mem_rdata     <= axil_rdata;
-                        mem_ready     <= 1'b1;
-                        state_q       <= S_IDLE;
-                    end
-                end
-
-                default: begin
-                    state_q <= S_IDLE;
-                end
-            endcase
-        end
-    end
-
-    wire _unused = mem_instr | |axil_rresp | |m_axi_arcache | |m_axi_arprot |
-                   |m_axi_arlock | |m_axi_arburst | |m_axi_arsize |
-                   |m_axi_awcache | |m_axi_awprot | |m_axi_awlock |
-                   |m_axi_awburst | |m_axi_awsize;
+    wire _unused_uart_divider = |uart_cfg_divider;
 
 endmodule

@@ -18,7 +18,8 @@ module axi_dual_block_dma #(
     parameter int unsigned BUS_WIDTH    = 32,
     parameter int unsigned REG_WIDTH    = 32,
     parameter int unsigned CACHE_BLOCKS = 4,
-    parameter int unsigned READ_OUTSTANDING = 4
+    parameter int unsigned READ_OUTSTANDING = 4,
+    parameter int unsigned WRITE_OUTSTANDING = READ_OUTSTANDING
 ) (
     input logic clk,
     input logic rst_n,
@@ -114,6 +115,10 @@ module axi_dual_block_dma #(
         (READ_OUTSTANDING < 1) ? 1 : READ_OUTSTANDING;
     localparam int unsigned RD_OUTS_W =
         (RD_OUTS_MAX < 2) ? 1 : $clog2(RD_OUTS_MAX + 1);
+    localparam int unsigned WR_OUTS_MAX =
+        (WRITE_OUTSTANDING < 1) ? 1 : WRITE_OUTSTANDING;
+    localparam int unsigned WR_OUTS_W =
+        (WR_OUTS_MAX < 2) ? 1 : $clog2(WR_OUTS_MAX + 1);
 
     wire rd_ar_hs = m_axi_arvalid && m_axi_arready;
     wire rd_r_hs  = m_axi_rvalid && m_axi_rready;
@@ -379,13 +384,15 @@ module axi_dual_block_dma #(
     logic [REG_WIDTH-1:0] wr_cfg_row_stride;
     logic [REG_WIDTH-1:0] wr_cfg_rows;
     logic [3:0] wr_cfg_burst_len_m1;
-    logic [REG_WIDTH-1:0] wr_row_cnt;
+    logic [REG_WIDTH-1:0] wr_cmd_row_cnt;
+    logic [REG_WIDTH-1:0] wr_data_row_cnt;
+    logic [REG_WIDTH-1:0] wr_resp_row_cnt;
     logic [REG_WIDTH-1:0] wr_beat_cnt;
     logic [BUS_WIDTH-1:0] wr_tail_data;
     logic [BUS_WIDTH/8-1:0] wr_tail_mask;
     logic wr_active;
-    logic wr_row_active;
-    logic wr_b_pending;
+    logic wr_data_active;
+    logic [WR_OUTS_W-1:0] wr_outstanding_cnt;
     logic wr_done_r;
     logic wr_error_r;
 
@@ -394,13 +401,22 @@ module axi_dual_block_dma #(
     assign wr_error = wr_error_r;
 
     wire [REG_WIDTH-1:0] wr_cfg_burst_len_ext = REG_WIDTH'(wr_cfg_burst_len_m1);
-    wire [REG_WIDTH-1:0] wr_row_addr_cur = wr_cfg_base_addr + wr_row_cnt * wr_cfg_row_stride;
-    wire [ADDR_LSB-1:0] wr_row_offset = wr_row_addr_cur[ADDR_LSB-1:0];
+    wire [REG_WIDTH-1:0] wr_cmd_row_addr_cur =
+        wr_cfg_base_addr + wr_cmd_row_cnt * wr_cfg_row_stride;
+    wire [ADDR_LSB-1:0] wr_cmd_row_offset = wr_cmd_row_addr_cur[ADDR_LSB-1:0];
+    wire [REG_WIDTH-1:0] wr_data_row_addr_cur =
+        wr_cfg_base_addr + wr_data_row_cnt * wr_cfg_row_stride;
+    wire [ADDR_LSB-1:0] wr_row_offset = wr_data_row_addr_cur[ADDR_LSB-1:0];
     wire wr_row_cross = (wr_row_offset != '0);
     wire [REG_WIDTH-1:0] wr_aligned_last_beat =
         wr_cfg_burst_len_ext + (wr_row_cross ? REG_WIDTH'(1) : REG_WIDTH'(0));
     wire wr_tail_beat = wr_row_cross && (wr_beat_cnt == wr_aligned_last_beat);
     wire wr_need_src_beat = !wr_tail_beat;
+    wire wr_can_issue_aw = wr_active &&
+                            (wr_cmd_row_cnt < wr_cfg_rows) &&
+                            (wr_outstanding_cnt < WR_OUTS_W'(WR_OUTS_MAX));
+    wire wr_can_start_data = wr_active && !wr_data_active &&
+                              (wr_data_row_cnt < wr_cmd_row_cnt);
 
     logic [BUS_WIDTH-1:0] wr_aligned_wdata;
     logic [BUS_WIDTH/8-1:0] wr_aligned_wstrb;
@@ -425,14 +441,14 @@ module axi_dual_block_dma #(
     assign m_axi_awburst = 2'b01; // INCR
     assign m_axi_wdata   = wr_aligned_wdata;
     assign m_axi_wstrb   = wr_aligned_wstrb;
-    assign m_axi_wvalid  = wr_active && wr_row_active && !wr_b_pending &&
+    assign m_axi_wvalid  = wr_active && wr_data_active &&
                            (wr_need_src_beat ? src_wvalid : 1'b1);
     assign m_axi_wlast   = (wr_beat_cnt == wr_aligned_last_beat);
-    assign m_axi_bready  = wr_active && wr_b_pending;
-    assign src_wready    = wr_active && wr_row_active && !wr_b_pending &&
+    assign m_axi_bready  = wr_active;
+    assign src_wready    = wr_active && wr_data_active &&
                            wr_need_src_beat && m_axi_wready;
 
-    wire last_wr_b = wr_b_hs && (wr_row_cnt == wr_cfg_rows - 1);
+    wire last_wr_b = wr_b_hs && (wr_resp_row_cnt == wr_cfg_rows - 1);
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -468,36 +484,50 @@ module axi_dual_block_dma #(
             m_axi_awvalid <= 1'b0;
             m_axi_awaddr  <= '0;
             m_axi_awlen   <= '0;
-            wr_row_cnt    <= '0;
+            wr_cmd_row_cnt <= '0;
+            wr_data_row_cnt <= '0;
+            wr_resp_row_cnt <= '0;
             wr_beat_cnt   <= '0;
             wr_tail_data   <= '0;
             wr_tail_mask   <= '0;
-            wr_row_active <= 1'b0;
-            wr_b_pending  <= 1'b0;
+            wr_data_active <= 1'b0;
+            wr_outstanding_cnt <= '0;
         end else if (wr_start && !wr_active) begin
             m_axi_awvalid <= 1'b0;
             m_axi_awaddr  <= wr_base_addr;
             m_axi_awlen   <= 8'(wr_burst_len_m1);
-            wr_row_cnt    <= '0;
+            wr_cmd_row_cnt <= '0;
+            wr_data_row_cnt <= '0;
+            wr_resp_row_cnt <= '0;
             wr_beat_cnt   <= '0;
             wr_tail_data   <= '0;
             wr_tail_mask   <= '0;
-            wr_row_active <= 1'b0;
-            wr_b_pending  <= 1'b0;
+            wr_data_active <= 1'b0;
+            wr_outstanding_cnt <= '0;
         end else if (wr_active) begin
             if (wr_done_r) begin
                 m_axi_awvalid <= 1'b0;
-                wr_row_active <= 1'b0;
-                wr_b_pending  <= 1'b0;
+                wr_data_active <= 1'b0;
+                wr_outstanding_cnt <= '0;
             end else begin
-                if (!m_axi_awvalid && !wr_row_active && !wr_b_pending && (wr_row_cnt < wr_cfg_rows)) begin
-                    m_axi_awvalid <= 1'b1;
-                    m_axi_awaddr  <= align_down(wr_row_addr_cur);
-                    m_axi_awlen   <= 8'(wr_cfg_burst_len_m1)
-                                   + (wr_row_cross ? 8'd1 : 8'd0);
-                end else if (wr_aw_hs) begin
+                if (wr_aw_hs) begin
                     m_axi_awvalid <= 1'b0;
-                    wr_row_active <= 1'b1;
+                    wr_cmd_row_cnt <= wr_cmd_row_cnt + 1'b1;
+                end else if (!m_axi_awvalid && wr_can_issue_aw) begin
+                    m_axi_awvalid <= 1'b1;
+                    m_axi_awaddr  <= align_down(wr_cmd_row_addr_cur);
+                    m_axi_awlen   <= 8'(wr_cfg_burst_len_m1)
+                                   + ((wr_cmd_row_offset != '0) ? 8'd1 : 8'd0);
+                end
+
+                unique case ({wr_aw_hs, wr_b_hs})
+                    2'b10: wr_outstanding_cnt <= wr_outstanding_cnt + 1'b1;
+                    2'b01: wr_outstanding_cnt <= wr_outstanding_cnt - 1'b1;
+                    default: wr_outstanding_cnt <= wr_outstanding_cnt;
+                endcase
+
+                if (wr_can_start_data) begin
+                    wr_data_active <= 1'b1;
                     wr_beat_cnt   <= '0;
                     wr_tail_data   <= '0;
                     wr_tail_mask   <= '0;
@@ -510,8 +540,8 @@ module axi_dual_block_dma #(
                     end
                     if (wr_beat_cnt == wr_aligned_last_beat) begin
                         wr_beat_cnt   <= '0;
-                        wr_row_active <= 1'b0;
-                        wr_b_pending  <= 1'b1;
+                        wr_data_active <= 1'b0;
+                        wr_data_row_cnt <= wr_data_row_cnt + 1'b1;
                         wr_tail_data   <= '0;
                         wr_tail_mask   <= '0;
                     end else begin
@@ -520,18 +550,19 @@ module axi_dual_block_dma #(
                 end
 
                 if (wr_b_hs) begin
-                    wr_b_pending <= 1'b0;
-                    if (wr_row_cnt < wr_cfg_rows) wr_row_cnt <= wr_row_cnt + 1'b1;
+                    if (wr_resp_row_cnt < wr_cfg_rows) wr_resp_row_cnt <= wr_resp_row_cnt + 1'b1;
                 end
             end
         end else begin
             m_axi_awvalid <= 1'b0;
-            wr_row_cnt    <= '0;
+            wr_cmd_row_cnt <= '0;
+            wr_data_row_cnt <= '0;
+            wr_resp_row_cnt <= '0;
             wr_beat_cnt   <= '0;
             wr_tail_data   <= '0;
             wr_tail_mask   <= '0;
-            wr_row_active <= 1'b0;
-            wr_b_pending  <= 1'b0;
+            wr_data_active <= 1'b0;
+            wr_outstanding_cnt <= '0;
         end
     end
 

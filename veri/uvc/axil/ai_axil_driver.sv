@@ -354,7 +354,7 @@ class ai_axil_driver extends uvm_driver #(mma_seq_item);
                 lane = byte_addr & 32'h3;
 
                 `ifdef DUT_AXI_SOC
-                mem_word = $root.tb_top.u_soc_top.cpu_mem[word_addr];
+	                mem_word = $root.tb_top.u_soc_top.u_axi_sim_ram.mem_r[word_addr];
 `elsif DUT_AXIL
                 mem_word = $root.tb_top.u_axil_top_with_ram.u_axi_sim_ram.mem_r[word_addr];
 `else

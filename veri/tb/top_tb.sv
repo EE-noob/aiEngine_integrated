@@ -10,7 +10,9 @@ module tb_top #(
     parameter int unsigned DUT_SIZE            = 16,
     parameter int unsigned DUT_IA_CACHE_BLOCKS = 4,
     parameter int unsigned DUT_PS_FRAME_COUNT  = DUT_SIZE,
-    parameter int unsigned DUT_CPU_MEM_DP      = 524288
+    parameter int unsigned DUT_CPU_MEM_DP      = 524288,
+    parameter int unsigned DUT_AXI_READ_OUTSTANDING  = 4,
+    parameter int unsigned DUT_AXI_WRITE_OUTSTANDING = DUT_AXI_READ_OUTSTANDING
 );
 
     logic nice_clk;
@@ -76,6 +78,8 @@ module tb_top #(
         .SIZE(DUT_SIZE),
         .IA_CACHE_BLOCKS(DUT_IA_CACHE_BLOCKS),
         .PS_FRAME_COUNT(DUT_PS_FRAME_COUNT),
+        .AXI_READ_OUTSTANDING(DUT_AXI_READ_OUTSTANDING),
+        .AXI_WRITE_OUTSTANDING(DUT_AXI_WRITE_OUTSTANDING),
         .CPU_MEM_DP(AXI_SOC_CPU_MEM_DP),
         .CPU_MEM_PATH("../tb/axi_soc_case/cpu.mem")
     ) u_soc_top (
@@ -257,11 +261,11 @@ module tb_top #(
         pico_uart_buffer = 8'h00;
         wait (nice_rst_n === 1'b1);
         repeat (4) @(posedge nice_clk);
-        $display("[PICO_UART] monitor enabled on soc_top.u_simpleuart.ser_tx");
+	        $display("[PICO_UART] monitor enabled on soc_top.u_soc_uart.u_simpleuart.ser_tx");
         forever begin
             @(negedge soc_uart_tx);
 
-            pico_uart_half_period = ($root.tb_top.u_soc_top.u_simpleuart.cfg_divider / 2) + 1;
+	            pico_uart_half_period = ($root.tb_top.u_soc_top.u_soc_uart.cfg_divider / 2) + 1;
             if (pico_uart_half_period < 1) begin
                 pico_uart_half_period = 1;
             end

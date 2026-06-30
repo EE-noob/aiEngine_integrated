@@ -10,9 +10,10 @@ module mma_axil_top #(
     parameter REG_WIDTH       = 32,
     parameter ICB_ADDR_WIDTH  = 32,
     parameter ICB_LEN_W       = 4,
-    parameter IA_CACHE_BLOCKS = 4,
-    parameter PS_FRAME_COUNT  = SIZE,
-    parameter AXI_READ_OUTSTANDING = 4,
+	    parameter IA_CACHE_BLOCKS = 4,
+	    parameter PS_FRAME_COUNT  = SIZE,
+	    parameter AXI_READ_OUTSTANDING = 4,
+	    parameter AXI_WRITE_OUTSTANDING = AXI_READ_OUTSTANDING,
     parameter [31:0] IRQ_STATUS_MASK = 32'h0000_0004
 ) (
     input  wire clk,
@@ -406,8 +407,9 @@ module mma_axil_top #(
         .ADDR_WIDTH(ICB_ADDR_WIDTH),
         .ICB_LEN_W(ICB_LEN_W),
         .IA_CACHE_BLOCKS(IA_CACHE_BLOCKS),
-        .PS_FRAME_COUNT(PS_FRAME_COUNT),
-        .AXI_READ_OUTSTANDING(AXI_READ_OUTSTANDING)
+	        .PS_FRAME_COUNT(PS_FRAME_COUNT),
+	        .AXI_READ_OUTSTANDING(AXI_READ_OUTSTANDING),
+	        .AXI_WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING)
     ) u_mma_top (
         .clk(clk),
         .rst_n(rst_n),
