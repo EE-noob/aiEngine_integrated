@@ -12,16 +12,27 @@
 #define DSA_REG_STATUS  0x001u
 #define DSA_REG_WB_DATA 0x002u
 #define DSA_REG_WB_INFO 0x003u
+#define DSA_REG_IA_REUSE 0x004u
+#define DSA_REG_W_REUSE  0x005u
 
 #define DSA_CTRL_START          (1u << 0)
 #define DSA_CTRL_CFG_16BITS_IA  (1u << 1)
 #define DSA_CTRL_PER_CHANNEL    (1u << 2)
+#define DSA_CTRL_DATAFLOW_IS    (1u << 3)
 #define DSA_CTRL_CLEAR_DONE     (1u << 8)
 #define DSA_CTRL_CLEAR_WB_VALID (1u << 9)
 
 #define DSA_STATUS_DONE      (1u << 2)
 #define DSA_STATUS_ERR_SHIFT 4u
 #define DSA_STATUS_ERR_MASK  (3u << DSA_STATUS_ERR_SHIFT)
+
+#ifndef DSA_TILE_SIZE
+#define DSA_TILE_SIZE 16u
+#endif
+
+#ifndef DSA_IA_CACHE_BLOCKS
+#define DSA_IA_CACHE_BLOCKS 4u
+#endif
 
 static inline void dsa_mmio_write(uint32_t addr, uint32_t data)
 {
@@ -112,6 +123,11 @@ typedef enum {
     DSA_QUANT_PER_CHANNEL = 1
 } dsa_quant_mode_t;
 
+typedef enum {
+    DSA_DATAFLOW_WS = 0,
+    DSA_DATAFLOW_IS = 1
+} dsa_dataflow_mode_t;
+
 /* ========== 矩阵乘法配置结构 ========== */
 typedef struct {
     uint32_t lhs_ptr;
@@ -131,6 +147,7 @@ typedef struct {
     dsa_dtype_t rhs_dtype;
     dsa_dtype_t bias_dtype;
     dsa_dtype_t out_dtype;
+    dsa_dataflow_mode_t dataflow_mode;
 
     dsa_quant_mode_t quant_mode;
     int32_t lhs_offset;
@@ -145,11 +162,19 @@ typedef struct {
 
     int32_t act_min;
     int32_t act_max;
+
+    uint32_t ia_reuse_num;
+    uint32_t w_reuse_num;
 } dsa_matmul_config_t;
 
 /* ========== 高层API ========== */
 uint32_t dsa_matmul_execute(const dsa_matmul_config_t *config);
 uint32_t dsa_build_cfg_word(const dsa_matmul_config_t *config);
 void dsa_matmul_config_init(dsa_matmul_config_t *config);
+void dsa_matmul_select_reuse(uint32_t K, uint32_t N, uint32_t M,
+                             uint32_t ia_cache_blocks,
+                             dsa_dataflow_mode_t dataflow_mode,
+                             uint32_t *ia_reuse_num,
+                             uint32_t *w_reuse_num);
 
 #endif /* DSA_ACCEL_H */
