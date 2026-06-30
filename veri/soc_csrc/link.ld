@@ -53,6 +53,12 @@ SECTIONS
   } > ram
 
   . = ALIGN(16);
+  .noinit (NOLOAD) : {
+    *(.noinit*)
+    . = ALIGN(16);
+  } > ram
+
+  . = ALIGN(16);
   _end = .;
   __heap_start = .;
   _stack_top = ORIGIN(ram) + LENGTH(ram);

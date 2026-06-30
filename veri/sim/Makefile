@@ -128,6 +128,7 @@ TFLM_EXTRA_DEFINES ?=
 TFLM_RV32_REBUILD_DEPS := \
                 $(TFLM_ROOT)/tensorflow/lite/micro/kernels/conv.cc \
                 $(TFLM_ROOT)/tensorflow/lite/micro/kernels/depthwise_conv.cc \
+                $(TFLM_ROOT)/tensorflow/lite/micro/kernels/fully_connected.cc \
                 $(TFLM_ROOT)/my_model/my_model.cc
 
 TFLM_INCLUDES = -I$(TFLM_ROOT) \

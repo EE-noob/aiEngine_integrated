@@ -84,12 +84,18 @@ constexpr uint32_t kMmaIaCacheBlocks =
 constexpr uint32_t kMmaMinMacs =
     static_cast<uint32_t>(TFLM_SOC_MMA_MIN_MACS);
 
-alignas(16) int8_t g_mma_lhs[kMmaMaxRows * kMmaMaxInner];
-alignas(16) int8_t g_mma_rhs[kMmaMaxInner * kMmaVectorCols];
-alignas(16) int8_t g_mma_dst[kMmaMaxRows * kMmaVectorCols];
-alignas(16) int32_t g_mma_bias[kMmaVectorCols];
-alignas(16) int32_t g_mma_mult[kMmaVectorCols];
-alignas(16) int32_t g_mma_shift[kMmaVectorCols];
+alignas(16) int8_t g_mma_lhs[kMmaMaxRows * kMmaMaxInner]
+    __attribute__((section(".noinit.mma")));
+alignas(16) int8_t g_mma_rhs[kMmaMaxInner * kMmaVectorCols]
+    __attribute__((section(".noinit.mma")));
+alignas(16) int8_t g_mma_dst[kMmaMaxRows * kMmaVectorCols]
+    __attribute__((section(".noinit.mma")));
+alignas(16) int32_t g_mma_bias[kMmaVectorCols]
+    __attribute__((section(".noinit.mma")));
+alignas(16) int32_t g_mma_mult[kMmaVectorCols]
+    __attribute__((section(".noinit.mma")));
+alignas(16) int32_t g_mma_shift[kMmaVectorCols]
+    __attribute__((section(".noinit.mma")));
 
 #if !defined(TFLM_SOC_MMA_SOFT)
 void DsaWrite(uint32_t word_addr, uint32_t value) {
