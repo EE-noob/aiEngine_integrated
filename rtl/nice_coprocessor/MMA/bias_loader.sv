@@ -1,347 +1,240 @@
-//`include "define.svh"
-`include "e203_defines.v"
-`include "icb_types.svh"
+/*
+ * bias_loader — 顶层汇聚
+ * ============================================================
+ * 复用现成 block_dma 做一维块读取，ctrl 负责顺序/切换，buffer 负责 bank 存储。
+ * 每个 bias block 采用一次 burst 连续读取，避免单 beat 访问开销。
+ */
 
 module bias_loader #(
-    parameter int unsigned SIZE       = 16,  // VLEN
-    parameter int          VLEN       = 16,
-    parameter int unsigned DATA_WIDTH = 32,
-    parameter int unsigned REG_WIDTH  = 32
-) (
-    input wire clk,
-    input wire rst_n,
+	    parameter int unsigned SIZE       = 8,
+	    parameter int unsigned DATA_WIDTH = 32,
+	    parameter int unsigned BUS_WIDTH  = 32,
+	    parameter int unsigned REG_WIDTH  = 32,
+	    parameter int unsigned GROUP_BLOCKS_MAX = 1,
+	    parameter bit          EXTERNAL_DMA = 1'b0
+	) (
+    input logic clk,
+    input logic rst_n,
 
-    // 配置
-    input wire                 init_cfg,
-    input wire [REG_WIDTH-1:0] bias_base,  // 偏置基地址（按列 tile 递增）
-    input wire [REG_WIDTH-1:0] k,          // 预留
-    input wire [REG_WIDTH-1:0] m,          // 总列数（决定尾块）
+    input logic                 init_cfg,
+    input logic [REG_WIDTH-1:0] bias_base,
+    input logic [REG_WIDTH-1:0] k,
+    input logic [REG_WIDTH-1:0] m,
+    input logic [REG_WIDTH-1:0] bias_step_blocks,
+    input logic                 bias_switch,
+    input logic                 bias_sleep,
+    input logic                 bias_last_loop,
 
-    // ICB（三通道，读为主）
-    output icb_ext_cmd_m_t icb_cmd_m,
-    //output icb_ext_wr_m_t  icb_wr_m,
-    input  icb_ext_cmd_s_t icb_cmd_s,
-    input  icb_ext_wr_s_t  icb_wr_s,
-    input  icb_ext_rsp_s_t icb_rsp_s,
-    output icb_ext_rsp_m_t icb_rsp_m,
+    output logic load_bias_req,
+    input  logic load_bias_granted,
 
-    // 计算时序标志
-    input  wire                   partial_sum_calc_over, // 第一次部分和结束后会为1（电平/脉冲均可）
-    input wire tile_calc_over,  // 本 OA tile 结束
+    output logic                         bias_valid,
+    output logic                         next_bias_valid,
+    output logic                         bias_group_valid,
+    output logic                         load_bias_done,
+    output logic signed [DATA_WIDTH-1:0] data_out  [SIZE],
+    output logic signed [DATA_WIDTH-1:0] next_data_out [SIZE],
+    output logic signed [DATA_WIDTH-1:0] group_data_out [GROUP_BLOCKS_MAX * SIZE],
 
-    // 访存握手
-    output reg  load_bias_req,
-    input  wire load_bias_granted,
+    output logic                 icb_cmd_valid,
+    input  logic                 icb_cmd_ready,
+    output logic                 icb_cmd_read,
+    output logic [REG_WIDTH-1:0] icb_cmd_addr,
+    output logic [          3:0] icb_cmd_len,
+	    input  logic                 icb_rsp_valid,
+	    output logic                 icb_rsp_ready,
+	    input  logic [BUS_WIDTH-1:0] icb_rsp_rdata,
+	    input  logic                 icb_rsp_err,
 
-    // 偏置是否可用（保持到 tile_calc_over）
-    output reg bias_valid,
+	    // ---- 共享 block_dma 客户端接口（EXTERNAL_DMA=1 时使用）----
+	    output logic                 ext_dma_start,
+	    output logic                 ext_dma_is_write,
+	    output logic                 ext_dma_linear_read_mode,
+	    output logic [REG_WIDTH-1:0] ext_dma_base_addr,
+	    output logic [REG_WIDTH-1:0] ext_dma_row_stride,
+	    output logic [REG_WIDTH-1:0] ext_dma_rows_to_read,
+	    output logic [3:0]           ext_dma_burst_len_m1,
+	    output logic                 ext_dma_slot_id,
+	    output logic                 ext_dma_use_16bits,
+	    output logic signed [REG_WIDTH-1:0] ext_dma_lhs_zp,
+	    input  logic                 ext_dma_busy,
+	    input  logic                 ext_dma_done,
+	    input  logic                 ext_dma_wr_slot,
+	    input  logic [$clog2(SIZE * (DATA_WIDTH / 8))-1:0] ext_dma_wr_row,
+	    input  logic [$clog2(SIZE * (DATA_WIDTH / 8))-1:0] ext_dma_wr_col_base,
+	    input  logic signed [7:0]    ext_dma_wr_data [BUS_WIDTH/8],
+	    input  logic                 ext_dma_wr_valid[BUS_WIDTH/8],
+	    input  logic                 ext_dma_wr_use_16bits
+	);
 
-    // 输出偏置向量（第一次部分和输出偏置，其余时间输出0）
-    output wire signed [DATA_WIDTH-1:0] data_out[SIZE]
-);
+    localparam int DMA_SIZE = SIZE * (DATA_WIDTH / 8);
 
-  // ---------------------------
-  // 常量 / 类型
-  // ---------------------------
-  localparam int BYTES_PER_WORD = `E203_XLEN / 8;  // 一般为4字节
-  typedef logic [`ICB_LEN_W-1:0] icb_len_t;
+    logic                               ctrl_dma_start;
+    logic        [       REG_WIDTH-1:0] ctrl_dma_base_addr;
+    logic        [       REG_WIDTH-1:0] ctrl_dma_rows_to_read;
+    logic        [                     3:0] ctrl_dma_burst_len_m1;
+    logic                               ctrl_load_bank;
+    logic        [       REG_WIDTH-1:0] ctrl_current_block_idx;
+    logic        [       REG_WIDTH-1:0] ctrl_load_block_idx;
+    logic        [       REG_WIDTH-1:0] ctrl_next_block_idx;
+    logic        [       REG_WIDTH-1:0] ctrl_group_blocks_needed;
+    logic                               ctrl_active_bank;
+    logic                               ctrl_switch_pending;
+    logic                               ctrl_load_block_valid;
 
-  // ---------------------------
-  // 配置寄存
-  // ---------------------------
-  reg   [REG_WIDTH-1:0] cfg_bias_base;
-  reg   [REG_WIDTH-1:0] cfg_m;
-  reg   [REG_WIDTH-1:0] cfg_k;
-  reg                   cfg_need_bias;
-  logic [         31:0] tile_col;
-  logic [         31:0] tile_row;
+    logic                               dma_busy;
+    logic                               dma_done;
+    assign load_bias_done = dma_done;
+    logic        [       $clog2(2)-1:0] dma_wr_slot;
+    logic        [$clog2(DMA_SIZE)-1:0] dma_wr_row;
+    logic        [$clog2(DMA_SIZE)-1:0] dma_wr_col_base;
+    logic signed [                7:0] dma_wr_data            [BUS_WIDTH/8];
+    logic                               dma_wr_valid           [BUS_WIDTH/8];
+    logic                               dma_wr_use_16bits;
+    logic        [       BUS_WIDTH-1:0] dma_cmd_wdata_unused;
+	    logic        [     BUS_WIDTH/8-1:0] dma_cmd_wmask_unused;
+	    logic                               dma_src_wready_unused;
 
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      cfg_bias_base <= '0;
-      cfg_m         <= '0;
-      cfg_k         <= '0;
-      cfg_need_bias <= 1'b0;
-    end else if (init_cfg) begin
-      cfg_bias_base <= bias_base;
-      cfg_m         <= m;
-      cfg_k         <= k;
-      cfg_need_bias <= (bias_base != '0);  // 基地址为0认为不需要偏置
-    end
-  end
+	    assign ext_dma_start            = ctrl_dma_start;
+	    assign ext_dma_is_write         = 1'b0;
+	    assign ext_dma_linear_read_mode = 1'b0;
+	    assign ext_dma_base_addr        = ctrl_dma_base_addr;
+	    assign ext_dma_row_stride       = REG_WIDTH'(SIZE * (DATA_WIDTH / 8));
+	    assign ext_dma_rows_to_read     = ctrl_dma_rows_to_read;
+	    assign ext_dma_burst_len_m1     = ctrl_dma_burst_len_m1;
+	    assign ext_dma_slot_id          = ctrl_load_bank;
+	    assign ext_dma_use_16bits       = 1'b0;
+	    assign ext_dma_lhs_zp           = '0;
 
-  // ---------------------------
-  // 列 tile 计算（尾块）
-  // ---------------------------
-  function automatic [31:0] f_cols_need(input [31:0] total_cols, input [31:0] vlen, input [31:0] t);
-    reg [31:0] remain;
-    begin
-      remain      = (total_cols > (t * vlen)) ? (total_cols - t * vlen) : 32'd0;
-      f_cols_need = (remain >= vlen) ? vlen : remain;
-    end
-  endfunction
+    bias_loader_ctrl #(
+        .SIZE     (SIZE),
+        .REG_WIDTH(REG_WIDTH)
+    ) u_ctrl (
+        .clk              (clk),
+        .rst_n            (rst_n),
+        .init_cfg         (init_cfg),
+        .bias_base        (bias_base),
+        .m                (m),
+        .bias_step_blocks (bias_step_blocks),
+        .bias_switch      (bias_switch),
+        .bias_last_loop   (bias_last_loop),
+        .load_bias_req    (load_bias_req),
+        .load_bias_granted(load_bias_granted),
+        .dma_busy         (dma_busy),
+        .dma_done         (dma_done),
+        .load_block_valid (ctrl_load_block_valid),
+        .dma_start        (ctrl_dma_start),
+        .dma_base_addr    (ctrl_dma_base_addr),
+        .dma_rows_to_read (ctrl_dma_rows_to_read),
+        .dma_burst_len_m1 (ctrl_dma_burst_len_m1),
+        .load_bank        (ctrl_load_bank),
+        .current_block_idx(ctrl_current_block_idx),
+        .load_block_idx   (ctrl_load_block_idx),
+        .next_block_idx   (ctrl_next_block_idx),
+        .group_blocks_needed(ctrl_group_blocks_needed),
+        .active_bank      (ctrl_active_bank),
+        .switch_pending   (ctrl_switch_pending)
+    );
 
-  reg  [31:0] next_tile_idx;     // 将要读取的列tile索引
-  wire [31:0] cols_need_next = f_cols_need(cfg_m, SIZE, next_tile_idx);
-  wire [31:0] byte_off_next  = next_tile_idx * SIZE * BYTES_PER_WORD;
+	    generate
+	        if (EXTERNAL_DMA) begin : gen_external_dma
+	            assign icb_cmd_valid    = 1'b0;
+	            assign icb_cmd_read     = 1'b1;
+	            assign icb_cmd_addr     = '0;
+	            assign icb_cmd_len      = '0;
+	            assign icb_rsp_ready    = 1'b0;
+	            assign dma_busy         = ext_dma_busy;
+	            assign dma_done         = ext_dma_done;
+	            assign dma_wr_slot      = ext_dma_wr_slot;
+	            assign dma_wr_row       = ext_dma_wr_row;
+	            assign dma_wr_col_base  = ext_dma_wr_col_base;
+	            assign dma_wr_use_16bits = ext_dma_wr_use_16bits;
+	            for (genvar dma_i = 0; dma_i < BUS_WIDTH/8; dma_i++) begin : gen_ext_wr
+	                assign dma_wr_data[dma_i]  = ext_dma_wr_data[dma_i];
+	                assign dma_wr_valid[dma_i] = ext_dma_wr_valid[dma_i];
+	            end
+	        end else begin : gen_internal_dma
+	            block_dma #(
+	                .DATA_WIDTH  (8),
+	                .SIZE        (DMA_SIZE),
+	                .BUS_WIDTH   (BUS_WIDTH),
+	                .REG_WIDTH   (REG_WIDTH),
+	                .CACHE_BLOCKS(2)
+	            ) u_dma (
+	                .clk             (clk),
+	                .rst_n           (rst_n),
+	                .start           (ctrl_dma_start),
+	                .is_write        (1'b0),
+	                .linear_read_mode(1'b0),
+	                .tile_base_addr  (ctrl_dma_base_addr),
+	                .row_stride      (REG_WIDTH'(SIZE * (DATA_WIDTH / 8))),
+	                .rows_to_read    (ctrl_dma_rows_to_read),
+	                .burst_len_m1    (ctrl_dma_burst_len_m1),
+	                .slot_id         (ctrl_load_bank),
+	                .use_16bits      (1'b0),
+	                .lhs_zp          ('0),
+	                .busy            (dma_busy),
+	                .tile_done       (dma_done),
+	                .src_wdata       ('0),
+	                .src_wmask       ('0),
+	                .src_wvalid      (1'b0),
+	                .src_wready      (dma_src_wready_unused),
+	                .icb_cmd_valid   (icb_cmd_valid),
+	                .icb_cmd_ready   (icb_cmd_ready),
+	                .icb_cmd_read    (icb_cmd_read),
+	                .icb_cmd_addr    (icb_cmd_addr),
+	                .icb_cmd_len     (icb_cmd_len),
+	                .icb_cmd_wdata   (dma_cmd_wdata_unused),
+	                .icb_cmd_wmask   (dma_cmd_wmask_unused),
+	                .icb_w_valid     (),
+	                .icb_w_ready     (1'b1),
+	                .icb_rsp_valid   (icb_rsp_valid),
+	                .icb_rsp_ready   (icb_rsp_ready),
+	                .icb_rsp_rdata   (icb_rsp_rdata),
+	                .icb_rsp_err     (icb_rsp_err),
+	                .wr_slot         (dma_wr_slot),
+	                .wr_row          (dma_wr_row),
+	                .wr_col_base     (dma_wr_col_base),
+	                .wr_data         (dma_wr_data),
+	                .wr_valid        (dma_wr_valid),
+	                .wr_use_16bits   (dma_wr_use_16bits),
+	                .rd_raw_data     (),
+	                .rd_raw_valid    (),
+	                .rd_raw_row      (),
+	                .rd_raw_col_base ()
+	            );
+	        end
+	    endgenerate
 
-  // ---------------------------
-  // 第一次部分和结束标志（电平）
-  // 说明：不做边沿检测；一旦为1就表示“本 tile 以后都不该再输出偏置”
-  //      只在 init_cfg 或 tile_calc_over 时清零。
-  // ---------------------------
-  reg first_ps_done;
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      first_ps_done <= 1'b0;
-    end else if (init_cfg || tile_calc_over) begin
-      first_ps_done <= 1'b0;  // 新 tile 开始前清零
-    end else if (!first_ps_done && partial_sum_calc_over) begin
-      first_ps_done <= 1'b1;  // 只允许第一次把它置 1
-    end
-  end
+    bias_loader_buffer #(
+        .SIZE           (SIZE),
+        .DATA_WIDTH     (DATA_WIDTH),
+        .DMA_DATA_WIDTH (8),
+        .REG_WIDTH      (REG_WIDTH),
+        .GROUP_BLOCKS_MAX(GROUP_BLOCKS_MAX)
+    ) u_buffer (
+        .clk               (clk),
+        .rst_n             (rst_n),
+        .init_cfg          (init_cfg),
+        .load_start        (ctrl_dma_start),
+        .load_bank         (ctrl_load_bank),
+        .load_block_idx    (ctrl_load_block_idx),
+        .load_word_valid   (dma_wr_valid),
+        .load_word_row     (REG_WIDTH'(dma_wr_row)),
+        .load_word_col_base(dma_wr_col_base),
+        .load_word_data    (dma_wr_data),
+        .load_done         (dma_done),
+        .active_bank       (ctrl_active_bank),
+        .current_block_idx (ctrl_current_block_idx),
+        .next_block_idx    (ctrl_next_block_idx),
+        .bias_valid        (bias_valid),
+        .load_block_valid  (ctrl_load_block_valid),
+        .next_bias_valid   (next_bias_valid),
+        .data_out          (data_out),
+        .next_data_out     (next_data_out),
+        .group_data_out    (group_data_out)
+    );
 
-
-  // ---------------------------
-  // 预取意图（tile结束后为下一 tile 预取）
-  // ---------------------------
-  // reg prefetch_pending;
-  // always_ff @(posedge clk or negedge rst_n) begin
-  //   if (!rst_n) begin
-  //     prefetch_pending <= 1'b0;
-  //   end else begin
-  //     if (init_cfg)         prefetch_pending <= 1'b1;   // 第0块也要预取
-  //     else if (tile_calc_over) prefetch_pending <= 1'b1;   // 当前tile结束，准备下一块
-  //     else if (load_bias_req && load_bias_granted) prefetch_pending <= 1'b0; // 成交后清除
-  //   end
-  // end
-
-  // ---------------------------
-  // ICB 命令通道寄存
-  // ---------------------------
-  reg                       icb_cmd_valid_q;
-  reg                       icb_cmd_read_q;
-  reg       [REG_WIDTH-1:0] icb_cmd_addr_q;
-  icb_len_t                 icb_cmd_len_q;
-
-  assign icb_cmd_m.valid  = icb_cmd_valid_q;
-  assign icb_cmd_m.read   = icb_cmd_read_q;
-  assign icb_cmd_m.addr   = icb_cmd_addr_q;
-  assign icb_cmd_m.len    = icb_cmd_len_q;
-
-  //assign icb_wr_m.w_valid = 1'b0;
-  //assign icb_wr_m.wdata   = '0;
-  //assign icb_wr_m.wmask   = '0;
-
-  assign icb_rsp_m        = '{rsp_ready: 1'b1};
-
-  // ---------------------------
-  // 偏置缓冲
-  // ---------------------------
-  reg [DATA_WIDTH-1:0] bias_buffer[SIZE];
-  logic [31:0] num_row_tiles;
-  logic [31:0] num_col_tiles;
-
-  always_comb begin
-    // safe ceil_div: (n + VLEN -1) / VLEN
-    num_row_tiles = (cfg_k == 0) ? 0 : ((cfg_k + VLEN - 1) / VLEN);
-    num_col_tiles = (cfg_m == 0) ? 0 : ((cfg_m + VLEN - 1) / VLEN);
-  end
-  // ---------------------------
-  // FSM
-  // ---------------------------
-  typedef enum logic [1:0] {
-    IDLE = 2'd0,
-    LOAD = 2'd1,
-    OUT  = 2'd2
-  } fsm_e;
-  fsm_e       state;
-
-  reg   [5:0] rd_beats_cnt;
-  reg   [5:0] beats_expect;  // = cols_need_next
-
-
-  logic       all_tiles_done;
-  // 输出使用逻辑：仅“第一次部分和结束前”使用偏置
-  wire        use_bias_now = (bias_valid && !first_ps_done);
-
-  // 组合输出（如需打一拍可改成寄存）
-
-  genvar gi;
-  generate
-    for (gi = 0; gi < SIZE; gi = gi + 1) begin : G_OUT
-      // Drive explicit width zero to avoid signed/unsigned warnings in DC
-      assign data_out[gi] = use_bias_now ? bias_buffer[gi] : {DATA_WIDTH{1'b0}};
-    end
-  endgenerate
-
-  // ---------------------------
-  // 主时序
-  // ---------------------------
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      state           <= IDLE;
-      load_bias_req   <= 1'b0;
-      bias_valid      <= 1'b0;
-
-      icb_cmd_valid_q <= 1'b0;
-      icb_cmd_read_q  <= 1'b0;
-      icb_cmd_addr_q  <= '0;
-      icb_cmd_len_q   <= icb_len_t'(0);
-      all_tiles_done  <= 1'b0;
-      rd_beats_cnt    <= 6'd0;
-      beats_expect    <= 6'd0;
-      next_tile_idx   <= 32'd0;
-      tile_col        <= 32'd0;
-      tile_row        <= 32'd0;
-
-      for (int unsigned i = 0; i < SIZE; i++) begin
-        bias_buffer[i] <= {DATA_WIDTH{1'b0}};
-      end
-
-    end else begin
-      // 缺省拉低命令
-      icb_cmd_valid_q <= 1'b0;
-      icb_cmd_read_q  <= 1'b0;
-
-      // init 时做一次同步清零
-      if (init_cfg) begin
-        state          <= IDLE;
-        load_bias_req  <= 1'b0;
-        bias_valid     <= 1'b0;
-        rd_beats_cnt   <= 6'd0;
-        beats_expect   <= 6'd0;
-        next_tile_idx  <= 32'd0;
-        all_tiles_done <= 1'b0;
-        tile_col       <= 32'd0;
-        tile_row       <= 32'd0;
-
-      end else begin
-        case (state)
-          // -------------------------
-          IDLE: begin
-            // 只在 tile 完成后清 bias_valid（满足你的需求）
-            if (tile_calc_over) bias_valid <= 1'b0;
-            if (all_tiles_done) begin
-              load_bias_req <= 1'b0;
-              // remain idle
-            end else begin
-              // 拉起预取
-              if (cfg_need_bias && !bias_valid && (cols_need_next != 0)) begin
-                load_bias_req <= 1'b1;
-                if (load_bias_granted) begin
-                  load_bias_req   <= 1'b0;
-                  rd_beats_cnt    <= 6'd0;
-                  beats_expect    <= cols_need_next[5:0];
-
-                  // 发 ICB 读命令（len = need-1）
-                  icb_cmd_valid_q <= 1'b1;
-                  icb_cmd_read_q  <= 1'b1;
-                  icb_cmd_addr_q  <= cfg_bias_base + byte_off_next;
-                  icb_cmd_len_q   <= icb_len_t'((cols_need_next > 0) ? (cols_need_next - 1) : 0);
-
-                  state           <= LOAD;
-                end
-              end else begin
-                load_bias_req <= 1'b0;
-              end
-
-              // 若外部已放入有效（理论上不会发生），也可以进入 OUT
-              if (bias_valid) state <= OUT;
-            end
-          end
-
-          // -------------------------
-          LOAD: begin
-            // 命令阶段：若尚未被 ready 接受，继续保持 valid
-
-            if (!icb_cmd_s.ready) begin
-              icb_cmd_valid_q <= 1'b1;
-              icb_cmd_read_q  <= 1'b1;
-              icb_cmd_addr_q  <= cfg_bias_base + byte_off_next;
-              icb_cmd_len_q   <= icb_len_t'((beats_expect > 0) ? (beats_expect - 1) : 0);
-            end
-
-            // 接收响应拍
-            if (icb_rsp_s.rsp_valid) begin
-              if (rd_beats_cnt < SIZE[5:0]) begin
-                bias_buffer[rd_beats_cnt] <= icb_rsp_s.rsp_rdata;
-              end
-              rd_beats_cnt <= rd_beats_cnt + 1;
-
-              if ((rd_beats_cnt + 1) == beats_expect) begin
-                // 尾部补0
-                for (int unsigned f = 0; f < SIZE; f++) begin
-                  if (f >= beats_expect) begin
-                    bias_buffer[f] <= {DATA_WIDTH{1'b0}};
-                  end
-                end
-                // 读完即“bias_valid=1”，保持到 tile_calc_over 才清 0
-                bias_valid    <= 1'b1;
-
-                // 下一个 tile 的偏移
-                next_tile_idx <= next_tile_idx + 1;
-
-
-                // 进入 OUT：由 use_bias_now 决定是否输出偏置
-                state         <= OUT;
-              end
-            end
-          end
-
-          // -------------------------
-          OUT: begin
-            // 只在 tile 结束时清 bias_valid（符合你的要求）
-            if (tile_calc_over) begin
-              bias_valid <= 1'b0;
-              // OUT 态也允许在 tile_over 后拉起下一块的预取
-              if (cfg_need_bias && tile_calc_over && (cols_need_next != 0)) begin
-                load_bias_req <= 1'b1;
-              end
-
-              if ((tile_col + 1) >= num_col_tiles) begin
-                // 当前列已经是最后一列 -> 列回 0，并推进行
-                tile_col <= 32'd0;
-                next_tile_idx <= 0;
-                load_bias_req <= 1'b1;
-                if ((tile_row + 1) >= num_row_tiles) begin
-                  // 行也到末尾 -> 所有 tile 完成
-                  tile_row       <= 32'd0;
-                  all_tiles_done <= 1'b1;
-                  load_bias_req  <= 1'b0;
-                  //quant_params_valid <= 1'b0;
-                end else tile_row <= tile_row + 1;
-              end else
-                // 还没到最后列 -> 仅推进列
-                tile_col <= tile_col + 1;
-            end
-            //if (load_bias_granted) load_bias_req <= 1'b0;
-
-            if (load_bias_granted && load_bias_req) begin
-              load_bias_req   <= 1'b0;
-              rd_beats_cnt    <= 6'd0;
-              beats_expect    <= cols_need_next[5:0];
-
-              icb_cmd_valid_q <= 1'b1;
-              icb_cmd_read_q  <= 1'b1;
-              icb_cmd_addr_q  <= cfg_bias_base + byte_off_next;
-              icb_cmd_len_q   <= icb_len_t'((cols_need_next > 0) ? (cols_need_next - 1) : 0);
-
-              state           <= LOAD;
-            end
-
-            if ((tile_col + 1 == num_col_tiles) && (tile_row + 1 == num_row_tiles) && tile_calc_over) begin
-              state <= IDLE;
-            end
-          end
-
-          default: state <= IDLE;
-        endcase
-        if (!cfg_need_bias) begin
-          bias_valid <= 1'b1;
-        end
-      end
-    end
-  end
+    assign bias_group_valid = bias_valid && !ctrl_switch_pending;
 
 endmodule

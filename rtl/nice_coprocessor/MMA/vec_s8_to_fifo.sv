@@ -1,70 +1,16 @@
-// =============================================
-// vec_s8_to_fifo: s8向量打包?2位并输出的FIFO模块
-// ---------------------------------------------
-// 设计思路?
-//   1. 双区FIFO设计（Ping-Pong Buffer）：
-//      - 每区为方形存储：VLEN×VLEN，存储VLEN个完整向?
-//      - 写满一区后自动切换到另一区，实现连续数据流处?
-//      - 读写分离：写区域和读区域可以不同，提高吞吐率
-//
-//   2. 数据流控制：
-//      - 输入阶段：连续接收s8向量，检测in_valid下降沿作为批次结束标?
-//      - 输出阶段?2位打包输出，?个s8字节组成一?2位数?
-//      - 状态机控制：IDLE->REQ->OUTPUT三态切?
-//
-//   3. 握手协议设计?
-//      - 双重握手：先请求-确认获取有效字节数，再数?就绪传输
-//      - 避免数据丢失：确保有效字节数与数据同步传?
-//
-// ---------------------------------------------
-// 时序要求?
-//   输入时序?
-//     - in_valid高电平期间连续输入向量数?
-//     - in_valid下降沿标志当前批次结束，触发区域切换
-//     - 写指针在每个in_valid上升沿递增
-//
-//   输出握手时序?
-//     1. 模块检测到有数据时拉高oa_fifo_req
-//     2. 主机在下一周期或延后几周期拉高req_ack，同时提供vec_valid_num_col
-//     3. 模块锁存vec_valid_num_col，开始数据输出流?
-//     4. output_valid/output_ready标准握手，每次传?6位数?
-//     5. 传输完成后自动切换读区域并重置状?
-//
-//   关键约束?
-//     - req_ack必须与vec_valid_num_col同时有效
-//     - output_ptr?递增?VLEN/4-1)，对应VLEN个字节的32位打?
-//     - 区域切换仅在批次结束（is_last_vec）或读完成时发生
-//
-// ---------------------------------------------
-// 接口说明?
-//   clk, rstn              -- 时钟与复?
-//   in_valid               -- 输入数据有效（连续高电平输入，下降沿标志批次结束?
-//   in_vec_s8[VLEN]        -- 输入s8向量数组
-//   oa_fifo_req             -- 请求输出信号（模?>主机，有数据待输出时为高?
-//   req_ack                -- 主机确认信号（主?>模块，确认接收请求）
-//   vec_valid_num_col      -- 主机给出的有效字节数（与req_ack同时有效?
-//   output_valid           -- FIFO输出数据有效（标准握手信号）
-//   output_ready           -- 外部请求弹出数据（标准握手信号）
-//   output_row_switch      --输出每行向量最?字节标志
-//   output_mask            -- 输出数据有效性掩码（?位）
-//   output_data            -- 输出数据（低32位）
-//   fifo_full_flag         -- 两块FIFO都被占用时为高（背压信号?
-//
-// 数据格式?
-//   - 输入：每次输入VLEN个signed [7:0]数据
-//   - 输出?6?4位mask+32位数据，mask[i]对应data[8*i+7:8*i]字节有效?
-//   - mask编码?'b1111=全部有效?'b0111=?字节有效，依此类?
-// =============================================
-
 module vec_s8_to_fifo #(
-    parameter integer VLEN = 16
+    parameter integer VLEN  = 16,
+    parameter integer BANKS = 16
 ) (
     input  wire                 clk,
     input  wire                 rst_n,
     input  wire                 in_valid,
+    input  wire                 in_tile_done,
     input  wire [   VLEN*8-1:0] in_vec_s8,
     output reg                  oa_fifo_req,
-    input  wire [(VLEN>>2)-1:0] vec_valid_num_col,
+    input  wire                 transpose_mode,
+    input  wire [$clog2(VLEN)-1:0] vec_valid_num_col,
+    input  wire [$clog2(VLEN)-1:0] vec_valid_num_row,
     output wire                 output_valid,
     input  wire                 output_ready,
     output wire                 output_row_switch,
@@ -73,202 +19,198 @@ module vec_s8_to_fifo #(
     output reg                  fifo_full_flag
 );
 
-  reg [VLEN*8-1:0] fifo_mem0[0:VLEN-1];
-  reg [VLEN*8-1:0] fifo_mem1[0:VLEN-1];
+  localparam integer PTR_WIDTH   = (VLEN <= 1) ? 1 : $clog2(VLEN);
+  localparam integer COUNT_WIDTH = $clog2(VLEN + 1);
+  localparam integer ROW_BEATS   = (VLEN + 3) / 4;
+  localparam integer BEAT_WIDTH  = (ROW_BEATS <= 1) ? 1 : $clog2(ROW_BEATS);
+  localparam integer BANK_WIDTH  = (BANKS <= 1) ? 1 : $clog2(BANKS);
 
-  localparam PTR_WIDTH = $clog2(VLEN);
-  reg [PTR_WIDTH-1:0] fifo_wptr0, fifo_wptr1;
-  reg [PTR_WIDTH-1:0] fifo_count0, fifo_count1;
-  reg [PTR_WIDTH-1:0] output_ptr0, output_ptr1;
+  reg [VLEN*8-1:0] fifo_mem [0:BANKS-1][0:VLEN-1];
+  reg [COUNT_WIDTH-1:0] bank_count [0:BANKS-1];
+  reg [BANKS-1:0] bank_ready;
 
-  reg fifo_sel;
-  reg stream_active;
-  reg fifo_read_sel;
-  reg in_valid_q;
-  wire [(VLEN-1):0] stored_valid_col;
-  reg [(VLEN>>2)-1:0] vec_valid_num_col_tmp;
-  reg fifo_occupy0, fifo_occupy1;
+  reg [BANK_WIDTH-1:0]  write_bank;
+  reg [BANK_WIDTH-1:0]  read_bank;
+  reg [PTR_WIDTH-1:0]   write_ptr;
+  reg [PTR_WIDTH-1:0]   read_ptr;
+  reg                   stream_active;
+  reg [BEAT_WIDTH-1:0]  beat_idx;
+  reg [$clog2(VLEN)-1:0] vec_valid_num_col_tmp;
+  reg [$clog2(VLEN)-1:0] vec_valid_num_row_tmp;
+  reg                   transpose_mode_tmp;
+  reg                   in_valid_q;
+  bit                   oa_trace_en;
 
-  localparam ROW_CNT_WIDTH = $clog2(VLEN / 4);
-  reg [ROW_CNT_WIDTH-1:0] cnt_each_row;
+  wire in_valid_fall = in_valid_q & ~in_valid;
+  wire write_bank_blocked = bank_ready[write_bank];
+  wire has_partial_write_bank = (write_ptr != '0);
+  // A temporary valid gap can appear between cached IA slots.  Only the
+  // explicit tile_done marker is allowed to publish a bank to the writer.
+  wire finish_write_bank = in_valid && in_tile_done;
+  wire [COUNT_WIDTH-1:0] write_rows_next =
+      in_valid ? (COUNT_WIDTH'(write_ptr) + COUNT_WIDTH'(1)) : COUNT_WIDTH'(write_ptr);
+  wire [COUNT_WIDTH-1:0] active_read_count = bank_count[read_bank];
+  wire [COUNT_WIDTH-1:0] output_row_count =
+      transpose_mode_tmp ? (COUNT_WIDTH'(vec_valid_num_row_tmp) + COUNT_WIDTH'(1))
+                         : active_read_count;
+  wire [COUNT_WIDTH-1:0] output_col_count =
+      transpose_mode_tmp ? active_read_count
+                         : (COUNT_WIDTH'(vec_valid_num_col_tmp) + COUNT_WIDTH'(1));
+  wire read_bank_ready = bank_ready[read_bank] && (bank_count[read_bank] != '0);
+  wire [COUNT_WIDTH-1:0] last_beat_idx_cur =
+      (output_col_count == '0) ? '0 : ((output_col_count - COUNT_WIDTH'(1)) / COUNT_WIDTH'(4));
+  wire last_beat_in_row = output_ready && stream_active &&
+                          (COUNT_WIDTH'(beat_idx) == last_beat_idx_cur);
+  wire last_row_in_bank = last_beat_in_row &&
+                          ((COUNT_WIDTH'(read_ptr) + COUNT_WIDTH'(1)) >= output_row_count);
+
+  // Compatibility debug names used by existing testbenches.
+  wire write_sel = write_bank[0];
+  wire read_sel  = read_bank[0];
+  wire bank_ready0 = bank_ready[0];
+  wire bank_ready1 = (BANKS > 1) ? bank_ready[1] : 1'b0;
+  wire [COUNT_WIDTH-1:0] bank_count0 = bank_count[0];
+  wire [COUNT_WIDTH-1:0] bank_count1 = (BANKS > 1) ? bank_count[1] : '0;
 
   assign output_valid = stream_active;
+  assign output_row_switch = last_beat_in_row;
 
-
-  wire is_last_vec = in_valid_q & ~in_valid;
-
-  // check negedge of in_valid
-  always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) in_valid_q <= 1'b0;
-    else in_valid_q <= in_valid;
+  initial begin
+    oa_trace_en = 1'b0;
+    if ($test$plusargs("MMA_OA_TRACE")) oa_trace_en = 1'b1;
   end
 
-  // check state of fifo
-  always @(*) begin
+  function automatic [BANK_WIDTH-1:0] next_bank(input [BANK_WIDTH-1:0] bank);
+    begin
+      if (bank == BANK_WIDTH'(BANKS - 1)) next_bank = '0;
+      else                               next_bank = bank + 1'b1;
+    end
+  endfunction
+
+  always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      fifo_occupy0 <= 1'b0;
-      fifo_occupy1 <= 1'b0;
+      in_valid_q <= 1'b0;
     end else begin
-      fifo_occupy0 <= (fifo_count0 != 0);
-      fifo_occupy1 <= (fifo_count1 != 0);
+      in_valid_q <= in_valid;
     end
   end
 
-  // generate occupy state of fifo
-  always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) fifo_full_flag <= 1'b0;
-    else fifo_full_flag <= (fifo_occupy0 != 0) && (fifo_occupy1 != 0);
-  end
-
-  // choose fifo to write
-  always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) fifo_sel <= 1'b0;
-    else if (is_last_vec) begin
-      if (!fifo_occupy0) fifo_sel <= 1'b0;
-      else if (!fifo_occupy1) fifo_sel <= 1'b1;
-      else fifo_sel <= ~fifo_sel;
-    end
-  end
-
-  // choose fifo to read
-  always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) fifo_read_sel <= 1'b0;
-    else begin
-      if (fifo_occupy0 && !fifo_occupy1) fifo_read_sel <= 1'b0;
-      else if (!fifo_occupy0 && fifo_occupy1) fifo_read_sel <= 1'b1;
-      else if (fifo_occupy0 && fifo_occupy1) fifo_read_sel <= fifo_read_sel;
-      else fifo_read_sel <= fifo_read_sel;
-    end
-  end
-
-  // change fifo_wptr0, fifo_wptr1
   always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      fifo_wptr0 <= 'b0;
-      fifo_wptr1 <= 'b0;
-    end else if (in_valid) begin
-      if (fifo_sel == 1'b0) begin
-        if (is_last_vec) fifo_wptr0 <= 'b0;
-        else fifo_wptr0 <= fifo_wptr0 + 1'b1;
-      end else begin
-        if (is_last_vec) fifo_wptr1 <= 'b0;
-        else fifo_wptr1 <= fifo_wptr1 + 1'b1;
+      write_bank   <= '0;
+      read_bank    <= '0;
+      write_ptr    <= '0;
+      read_ptr     <= '0;
+      stream_active <= 1'b0;
+      beat_idx     <= '0;
+      vec_valid_num_col_tmp <= '0;
+      vec_valid_num_row_tmp <= '0;
+      transpose_mode_tmp <= 1'b0;
+      oa_fifo_req  <= 1'b0;
+      fifo_full_flag <= 1'b0;
+      bank_ready   <= '0;
+      for (int bank_idx = 0; bank_idx < BANKS; bank_idx++) begin
+        bank_count[bank_idx] <= '0;
       end
-    end
-  end
-  //fifo_wptr1 <= (fifo_wptr1 == VLEN-1) ? 0 : fifo_wptr1 + 1'b1;
-  // change output_ptr0, output_ptr1
-  always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      output_ptr0 <= 'b0;
-      output_ptr1 <= 'b0;
     end else begin
-      if (stream_active && output_ready && cnt_each_row == (vec_valid_num_col_tmp / 4)) begin
-        if (fifo_read_sel == 1'b0) begin
-          output_ptr0 <= ((stream_active && output_ready) ? (output_ptr0 + 1'b1) : output_ptr0);
-        end else begin
-          output_ptr1 <= ((stream_active && output_ready) ? (output_ptr1 + 1'b1) : output_ptr1);
+      fifo_full_flag <= write_bank_blocked;
+      oa_fifo_req    <= read_bank_ready && !stream_active;
+
+      if (in_valid && !write_bank_blocked) begin
+        fifo_mem[write_bank][write_ptr] <= in_vec_s8;
+      end
+
+      if (finish_write_bank && !write_bank_blocked) begin
+        bank_count[write_bank] <= write_rows_next;
+        bank_ready[write_bank] <= 1'b1;
+        if (oa_trace_en) begin
+          $display("[OA_TRACE] time=%0t fifo_bank_ready bank=%0d rows=%0d transpose=%0d vcol=%0d vrow=%0d",
+                   $time, write_bank, write_rows_next, transpose_mode,
+                   vec_valid_num_col, vec_valid_num_row);
         end
+        write_ptr <= '0;
+        write_bank <= next_bank(write_bank);
+      end else if (in_valid && !write_bank_blocked) begin
+        write_ptr <= write_ptr + 1'b1;
       end
-    end
-  end
 
-  // generate mask
-  assign stored_valid_col = {VLEN{1'b1}} << (VLEN - vec_valid_num_col_tmp - 1);
-
-  // generate request for number of valid column
-  always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      oa_fifo_req <= 1'b0;
-      vec_valid_num_col_tmp <= 'b0;
-    end else begin
-      if ((fifo_occupy0 || fifo_occupy1) && !stream_active) begin
-        oa_fifo_req <= 1'b1;
+      if (!stream_active && read_bank_ready) begin
+        stream_active <= 1'b1;
+        beat_idx      <= '0;
+        read_ptr      <= '0;
         vec_valid_num_col_tmp <= vec_valid_num_col;
-      end else begin
-        oa_fifo_req <= 1'b0;
-      end
-    end
-  end
-
-  // generate output_row_switch
-  assign output_row_switch = (cnt_each_row == (vec_valid_num_col_tmp/4)) && stream_active && output_ready;
-
-  // generage fifo_count0, fifo_count1
-  always @(*) begin
-    if (!rst_n) begin
-      fifo_count0 = 'b0;
-      fifo_count1 = 'b0;
-    end else begin
-      if (fifo_wptr0 >= output_ptr0) fifo_count0 = fifo_wptr0 - output_ptr0;
-      else fifo_count0 = VLEN - output_ptr0 + fifo_wptr0;
-      if (fifo_wptr1 >= output_ptr1) fifo_count1 = fifo_wptr1 - output_ptr1;
-      else fifo_count1 = VLEN - output_ptr1 + fifo_wptr1;
-    end
-  end
-
-  // generate stream_active
-  always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) stream_active <= 1'b0;
-    else begin
-      if (oa_fifo_req && !stream_active) begin
-        if ((fifo_read_sel == 1'b0 && fifo_count0 > 0) || 
-                    (fifo_read_sel == 1'b1 && fifo_count1 > 0)) begin
-          stream_active <= 1'b1;
+        vec_valid_num_row_tmp <= vec_valid_num_row;
+        transpose_mode_tmp <= transpose_mode;
+        if (oa_trace_en) begin
+          $display("[OA_TRACE] time=%0t fifo_stream_start bank=%0d rows=%0d transpose=%0d vcol=%0d vrow=%0d",
+                   $time, read_bank, bank_count[read_bank], transpose_mode,
+                   vec_valid_num_col, vec_valid_num_row);
         end
-      end
-            else if (stream_active && output_ready && cnt_each_row == (vec_valid_num_col_tmp/4)) begin
-        if ((fifo_read_sel == 1'b0 && fifo_count0 <= 1) || 
-                    (fifo_read_sel == 1'b1 && fifo_count1 <= 1)) begin
+      end else if (stream_active && (read_ptr == '0) && (beat_idx == '0) && !output_ready) begin
+        vec_valid_num_col_tmp <= vec_valid_num_col;
+        vec_valid_num_row_tmp <= vec_valid_num_row;
+        transpose_mode_tmp <= transpose_mode;
+      end else if (last_beat_in_row) begin
+        beat_idx <= '0;
+        if (last_row_in_bank) begin
           stream_active <= 1'b0;
+          read_ptr      <= '0;
+          bank_ready[read_bank] <= 1'b0;
+          bank_count[read_bank] <= '0;
+          read_bank <= next_bank(read_bank);
+        end else begin
+          read_ptr <= read_ptr + 1'b1;
         end
+      end else if (stream_active && output_ready) begin
+        beat_idx <= beat_idx + 1'b1;
       end
     end
   end
 
-  // generate cnt_each_row
-  always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) cnt_each_row <= 'b0;
-    else if (stream_active && output_ready) begin
-      if (cnt_each_row == (vec_valid_num_col_tmp / 4)) cnt_each_row <= 'b0;
-      else cnt_each_row <= cnt_each_row + 1'b1;
-    end
-  end
+  integer valid_cols_i;
+  integer beat_col_start_i;
+  integer valid_in_beat_i;
+  integer out_byte_i;
+  integer src_row_i;
 
-  // storage input data
-  always @(posedge clk) begin
-    if (in_valid && fifo_sel == 1'b0) begin
-      fifo_mem0[fifo_wptr0] <= in_vec_s8;
-    end
-    if (in_valid && fifo_sel == 1'b1) begin
-      fifo_mem1[fifo_wptr1] <= in_vec_s8;
-    end
-  end
-
-  reg [3:0] output_mask_bigedian;
-  // generate output_data
   always @(*) begin
     output_data = 32'b0;
-    output_mask_bigedian = 4'b0;
+    output_mask = 4'b0;
+    valid_cols_i = output_col_count;
+    beat_col_start_i = beat_idx * 4;
+    valid_in_beat_i = valid_cols_i - beat_col_start_i;
+    if (valid_in_beat_i > 4) valid_in_beat_i = 4;
+    if (valid_in_beat_i < 0) valid_in_beat_i = 0;
+
     if (stream_active) begin
-      if (fifo_read_sel == 1'b0) begin
-        output_data = fifo_mem0[output_ptr0][(cnt_each_row)*32+:32];
-        output_mask_bigedian = stored_valid_col[(3-cnt_each_row)*4+:4];
+      if (transpose_mode_tmp) begin
+        for (out_byte_i = 0; out_byte_i < 4; out_byte_i = out_byte_i + 1) begin
+          src_row_i = beat_col_start_i + out_byte_i;
+          if (src_row_i < active_read_count) begin
+            output_data[out_byte_i*8+:8] =
+                fifo_mem[read_bank][src_row_i][read_ptr*8+:8];
+          end
+        end
       end else begin
-        output_data = fifo_mem1[output_ptr1][(cnt_each_row)*32+:32];
-        output_mask_bigedian = stored_valid_col[(3-cnt_each_row)*4+:4];
+        output_data = fifo_mem[read_bank][read_ptr][beat_idx*32+:32];
       end
+
+      case (valid_in_beat_i)
+        1: output_mask = 4'b0001;
+        2: output_mask = 4'b0011;
+        3: output_mask = 4'b0111;
+        4: output_mask = 4'b1111;
+        default: output_mask = 4'b0000;
+      endcase
     end
-    output_mask = {output_mask_bigedian[0], output_mask_bigedian[1], output_mask_bigedian[2], output_mask_bigedian[3]};
+  end
+
+  always @(posedge clk) begin
+    if (rst_n && oa_trace_en && output_valid && output_ready) begin
+      $display("[OA_TRACE] time=%0t fifo_out bank=%0d row=%0d beat=%0d mask=%b data=%08x rows=%0d cols=%0d transpose=%0d",
+               $time, read_bank, read_ptr, beat_idx, output_mask, output_data,
+               output_row_count, output_col_count, transpose_mode_tmp);
+    end
   end
 
 endmodule
-
-
-
-
-
-
-
-
-

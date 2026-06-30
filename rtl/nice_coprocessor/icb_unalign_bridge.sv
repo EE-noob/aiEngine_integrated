@@ -539,10 +539,9 @@ module icb_unalign_bridge #(
   // 读响应：在rsp_state=IDLE或后续状态都可以传输
   (cur_is_read && ((rsp_state == IDLE && !rsp_cross_boundary) ||  // 第一次响应启动
 
-  (rsp_state == BURST)))
-  // ||
-  // // 写响应：只在最后一拍
-  // (!cur_is_read && rd_last_burst)
+  (rsp_state == BURST))) ||
+  // 写响应：只在最后一拍
+  (!cur_is_read && rd_last_burst)
   );
 
   assign sa_icb_rsp_valid = sa_rsp_valid_comb;

@@ -48,7 +48,12 @@ module csr_unit #(
 
     // --- Activation Clamp ---
     output wire signed [REG_WIDTH-1:0] act_min,  // MULT_ACT_MIN
-    output wire signed [REG_WIDTH-1:0] act_max   // MULT_ACT_MAX
+    output wire signed [REG_WIDTH-1:0] act_max,  // MULT_ACT_MAX
+
+    // --- Reuse/dataflow controls ---
+    output wire [REG_WIDTH-1:0] cfg_ia_reuse_num,
+    output wire [REG_WIDTH-1:0] cfg_w_reuse_num,
+    output wire                 cfg_dataflow_mode
 );
 
     // ========================================================================
@@ -76,6 +81,9 @@ module csr_unit #(
     localparam MULT_DST_SHIFT = 12'h7CE;   // per-tensor shift 或 per-channel shift 指针
     localparam MULT_ACT_MIN = 12'h7CF;     // 激活下限
     localparam MULT_ACT_MAX = 12'h7D0;     // 激活上限
+    localparam MULT_IA_REUSE = 12'h7D1;    // IA reuse depth
+    localparam MULT_W_REUSE = 12'h7D2;     // W reuse window
+    localparam MULT_DATAFLOW = 12'h7D3;    // 0=WS, 1=IS
 
     // ========================================================================
     // CSR 寄存器定义
@@ -107,6 +115,11 @@ module csr_unit #(
     reg signed [REG_WIDTH-1:0] csr_act_min;  // MULT_ACT_MIN
     reg signed [REG_WIDTH-1:0] csr_act_max;  // MULT_ACT_MAX
 
+    // --- Reuse/dataflow ---
+    reg        [REG_WIDTH-1:0] csr_ia_reuse_num;
+    reg        [REG_WIDTH-1:0] csr_w_reuse_num;
+    reg                        csr_dataflow_mode;
+
     // ========================================================================
     // 输出连接
     // ========================================================================
@@ -131,6 +144,9 @@ module csr_unit #(
 
     assign act_min          = csr_act_min;
     assign act_max          = csr_act_max;
+    assign cfg_ia_reuse_num = csr_ia_reuse_num;
+    assign cfg_w_reuse_num  = csr_w_reuse_num;
+    assign cfg_dataflow_mode = csr_dataflow_mode;
 
     // ========================================================================
     // CSR 写操作
@@ -156,6 +172,9 @@ module csr_unit #(
             csr_q_shift_pt       <= $signed({REG_WIDTH{1'b0}});
             csr_act_min          <= $signed({REG_WIDTH{1'b0}});
             csr_act_max          <= $signed({REG_WIDTH{1'b0}});
+            csr_ia_reuse_num     <= {REG_WIDTH{1'b0}};
+            csr_w_reuse_num      <= {REG_WIDTH{1'b0}};
+            csr_dataflow_mode    <= 1'b0;
         end else if (csr_req && !is_csr_read) begin
             // Write operation
             case (csr_addr)
@@ -178,6 +197,9 @@ module csr_unit #(
                 MULT_DST_SHIFT:  csr_q_shift_pt <= $signed(csr_wdata);
                 MULT_ACT_MIN:    csr_act_min <= $signed(csr_wdata);
                 MULT_ACT_MAX:    csr_act_max <= $signed(csr_wdata);
+                MULT_IA_REUSE:   csr_ia_reuse_num <= csr_wdata;
+                MULT_W_REUSE:    csr_w_reuse_num <= csr_wdata;
+                MULT_DATAFLOW:   csr_dataflow_mode <= csr_wdata[0];
 
                 default: ;  // Ignore writes to unimplemented CSRs
             endcase
@@ -210,6 +232,9 @@ module csr_unit #(
                 MULT_DST_SHIFT:  csr_rdata = $unsigned(csr_q_shift_pt);
                 MULT_ACT_MIN:    csr_rdata = $unsigned(csr_act_min);
                 MULT_ACT_MAX:    csr_rdata = $unsigned(csr_act_max);
+                MULT_IA_REUSE:   csr_rdata = csr_ia_reuse_num;
+                MULT_W_REUSE:    csr_rdata = csr_w_reuse_num;
+                MULT_DATAFLOW:   csr_rdata = {{(REG_WIDTH-1){1'b0}}, csr_dataflow_mode};
 
                 default: csr_rdata = {REG_WIDTH{1'b0}};  // Unimplemented CSRs return 0
             endcase

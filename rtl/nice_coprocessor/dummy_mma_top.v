@@ -41,6 +41,9 @@ module dummy_mma_top #(
     //==== 外部控制接口 ====
     input  wire calc_start,
     input  wire cfg_16bits_ia,
+    input  wire cfg_dataflow_mode,
+    input  logic [REG_WIDTH-1:0] cfg_ia_reuse_num,
+    input  logic [REG_WIDTH-1:0] cfg_w_reuse_num,
     output wire sa_ready,
 
     //==== 写回握手接口 ====

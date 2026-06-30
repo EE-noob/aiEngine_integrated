@@ -1,13 +1,15 @@
 module axil_top_with_ram #(
     parameter AXIL_DATA_WIDTH = 32,
     parameter AXIL_ADDR_WIDTH = 16,
-    parameter WEIGHT_WIDTH    = 8,
+    parameter WEIGHT_WIDTH    = 16,
     parameter DATA_WIDTH      = 16,
     parameter SIZE            = 16,
     parameter BUS_WIDTH       = 32,
     parameter REG_WIDTH       = 32,
     parameter ICB_ADDR_WIDTH  = 32,
     parameter ICB_LEN_W       = 4,
+    parameter IA_CACHE_BLOCKS = 4,
+    parameter PS_FRAME_COUNT  = SIZE,
     parameter MEM_DP          = 512,
     parameter MEM_PATH        = "",
     parameter MEM_INIT_EN     = 0,
@@ -101,6 +103,8 @@ module axil_top_with_ram #(
         .REG_WIDTH(REG_WIDTH),
         .ICB_ADDR_WIDTH(ICB_ADDR_WIDTH),
         .ICB_LEN_W(ICB_LEN_W),
+        .IA_CACHE_BLOCKS(IA_CACHE_BLOCKS),
+        .PS_FRAME_COUNT(PS_FRAME_COUNT),
         .IRQ_STATUS_MASK(IRQ_STATUS_MASK)
     ) u_mma_axil_top (
         .clk(clk),

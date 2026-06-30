@@ -1,12 +1,15 @@
 module ws_systolic_array #(
-    parameter int unsigned SIZE = 16
+    parameter int unsigned SIZE          = 16,
+    parameter int unsigned DATA_IN_WIDTH = 16,
+    parameter int unsigned WEIGHT_WIDTH  = 16,
+    parameter int unsigned ACC_WIDTH     = 32
 ) (
     input  wire                              clk,
     input  wire                              store_weight_req,    // 权重加载请求，单个信号控制所有行
-    input  wire signed [7:0]                 weight_in          [SIZE],
-    input  wire signed [15:0]                data_in            [SIZE],
-    input  wire signed [31:0]                sum_in             [SIZE],  // 累加器反馈输入
-    output wire signed [31:0]                sum_out            [SIZE]
+    input  wire signed [WEIGHT_WIDTH-1:0]    weight_in          [SIZE],
+    input  wire signed [DATA_IN_WIDTH-1:0]   data_in            [SIZE],
+    input  wire signed [ACC_WIDTH-1:0]       sum_in             [SIZE],  // 累加器反馈输入
+    output wire signed [ACC_WIDTH-1:0]       sum_out            [SIZE]
 );
 
     // // 中间信号
@@ -38,16 +41,20 @@ module ws_systolic_array #(
     // endgenerate
 
 // 中间信号
-wire signed [15:0] data_pipe   [SIZE][SIZE];
-wire signed [7:0]  weight_pipe [SIZE][SIZE];
-wire signed [31:0] sum_pipe    [SIZE][SIZE];
+wire signed [DATA_IN_WIDTH-1:0] data_pipe   [SIZE][SIZE];
+wire signed [WEIGHT_WIDTH-1:0]  weight_pipe [SIZE][SIZE];
+wire signed [ACC_WIDTH-1:0]     sum_pipe    [SIZE][SIZE];
 
 genvar row, col;
 generate
     for (row = 0; row < SIZE; row++) begin : gen_row
         for (col = 0; col < SIZE; col++) begin : gen_col
             if (row == 0 && col == 0) begin : cell_corner
-                ws_systolic_cell ws_cell (
+                ws_systolic_cell #(
+                    .DATA_IN_WIDTH(DATA_IN_WIDTH),
+                    .WEIGHT_WIDTH (WEIGHT_WIDTH),
+                    .ACC_WIDTH    (ACC_WIDTH)
+                ) ws_cell (
                     .clk(clk),
                     .store_weight_req(store_weight_req),
                     .weight_in(weight_in[col]),
@@ -58,7 +65,11 @@ generate
                     .sum_out(sum_pipe[row][col])
                 );
             end else if (row == 0) begin : cell_top_row
-                ws_systolic_cell ws_cell (
+                ws_systolic_cell #(
+                    .DATA_IN_WIDTH(DATA_IN_WIDTH),
+                    .WEIGHT_WIDTH (WEIGHT_WIDTH),
+                    .ACC_WIDTH    (ACC_WIDTH)
+                ) ws_cell (
                     .clk(clk),
                     .store_weight_req(store_weight_req),
                     .weight_in(weight_in[col]),
@@ -69,7 +80,11 @@ generate
                     .sum_out(sum_pipe[row][col])
                 );
             end else if (col == 0) begin : cell_left_col
-                ws_systolic_cell ws_cell (
+                ws_systolic_cell #(
+                    .DATA_IN_WIDTH(DATA_IN_WIDTH),
+                    .WEIGHT_WIDTH (WEIGHT_WIDTH),
+                    .ACC_WIDTH    (ACC_WIDTH)
+                ) ws_cell (
                     .clk(clk),
                     .store_weight_req(store_weight_req),
                     .weight_in(weight_pipe[row-1][col]),
@@ -80,7 +95,11 @@ generate
                     .sum_out(sum_pipe[row][col])
                 );
             end else begin : cell_inner
-                ws_systolic_cell ws_cell (
+                ws_systolic_cell #(
+                    .DATA_IN_WIDTH(DATA_IN_WIDTH),
+                    .WEIGHT_WIDTH (WEIGHT_WIDTH),
+                    .ACC_WIDTH    (ACC_WIDTH)
+                ) ws_cell (
                     .clk(clk),
                     .store_weight_req(store_weight_req),
                     .weight_in(weight_pipe[row-1][col]),

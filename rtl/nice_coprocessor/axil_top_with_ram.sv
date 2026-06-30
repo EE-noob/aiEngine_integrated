@@ -1,7 +1,7 @@
 module axil_top_with_ram #(
     parameter AXIL_DATA_WIDTH = 32,
     parameter AXIL_ADDR_WIDTH = 16,
-    parameter WEIGHT_WIDTH    = 8,
+    parameter WEIGHT_WIDTH    = 16,
     parameter DATA_WIDTH      = 16,
     parameter SIZE            = 16,
     parameter BUS_WIDTH       = 32,

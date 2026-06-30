@@ -1,13 +1,15 @@
 module soc_top #(
     parameter AXIL_DATA_WIDTH = 32,
     parameter AXIL_ADDR_WIDTH = 16,
-    parameter WEIGHT_WIDTH    = 8,
+    parameter WEIGHT_WIDTH    = 16,
     parameter DATA_WIDTH      = 16,
     parameter SIZE            = 16,
     parameter BUS_WIDTH       = 32,
     parameter REG_WIDTH       = 32,
     parameter ICB_ADDR_WIDTH  = 32,
     parameter ICB_LEN_W       = 4,
+    parameter IA_CACHE_BLOCKS = 4,
+    parameter PS_FRAME_COUNT  = SIZE,
     parameter CPU_MEM_DP      = 524288,
     parameter CPU_MEM_PATH    = "../tb/axi_soc_case/cpu.mem",
     parameter [31:0] CPU_RAM_BASE   = 32'h0000_0000,
@@ -64,12 +66,23 @@ module soc_top #(
 
     integer i;
     string cpu_mem_path_q;
+    string data_mem_path_q;
+    integer data_mem_base_word_q;
     initial begin
         cpu_mem_path_q = CPU_MEM_PATH;
+        data_mem_path_q = "";
+        data_mem_base_word_q = 0;
         void'($value$plusargs("SOC_CPU_MEM=%s", cpu_mem_path_q));
+        void'($value$plusargs("SOC_DATA_MEM=%s", data_mem_path_q));
+        void'($value$plusargs("SOC_DATA_MEM_BASE_WORD=%d", data_mem_base_word_q));
         if (cpu_mem_path_q != "") begin
             $display("soc_top: loading PicoRV32 program memory from %s", cpu_mem_path_q);
             $readmemh(cpu_mem_path_q, cpu_mem);
+        end
+        if (data_mem_path_q != "") begin
+            $display("soc_top: overlay runtime case memory from %s at word %0d",
+                     data_mem_path_q, data_mem_base_word_q);
+            $readmemh(data_mem_path_q, cpu_mem, data_mem_base_word_q);
         end
     end
 
@@ -210,12 +223,24 @@ module soc_top #(
     reg [BUS_WIDTH-1:0]           mma_w_data_q;
     reg [BUS_WIDTH/8-1:0]         mma_w_strb_q;
     reg                           mma_w_last_q;
+    reg [7:0]                     mma_aw_ready_delay;
+    reg [7:0]                     mma_w_ready_delay;
+    reg [7:0]                     mma_ar_ready_delay;
+    reg                           mma_wr_rsp_pending;
+    reg [7:0]                     mma_wr_rsp_delay;
+    reg                           mma_rd_rsp_pending;
+    reg [7:0]                     mma_rd_rsp_delay;
     reg                           m_axi_bvalid_q;
     reg [1:0]                     m_axi_bresp_q;
     reg                           m_axi_rvalid_q;
     reg [BUS_WIDTH-1:0]           m_axi_rdata_q;
     reg [1:0]                     m_axi_rresp_q;
     reg                           m_axi_rlast_q;
+
+    integer                       ddr_rand_lat_en;
+    integer                       ddr_cmd_max_lat;
+    integer                       ddr_w_max_lat;
+    integer                       ddr_rsp_max_lat;
 
     wire mma_aw_fire = m_axi_awvalid & m_axi_awready;
     wire mma_w_fire  = m_axi_wvalid  & m_axi_wready;
@@ -232,15 +257,45 @@ module soc_top #(
     wire mma_rd_addr_oob = (m_axi_araddr[31:0] < CPU_RAM_BASE) ||
                            (mma_ar_offset[31:CPU_ADDR_LSB] >= CPU_MEM_DP);
 
-    assign m_axi_awready = (!mma_aw_pending) && (!m_axi_bvalid_q);
-    assign m_axi_wready  = (!mma_w_pending) && (!m_axi_bvalid_q);
-    assign m_axi_arready = (!m_axi_rvalid_q);
+    assign m_axi_awready = (!mma_aw_pending) && (!m_axi_bvalid_q) &&
+                           (!mma_wr_rsp_pending) && (mma_aw_ready_delay == 8'd0);
+    assign m_axi_wready  = (!mma_w_pending) && (!m_axi_bvalid_q) &&
+                           (!mma_wr_rsp_pending) && (mma_w_ready_delay == 8'd0);
+    assign m_axi_arready = (!m_axi_rvalid_q) && (!mma_rd_rsp_pending) &&
+                           (mma_ar_ready_delay == 8'd0);
     assign m_axi_bvalid  = m_axi_bvalid_q;
     assign m_axi_bresp   = m_axi_bresp_q;
     assign m_axi_rvalid  = m_axi_rvalid_q;
     assign m_axi_rdata   = m_axi_rdata_q;
     assign m_axi_rresp   = m_axi_rresp_q;
     assign m_axi_rlast   = m_axi_rlast_q;
+
+    function automatic [7:0] random_ddr_delay(input integer max_lat);
+        integer value;
+        begin
+            if ((ddr_rand_lat_en == 0) || (max_lat <= 0)) begin
+                random_ddr_delay = 8'd0;
+            end else begin
+                value = $urandom_range(max_lat, 0);
+                random_ddr_delay = (value > 255) ? 8'hff : value[7:0];
+            end
+        end
+    endfunction
+
+    initial begin
+        ddr_rand_lat_en = 0;
+        ddr_cmd_max_lat = 0;
+        ddr_w_max_lat   = 0;
+        ddr_rsp_max_lat = 0;
+        void'($value$plusargs("DDR_RAND_LAT=%d", ddr_rand_lat_en));
+        void'($value$plusargs("DDR_CMD_MAX_LAT=%d", ddr_cmd_max_lat));
+        void'($value$plusargs("DDR_W_MAX_LAT=%d", ddr_w_max_lat));
+        void'($value$plusargs("DDR_RSP_MAX_LAT=%d", ddr_rsp_max_lat));
+        if (ddr_rand_lat_en != 0) begin
+            $display("soc_top: DDR random latency enabled cmd_max=%0d w_max=%0d rsp_max=%0d",
+                     ddr_cmd_max_lat, ddr_w_max_lat, ddr_rsp_max_lat);
+        end
+    end
 
     mma_axil_top #(
         .AXIL_DATA_WIDTH(AXIL_DATA_WIDTH),
@@ -251,7 +306,9 @@ module soc_top #(
         .BUS_WIDTH(BUS_WIDTH),
         .REG_WIDTH(REG_WIDTH),
         .ICB_ADDR_WIDTH(ICB_ADDR_WIDTH),
-        .ICB_LEN_W(ICB_LEN_W)
+        .ICB_LEN_W(ICB_LEN_W),
+        .IA_CACHE_BLOCKS(IA_CACHE_BLOCKS),
+        .PS_FRAME_COUNT(PS_FRAME_COUNT)
     ) u_mma_axil_top (
         .clk(clk),
         .rst_n(rst_n),
@@ -367,6 +424,13 @@ module soc_top #(
             mma_w_data_q   <= {BUS_WIDTH{1'b0}};
             mma_w_strb_q   <= {(BUS_WIDTH/8){1'b0}};
             mma_w_last_q   <= 1'b0;
+            mma_aw_ready_delay <= 8'd0;
+            mma_w_ready_delay  <= 8'd0;
+            mma_ar_ready_delay <= 8'd0;
+            mma_wr_rsp_pending <= 1'b0;
+            mma_wr_rsp_delay   <= 8'd0;
+            mma_rd_rsp_pending <= 1'b0;
+            mma_rd_rsp_delay   <= 8'd0;
             m_axi_bvalid_q <= 1'b0;
             m_axi_bresp_q  <= 2'b00;
             m_axi_rvalid_q <= 1'b0;
@@ -387,6 +451,9 @@ module soc_top #(
                 mma_aw_pending <= 1'b1;
                 mma_aw_addr_q  <= m_axi_awaddr;
                 mma_aw_len_q   <= m_axi_awlen;
+                mma_aw_ready_delay <= random_ddr_delay(ddr_cmd_max_lat);
+            end else if (mma_aw_ready_delay != 8'd0) begin
+                mma_aw_ready_delay <= mma_aw_ready_delay - 8'd1;
             end
 
             if (mma_w_fire) begin
@@ -394,11 +461,12 @@ module soc_top #(
                 mma_w_data_q  <= m_axi_wdata;
                 mma_w_strb_q  <= m_axi_wstrb;
                 mma_w_last_q  <= m_axi_wlast;
+                mma_w_ready_delay <= random_ddr_delay(ddr_w_max_lat);
+            end else if (mma_w_ready_delay != 8'd0) begin
+                mma_w_ready_delay <= mma_w_ready_delay - 8'd1;
             end
 
-            if ((!m_axi_bvalid_q) && mma_aw_pending && mma_w_pending) begin
-                m_axi_bvalid_q <= 1'b1;
-
+            if ((!m_axi_bvalid_q) && (!mma_wr_rsp_pending) && mma_aw_pending && mma_w_pending) begin
                 if (mma_wr_addr_oob || (mma_aw_len_q != 4'd0) || (!mma_w_last_q)) begin
                     m_axi_bresp_q <= 2'b10;
                 end else begin
@@ -412,6 +480,17 @@ module soc_top #(
 
                 mma_aw_pending <= 1'b0;
                 mma_w_pending  <= 1'b0;
+                mma_wr_rsp_pending <= 1'b1;
+                mma_wr_rsp_delay <= random_ddr_delay(ddr_rsp_max_lat);
+            end
+
+            if (mma_wr_rsp_pending && (!m_axi_bvalid_q)) begin
+                if (mma_wr_rsp_delay == 8'd0) begin
+                    m_axi_bvalid_q <= 1'b1;
+                    mma_wr_rsp_pending <= 1'b0;
+                end else begin
+                    mma_wr_rsp_delay <= mma_wr_rsp_delay - 8'd1;
+                end
             end
 
             if (m_axi_bvalid_q && m_axi_bready) begin
@@ -419,8 +498,8 @@ module soc_top #(
             end
 
             if (mma_ar_fire) begin
-                m_axi_rvalid_q <= 1'b1;
                 m_axi_rlast_q  <= 1'b1;
+                mma_ar_ready_delay <= random_ddr_delay(ddr_cmd_max_lat);
 
                 if (mma_rd_addr_oob || (m_axi_arlen != 4'd0)) begin
                     m_axi_rresp_q <= 2'b10;
@@ -428,6 +507,19 @@ module soc_top #(
                 end else begin
                     m_axi_rresp_q <= 2'b00;
                     m_axi_rdata_q <= cpu_mem[mma_rd_idx];
+                end
+                mma_rd_rsp_pending <= 1'b1;
+                mma_rd_rsp_delay <= random_ddr_delay(ddr_rsp_max_lat);
+            end else if (mma_ar_ready_delay != 8'd0) begin
+                mma_ar_ready_delay <= mma_ar_ready_delay - 8'd1;
+            end
+
+            if (mma_rd_rsp_pending && (!m_axi_rvalid_q)) begin
+                if (mma_rd_rsp_delay == 8'd0) begin
+                    m_axi_rvalid_q <= 1'b1;
+                    mma_rd_rsp_pending <= 1'b0;
+                end else begin
+                    mma_rd_rsp_delay <= mma_rd_rsp_delay - 8'd1;
                 end
             end
 

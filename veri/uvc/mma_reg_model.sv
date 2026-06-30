@@ -40,6 +40,8 @@ class mma_reg_block extends uvm_reg_block;
     rand mma_csr_reg mult_act_max;
 `ifdef DUT_AXIL
     rand mma_csr_reg axil_ctrl;
+    rand mma_csr_reg axil_ia_reuse;
+    rand mma_csr_reg axil_w_reuse;
 `endif
 
     function new(string name = "mma_reg_block");
@@ -165,6 +167,16 @@ class mma_reg_block extends uvm_reg_block;
         axil_ctrl.build();
         axil_ctrl.configure(this, null, "");
         default_map.add_reg(axil_ctrl, `ADDR_AXIL_REG_CTRL, "RW");
+
+        axil_ia_reuse = mma_csr_reg::type_id::create("axil_ia_reuse",,get_full_name());
+        axil_ia_reuse.build();
+        axil_ia_reuse.configure(this, null, "");
+        default_map.add_reg(axil_ia_reuse, `ADDR_AXIL_REG_IA_REUSE, "RW");
+
+        axil_w_reuse = mma_csr_reg::type_id::create("axil_w_reuse",,get_full_name());
+        axil_w_reuse.build();
+        axil_w_reuse.configure(this, null, "");
+        default_map.add_reg(axil_w_reuse, `ADDR_AXIL_REG_W_REUSE, "RW");
 
 `endif
         lock_model();

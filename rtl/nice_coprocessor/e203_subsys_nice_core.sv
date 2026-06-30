@@ -76,6 +76,9 @@ module e203_subsys_nice_core (
   wire [`E203_XLEN-1:0] rhs_col_stride_b;  // B矩阵行步距 (0x7C9)
   wire signed [`E203_XLEN-1:0] act_min;  // 激活下限 (0x7CF)
   wire signed [`E203_XLEN-1:0] act_max;  // 激活上限 (0x7D0)
+  wire [`E203_XLEN-1:0] cfg_ia_reuse_num;  // IA reuse depth (0x7D1)
+  wire [`E203_XLEN-1:0] cfg_w_reuse_num;   // W reuse window (0x7D2)
+  wire cfg_dataflow_mode;                  // 0=WS, 1=IS (0x7D3)
 
   // WBU 相关信号
   wire mma_wb_valid;  // MMA写回有效
@@ -149,7 +152,7 @@ module e203_subsys_nice_core (
   // 连接执行单元
   // ========================================================================
   mma_top #(
-      .WEIGHT_WIDTH(8),
+      .WEIGHT_WIDTH(16),
       .DATA_WIDTH  (16),
       .SIZE        (16),
       .BUS_WIDTH   (`E203_XLEN),
@@ -161,6 +164,9 @@ module e203_subsys_nice_core (
       .rst_n           (nice_rst_n),
       .calc_start      (calc_start),
       .cfg_16bits_ia   (cfg_16bits_ia),
+      .cfg_dataflow_mode(cfg_dataflow_mode),
+      .cfg_ia_reuse_num(cfg_ia_reuse_num),
+      .cfg_w_reuse_num (cfg_w_reuse_num),
       .sa_ready        (sa_ready),
       .wb_valid        (mma_wb_valid),
       .wb_ready        (mma_wb_ready),
@@ -271,7 +277,10 @@ module e203_subsys_nice_core (
       .dst_row_stride_b(dst_row_stride_b),
       .rhs_col_stride_b(rhs_col_stride_b),
       .act_min         (act_min),
-      .act_max         (act_max)
+      .act_max         (act_max),
+      .cfg_ia_reuse_num(cfg_ia_reuse_num),
+      .cfg_w_reuse_num (cfg_w_reuse_num),
+      .cfg_dataflow_mode(cfg_dataflow_mode)
   );
 
   // ========================================================================
@@ -334,5 +343,3 @@ module e203_subsys_nice_core (
 
 endmodule
 // `endif  //
-
-

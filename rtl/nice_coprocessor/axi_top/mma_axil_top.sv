@@ -3,13 +3,15 @@
 module mma_axil_top #(
     parameter AXIL_DATA_WIDTH = 32,
     parameter AXIL_ADDR_WIDTH = 16,
-    parameter WEIGHT_WIDTH    = 8,
+    parameter WEIGHT_WIDTH    = 16,
     parameter DATA_WIDTH      = 16,
     parameter SIZE            = 16,
     parameter BUS_WIDTH       = 32,
     parameter REG_WIDTH       = 32,
     parameter ICB_ADDR_WIDTH  = 32,
     parameter ICB_LEN_W       = 4,
+    parameter IA_CACHE_BLOCKS = 4,
+    parameter PS_FRAME_COUNT  = SIZE,
     parameter AXI_FIFO_DP     = 2,
     parameter AXI_FIFO_OUTS   = 8,
     parameter [31:0] IRQ_STATUS_MASK = 32'h0000_0004
@@ -102,6 +104,8 @@ module mma_axil_top #(
     localparam [11:0] REG_STATUS   = 12'h001;
     localparam [11:0] REG_WB_DATA  = 12'h002;
     localparam [11:0] REG_WB_INFO  = 12'h003;
+    localparam [11:0] REG_IA_REUSE = 12'h004;
+    localparam [11:0] REG_W_REUSE  = 12'h005;
     localparam [11:0] CSR_ADDR_MIN = 12'h7C0;
     localparam [11:0] CSR_ADDR_MAX = 12'h7D0;
     localparam [1:0]  ICB_CMD_SIZE = (BUS_WIDTH == 64) ? 2'b11 : 2'b10;
@@ -184,6 +188,9 @@ module mma_axil_top #(
     wire                 csr_wb_valid;
     wire                 csr_wb_ready;
     wire [REG_WIDTH-1:0] csr_wb_data;
+    wire [REG_WIDTH-1:0] csr_ia_reuse_num_unused;
+    wire [REG_WIDTH-1:0] csr_w_reuse_num_unused;
+    wire                 csr_dataflow_mode_unused;
 
     wire                 nice_rsp_valid;
     wire [REG_WIDTH-1:0] nice_rsp_rdat;
@@ -192,7 +199,10 @@ module mma_axil_top #(
 
     // Local control/status registers
     reg cfg_16bits_ia_reg;
+    reg cfg_dataflow_mode_reg;
     reg use_per_channel_reg;
+    reg [REG_WIDTH-1:0] cfg_ia_reuse_num_reg;
+    reg [REG_WIDTH-1:0] cfg_w_reuse_num_reg;
     reg calc_start_pulse;
     reg mma_busy_reg;
     reg done_sticky;
@@ -209,8 +219,11 @@ module mma_axil_top #(
     wire [11:0] rd_word_addr = reg_rd_addr[13:2];
 
     wire wr_is_ctrl = reg_wr_en && (wr_word_addr == REG_CTRL);
-    wire wr_is_csr  = reg_wr_en && (wr_word_addr >= CSR_ADDR_MIN) && (wr_word_addr <= CSR_ADDR_MAX);
-    wire rd_is_csr  = reg_rd_en && (rd_word_addr >= CSR_ADDR_MIN) && (rd_word_addr <= CSR_ADDR_MAX);
+	    wire wr_is_ia_reuse = reg_wr_en && (wr_word_addr == REG_IA_REUSE);
+	    wire wr_is_w_reuse  = reg_wr_en && (wr_word_addr == REG_W_REUSE);
+	    wire wr_is_csr  = reg_wr_en && (wr_word_addr >= CSR_ADDR_MIN) && (wr_word_addr <= CSR_ADDR_MAX);
+	    wire rd_is_csr  = reg_rd_en && (rd_word_addr >= CSR_ADDR_MIN) && (rd_word_addr <= CSR_ADDR_MAX);
+	    wire ctrl_start_write = wr_is_ctrl && reg_wr_strb[0] && reg_wr_data[0];
 
     wire csr_conflict = wr_is_csr && rd_is_csr;
 
@@ -305,7 +318,7 @@ module mma_axil_top #(
 
         case (rd_word_addr)
             REG_CTRL: begin
-                reg_rd_data_r[2:1] = {use_per_channel_reg, cfg_16bits_ia_reg};
+                reg_rd_data_r[3:1] = {cfg_dataflow_mode_reg, use_per_channel_reg, cfg_16bits_ia_reg};
             end
             REG_STATUS: begin
                 reg_rd_data_r[7:0] = status_bits[7:0];
@@ -315,6 +328,12 @@ module mma_axil_top #(
             end
             REG_WB_INFO: begin
                 reg_rd_data_r[0] = last_wb_valid;
+            end
+            REG_IA_REUSE: begin
+                reg_rd_data_r = cfg_ia_reuse_num_reg;
+            end
+            REG_W_REUSE: begin
+                reg_rd_data_r = cfg_w_reuse_num_reg;
             end
             default: begin
                 if ((rd_word_addr >= CSR_ADDR_MIN) && (rd_word_addr <= CSR_ADDR_MAX)) begin
@@ -329,7 +348,10 @@ module mma_axil_top #(
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             cfg_16bits_ia_reg   <= 1'b0;
+            cfg_dataflow_mode_reg <= 1'b0;
             use_per_channel_reg <= 1'b0;
+            cfg_ia_reuse_num_reg <= {REG_WIDTH{1'b0}};
+            cfg_w_reuse_num_reg  <= {REG_WIDTH{1'b0}};
             calc_start_pulse    <= 1'b0;
             mma_busy_reg        <= 1'b0;
             done_sticky         <= 1'b0;
@@ -342,32 +364,44 @@ module mma_axil_top #(
             irq_req_reg <= (irq_req_reg | status_irq_set) & ~eoi;
             status_irq_bits_d <= status_irq_bits;
 
-            if (wr_is_ctrl) begin
-                if (reg_wr_strb[0]) begin
-                    cfg_16bits_ia_reg   <= reg_wr_data[1];
-                    use_per_channel_reg <= reg_wr_data[2];
-                    if (reg_wr_data[0]) begin
-                        calc_start_pulse <= 1'b1;
-                    end
-                    if (reg_wr_data[8]) begin
-                        done_sticky <= 1'b0;
-                    end
-                    if (reg_wr_data[9]) begin
-                        last_wb_valid <= 1'b0;
-                    end
-                end
+	            if (wr_is_ctrl) begin
+	                if (reg_wr_strb[0]) begin
+	                    cfg_16bits_ia_reg   <= reg_wr_data[1];
+	                    use_per_channel_reg <= reg_wr_data[2];
+	                    cfg_dataflow_mode_reg <= reg_wr_data[3];
+	                    if (reg_wr_data[0]) begin
+	                        calc_start_pulse <= 1'b1;
+	                        mma_busy_reg <= 1'b1;
+	                        done_sticky <= 1'b0;
+	                        last_wb_valid <= 1'b0;
+	                    end
+	                    if (reg_wr_data[8] && !reg_wr_data[0]) begin
+	                        done_sticky <= 1'b0;
+	                    end
+	                    if (reg_wr_data[9] && !reg_wr_data[0]) begin
+	                        last_wb_valid <= 1'b0;
+	                    end
+	                end
+	            end
+
+            if (wr_is_ia_reuse) begin
+                cfg_ia_reuse_num_reg <= reg_wr_data[REG_WIDTH-1:0];
+            end
+
+            if (wr_is_w_reuse) begin
+                cfg_w_reuse_num_reg <= reg_wr_data[REG_WIDTH-1:0];
             end
 
             if (calc_start_pulse) begin
                 mma_busy_reg <= 1'b1;
             end
 
-            if (mma_wb_valid && mma_wb_ready) begin
-                mma_busy_reg <= 1'b0;
-                done_sticky  <= 1'b1;
-            end
+	            if (mma_wb_valid && mma_wb_ready && !ctrl_start_write) begin
+	                mma_busy_reg <= 1'b0;
+	                done_sticky  <= 1'b1;
+	            end
 
-            if (nice_rsp_valid && nice_rsp_ready) begin
+            if (nice_rsp_valid && nice_rsp_ready && !ctrl_start_write) begin
                 last_wb_data  <= nice_rsp_rdat;
                 last_wb_valid <= 1'b1;
             end
@@ -403,6 +437,9 @@ module mma_axil_top #(
         .lhs_row_stride_b(lhs_row_stride_b),
         .dst_row_stride_b(dst_row_stride_b),
         .rhs_col_stride_b(rhs_col_stride_b),
+        .cfg_ia_reuse_num(csr_ia_reuse_num_unused),
+        .cfg_w_reuse_num(csr_w_reuse_num_unused),
+        .cfg_dataflow_mode(csr_dataflow_mode_unused),
         .act_min(act_min),
         .act_max(act_max)
     );
@@ -414,12 +451,17 @@ module mma_axil_top #(
         .BUS_WIDTH(BUS_WIDTH),
         .REG_WIDTH(REG_WIDTH),
         .ADDR_WIDTH(ICB_ADDR_WIDTH),
-        .ICB_LEN_W(ICB_LEN_W)
+        .ICB_LEN_W(ICB_LEN_W),
+        .IA_CACHE_BLOCKS(IA_CACHE_BLOCKS),
+        .PS_FRAME_COUNT(PS_FRAME_COUNT)
     ) u_mma_top (
         .clk(clk),
         .rst_n(rst_n),
         .calc_start(calc_start_pulse),
         .cfg_16bits_ia(cfg_16bits_ia_reg),
+        .cfg_dataflow_mode(cfg_dataflow_mode_reg),
+        .cfg_ia_reuse_num(cfg_ia_reuse_num_reg),
+        .cfg_w_reuse_num(cfg_w_reuse_num_reg),
         .sa_ready(mma_sa_ready),
         .wb_valid(mma_wb_valid),
         .wb_ready(mma_wb_ready),

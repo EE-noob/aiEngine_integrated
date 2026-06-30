@@ -42,24 +42,24 @@ module data_setup #(
 
             // 控制信号延迟链（延迟SIZE-1周期）
             if (DATA_NUM > 1) begin : gen_control_delay
-                reg input_valid_shift    [DATA_NUM];
-                reg calc_done_shift     [DATA_NUM];
-                reg is_init_data_shift  [DATA_NUM];
+                reg input_valid_shift    [DATA_NUM-1];
+                reg calc_done_shift     [DATA_NUM-1];
+                reg is_init_data_shift   [DATA_NUM-1];
 
                 always_ff @(posedge clk) begin
                     input_valid_shift[0]   <= input_valid_i;
                     calc_done_shift[0]     <= calc_done_i;
                     is_init_data_shift[0]  <= is_init_data_i;
-                    for (integer m = 1; m < DATA_NUM; m = m + 1) begin
+                    for (integer m = 1; m < DATA_NUM-1; m = m + 1) begin
                         input_valid_shift[m]   <= input_valid_shift[m-1];
                         calc_done_shift[m]     <= calc_done_shift[m-1];
                         is_init_data_shift[m]  <= is_init_data_shift[m-1];
                     end
                 end
 
-                assign input_valid_o   = input_valid_shift[DATA_NUM-1];
-                assign calc_done_o     = calc_done_shift[DATA_NUM-1];
-                assign is_init_data_o  = is_init_data_shift[DATA_NUM-1];
+                assign input_valid_o   = input_valid_shift[DATA_NUM-2];
+                assign calc_done_o     = calc_done_shift[DATA_NUM-2];
+                assign is_init_data_o  = is_init_data_shift[DATA_NUM-2];
             end else begin : gen_control_passthrough
                 // 如果SIZE=1，直接输出
                 assign input_valid_o   = input_valid_i;

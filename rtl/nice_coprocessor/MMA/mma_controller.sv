@@ -1,4 +1,4 @@
- //`include "define.svh"
+//`include "define.svh"
  `include "e203_defines.v"
 `include "icb_types.svh"
 
@@ -31,7 +31,7 @@
 //    - 2'b10: 必需资源缺失或指针为 0
 //
 module mma_controller #(
-    parameter int unsigned WEIGHT_WIDTH = 8,   // 权重数据宽度
+    parameter int unsigned WEIGHT_WIDTH = 16,  // 权重数据宽度
     parameter int unsigned DATA_WIDTH   = 16,  // IA数据宽度
     parameter int unsigned SIZE         = 16,  // 阵列大小
     parameter int unsigned BUS_WIDTH    = 32,  // 总线宽度
@@ -42,6 +42,7 @@ module mma_controller #(
     input  wire rst_n,          // 异步复位，低有效
     input  wire calc_start,     // 计算开始
     input  wire cfg_16bits_ia,  // 使用16位IA数据
+    input  wire cfg_dataflow_mode,  // 0: WS, 1: IS
     output wire sa_ready,       // 控制器就绪
 
     //==== Configuration Parameters ====
@@ -76,7 +77,8 @@ module mma_controller #(
     output reg                 use_16bits,        // 16位数据指示信号
 
     //==== Compute Core Interface ====
-    input wire partial_sum_calc_over,  // 部分和计算结束
+    input wire partial_sum_calc_over,  // legacy: 部分和计算结束
+    input wire tile_calc_over,         // 新版 ps_buffer 最终 tile 输出结束
 
     //==== IA Loader Interface ====
     input  wire load_ia_req,      // IA加载请求
@@ -84,10 +86,12 @@ module mma_controller #(
     output reg  send_ia_trigger,  // IA发送触发
     input  wire ia_sending_done,  // IA发送完成
     input  wire ia_data_valid,    // IA数据有效
+    input  wire ia_group_calc_done,  // 当前 IA 组会产生最终输出
 
     //==== Weight Loader Interface ====
     input  wire load_weight_req,      // 权重加载请求
     output reg  load_weight_granted,  // 权重加载授权
+    input  wire load_weight_done,     // 权重 DMA 事务完成
     output reg  send_weight_trigger,  // 权重发送触发
     input  wire weight_sending_done,  // 权重发送完成
     input  wire weight_data_valid,    // 权重数据有效
@@ -96,6 +100,8 @@ module mma_controller #(
     input  wire load_bias_req,      // 偏置加载请求
     output reg  load_bias_granted,  // 偏置加载授权
     input  wire bias_valid,         // 偏置数据有效
+    input  wire bias_sleep,         // 1: 当前 IA 组使用 ps_buffer 回灌，不需要 bias 阻塞
+    input  wire load_bias_done,     // 偏置 DMA 事务完成
 
     // Requantization Interface
     input  wire load_quant_req,      // 申请下一次量化参数访存
@@ -123,7 +129,7 @@ module mma_controller #(
         INIT = 4'b0001,
         WEIGHT_START = 4'b0010,
         IA_START = 4'b0011,
-        WAIT_PARTIAL_SUM = 4'b0100,
+        WAIT_PARTIAL_SUM = 4'b0100,  // legacy, no longer used by v2 datapath
         WEIGHT_WAIT = 4'b0101,  // 在发送权重触发后等待发送完成
         IA_WAIT = 4'b0110,      // 在发送IA触发后等待发送完成（保证单拍脉冲）
         WAIT_WB = 4'b0111,      // 等待写回握手完成
@@ -131,9 +137,27 @@ module mma_controller #(
     } state_t;
 
     state_t current_state, next_state;
-    reg       cfg_16bits_ia_reg;  // 锁存的16位IA配置
-    reg       config_error;  // 参数配置错误标志
-    reg [1:0] error_type;  // 错误类型: 01=配置错误, 10=资源缺失
+	    reg       cfg_16bits_ia_reg;  // 锁存的16位IA配置
+	    reg       config_error;  // 参数配置错误标志
+	    reg [1:0] error_type;  // 错误类型: 01=配置错误, 10=资源缺失
+	    wire      bias_ready_for_compute;
+	    logic     compute_tail_pending;
+	    logic     compute_tail_is_final;
+	    logic     ia_send_done_seen;
+	    wire      compute_tail_done;
+	    wire      weight_safe_to_send;
+	    bit       ctrl_trace_en;
+
+	    initial begin
+	        ctrl_trace_en = 1'b0;
+	        if ($test$plusargs("MMA_CTRL_TRACE")) ctrl_trace_en = 1'b1;
+	    end
+
+	    assign bias_ready_for_compute = bias_sleep || bias_valid;
+	    assign compute_tail_done = compute_tail_pending &&
+	        (partial_sum_calc_over ||
+	         (cfg_dataflow_mode && compute_tail_is_final && tile_calc_over));
+	    assign weight_safe_to_send = !compute_tail_pending || compute_tail_done;
 
     // 参数校验函数
     function automatic logic check_config_valid();
@@ -141,6 +165,7 @@ module mma_controller #(
         logic dim_error;
         logic stride_error;
         logic quant_error;
+        logic mode_error;
 
         // 检查必需指针（bias_base 允许为 0）
         ptr_error = (lhs_base == '0) || (rhs_base == '0) || (dst_base == '0);
@@ -154,13 +179,16 @@ module mma_controller #(
         // 检查量化参数（仅当 use_per_channel = 1 时）
         quant_error = use_per_channel && (q_mult_pt == '0) && (q_shift_pt == '0);
 
-        return ptr_error || dim_error || stride_error || quant_error;
+        mode_error = 1'b0;
+
+        return ptr_error || dim_error || stride_error || quant_error || mode_error;
     endfunction
 
     // 确定错误类型
     function automatic logic [1:0] get_error_type();
         logic ptr_error;
         logic config_err;
+        logic mode_error;
 
         // 必需资源缺失（指针错误）
         ptr_error = (lhs_base == '0) || (rhs_base == '0) || (dst_base == '0);
@@ -169,29 +197,80 @@ module mma_controller #(
         config_err = (k == '0) || (n == '0) || (m == '0) ||
                      (lhs_row_stride_b == '0) || (rhs_col_stride_b == '0) || (dst_row_stride_b == '0) ||
                      (use_per_channel && ((q_mult_pt == '0) || (q_shift_pt == '0)));
+        mode_error = 1'b0;
 
         if (ptr_error) return 2'b10;  // 资源缺失
-        else if (config_err) return 2'b01;  // 配置错误
+        else if (config_err || mode_error) return 2'b01;  // 配置错误
         else return 2'b00;  // 无错误
     endfunction
 
     // 状态寄存器
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            current_state     <= IDLE;
-            cfg_16bits_ia_reg <= 1'b0;
-            config_error      <= 1'b0;
-            error_type        <= 2'b00;
-        end else begin
-            current_state <= next_state;
-            if (current_state == IDLE && calc_start) begin
-                cfg_16bits_ia_reg <= cfg_16bits_ia;
+	    always_ff @(posedge clk or negedge rst_n) begin
+	        if (!rst_n) begin
+	            current_state     <= IDLE;
+	            cfg_16bits_ia_reg <= 1'b0;
+	            config_error      <= 1'b0;
+	            error_type        <= 2'b00;
+	            compute_tail_pending <= 1'b0;
+	            compute_tail_is_final <= 1'b0;
+	            ia_send_done_seen    <= 1'b0;
+	        end else begin
+	            current_state <= next_state;
+	            if (ctrl_trace_en && (current_state != next_state)) begin
+	                $display("[%0t] CTRL state %0d -> %0d wt_valid=%0d wt_done=%0d ia_valid=%0d ia_done=%0d bias_ok=%0d q_valid=%0d fifo_full=%0d tail=%0d tail_done=%0d oa_over=%0d",
+	                         $time, current_state, next_state,
+	                         weight_data_valid, weight_sending_done,
+	                         ia_data_valid, ia_sending_done,
+	                         bias_ready_for_compute, quant_params_valid,
+	                         fifo_full_flag, compute_tail_pending,
+	                         compute_tail_done, oa_calc_over);
+	            end
+	            if (current_state == IDLE && calc_start) begin
+	                cfg_16bits_ia_reg <= cfg_16bits_ia;
                 // 在收到 calc_start 时检查参数配置
                 config_error      <= check_config_valid();
                 error_type        <= get_error_type();
-            end
-        end
-    end
+                if (ctrl_trace_en) begin
+                    $display("Simulation time: %t", $time);
+                    $display("MMA Controller Start: lhs_base=%h, rhs_base=%h, dst_base=%h, bias_base=%h", lhs_base, rhs_base, dst_base, bias_base);
+                    $display("Dimensions: k=%d, n=%d, m=%d", k, n, m);
+                    $display("Strides: lhs_row_stride_b=%d, rhs_col_stride_b=%d, dst_row_stride_b=%d", lhs_row_stride_b, rhs_col_stride_b, dst_row_stride_b);
+                    $display("Quantization: q_mult_pt=%d, q_shift_pt=%d, use_per_channel=%b, cfg_16bits_ia=%b, cfg_dataflow_mode=%b", q_mult_pt, q_shift_pt, use_per_channel, cfg_16bits_ia, cfg_dataflow_mode);
+                end
+	            end
+
+	            if (current_state == INIT) begin
+	                compute_tail_pending <= 1'b0;
+	                compute_tail_is_final <= 1'b0;
+	                ia_send_done_seen    <= 1'b0;
+	            end else begin
+	                if (send_ia_trigger) begin
+	                    compute_tail_pending <= 1'b1;
+	                    compute_tail_is_final <= ia_group_calc_done;
+	                    ia_send_done_seen    <= 1'b0;
+	                    if (ctrl_trace_en) begin
+	                        $display("[%0t] CTRL send_ia ia_group_calc_done=%0d",
+	                                 $time, ia_group_calc_done);
+	                    end
+	                end else begin
+	                    if (compute_tail_pending && ia_group_calc_done) begin
+	                        compute_tail_is_final <= 1'b1;
+	                    end
+	                    if (ia_sending_done) begin
+	                        ia_send_done_seen <= 1'b1;
+	                    end
+	                    if (compute_tail_done) begin
+	                        compute_tail_pending <= 1'b0;
+	                        compute_tail_is_final <= 1'b0;
+	                        ia_send_done_seen    <= 1'b0;
+	                        if (ctrl_trace_en) begin
+	                            $display("[%0t] CTRL tail_done", $time);
+	                        end
+	                    end
+	                end
+	            end
+	        end
+	    end
 
     // 状态转换逻辑
     always_comb begin
@@ -220,9 +299,12 @@ module mma_controller #(
                     end else begin
                         next_state = WAIT_WB;
                     end
-                end else if (weight_data_valid && !weight_sending_done) begin
-                    next_state = WEIGHT_WAIT;
-                end
+                    if (ctrl_trace_en) begin
+                        $display("MMA Controller: Calculation completed.");
+                    end
+                end else if (weight_safe_to_send && weight_data_valid && !weight_sending_done) begin
+	                    next_state = WEIGHT_WAIT;
+	                end
             end
 
             // 新增等待状态：在发出触发后等待 weight_sending_done 完成
@@ -234,6 +316,9 @@ module mma_controller #(
                     end else begin
                         next_state = WAIT_WB;
                     end
+                    if (ctrl_trace_en) begin
+                        $display("MMA Controller: Calculation completed.");
+                    end
                 end else if (weight_sending_done) begin
                     next_state = IA_START;
                 end
@@ -241,7 +326,7 @@ module mma_controller #(
 
             IA_START: begin
                 // 如果满足发送条件，发出一次触发并进入 IA_WAIT（保证触发为单拍）
-                if (ia_data_valid && bias_valid && quant_params_valid && 
+                if (ia_data_valid && bias_ready_for_compute && quant_params_valid &&
                          !fifo_full_flag && !ia_sending_done) begin
                     next_state = IA_WAIT;
                 end
@@ -250,12 +335,6 @@ module mma_controller #(
             // 新增 IA_WAIT：在发出 IA 触发后等待 ia_sending_done 完成
             IA_WAIT: begin
                 if (ia_sending_done) begin
-                    next_state = WAIT_PARTIAL_SUM;
-                end
-            end
-
-            WAIT_PARTIAL_SUM: begin
-                if (partial_sum_calc_over) begin
                     next_state = WEIGHT_START;
                 end
             end
@@ -317,12 +396,15 @@ module mma_controller #(
                     use_16bits       <= cfg_16bits_ia_reg;
                 end
 
-                WEIGHT_START: begin
-                    // 仅在 WEIGHT_START 一拍内发出发送触发，之后转到 WEIGHT_WAIT 等待完成 -> 保证单拍脉冲
-                    if (weight_data_valid && !weight_sending_done) begin
-                        send_weight_trigger <= 1'b1;
-                    end
-                end
+	                WEIGHT_START: begin
+	                    // 仅在 WEIGHT_START 一拍内发出发送触发，之后转到 WEIGHT_WAIT 等待完成 -> 保证单拍脉冲
+	                    if (weight_safe_to_send && weight_data_valid && !weight_sending_done) begin
+	                        send_weight_trigger <= 1'b1;
+	                        if (ctrl_trace_en) begin
+	                            $display("[%0t] CTRL send_weight", $time);
+	                        end
+	                    end
+	                end
 
                 WEIGHT_WAIT: begin
                     // 等待 weight_sending_done 完成，不重复发出触发
@@ -330,11 +412,14 @@ module mma_controller #(
 
                 IA_START: begin
                     // 仅在 IA_START 一拍内发出发送触发，之后转到 IA_WAIT 等待完成 -> 保证单拍脉冲
-                    if (ia_data_valid && bias_valid && quant_params_valid && 
-                        !fifo_full_flag && !ia_sending_done) begin
-                        send_ia_trigger <= 1'b1;
-                    end
-                end
+	                    if (ia_data_valid && bias_ready_for_compute && quant_params_valid &&
+	                        !fifo_full_flag && !ia_sending_done) begin
+	                        send_ia_trigger <= 1'b1;
+	                        if (ctrl_trace_en) begin
+	                            $display("[%0t] CTRL arm_ia", $time);
+	                        end
+	                    end
+	                end
 
                 IA_WAIT: begin
                     // 等待 ia_sending_done 完成，不重复发出触发
@@ -372,15 +457,15 @@ module mma_controller #(
         // IA Loader
         .s0_req    (load_ia_req),
         .s0_granted(load_ia_granted),
-        .s0_done   (ia_data_valid),
+        .s0_done   (!load_ia_req),
         // Kernel Loader
         .s1_req    (load_weight_req),
         .s1_granted(load_weight_granted),
-        .s1_done   (weight_data_valid),
+        .s1_done   (load_weight_done),
         // Bias Loader
         .s2_req    (load_bias_req),
         .s2_granted(load_bias_granted),
-        .s2_done   (bias_valid),
+        .s2_done   (load_bias_done),
         // Vec Requant
         .s3_req    (load_quant_req),
         .s3_granted(load_quant_granted),

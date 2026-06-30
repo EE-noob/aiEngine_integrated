@@ -30,6 +30,8 @@
 `define ADDR_AXIL_REG_STATUS     12'h001
 `define ADDR_AXIL_REG_WB_DATA    12'h002
 `define ADDR_AXIL_REG_WB_INFO    12'h003
+`define ADDR_AXIL_REG_IA_REUSE   12'h004
+`define ADDR_AXIL_REG_W_REUSE    12'h005
 
 // Instruction Encodings
 `define NICE_CUSTOM_1            7'b0101011
