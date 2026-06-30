@@ -125,6 +125,60 @@ def cycle_reduction_pct(base_cycles, new_cycles):
     return (1.0 - new_cycles / base_cycles) * 100.0
 
 
+PLOT_COLORS = {
+    "old": "#7f3c8d",
+    2: "#1f77b4",
+    4: "#ff7f0e",
+    8: "#2ca02c",
+    "new": "#2ca02c",
+}
+
+
+def setup_plot(ax, title, xlabel, ylabel):
+    ax.set_title(title, fontsize=13, weight="bold")
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_facecolor("#fbfbfb")
+    ax.grid(True, alpha=0.28, linewidth=0.8)
+    for spine in ["top", "right"]:
+        ax.spines[spine].set_visible(False)
+
+
+def label_last_point(ax, xs, ys, label, color, xpad=5):
+    points = [(x, y) for x, y in zip(xs, ys) if y is not None]
+    if not points:
+        return
+    x, y = points[-1]
+    ax.annotate(
+        label,
+        xy=(x, y),
+        xytext=(xpad, 0),
+        textcoords="offset points",
+        va="center",
+        color=color,
+        fontsize=9,
+        weight="bold",
+    )
+
+
+def label_bar(ax, bars, values, suffix="", fmt="{:.2f}", yscale="linear"):
+    for bar, value in zip(bars, values):
+        if value is None or value <= 0:
+            continue
+        x = bar.get_x() + bar.get_width() / 2
+        y = bar.get_height()
+        y_text = y * 1.08 if yscale == "log" else y + max(values) * 0.012
+        ax.text(
+            x,
+            y_text,
+            fmt.format(value) + suffix,
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            rotation=0,
+        )
+
+
 def ceil_div(a, b):
     return 0 if b == 0 else (a + b - 1) // b
 
@@ -287,7 +341,7 @@ def tflm_table(tflm_rows):
 
 def plot_cache_cycles(rows, out_dir, dataflow):
     dims = sorted({row["K"] for row in rows if row["dataflow"] == dataflow})
-    fig, ax = plt.subplots(figsize=(8.5, 5.2))
+    fig, ax = plt.subplots(figsize=(9.2, 5.4))
     for cache_blocks in [2, 4, 8]:
         ys = []
         for dim in dims:
@@ -295,11 +349,12 @@ def plot_cache_cycles(rows, out_dir, dataflow):
                         r["K"] == dim and r["cache_blocks"] == cache_blocks and
                         r["result"] == "pass"), None)
             ys.append(row["cycles"] / 1_000_000.0 if row else None)
-        ax.plot(dims, ys, marker="o", linewidth=2, label=f"IA_CACHE_BLOCKS={cache_blocks}")
-    ax.set_title(f"New MMA cache sweep, dataflow={dataflow}")
-    ax.set_xlabel("Matrix size K=N=M")
-    ax.set_ylabel("Cycles (million)")
-    ax.grid(True, alpha=0.3)
+        color = PLOT_COLORS[cache_blocks]
+        ax.plot(dims, ys, marker="o", markersize=5.5, linewidth=2.4,
+                color=color, label=f"IA_CACHE_BLOCKS={cache_blocks}")
+        label_last_point(ax, dims, ys, f"C{cache_blocks}: {ys[-1]:.2f}M", color)
+    setup_plot(ax, f"WS cache sweep cycles, dataflow={dataflow}",
+               "Matrix size K=N=M", "Cycles (million)")
     ax.legend()
     path = out_dir / f"cache_cycles_by_dim_df{dataflow}.png"
     fig.tight_layout()
@@ -310,7 +365,7 @@ def plot_cache_cycles(rows, out_dir, dataflow):
 
 def plot_cache_speedup(rows, out_dir, dataflow):
     dims = sorted({row["K"] for row in rows if row["dataflow"] == dataflow})
-    fig, ax = plt.subplots(figsize=(8.5, 5.2))
+    fig, ax = plt.subplots(figsize=(9.2, 5.4))
     for cache_blocks in [4, 8]:
         ys = []
         for dim in dims:
@@ -321,12 +376,13 @@ def plot_cache_speedup(rows, out_dir, dataflow):
                         r["K"] == dim and r["cache_blocks"] == cache_blocks and
                         r["result"] == "pass"), None)
             ys.append(speedup_pct(base["cycles"], row["cycles"]) if base and row else None)
-        ax.plot(dims, ys, marker="o", linewidth=2, label=f"C{cache_blocks} vs C2")
-    ax.axhline(0, color="black", linewidth=0.8)
-    ax.set_title(f"Cache speedup over C2, dataflow={dataflow}")
-    ax.set_xlabel("Matrix size K=N=M")
-    ax.set_ylabel("Speedup (%)")
-    ax.grid(True, alpha=0.3)
+        color = PLOT_COLORS[cache_blocks]
+        ax.plot(dims, ys, marker="o", markersize=5.5, linewidth=2.4,
+                color=color, label=f"C{cache_blocks} vs C2")
+        label_last_point(ax, dims, ys, f"{ys[-1]:.1f}%", color)
+    ax.axhline(0, color="#444444", linewidth=0.9)
+    setup_plot(ax, f"Cache speedup over C2, dataflow={dataflow}",
+               "Matrix size K=N=M", "Speedup (%)")
     ax.legend()
     path = out_dir / f"cache_speedup_vs_c2_df{dataflow}.png"
     fig.tight_layout()
@@ -343,19 +399,23 @@ def plot_old_new_mma(new_rows, old_rows, out_dir):
     oidx = old_index(old_rows)
     paths = []
 
-    fig, ax = plt.subplots(figsize=(9.0, 5.4))
+    fig, ax = plt.subplots(figsize=(9.4, 5.5))
     old_y = [oidx[(0, dim)]["cycles"] / 1_000_000.0 for dim in dims]
-    ax.plot(dims, old_y, marker="o", linewidth=2, label="old WS")
+    ax.plot(dims, old_y, marker="o", markersize=5.5, linewidth=2.4,
+            color=PLOT_COLORS["old"], label="old WS")
+    label_last_point(ax, dims, old_y, f"old: {old_y[-1]:.2f}M", PLOT_COLORS["old"])
     for cache_blocks in [2, 4, 8]:
         ys = []
         for dim in dims:
             row = nidx.get((0, dim, cache_blocks))
             ys.append(row["cycles"] / 1_000_000.0 if row else None)
-        ax.plot(dims, ys, marker="o", linewidth=2, label=f"new C{cache_blocks} WS")
-    ax.set_title("Old MMA vs new cached MMA, WS/dataflow=0")
-    ax.set_xlabel("Matrix size K=N=M")
-    ax.set_ylabel("Cycles (million)")
-    ax.grid(True, alpha=0.3)
+        color = PLOT_COLORS[cache_blocks]
+        ax.plot(dims, ys, marker="o", markersize=5.5, linewidth=2.4,
+                color=color, label=f"new C{cache_blocks} WS")
+        if cache_blocks == 8:
+            label_last_point(ax, dims, ys, f"C8: {ys[-1]:.2f}M", color)
+    setup_plot(ax, "Old MMA vs new cached MMA, WS/dataflow=0",
+               "Matrix size K=N=M", "Cycles (million)")
     ax.legend()
     path = out_dir / "old_new_mma_ws_cycles.png"
     fig.tight_layout()
@@ -363,7 +423,7 @@ def plot_old_new_mma(new_rows, old_rows, out_dir):
     plt.close(fig)
     paths.append(path)
 
-    fig, ax = plt.subplots(figsize=(9.0, 5.4))
+    fig, ax = plt.subplots(figsize=(9.4, 5.5))
     for cache_blocks in [2, 4, 8]:
         ys = []
         for dim in dims:
@@ -371,12 +431,14 @@ def plot_old_new_mma(new_rows, old_rows, out_dir):
             new = nidx.get((0, dim, cache_blocks))
             ratio = speedup_ratio(old["cycles"], new["cycles"]) if old and new else None
             ys.append(ratio)
-        ax.plot(dims, ys, marker="o", linewidth=2, label=f"new C{cache_blocks} / old")
-    ax.axhline(1.0, color="black", linewidth=0.8)
-    ax.set_title("Ratio above 1.0 means new MMA is faster")
-    ax.set_xlabel("Matrix size K=N=M")
-    ax.set_ylabel("Old cycles / new cycles")
-    ax.grid(True, alpha=0.3)
+        color = PLOT_COLORS[cache_blocks]
+        ax.plot(dims, ys, marker="o", markersize=5.5, linewidth=2.4,
+                color=color, label=f"old / new C{cache_blocks}")
+        label_last_point(ax, dims, ys, f"{ys[-1]:.2f}x", color)
+    ax.axhline(1.0, color="#444444", linewidth=0.9)
+    ax.fill_between(dims, 1.0, ax.get_ylim()[1], color="#2ca02c", alpha=0.06)
+    setup_plot(ax, "Speedup over old WS baseline, ratio > 1 means new is faster",
+               "Matrix size K=N=M", "Old cycles / new cycles")
     ax.legend()
     path = out_dir / "old_new_mma_ws_ratio.png"
     fig.tight_layout()
@@ -395,13 +457,17 @@ def plot_tflm(tflm_rows, out_dir):
     new_vals = [(row["new"]["cycles"] or row["new"]["timeout"] or 0) / 1_000_000.0 for row in visible]
     x = list(range(len(labels)))
     width = 0.34
-    fig, ax = plt.subplots(figsize=(8.5, 5.2))
-    ax.bar([i - width / 2 for i in x], old_vals, width, label="old")
-    ax.bar([i + width / 2 for i in x], new_vals, width, label="new")
+    fig, ax = plt.subplots(figsize=(9.2, 5.4))
+    old_bars = ax.bar([i - width / 2 for i in x], old_vals, width,
+                      label="old", color=PLOT_COLORS["old"], alpha=0.85)
+    new_bars = ax.bar([i + width / 2 for i in x], new_vals, width,
+                      label="new", color=PLOT_COLORS["new"], alpha=0.9)
     ax.set_xticks(x, labels, rotation=18, ha="right")
-    ax.set_ylabel("Cycles or timeout (million)")
-    ax.set_title("TFLM old/new comparison")
-    ax.grid(True, axis="y", alpha=0.3)
+    ax.set_yscale("log")
+    setup_plot(ax, "TFLM old/new comparison, log scale",
+               "", "Cycles or timeout (million, log)")
+    label_bar(ax, old_bars, old_vals, "M", fmt="{:.1f}", yscale="log")
+    label_bar(ax, new_bars, new_vals, "M", fmt="{:.1f}", yscale="log")
     ax.legend()
     path = out_dir / "tflm_old_new_cycles.png"
     fig.tight_layout()
