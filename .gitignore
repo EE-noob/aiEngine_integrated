@@ -8,6 +8,7 @@ veri/work/*
 !veri/sim/*.rc
 !veri/sim/run_simv_lxc.sh
 !veri/sim/run_axi_soc_c_regression.py
+!veri/sim/run_axi_soc_perf_sweep.py
 
 # Local E203 SoC reference workspace
 e203_soc/
@@ -57,6 +58,7 @@ build/
 build-*/
 out/
 obj/
+obj_dir/
 
 # Python cache
 __pycache__/

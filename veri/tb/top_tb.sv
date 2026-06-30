@@ -6,7 +6,12 @@
 `include "uvm_macros.svh"
 import uvm_pkg::*;
 
-module tb_top;
+module tb_top #(
+    parameter int unsigned DUT_SIZE            = 16,
+    parameter int unsigned DUT_IA_CACHE_BLOCKS = 4,
+    parameter int unsigned DUT_PS_FRAME_COUNT  = DUT_SIZE,
+    parameter int unsigned DUT_CPU_MEM_DP      = 524288
+);
 
     logic nice_clk;
     logic nice_rst_n;
@@ -63,11 +68,14 @@ module tb_top;
     logic                       cpu_trap;
     logic                       soc_uart_tx;
     logic                       soc_uart_rx;
-    localparam int unsigned     AXI_SOC_CPU_MEM_DP = 524288;
+    localparam int unsigned     AXI_SOC_CPU_MEM_DP = DUT_CPU_MEM_DP;
 
     assign soc_uart_rx = 1'b1;
 
     soc_top #(
+        .SIZE(DUT_SIZE),
+        .IA_CACHE_BLOCKS(DUT_IA_CACHE_BLOCKS),
+        .PS_FRAME_COUNT(DUT_PS_FRAME_COUNT),
         .CPU_MEM_DP(AXI_SOC_CPU_MEM_DP),
         .CPU_MEM_PATH("../tb/axi_soc_case/cpu.mem")
     ) u_soc_top (
@@ -106,6 +114,9 @@ module tb_top;
         .AXIL_ADDR_WIDTH(16),
         .ICB_ADDR_WIDTH(32),
         .ICB_LEN_W(4),
+        .SIZE(DUT_SIZE),
+        .IA_CACHE_BLOCKS(DUT_IA_CACHE_BLOCKS),
+        .PS_FRAME_COUNT(DUT_PS_FRAME_COUNT),
         .MEM_DP(AXIL_MEM_DP),
         .MEM_PATH("../tb/main_extram.mem"),
         .MEM_INIT_EN(1)
@@ -239,6 +250,8 @@ module tb_top;
 `ifdef DUT_AXI_SOC
     integer pico_uart_half_period;
     reg [7:0] pico_uart_buffer;
+    bit soc_progress_trace;
+    logic [31:0] soc_progress_last;
 
     initial begin : pico_uart_monitor
         pico_uart_buffer = 8'h00;
@@ -272,6 +285,22 @@ module tb_top;
                 $write("%c", pico_uart_buffer);
             end else begin
                 $write("<%02x>", pico_uart_buffer);
+            end
+        end
+    end
+
+    initial begin : soc_progress_monitor
+        soc_progress_trace = $test$plusargs("SOC_PROGRESS_TRACE");
+        soc_progress_last = 32'hffff_ffff;
+        wait (nice_rst_n === 1'b1);
+        if (soc_progress_trace) begin
+            $display("[SOC_PROGRESS] trace enabled");
+        end
+        forever begin
+            @(posedge nice_clk);
+            if (soc_progress_trace && (u_soc_top.soc_progress !== soc_progress_last)) begin
+                soc_progress_last = u_soc_top.soc_progress;
+                $display("[SOC_PROGRESS] time=%0t progress=0x%08h", $time, soc_progress_last);
             end
         end
     end

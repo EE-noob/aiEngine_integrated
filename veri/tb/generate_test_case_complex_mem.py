@@ -324,8 +324,8 @@ def generate_test_case(
         write_mem(f, lhs_bytes)
         lhs_size = len(lhs_bytes)
         
-        # RHS (列优先)
-        rhs_bytes = rhs.flatten(order='F').tobytes()
+        # RHS uses the v2 kernel-loader WS layout: N x M row-major rows.
+        rhs_bytes = rhs.tobytes()
         write_mem(f, rhs_bytes)
         #rhs_addr = lhs_size
         rhs_addr = lhs_size+lhs_addr
@@ -406,7 +406,7 @@ def generate_test_case(
         f.write(f"N = {N}\n")
         f.write(f"M = {M}\n")
         lhs_row_stride = N * (1 if lhs_dtype == 1 else 2)
-        rhs_row_stride = N * 1
+        rhs_row_stride = M * 1
         dst_row_stride = M * 1
         f.write(f"lhs_row_stride = {lhs_row_stride}\n")
         f.write(f"rhs_row_stride = {rhs_row_stride}\n")

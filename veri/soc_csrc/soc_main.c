@@ -25,6 +25,7 @@ static void load_generated_config(dsa_matmul_config_t *config)
     config->rhs_dtype = DSA_DTYPE_S8;
     config->bias_dtype = DSA_DTYPE_S32;
     config->out_dtype = DSA_DTYPE_S8;
+    config->dataflow_mode = (SOC_DATAFLOW_MODE == 0u) ? DSA_DATAFLOW_WS : DSA_DATAFLOW_IS;
     config->quant_mode = SOC_QUANT_MODE;
     config->lhs_offset = SOC_LHS_OFFSET;
     config->rhs_offset = SOC_RHS_OFFSET;
@@ -35,12 +36,17 @@ static void load_generated_config(dsa_matmul_config_t *config)
     config->dst_shift_ptr = SOC_DST_SHIFT_ADDR;
     config->act_min = SOC_ACT_MIN;
     config->act_max = SOC_ACT_MAX;
+    config->ia_reuse_num = SOC_IA_REUSE_NUM;
+    config->w_reuse_num = SOC_W_REUSE_NUM;
 }
 
 static uint32_t validate_generated_case(void)
 {
     uint32_t expected_size = SOC_K * SOC_M;
-    uint32_t lhs_stride = (SOC_LHS_DTYPE == DSA_DTYPE_S16) ? (SOC_N * 2u) : SOC_N;
+    uint32_t lhs_elem_bytes = (SOC_LHS_DTYPE == DSA_DTYPE_S16) ? 2u : 1u;
+    uint32_t lhs_stride = (SOC_DATAFLOW_MODE == 0u) ?
+                          (SOC_N * lhs_elem_bytes) : (SOC_K * lhs_elem_bytes);
+    uint32_t rhs_stride = (SOC_DATAFLOW_MODE == 0u) ? SOC_M : SOC_N;
 
     if ((SOC_K == 0u) || (SOC_N == 0u) || (SOC_M == 0u)) {
         return SOC_TEST_FAIL_CONFIG | 0x01u;
@@ -58,7 +64,7 @@ static uint32_t validate_generated_case(void)
         return SOC_TEST_FAIL_CONFIG | 0x04u;
     }
 
-    if (SOC_RHS_ROW_STRIDE != SOC_N) {
+    if (SOC_RHS_ROW_STRIDE != rhs_stride) {
         return SOC_TEST_FAIL_CONFIG | 0x05u;
     }
 
@@ -83,6 +89,21 @@ static uint32_t compare_generated_output(void)
         uint8_t expected = (uint8_t)expected_dst_data[idx];
 
         if (actual != expected) {
+            uint32_t row = idx / SOC_M;
+            uint32_t col;
+            printf("[soc] MISMATCH idx=%u row=%u col=%u actual=%d expected=%d actual_u=0x%02x expected_u=0x%02x\n",
+                   idx, row, idx % SOC_M,
+                   (int)((int8_t)actual), (int)((int8_t)expected),
+                   actual, expected);
+            printf("[soc] actual_row:");
+            for (col = 0; col < SOC_M; col++) {
+                printf(" %d", (int)((int8_t)((uint8_t)dst_data[row * SOC_M + col])));
+            }
+            printf("\n[soc] expect_row:");
+            for (col = 0; col < SOC_M; col++) {
+                printf(" %d", (int)((int8_t)((uint8_t)expected_dst_data[row * SOC_M + col])));
+            }
+            printf("\n");
             return SOC_TEST_FAIL_COMPARE | (idx & 0x00ffffffu);
         }
     }
@@ -124,9 +145,10 @@ int main(void) {
     uint32_t status;
 
     picosoc_uart_init();
-    printf("[soc] case seed=%u random=%u K=%u N=%u M=%u lhs_dtype=%u quant=%u\n",
+    printf("[soc] case seed=%u random=%u K=%u N=%u M=%u lhs_dtype=%u quant=%u dataflow=%u R=%u W=%u\n",
            SOC_CASE_SEED, SOC_CASE_RANDOM, SOC_K, SOC_N, SOC_M,
-           (uint32_t)SOC_LHS_DTYPE, (uint32_t)SOC_QUANT_MODE);
+           (uint32_t)SOC_LHS_DTYPE, (uint32_t)SOC_QUANT_MODE,
+           SOC_DATAFLOW_MODE, SOC_IA_REUSE_NUM, SOC_W_REUSE_NUM);
 
     status = test_high_level_api();
     if (status == SOC_TEST_OK) {

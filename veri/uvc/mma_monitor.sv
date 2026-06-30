@@ -29,7 +29,7 @@ module mma_monitor (
             $root.tb_top.nice_vif.mma_wb_handshake_toggle = ~$root.tb_top.nice_vif.mma_wb_handshake_toggle;
 
             case (err_code)
-              2'b00: `uvm_info("mma_monitor", "writeback handshake ok, status 00=normal", UVM_LOW)
+              2'b00: `uvm_info("mma_monitor", "writeback handshake ok, status 00=normal", UVM_HIGH)
               2'b01: `uvm_error("mma_monitor", "writeback handshake ok, status 01=config_error")
               2'b10: `uvm_error("mma_monitor", "writeback handshake ok, status 10=resource_missing")
               default: `uvm_error("mma_monitor", $sformatf("writeback handshake ok, status %b=unknown", err_code))

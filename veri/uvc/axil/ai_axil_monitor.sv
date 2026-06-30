@@ -58,6 +58,7 @@ class ai_axil_monitor extends uvm_monitor;
     task automatic generate_mem_from_ral_mirror();
         string utn_name;
         string cmd;
+        string py_bin;
         string fix_mode_arg;
         int rc;
         int gen_k;
@@ -96,9 +97,11 @@ class ai_axil_monitor extends uvm_monitor;
 
         utn_name = get_case_name();
         fix_mode_arg = (gen_fix_mode != 0) ? "--fix_mode" : "";
+        py_bin = "/home/yusen/opt/anaconda3/bin/python3";
+        void'($value$plusargs("PYTHON_BIN=%s", py_bin));
         cmd = $sformatf(
-            "cd ../tb && python ./generate_test_case_complex_mem.py --K %0d --N %0d --M %0d --lhs_dtype %0d %s --quant_mode %0d --seed %0d --out_dir ./%s",
-            gen_k, gen_n, gen_m, gen_lhs_dtype, fix_mode_arg, gen_quant_mode, gen_seed, utn_name
+            "cd ../tb && %s ./generate_test_case_complex_mem.py --K %0d --N %0d --M %0d --lhs_dtype %0d %s --quant_mode %0d --seed %0d --out_dir ./%s",
+            py_bin, gen_k, gen_n, gen_m, gen_lhs_dtype, fix_mode_arg, gen_quant_mode, gen_seed, utn_name
         );
         `uvm_info("AXIL_MEM_GEN_MON", {"Run: ", cmd}, UVM_LOW)
 
