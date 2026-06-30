@@ -14,7 +14,7 @@
 - cache 增大带来的复用收益已经能在新架构内部稳定体现：C8 相对 C2 在所有 WS 尺寸上均更快，256 点降周期约 40.65%。
 - 主要性能修复来自三处：OA 写回从单 beat 命令改成按输出行 burst；reuse=0 保留为 RTL 自动最大复用路径；runtime case 头和输出清零/比较去掉 volatile 字节循环开销。
 - TFLM 端到端结果和裸 MMA 不完全一致：端到端包含算子调度、转置/打包、CPU 侧循环和模型结构，旧版部分大模型此前会 timeout；本报告使用加大 timeout 后的重跑日志更新该结论。
-- 修改 `MMA_IA_CACHE_BLOCKS` 时，驱动公式会同步改变：Makefile 把它编译成 `-DDSA_IA_CACHE_BLOCKS=$(MMA_IA_CACHE_BLOCKS)`，普通 SoC runtime 和 TFLM kernel 都使用该宏选择 reuse 参数。
+- 修改 `MMA_IA_CACHE_BLOCKS` 和 `MMA_PS_FRAME_COUNT` 时，驱动公式会同步改变：Makefile 把它们编译成 `-DDSA_IA_CACHE_BLOCKS=$(MMA_IA_CACHE_BLOCKS)` 和 `-DDSA_PS_FRAME_COUNT=$(MMA_PS_FRAME_COUNT)`。普通 SoC runtime 使用这两个宏选择并限制 reuse 参数；TFLM kernel 的直接 MMA 路径以 `SIZE` 列为一组提交，当前配置下 `W_REUSE=1`，主要受 `DSA_IA_CACHE_BLOCKS` 控制。
 
 ## 图 1：新版 cache 大小对周期的影响
 
@@ -83,7 +83,7 @@
 
 ### 5. 驱动 cache 参数是否同步
 
-已确认同步。`veri/sim/Makefile` 中 `SOC_HW_DEFINES := -DDSA_TILE_SIZE=$(MMA_SIZE) -DDSA_IA_CACHE_BLOCKS=$(MMA_IA_CACHE_BLOCKS)`，并用于 SoC runtime 编译和 TFLM 库编译。普通驱动和 `veri/soc_csrc/dsa_accel_mmio.c` 都保留 `reuse=0` 的自动路径；显式非零 reuse 才会按 `DSA_IA_CACHE_BLOCKS` 和输出列 tile 数 clamp。TFLM 的 `conv.cc/depthwise_conv.cc` 也把 `DSA_IA_CACHE_BLOCKS` 编译成 `kMmaIaCacheBlocks` 参与 reuse 选择。
+已确认同步。`veri/sim/Makefile` 中 `SOC_HW_DEFINES := -DDSA_TILE_SIZE=$(MMA_SIZE) -DDSA_IA_CACHE_BLOCKS=$(MMA_IA_CACHE_BLOCKS) -DDSA_PS_FRAME_COUNT=$(MMA_PS_FRAME_COUNT)`，并用于 SoC runtime 编译和 TFLM 库编译。普通驱动和 `veri/soc_csrc/dsa_accel_mmio.c` 都保留 `reuse=0` 的自动路径；显式非零 reuse 会按 `DSA_IA_CACHE_BLOCKS`、`DSA_PS_FRAME_COUNT` 和输出列 tile 数 clamp。TFLM 的 `conv.cc/depthwise_conv.cc` 也把 `DSA_IA_CACHE_BLOCKS` 编译成 `kMmaIaCacheBlocks` 参与 reuse 选择。
 
 ## 功能正确性与 timeout 处理
 
@@ -385,3 +385,53 @@ MMA AXI 写侧同步改为真正 outstanding：
 - Pico 和 UART 接入 AXI interconnect 后，CPU 启动、UART 打印和 MMA CSR 都走同一套 AXI-Lite/AXI 路径，后续 SoC 级性能统计不会再绕过 interconnect。
 - RAM/interconnect 读写 outstanding 对称后，DMA 读侧 ro=4 的收益不会被写回侧串行 B 响应拖住；OA 写回可在写通道内排队，读侧仍能继续推进 IA/kernel 预取。
 - outstanding=1 边界仍通过，说明新增节流逻辑没有依赖“深度大于 1”这一隐含条件；后续性能 sweep 可以安全比较 `RO/WO=1/2/4/8` 的曲线。
+
+### 2026-07-01 补充：SoC 性能回退深排查
+
+背景：单独 MMA 仿真中 cache/reuse/AXI DMA 已经带来明显加速，但 SoC/TFLM 端到端最初出现部分用例不如本报告早期记录的现象。本轮排查把问题拆成三类：MMA reuse 边界、Pico/AXI/DDR 访问气泡、以及仿真基础设施的并行污染。
+
+最终保留的修复如下：
+
+- `mma_top`、普通驱动和 `veri/soc_csrc/dsa_accel_mmio.c` 将 `W_REUSE` 上限同时限制在输出列 tile 数和 `PS_FRAME_COUNT` 内。此前 `SIZE=8,CACHE=2,PS_FRAME=8,seed=43000,K=88,N=112,M=88` 在默认 `W_REUSE=11` 时会写回错序；显式 `W_REUSE<=8` 通过，因此默认路径必须按写回窗口 clamp。
+- `veri/sim/Makefile` 将 `DSA_PS_FRAME_COUNT` 编译进 SoC runtime 和 TFLM 库，并把 runtime/TFLM build dir 加上 `P$(MMA_PS_FRAME_COUNT)`，避免不同 `PS_FRAME_COUNT` 复用旧目标文件。
+- VCS 增加 `-Mdir=$(SIMV).csrc`，并在 `clean` 中删除 `*.csrc`。此前并行跑 S8/S16/TFLM 时会共享 `csrc/hsim/hsim.sdb`，出现 `VFS_SDB_SYNC_FAIL` 或 `rmapats.so` 生成失败，这不是 RTL 功能失败。
+- `soc_axi_ram` 保留单 beat 读快路径和 `AW/W` 同周期接收，让 Pico 指令/数据读和连续 store 少一部分气泡；写响应仍走 B 队列。
+- `soc_axi_interconnect` 修复 CPU 侧 `AR` 与上一笔 `R`、`AW` 与上一笔 `B` 同周期握手时的 active 状态覆盖问题。旧逻辑会在同一 always block 中先记录新请求、再被旧响应清掉 active，属于 AXI 时序边界 bug。
+- `soc_axil_simpleuart` 修复 UART data 写：当 `simpleuart` 忙时 AXI-Lite 写请求必须等待，不能提前返回 B 响应后丢字符。因此 UART 打印路径的周期比旧的“丢字符但快”的实现更可信。
+
+本轮也做过一个失败的性能实验：让 `soc_axi_ram` 在无随机 DDR 延迟、B 队列为空时直接给写响应。该实验能让 `hello_world` 回到 `425071 cycles`，但 `micro_speech` 会稳定卡在 `progress=0x5b313000`，即第一段 `depthwise_conv` 提交 MMA 前后。即使补了 interconnect 同周期 active 修复，直接 B 仍会触发该超时。因此当前提交不保留直接 B，优先保证 TFLM 功能正确。
+
+#### TFLM 最终对比
+
+| Case | 报告早期新版记录 | 本轮最终 RTL | 差异 | 结论 |
+|---|---:|---:|---:|---|
+| `hello_world` | 425,071 | 430,815 | +1.35% | 小幅变慢，主要来自保留正确 UART/队列 B；直接 B 虽可追回但会破坏 `micro_speech` |
+| `micro_speech` | 15,590,371 | 15,720,065 | +0.83% | 小幅变慢，属于 SoC CPU/AXI 路径开销；功能已通过 |
+| `my_model` | 77,111,410 | 77,020,480 | -0.12% | 略快于报告记录 |
+| `person_detection` | 238,905,507 | 237,339,024 | -0.66% | 略快于报告记录 |
+
+解释：
+
+- 裸 MMA 仿真只覆盖控制器、DMA、cache、阵列和写回；TFLM/SoC 还包含 Pico 执行、tensor allocation、im2col/打包、算子调度、UART 打印和 MMA MMIO 配置。小模型更容易被 CPU/AXI 固定开销淹没。
+- `hello_world` 和 `micro_speech` 的剩余小幅回退集中在 CPU/AXI 写响应与 UART 正确等待；为了避免 `micro_speech` 超时，当前没有采用直接 B 快路径。
+- `my_model` 和 `person_detection` 的大模型仍快于早期报告，说明 MMA 侧 cache/reuse 和写回优化在真实模型里没有被 SoC 集成抵消。
+
+#### 最终验证记录
+
+| 测试 | 配置 | 结果 |
+|---|---|---|
+| S8 SoC 随机回归 | `SIZE=8,CACHE={2,4,8},DF={WS,IS},lhs={s8,s16},Q={per-tensor,per-channel},unaligned_layout,DDR_RAND_LAT=1,seed=47000` | PASS 24/24 |
+| S16 SoC 随机回归 | `SIZE=16,CACHE={2,4,8},DF={WS,IS},lhs={s8,s16},Q={per-tensor,per-channel},unaligned_layout,DDR_RAND_LAT=1,seed=48000` | PASS 24/24 |
+| `tflm_hello_world_run` | `SIZE=16,CACHE=4,PS_FRAME=16,O3,UART_CLKDIV=8` | PASS，430,815 cycles |
+| `tflm_micro_speech_run` | 同上 | PASS，15,720,065 cycles |
+| `tflm_my_model_run` | 同上 | PASS，77,020,480 cycles |
+| `tflm_person_detection_run` | 同上 | PASS，237,339,024 cycles |
+
+日志目录：
+
+- `runs/axi_soc_full_s8_final`
+- `runs/axi_soc_full_s16_final`
+- `runs/tflm_perf_diag/hello_final_uart8`
+- `runs/tflm_perf_diag/micro_final_uart8`
+- `runs/tflm_perf_diag/my_model_final_uart8`
+- `runs/tflm_perf_diag/person_final_uart8`

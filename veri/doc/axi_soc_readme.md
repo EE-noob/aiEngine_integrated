@@ -61,8 +61,10 @@ PicoRV32 程序镜像通过 `+SOC_CPU_MEM=<path>` 指定，MMA runtime 数据通
 
 - `pico_native_to_axi` 复用 PicoRV32 官方 `picorv32_axi_adapter` 的握手语义，`mem_ready` 由 AXI `RVALID/BVALID` 组合产生，避免把上一笔响应延后一拍误应答到下一笔 Pico 原生访问。
 - `soc_axi_interconnect` 支持 Pico 和 MMA 两个 AXI master。RAM 读、写通道分别锁定当前 owner；同一 owner 可继续发多笔 outstanding，另一 owner 等待当前 owner outstanding 归零后再切换。
+- `soc_axi_interconnect` 的 CPU 侧 active 状态必须显式处理“新请求与上一笔响应同周期握手”。否则 `AR/R` 或 `AW/B` 同周期时会把新事务的 active 位清掉，后续响应无法路由。
 - `soc_axi_interconnect`、`soc_axi_ram`、`mma_top` 和 AXI DMA 共用 `AXI_READ_OUTSTANDING/AXI_WRITE_OUTSTANDING` 参数。读写深度相互独立，默认写深度跟随读深度。
 - `soc_axi_ram` 支持 AXI burst、读写 outstanding、B/R 随机延迟。`+DDR_RAND_LAT=1 +DDR_CMD_MAX_LAT=3 +DDR_W_MAX_LAT=2 +DDR_RSP_MAX_LAT=8` 可模拟 DDR 命令、写数据和响应延迟。
+- `soc_axi_ram` 当前保留单 beat 读快路径和 `AW/W` 同周期接收；写响应仍通过 B 队列返回。实验性的直接 B 快路径会让 `micro_speech` 卡在 `progress=0x5b313000`，不要在没有覆盖 TFLM 回归前重新打开。
 - `axi_dual_block_dma` 写侧也支持 outstanding：`AW` 可按行提前排队，`W` 连续发送已接收地址的行数据，`B` 独立回收，不再要求每行写回等待上一行 B 响应。
 
 ## UVM Testbench 集成
@@ -250,3 +252,6 @@ soc_finish(SOC_STATUS_PASS);
 | 正常 smoke | `unaligned_layout,DDR_RAND_LAT=0,RO=4,WO=4` | PASS，`cpu_trap=0,status=1` |
 | 随机 DDR 延迟 | `unaligned_layout,RO=4,WO=4,cmd/w/rsp max=3/2/8` | PASS，after 38360 cycles |
 | outstanding 边界 | `RO=1,WO=1,随机 DDR 延迟` | PASS，覆盖最小 outstanding 深度 |
+| S8 随机回归 | `SIZE=8,CACHE={2,4,8},DF={WS,IS},lhs={s8,s16},Q={per-tensor,per-channel},unaligned_layout,DDR_RAND_LAT=1` | PASS 24/24 |
+| S16 随机回归 | `SIZE=16,CACHE={2,4,8},DF={WS,IS},lhs={s8,s16},Q={per-tensor,per-channel},unaligned_layout,DDR_RAND_LAT=1` | PASS 24/24 |
+| TFLM | `hello_world/micro_speech/my_model/person_detection,SIZE=16,CACHE=4,PS_FRAME=16,O3` | PASS |
