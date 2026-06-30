@@ -210,8 +210,8 @@ module axi_block_dma_arbiter #(
 
     always_comb begin
         if (kernel_req) rd_next_client = C_KERNEL;
-        else if (ia_req) rd_next_client = C_IA;
         else if (quant_req) rd_next_client = C_QUANT;
+        else if (ia_req) rd_next_client = C_IA;
         else if (bias_req) rd_next_client = C_BIAS;
         else rd_next_client = C_NONE;
     end

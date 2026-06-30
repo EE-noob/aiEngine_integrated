@@ -406,9 +406,9 @@ MMA AXI 写侧同步改为真正 outstanding：
 | Case | 报告早期新版记录 | 本轮最终 RTL | 差异 | 结论 |
 |---|---:|---:|---:|---|
 | `hello_world` | 425,071 | 430,815 | +1.35% | 小幅变慢，主要来自保留正确 UART/队列 B；直接 B 虽可追回但会破坏 `micro_speech` |
-| `micro_speech` | 15,590,371 | 15,720,065 | +0.83% | 小幅变慢，属于 SoC CPU/AXI 路径开销；功能已通过 |
-| `my_model` | 77,111,410 | 77,020,480 | -0.12% | 略快于报告记录 |
-| `person_detection` | 238,905,507 | 237,339,024 | -0.66% | 略快于报告记录 |
+| `micro_speech` | 15,590,371 | 15,720,057 | +0.83% | 小幅变慢，属于 SoC CPU/AXI 路径开销；功能已通过 |
+| `my_model` | 77,111,410 | 77,016,232 | -0.12% | 略快于报告记录 |
+| `person_detection` | 238,905,507 | 237,333,374 | -0.66% | 略快于报告记录 |
 
 解释：
 
@@ -423,9 +423,9 @@ MMA AXI 写侧同步改为真正 outstanding：
 | S8 SoC 随机回归 | `SIZE=8,CACHE={2,4,8},DF={WS,IS},lhs={s8,s16},Q={per-tensor,per-channel},unaligned_layout,DDR_RAND_LAT=1,seed=47000` | PASS 24/24 |
 | S16 SoC 随机回归 | `SIZE=16,CACHE={2,4,8},DF={WS,IS},lhs={s8,s16},Q={per-tensor,per-channel},unaligned_layout,DDR_RAND_LAT=1,seed=48000` | PASS 24/24 |
 | `tflm_hello_world_run` | `SIZE=16,CACHE=4,PS_FRAME=16,O3,UART_CLKDIV=8` | PASS，430,815 cycles |
-| `tflm_micro_speech_run` | 同上 | PASS，15,720,065 cycles |
-| `tflm_my_model_run` | 同上 | PASS，77,020,480 cycles |
-| `tflm_person_detection_run` | 同上 | PASS，237,339,024 cycles |
+| `tflm_micro_speech_run` | 同上 | PASS，15,720,057 cycles |
+| `tflm_my_model_run` | 同上 | PASS，77,016,232 cycles |
+| `tflm_person_detection_run` | 同上 | PASS，237,333,374 cycles |
 
 日志目录：
 
@@ -435,3 +435,83 @@ MMA AXI 写侧同步改为真正 outstanding：
 - `runs/tflm_perf_diag/micro_final_uart8`
 - `runs/tflm_perf_diag/my_model_final_uart8`
 - `runs/tflm_perf_diag/person_final_uart8`
+
+### 2026-07-01 补充：SoC 劣化深排查与 per-channel 量化调度优化
+
+本轮重新跑了带 `+MMA_UTIL_TRACE` 的 SoC/TFLM trace。核心结论是：SoC 端到端周期不能直接当作 MMA latency。`soc_finish` 统计包含 Pico 启动、TFLM tensor allocation、算子调度、普通 CPU 算子、MMA MMIO 配置、输出校验和 UART 打印。小模型里 MMA active 占比很低，因此单独 MMA 优化会被软件和外设固定开销稀释。
+
+#### SoC runtime 大矩阵 trace
+
+当前 RTL、DDR 随机延迟关闭、WS/s8/per-tensor、reuse=0 自动配置下，大矩阵仍能体现 cache/reuse 收益：
+
+| K=N=M | C4 cycles | C8 cycles | C8 相对 C4 | C4 MMA active | C8 MMA active |
+|---:|---:|---:|---:|---:|---:|
+| 64 | 85,263 | 83,644 | 1.94% faster | 7,232 | 5,608 |
+| 128 | 295,789 | 279,289 | 5.91% faster | 45,033 | 28,533 |
+| 256 | 1,255,357 | 1,117,637 | 12.32% faster | 316,473 | 178,766 |
+| 384 | 3,184,536 | 2,713,799 | 17.35% faster | 1,098,761 | 628,024 |
+
+说明：矩阵变大后，C8 通过更大的 `IA_REUSE` 减少 IA/kernel 重复读，SoC 上仍然保持正收益；所谓“单测快、SoC 慢”主要发生在小模型端到端指标，而不是大矩阵 MMA 数据流失效。
+
+#### TFLM active 拆分
+
+| Case | SoC cycles | MMA ops | MMA active sum | active / SoC | 主要结论 |
+|---|---:|---:|---:|---:|---|
+| `hello_world` | 430,815 | 0 | 0 | 0.00% | 未触发 MMA，不能用于评估 MMA 性能 |
+| `micro_speech` | 15,720,065 | 1 | 32,330 | 0.21% | 端到端几乎全是 TFLM/CPU/外设开销 |
+| `my_model` | 77,020,480 | 90 | 471,924 | 0.61% | 触发多次小/中等 MMA，但仍被软件层稀释 |
+
+`my_model` 旧 trace 中，90 次 MMA 合计 `weight_data_stall=136104`、`ia_data_stall=173014`、`quant_stall=42370`、`tail_pending=85536`。其中 `quant_stall` 来自 per-channel 量化参数读：这些短读原本排在 IA 大块读取之后，导致 IA 数据已经到达时仍要等待量化参数。
+
+#### 优化修改
+
+`axi_block_dma_arbiter` 的读侧优先级从：
+
+```text
+kernel > IA > quant > bias
+```
+
+调整为：
+
+```text
+kernel > quant > IA > bias
+```
+
+kernel 仍保持最高优先级；quant 是每个 per-channel op 的短读，把它放到 IA 前可以提前完成量化参数加载。这个改动不改变接口语义，也不影响 per-tensor case，因为 per-tensor 不发 `quant_req`。
+
+优化后对比：
+
+| Case | SoC cycles before | SoC cycles after | MMA active before | MMA active after | quant stall before | quant stall after |
+|---|---:|---:|---:|---:|---:|---:|
+| `micro_speech` | 15,720,065 | 15,720,057 | 32,330 | 32,319 | 321 | 0 |
+| `my_model` | 77,020,480 | 77,016,232 | 471,924 | 469,134 | 42,370 | 0 |
+| `person_detection` | 237,339,024 | 237,333,374 | 未采样 | 未采样 | 未采样 | 未采样 |
+
+代价和解释：
+
+- `quant_stall` 被清零，但一部分等待会转成 `ia_data_stall`，因为 quant 短读提前占用了少量读通道窗口。
+- 净收益仍为正：`my_model` 快 4,248 cycles，`person_detection` 快 5,650 cycles。收益幅度小，是因为 MMA active 只占端到端的一小部分。
+- 这不是“刷分式”绕过：UART 正确等待、B 响应队列和 CPU/TFLM 工作都仍计入 `soc_finish`。
+
+#### 补充验证
+
+| 测试 | 配置 | 结果 |
+|---|---|---|
+| `tflm_micro_speech_run` | `SIZE=16,CACHE=4,PS_FRAME=16,O3,+MMA_UTIL_TRACE` | PASS，15,720,057 cycles |
+| `tflm_my_model_run` | 同上 | PASS，77,016,232 cycles |
+| `tflm_person_detection_run` | `SIZE=16,CACHE=4,PS_FRAME=16,O3` | PASS，237,333,374 cycles |
+| S16 边界随机回归 | `SIZE=16,CACHE=4,DF={WS,IS},lhs={s8,s16},Q={per-tensor,per-channel},MIN_DIM=1,MAX_DIM=65,unaligned_layout,DDR_RAND_LAT=1,seed=61000` | PASS 8/8 |
+| S8 边界随机回归 | `SIZE=8,CACHE=4,PS_FRAME=8,DF={WS,IS},lhs={s8,s16},Q={per-tensor,per-channel},MIN_DIM=1,MAX_DIM=65,unaligned_layout,DDR_RAND_LAT=1,seed=62000` | PASS 8/8 |
+
+新增日志目录：
+
+- `runs/soc_deep_trace_current`
+- `runs/soc_deep_trace_large_current`
+- `runs/tflm_deep_trace/hello_util`
+- `runs/tflm_deep_trace/micro_util`
+- `runs/tflm_deep_trace/micro_quant_prio`
+- `runs/tflm_deep_trace/my_model_util`
+- `runs/tflm_deep_trace/my_model_quant_prio`
+- `runs/tflm_deep_trace/person_quant_prio`
+- `runs/soc_quant_prio_regress_s16`
+- `runs/soc_quant_prio_regress_s8`

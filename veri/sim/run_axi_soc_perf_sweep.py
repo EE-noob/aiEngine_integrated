@@ -12,6 +12,56 @@ from pathlib import Path
 
 PASS_RE = re.compile(r"\[TEST_RESULT\]\s+TEST PASS")
 CYCLES_RE = re.compile(r"soc_finish asserted after\s+(\d+)\s+cycles")
+UTIL_LINE_RE = re.compile(r"\[(MMA_UTIL|MMA_CTRL_UTIL)\]\s+(.*)")
+UTIL_KV_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)=(-?\d+)")
+
+UTIL_FIELDNAMES = [
+    "ctrl_util_ops",
+    "ctrl_active",
+    "ctrl_weight_start",
+    "ctrl_weight_wait",
+    "ctrl_ia_start",
+    "ctrl_ia_wait",
+    "ctrl_wait_wb",
+    "ctrl_weight_tail_stall",
+    "ctrl_weight_data_stall",
+    "ctrl_weight_done_wait",
+    "ctrl_ia_data_stall",
+    "ctrl_bias_stall",
+    "ctrl_quant_stall",
+    "ctrl_fifo_stall",
+    "ctrl_ia_done_wait",
+    "ctrl_tail_pending",
+    "ctrl_tail_done",
+    "ctrl_weight_trig",
+    "ctrl_ia_trig",
+    "mma_util_ops",
+    "mma_active",
+    "mma_ia_row",
+    "mma_ia_row_util_bp",
+    "mma_acc_valid",
+    "mma_acc_util_bp",
+    "mma_requant_valid",
+    "mma_fifo_valid",
+    "mma_fifo_full",
+    "mma_store_weight",
+    "mma_send_weight",
+    "mma_send_ia",
+    "mma_tile_start",
+    "mma_tile_over",
+    "mma_partial_over",
+    "mma_l1_switch",
+    "mma_dma_busy_ia",
+    "mma_dma_busy_kernel",
+    "mma_dma_busy_bias",
+    "mma_dma_busy_quant",
+    "mma_dma_busy_oa",
+    "mma_axi_ar",
+    "mma_axi_r",
+    "mma_axi_aw",
+    "mma_axi_w",
+    "mma_axi_b",
+]
 
 
 def parse_int_list(text):
@@ -160,6 +210,28 @@ def parse_cycles(output):
     return int(match.group(1)) if match else None
 
 
+def parse_util_trace(output):
+    parsed = {name: "" for name in UTIL_FIELDNAMES}
+    ctrl_ops = 0
+    mma_ops = 0
+    for match in UTIL_LINE_RE.finditer(output):
+        kind, payload = match.groups()
+        values = {key: int(value) for key, value in UTIL_KV_RE.findall(payload)}
+        if kind == "MMA_CTRL_UTIL":
+            ctrl_ops += 1
+            prefix = "ctrl_"
+        else:
+            mma_ops += 1
+            prefix = "mma_"
+        for key, value in values.items():
+            field = f"{prefix}{key}"
+            if field in parsed:
+                parsed[field] = value
+    parsed["ctrl_util_ops"] = ctrl_ops
+    parsed["mma_util_ops"] = mma_ops
+    return parsed
+
+
 def write_summary(summary_path, rows):
     passed_rows = [row for row in rows if row["result"] == "pass" and row["cycles"]]
     with summary_path.open("w", encoding="utf-8") as f:
@@ -217,6 +289,7 @@ def run_perf_job(job, sim_dir, log_root, exception_root, timeout):
         "seed": job["seed"],
         "log": str(log_path),
     }
+    row.update(parse_util_trace(output))
     if result != "pass":
         case_path = (sim_dir / case_dir).resolve()
         dst = exception_root / label
@@ -289,6 +362,7 @@ def main():
         "dataflow", "lhs_dtype", "quant_mode", "K", "N", "M",
         "ia_reuse", "w_reuse", "ia_reuse_eff", "w_reuse_eff", "seed", "log",
     ]
+    fieldnames.extend(UTIL_FIELDNAMES)
     with csv_path.open("w", newline="", encoding="utf-8") as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
         writer.writeheader()

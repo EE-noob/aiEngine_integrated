@@ -66,6 +66,7 @@ PicoRV32 程序镜像通过 `+SOC_CPU_MEM=<path>` 指定，MMA runtime 数据通
 - `soc_axi_ram` 支持 AXI burst、读写 outstanding、B/R 随机延迟。`+DDR_RAND_LAT=1 +DDR_CMD_MAX_LAT=3 +DDR_W_MAX_LAT=2 +DDR_RSP_MAX_LAT=8` 可模拟 DDR 命令、写数据和响应延迟。
 - `soc_axi_ram` 当前保留单 beat 读快路径和 `AW/W` 同周期接收；写响应仍通过 B 队列返回。实验性的直接 B 快路径会让 `micro_speech` 卡在 `progress=0x5b313000`，不要在没有覆盖 TFLM 回归前重新打开。
 - `axi_dual_block_dma` 写侧也支持 outstanding：`AW` 可按行提前排队，`W` 连续发送已接收地址的行数据，`B` 独立回收，不再要求每行写回等待上一行 B 响应。
+- `axi_block_dma_arbiter` 的读侧优先级为 `kernel > quant > IA > bias`。quant 提到 IA 前是有意的：TFLM per-channel 算子里量化参数是短读，提前完成可以避免 IA 数据到达后再等待 `quant_params_valid`。per-tensor 不发 `quant_req`，因此不受该优先级影响。
 
 ## UVM Testbench 集成
 
@@ -255,3 +256,5 @@ soc_finish(SOC_STATUS_PASS);
 | S8 随机回归 | `SIZE=8,CACHE={2,4,8},DF={WS,IS},lhs={s8,s16},Q={per-tensor,per-channel},unaligned_layout,DDR_RAND_LAT=1` | PASS 24/24 |
 | S16 随机回归 | `SIZE=16,CACHE={2,4,8},DF={WS,IS},lhs={s8,s16},Q={per-tensor,per-channel},unaligned_layout,DDR_RAND_LAT=1` | PASS 24/24 |
 | TFLM | `hello_world/micro_speech/my_model/person_detection,SIZE=16,CACHE=4,PS_FRAME=16,O3` | PASS |
+| 量化优先级边界回归 | `SIZE={8,16},CACHE=4,DF={WS,IS},lhs={s8,s16},Q={per-tensor,per-channel},MIN_DIM=1,MAX_DIM=65,unaligned_layout,DDR_RAND_LAT=1` | PASS 16/16 |
+| 量化优先级 TFLM | `micro_speech/my_model/person_detection,SIZE=16,CACHE=4,PS_FRAME=16,O3` | PASS；`quant_stall` 在已采样 per-channel TFLM op 中清零 |
