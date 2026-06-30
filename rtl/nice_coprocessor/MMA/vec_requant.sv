@@ -1,7 +1,3 @@
-//`include "define.svh"
-`include "e203_defines.v"
-`include "icb_types.svh"
-
 module vec_requant #(
     parameter int VLEN         = 16,
     parameter int REG_WIDTH    = 32,
@@ -29,13 +25,19 @@ module vec_requant #(
     input  logic load_quant_granted,
     output logic quant_params_valid,
 
-    // ICB
-    output    icb_ext_cmd_m_t icb_cmd_m,
-    //output    icb_ext_wr_m_t  icb_wr_m,
-    input var icb_ext_cmd_s_t icb_cmd_s,
-    input var icb_ext_wr_s_t  icb_wr_s,
-    input var icb_ext_rsp_s_t icb_rsp_s,
-    output    icb_ext_rsp_m_t icb_rsp_m,
+    // Native DMA read client for per-channel quant parameters.
+    output logic                        dma_start,
+    output logic                        dma_is_write,
+    output logic                        dma_linear_read_mode,
+    output logic [REG_WIDTH-1:0]        dma_base_addr,
+    output logic [REG_WIDTH-1:0]        dma_row_stride,
+    output logic [REG_WIDTH-1:0]        dma_rows_to_read,
+    output logic [3:0]                  dma_burst_len_m1,
+    output logic                        dma_slot_id,
+    output logic                        dma_use_16bits,
+    output logic signed [REG_WIDTH-1:0] dma_lhs_zp,
+    input  logic [REG_WIDTH-1:0]        dma_raw_data,
+    input  logic                        dma_raw_valid,
 
     // 数据口
     input  logic               in_valid,
@@ -49,9 +51,8 @@ module vec_requant #(
   // ----------------------------
   // 常量与类型
   // ----------------------------
-  localparam int BYTES_PER_WORD = `E203_XLEN / 8;  // 32位=4
+  localparam int BYTES_PER_WORD = REG_WIDTH / 8;  // 32位=4
   localparam int QBUF_DEPTH     = VLEN * MAX_IA_REUSE;
-  typedef logic [`ICB_LEN_W-1:0] icb_len_t;
 
   // ----------------------------
   // 状态机与游标
@@ -78,7 +79,7 @@ module vec_requant #(
   logic     [31:0] tile_row;  // 当前行 tile 号
   logic     [31:0] rows_need_cur;  // 当前行 tile 需要的行数（最后一块为余数）
   logic     [31:0] lane_need_q;  // 锁存，用于计算/屏蔽无效 lane
-  icb_len_t        burst_len_cur;  // = lane_need_cur - 1
+  logic     [ 3:0] burst_len_cur;  // = lane_need_cur - 1
   logic     [31:0] reuse_group_base_row;
   logic     [31:0] row_offset_in_group;
   logic     [31:0] group_rows_need_cur;
@@ -255,25 +256,30 @@ module vec_requant #(
   end
 
 
-  // ICB len = 需要拍数-1（0 表示 1 拍）
+  // DMA len = 需要拍数-1（0 表示 1 拍）
   always_comb begin
-    burst_len_cur = icb_len_t'((chunk_need_cur > 0) ? (chunk_need_cur - 1) : 0);
+    burst_len_cur = 4'((chunk_need_cur > 0) ? (chunk_need_cur - 1) : 0);
   end
 
   // ----------------------------
-  // ICB 命令/响应
+  // Native DMA 命令/响应
   // ----------------------------
-  icb_ext_cmd_m_t icb_cmd_m_reg, icb_cmd_m_wire;
-  icb_ext_rsp_m_t icb_rsp_m_wire;
+  wire dma_start_hskd = (state == LOAD) && !cmd_busy && load_quant_granted &&
+                        (chunk_need_cur != 32'd0);
+  wire rsp_hskd = dma_raw_valid && cmd_busy;
 
-  wire cmd_hskd = icb_cmd_m_reg.valid && icb_cmd_s.ready;
-  wire rsp_hskd = icb_rsp_s.rsp_valid && icb_rsp_m.rsp_ready;
-
-  // master 侧：响应 ready 常 1；不使用写通道
-  //assign icb_wr_m  = '{default: '0};
-  assign icb_rsp_m = '{rsp_ready: 1'b1};
-  assign icb_cmd_m = icb_cmd_m_wire;
-  always_comb icb_cmd_m_wire = icb_cmd_m_reg;
+  assign dma_start = dma_start_hskd;
+  assign dma_is_write = 1'b0;
+  assign dma_linear_read_mode = 1'b0;
+  assign dma_base_addr = (load_phase == PH_MUL)
+                       ? (mul_base_r + (quant_tile_idx_cur * VLEN + load_offset) * BYTES_PER_WORD)
+                       : (sh_base_r  + (quant_tile_idx_cur * VLEN + load_offset) * BYTES_PER_WORD);
+  assign dma_row_stride = REG_WIDTH'(REG_WIDTH / 8);
+  assign dma_rows_to_read = REG_WIDTH'(1);
+  assign dma_burst_len_m1 = burst_len_cur;
+  assign dma_slot_id = 1'b0;
+  assign dma_use_16bits = 1'b0;
+  assign dma_lhs_zp = '0;
 
 
   // ----------------------------
@@ -300,12 +306,9 @@ module vec_requant #(
       tile_col           <= 32'd0;
       tile_row           <= 32'd0;
       load_offset        <= 32'd0;
-      icb_cmd_m_reg      <= '{default: '0};
       all_tiles_done     <= 1'b0;
     end else begin
       // default per-cycle de-asserts (will be overridden in branches)
-      icb_cmd_m_reg.valid <= 1'b0;
-      icb_cmd_m_reg.read  <= 1'b0;
       //load_quant_req      <= 1'b0;  
       // note: do NOT clear quant_params_valid/lane_need_q here (they are cleared when tile completes)
 
@@ -343,7 +346,6 @@ module vec_requant #(
               if (cfg_per_channel && !quant_params_valid && (lane_need_cur != 0)) begin
                 load_quant_req <= 1'b1;
                 if (load_quant_granted) begin
-                  load_quant_req <= 1'b0;
                   load_phase     <= PH_MUL;
                   load_offset    <= 32'd0;
                   state          <= LOAD;
@@ -411,21 +413,15 @@ module vec_requant #(
 
           // ----------------------
           LOAD: begin
-            if (load_quant_granted) load_quant_req <= 1'b0;
             row_in_tile_cnt <= 5'd0;
-            // 1) 若当前没有在途命令，则按 phase 发一条读命令（valid/ready handshake）
+            // 1) 若当前没有在途命令，则按 phase 发一条 DMA 读命令。
             if (!cmd_busy) begin
-              icb_cmd_m_reg.valid <= 1'b1;
-              icb_cmd_m_reg.read <= 1'b1;
-              icb_cmd_m_reg.addr  <= (load_phase==PH_MUL)
-                                    ? (mul_base_r + (quant_tile_idx_cur*VLEN + load_offset)*BYTES_PER_WORD)
-                                    : (sh_base_r  + (quant_tile_idx_cur*VLEN + load_offset)*BYTES_PER_WORD);
-              icb_cmd_m_reg.len <= burst_len_cur;  // len = quant_need_cur - 1
+              load_quant_req <= 1'b1;
 
-              if (cmd_hskd) begin
-                // 命令已被对端接受，本次突发开始
+              if (dma_start_hskd) begin
+                // 命令已被 DMA 接受，本次突发开始
                 cmd_busy            <= 1'b1;
-                icb_cmd_m_reg.valid <= 1'b0;  // 下拍取消 valid
+                load_quant_req      <= 1'b0;
                 rd_beats_cnt        <= 6'd0;
                 beats_expect        <= chunk_need_cur[5:0];  // 需要收的拍数
                 if (requant_trace_en) begin
@@ -455,8 +451,8 @@ module vec_requant #(
               end
 `endif
 
-              if (load_phase == PH_MUL) ch_multiplier_r[load_offset + rd_beats_cnt] <= icb_rsp_s.rsp_rdata;
-              else ch_shift_r[load_offset + rd_beats_cnt] <= icb_rsp_s.rsp_rdata;
+              if (load_phase == PH_MUL) ch_multiplier_r[load_offset + rd_beats_cnt] <= dma_raw_data;
+              else ch_shift_r[load_offset + rd_beats_cnt] <= dma_raw_data;
 
               rd_beats_cnt <= rd_beats_cnt + 1;
 

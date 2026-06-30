@@ -15,8 +15,6 @@
 ../../rtl/nice_coprocessor/MMA/bias_mux.sv
 ../../rtl/nice_coprocessor/MMA/axi_block_dma_arbiter.sv
 ../../rtl/nice_coprocessor/MMA/axi_dual_block_dma.sv
-../../rtl/nice_coprocessor/MMA/block_dma.sv
-../../rtl/nice_coprocessor/MMA/block_dma_arbiter.sv
 ../../rtl/nice_coprocessor/MMA/compute_core.sv
 ../../rtl/nice_coprocessor/MMA/data_setup.sv
 ../../rtl/nice_coprocessor/MMA/de_diagonalizer.sv
@@ -24,12 +22,6 @@
 ../../rtl/nice_coprocessor/MMA/ia_loader.sv
 ../../rtl/nice_coprocessor/MMA/ia_loader_cache_mgr.sv
 ../../rtl/nice_coprocessor/MMA/ia_loader_ctrl.sv
-../../rtl/nice_coprocessor/MMA/icb_arbiter.sv
-../../rtl/nice_coprocessor/MMA/icb_ext_flat_adapter.sv
-../../rtl/nice_coprocessor/MMA/icb_mux_5to1.sv
-../../rtl/nice_coprocessor/MMA/icb_read_dma_adapter.sv
-../../rtl/nice_coprocessor/MMA/icb_write_dma_adapter.sv
-../../rtl/nice_coprocessor/MMA/kernel_block_dma.sv
 ../../rtl/nice_coprocessor/MMA/kernel_loader.sv
 ../../rtl/nice_coprocessor/MMA/kernel_loader_buffer.sv
 ../../rtl/nice_coprocessor/MMA/kernel_loader_ctrl.sv

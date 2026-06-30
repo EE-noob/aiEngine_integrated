@@ -1,7 +1,3 @@
-//`include "define.svh"
-`include "e203_defines.v"
-`include "icb_types.svh"
-
 // 矩阵乘累加(MMA)顶层模块
 module mma_top #(
     parameter int unsigned WEIGHT_WIDTH = 16,  // 权重数据宽度；WS 下 s8 符号扩展，IS+s16 下使用 16bit LHS
@@ -10,7 +6,7 @@ module mma_top #(
     parameter int unsigned BUS_WIDTH = 32,  // 总线宽度
     parameter int unsigned REG_WIDTH = 32,  // 寄存器宽度
     parameter int unsigned ADDR_WIDTH = 19,  // 地址宽度
-    parameter int unsigned ICB_LEN_W = 4,  // ICB 突发长度宽度
+    parameter int unsigned ICB_LEN_W = 4,  // Legacy wrapper parameter; native AXI datapath does not use it
     parameter int unsigned IA_CACHE_BLOCKS = 4,  // IA loader cache slots；默认 IA reuse = IA_CACHE_BLOCKS/2
 	    parameter int unsigned PS_FRAME_COUNT = SIZE,  // PS buffer 可保留的输出列 tile 数
 	    parameter int unsigned AXI_READ_OUTSTANDING = 4,  // AXI 读通道最多提前排队的 burst 数
@@ -97,22 +93,6 @@ module mma_top #(
 	    localparam int unsigned BIAS_DMA_SIZE = SIZE * 4;
 	    localparam int unsigned SHARED_DMA_SIZE =
 	        (BIAS_DMA_SIZE > SIZE) ? BIAS_DMA_SIZE : SIZE;
-
-	    // Vec requant per-channel 参数仍使用原 ICB 风格端口，经 DMA read adapter 接入共享 DMA。
-	    icb_ext_cmd_m_t vec_requant_cmd;
-	    icb_ext_cmd_s_t vec_requant_cmd_ready;
-	    icb_ext_wr_s_t  vec_requant_w_ready;
-	    icb_ext_rsp_s_t vec_requant_rsp;
-	    icb_ext_rsp_m_t vec_requant_rsp_ready;
-
-	    // 保留调试层级名；总线仲裁删除后固定为 0。
-	    wire [2:0] icb_sel = 3'd0;
-	    wire [2:0] ctrl_icb_sel_unused;
-	    wire ctrl_load_ia_granted_unused;
-	    wire ctrl_load_weight_granted_unused;
-	    wire ctrl_load_bias_granted_unused;
-	    wire ctrl_load_quant_granted_unused;
-	    wire ctrl_write_oa_granted_unused;
 
     // IA Loader 内部信号
     wire load_ia_req;
@@ -221,7 +201,7 @@ module mma_top #(
 	    logic [3:0] quant_dma_burst_len_m1;
 	    logic quant_dma_slot_id, quant_dma_use_16bits;
 	    logic signed [REG_WIDTH-1:0] quant_dma_lhs_zp;
-	    logic quant_dma_busy, quant_dma_done, quant_dma_req;
+	    logic quant_dma_busy, quant_dma_done;
 	    logic [BUS_WIDTH-1:0] quant_dma_raw_data;
 	    logic quant_dma_raw_valid;
 
@@ -367,7 +347,7 @@ module mma_top #(
 	        .bias_wr_data            (bias_dma_wr_data),
 	        .bias_wr_valid           (bias_dma_wr_valid),
 	        .bias_wr_use_16bits      (bias_dma_wr_use_16bits),
-	        .quant_req               (load_quant_req || quant_dma_req),
+	        .quant_req               (load_quant_req),
 	        .quant_granted           (load_quant_granted),
 	        .quant_start             (quant_dma_start),
 	        .quant_is_write          (quant_dma_is_write),
@@ -449,8 +429,7 @@ module mma_top #(
 
         .partial_sum_calc_over(partial_sum_calc_over),
         .tile_calc_over       (tile_calc_over),
-	        .icb_sel              (ctrl_icb_sel_unused),
-        .init_cfg_ia          (init_cfg_ia),
+	        .init_cfg_ia          (init_cfg_ia),
         .init_cfg_weight      (init_cfg_weight),
         .init_cfg_bias        (init_cfg_bias),
         .init_cfg_requant     (init_cfg_requant),
@@ -470,37 +449,24 @@ module mma_top #(
         .lhs_row_stride_b     (lhs_row_stride_b),
         .dst_row_stride_b     (dst_row_stride_b),
         .rhs_col_stride_b     (rhs_col_stride_b),
-        // IA Loader Interface
-        .load_ia_req          (load_ia_req),
-	        .load_ia_granted      (ctrl_load_ia_granted_unused),
-        .send_ia_trigger      (send_ia_trigger),
+	        // IA Loader Interface
+	        .send_ia_trigger      (send_ia_trigger),
         .ia_sending_done      (ia_sending_done),
         .ia_data_valid        (ia_data_valid),
         .ia_group_calc_done   (ia_group_calc_done),
-        // Weight Loader Interface
-        .load_weight_req      (load_weight_req),
-	        .load_weight_granted  (ctrl_load_weight_granted_unused),
-        .load_weight_done     (load_weight_done),
-        .send_weight_trigger  (send_weight_trigger),
+	        // Weight Loader Interface
+	        .send_weight_trigger  (send_weight_trigger),
         .weight_sending_done  (weight_sending_done),
         .weight_data_valid    (weight_data_valid),
-        // Bias Loader Interface
-        .load_bias_req        (load_bias_req),
-	        .load_bias_granted    (ctrl_load_bias_granted_unused),
-        .bias_valid           (bias_group_valid),
-        .bias_sleep           (bias_sleep),
-        .load_bias_done       (load_bias_done),
-        // Requantization Interface
-        .load_quant_req       (load_quant_req),
-	        .load_quant_granted   (ctrl_load_quant_granted_unused),
-        .quant_params_valid   (quant_params_valid),
+	        // Bias Loader Interface
+	        .bias_valid           (bias_group_valid),
+	        .bias_sleep           (bias_sleep),
+	        // Requantization Interface
+	        .quant_params_valid   (quant_params_valid),
         // FIFO Interface
         .fifo_full_flag       (fifo_full_flag),
-        // OA Writer Interface
-        .write_oa_req         (write_oa_req),
-	        .write_oa_granted     (ctrl_write_oa_granted_unused),
-        .write_done           (write_done),
-        .oa_calc_over         (oa_calc_over),
+	        // OA Writer Interface
+	        .oa_calc_over         (oa_calc_over),
         // Writeback Handshake Interface
         .wb_valid             (wb_valid),
         .wb_ready             (wb_ready),
@@ -853,49 +819,27 @@ module mma_top #(
         .load_quant_req    (load_quant_req),
         .load_quant_granted(load_quant_granted),
         .quant_params_valid(quant_params_valid),
-        .k                 (stream_k),
-        .m                 (stream_m),
-        .ia_reuse_num_in   (ia_reuse_num_eff),
-        .icb_cmd_m         (vec_requant_cmd),
-        //.icb_wr_m          (vec_requant_wr),
-        .icb_cmd_s         (vec_requant_cmd_ready),
-        .icb_wr_s          (vec_requant_w_ready),
-        .icb_rsp_s         (vec_requant_rsp),
-        .icb_rsp_m         (vec_requant_rsp_ready),
-        .in_valid          (acc_data_valid),
-        .in_tile_done      (tile_calc_over),
-        .in_vec_s32        (requant_in_vec),
+	        .k                 (stream_k),
+	        .m                 (stream_m),
+	        .ia_reuse_num_in   (ia_reuse_num_eff),
+	        .dma_start         (quant_dma_start),
+	        .dma_is_write      (quant_dma_is_write),
+	        .dma_linear_read_mode(quant_dma_linear_read_mode),
+	        .dma_base_addr     (quant_dma_base_addr),
+	        .dma_row_stride    (quant_dma_row_stride),
+	        .dma_rows_to_read  (quant_dma_rows_to_read),
+	        .dma_burst_len_m1  (quant_dma_burst_len_m1),
+	        .dma_slot_id       (quant_dma_slot_id),
+	        .dma_use_16bits    (quant_dma_use_16bits),
+	        .dma_lhs_zp        (quant_dma_lhs_zp),
+	        .dma_raw_data      (quant_dma_raw_data),
+	        .dma_raw_valid     (quant_dma_raw_valid),
+	        .in_valid          (acc_data_valid),
+	        .in_tile_done      (tile_calc_over),
+	        .in_vec_s32        (requant_in_vec),
         .out_valid         (requant_out_valid),
         .out_tile_done     (requant_out_tile_done),
 	        .out_vec_s8        (requant_out)
-	    );
-	    assign vec_requant_w_ready.w_ready = 1'b0;
-
-	    icb_read_dma_adapter #(
-	        .BUS_WIDTH(BUS_WIDTH),
-	        .REG_WIDTH(REG_WIDTH)
-	    ) u_quant_dma_adapter (
-	        .clk                 (clk),
-	        .rst_n               (rst_n),
-	        .icb_cmd_m           (vec_requant_cmd),
-	        .icb_cmd_s           (vec_requant_cmd_ready),
-	        .icb_rsp_s           (vec_requant_rsp),
-	        .icb_rsp_m           (vec_requant_rsp_ready),
-	        .dma_granted         (load_quant_granted),
-	        .dma_req             (quant_dma_req),
-	        .dma_start           (quant_dma_start),
-	        .dma_is_write        (quant_dma_is_write),
-	        .dma_linear_read_mode(quant_dma_linear_read_mode),
-	        .dma_base_addr       (quant_dma_base_addr),
-	        .dma_row_stride      (quant_dma_row_stride),
-	        .dma_rows_to_read    (quant_dma_rows_to_read),
-	        .dma_burst_len_m1    (quant_dma_burst_len_m1),
-	        .dma_slot_id         (quant_dma_slot_id),
-	        .dma_use_16bits      (quant_dma_use_16bits),
-	        .dma_lhs_zp          (quant_dma_lhs_zp),
-	        .dma_raw_data        (quant_dma_raw_data),
-	        .dma_raw_valid       (quant_dma_raw_valid),
-	        .dma_done            (quant_dma_done)
 	    );
     //wire signed [             7:0] requant_out                            [SIZE];
     //TODO: check big or little endian

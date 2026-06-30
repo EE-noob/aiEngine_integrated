@@ -1,7 +1,3 @@
-//`include "define.svh"
- `include "e203_defines.v"
-`include "icb_types.svh"
-
 // MMA(Matrix Multiply Accumulate) Controller
 //
 // ==== 参数配置规则 ====
@@ -68,7 +64,6 @@ module mma_controller #(
     input logic [REG_WIDTH-1:0] rhs_col_stride_b,  // B row stride       (MULT_RHS_ROW_STRIDE)
 
     //==== Control Signals ====
-    output reg [          2:0] icb_sel,           // ICB多路复用器选择信号
     output reg                 init_cfg_ia,       // IA Loader 配置初始化（单拍）
     output reg                 init_cfg_weight,   // Kernel Loader 配置初始化（单拍）
     output reg                 init_cfg_bias,     // Bias Loader 配置初始化（单拍）
@@ -81,40 +76,27 @@ module mma_controller #(
     input wire tile_calc_over,         // 新版 ps_buffer 最终 tile 输出结束
 
     //==== IA Loader Interface ====
-    input  wire load_ia_req,      // IA加载请求
-    output reg  load_ia_granted,  // IA加载授权
     output reg  send_ia_trigger,  // IA发送触发
     input  wire ia_sending_done,  // IA发送完成
     input  wire ia_data_valid,    // IA数据有效
     input  wire ia_group_calc_done,  // 当前 IA 组会产生最终输出
 
     //==== Weight Loader Interface ====
-    input  wire load_weight_req,      // 权重加载请求
-    output reg  load_weight_granted,  // 权重加载授权
-    input  wire load_weight_done,     // 权重 DMA 事务完成
     output reg  send_weight_trigger,  // 权重发送触发
     input  wire weight_sending_done,  // 权重发送完成
     input  wire weight_data_valid,    // 权重数据有效
 
     //==== Bias Loader Interface ====
-    input  wire load_bias_req,      // 偏置加载请求
-    output reg  load_bias_granted,  // 偏置加载授权
     input  wire bias_valid,         // 偏置数据有效
     input  wire bias_sleep,         // 1: 当前 IA 组使用 ps_buffer 回灌，不需要 bias 阻塞
-    input  wire load_bias_done,     // 偏置 DMA 事务完成
 
     // Requantization Interface
-    input  wire load_quant_req,      // 申请下一次量化参数访存
-    output wire load_quant_granted,  // 量化参数访存授权
     input  wire quant_params_valid,  // 量化参数有效
 
     //==== FIFO Interface ====
     input wire fifo_full_flag,  // FIFO满信号
 
     //==== OA Writer Interface ====
-    input  wire write_oa_req,      // OA写回请求
-    output reg  write_oa_granted,  // OA写回授权
-    input  wire write_done,        // 写回完成
     input  wire oa_calc_over,      // OA计算完成
 
     //==== Writeback Handshake Interface ====
@@ -601,33 +583,5 @@ module mma_controller #(
             wb_valid <= wb_valid_next;
         end
     end
-
-    // 实例化ICB仲裁器
-    icb_arbiter u_icb_arbiter (
-        .clk       (clk),
-        .rst_n     (rst_n),
-        // IA Loader
-        .s0_req    (load_ia_req),
-        .s0_granted(load_ia_granted),
-        .s0_done   (!load_ia_req),
-        // Kernel Loader
-        .s1_req    (load_weight_req),
-        .s1_granted(load_weight_granted),
-        .s1_done   (load_weight_done),
-        // Bias Loader
-        .s2_req    (load_bias_req),
-        .s2_granted(load_bias_granted),
-        .s2_done   (load_bias_done),
-        // Vec Requant
-        .s3_req    (load_quant_req),
-        .s3_granted(load_quant_granted),
-        .s3_done   (quant_params_valid),
-        // OA Writer
-        .s4_req    (write_oa_req),
-        .s4_granted(write_oa_granted),
-        .s4_done   (write_done),
-        // ICB选择
-        .icb_sel   (icb_sel)
-    );
 
 endmodule
