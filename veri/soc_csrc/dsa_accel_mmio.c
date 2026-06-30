@@ -106,19 +106,14 @@ static void dsa_matmul_legalize_reuse(uint32_t K, uint32_t M,
     ia_limit = (ia_cache_blocks < 2u) ? 1u : (ia_cache_blocks / 2u);
     ia_limit = max_u32(1u, ia_limit);
 
-    if (*ia_reuse_num == 0u) {
-        *ia_reuse_num = 1u;
-    }
-    if (*w_reuse_num == 0u) {
-        *w_reuse_num = 1u;
-    }
-    if (*ia_reuse_num > ia_limit) {
+    if ((*ia_reuse_num != 0u) && (*ia_reuse_num > ia_limit)) {
         *ia_reuse_num = ia_limit;
     }
-    if (*w_reuse_num > output_col_tiles) {
+    if ((*w_reuse_num != 0u) && (*w_reuse_num > output_col_tiles)) {
         *w_reuse_num = output_col_tiles;
     }
     if ((dataflow_mode == DSA_DATAFLOW_IS) &&
+        (*ia_reuse_num != 0u) && (*w_reuse_num != 0u) &&
         (*w_reuse_num < *ia_reuse_num) &&
         (output_col_tiles >= *ia_reuse_num)) {
         *w_reuse_num = *ia_reuse_num;
@@ -130,17 +125,9 @@ void dsa_matmul_select_reuse(uint32_t K, uint32_t N, uint32_t M,
                              dsa_dataflow_mode_t dataflow_mode,
                              uint32_t *ia_reuse_num,
                              uint32_t *w_reuse_num) {
-    uint32_t x_tiles;
-    uint32_t y_tiles;
-    uint32_t z_tiles;
     uint32_t stream_cols;
     uint32_t output_col_tiles;
     uint32_t ia_limit;
-    uint32_t smax;
-    uint32_t best_a = 1u;
-    uint32_t best_b = 1u;
-    uint32_t best_time = 0xffffffffu;
-    uint32_t b;
 
     if ((ia_reuse_num == 0) || (w_reuse_num == 0)) {
         return;
@@ -156,44 +143,16 @@ void dsa_matmul_select_reuse(uint32_t K, uint32_t N, uint32_t M,
         ia_cache_blocks = DSA_IA_CACHE_BLOCKS;
     }
 
-    if (dataflow_mode == DSA_DATAFLOW_IS) {
-        x_tiles = ceil_div_u32(N, DSA_TILE_SIZE);
-        y_tiles = ceil_div_u32(M, DSA_TILE_SIZE);
-        z_tiles = ceil_div_u32(K, DSA_TILE_SIZE);
-        stream_cols = K;
-    } else {
-        x_tiles = ceil_div_u32(M, DSA_TILE_SIZE);
-        y_tiles = ceil_div_u32(N, DSA_TILE_SIZE);
-        z_tiles = ceil_div_u32(K, DSA_TILE_SIZE);
-        stream_cols = M;
-    }
-
+    stream_cols = (dataflow_mode == DSA_DATAFLOW_IS) ? K : M;
     output_col_tiles = max_u32(1u, ceil_div_u32(stream_cols, DSA_TILE_SIZE));
     ia_limit = (ia_cache_blocks < 2u) ? 1u : (ia_cache_blocks / 2u);
     ia_limit = max_u32(1u, ia_limit);
-    smax = max_u32(1u, ia_cache_blocks);
 
-    for (b = 1u; b <= min_u32(y_tiles, smax); ++b) {
-        uint32_t a = min_u32(x_tiles, smax / b);
-        uint32_t time;
-        if (a == 0u) {
-            continue;
-        }
-        time = eval_reuse_time(x_tiles, y_tiles, z_tiles, a, b);
-        if ((time < best_time) ||
-            ((time == best_time) && (a > best_a))) {
-            best_time = time;
-            best_a = a;
-            best_b = b;
-        }
-    }
-
-    best_a = floor_pow2_u32(max_u32(1u, min_u32(best_a, ia_limit)));
-    best_b = floor_pow2_u32(max_u32(1u, min_u32(best_b, output_col_tiles)));
+    (void)N;
+    *ia_reuse_num = ia_limit;
+    *w_reuse_num = output_col_tiles;
     dsa_matmul_legalize_reuse(K, M, ia_cache_blocks, dataflow_mode,
-                              &best_a, &best_b);
-    *ia_reuse_num = best_a;
-    *w_reuse_num = best_b;
+                              ia_reuse_num, w_reuse_num);
 }
 
 uint32_t dsa_build_cfg_word(const dsa_matmul_config_t *config) {
@@ -289,19 +248,6 @@ uint32_t dsa_matmul_execute(const dsa_matmul_config_t *config) {
 
     ia_reuse_num = config->ia_reuse_num;
     w_reuse_num = config->w_reuse_num;
-    if ((ia_reuse_num == 0u) || (w_reuse_num == 0u)) {
-        uint32_t auto_ia;
-        uint32_t auto_w;
-        dsa_matmul_select_reuse(config->K, config->N, config->M,
-                                DSA_IA_CACHE_BLOCKS, config->dataflow_mode,
-                                &auto_ia, &auto_w);
-        if (ia_reuse_num == 0u) {
-            ia_reuse_num = auto_ia;
-        }
-        if (w_reuse_num == 0u) {
-            w_reuse_num = auto_w;
-        }
-    }
     dsa_matmul_legalize_reuse(config->K, config->M, DSA_IA_CACHE_BLOCKS,
                               config->dataflow_mode,
                               &ia_reuse_num, &w_reuse_num);

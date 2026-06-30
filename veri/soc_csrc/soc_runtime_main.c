@@ -53,17 +53,29 @@ typedef struct {
     uint32_t dst_shift_size;
 } soc_runtime_case_t;
 
-static const volatile soc_runtime_case_t *runtime_case(void)
+static const volatile soc_runtime_case_t *runtime_case_src(void)
 {
     return (const volatile soc_runtime_case_t *)(uintptr_t)SOC_RUNTIME_CASE_BASE;
 }
 
-static uint32_t runtime_lhs_dtype(const volatile soc_runtime_case_t *c)
+static void load_runtime_case_snapshot(soc_runtime_case_t *dst)
+{
+    const volatile uint32_t *src = (const volatile uint32_t *)runtime_case_src();
+    uint32_t *out = (uint32_t *)dst;
+    uint32_t words = sizeof(*dst) / sizeof(uint32_t);
+    uint32_t idx;
+
+    for (idx = 0; idx < words; idx++) {
+        out[idx] = src[idx];
+    }
+}
+
+static uint32_t runtime_lhs_dtype(const soc_runtime_case_t *c)
 {
     return (c->lhs_dtype == 2u) ? (uint32_t)DSA_DTYPE_S16 : (uint32_t)DSA_DTYPE_S8;
 }
 
-static uint32_t validate_runtime_case(const volatile soc_runtime_case_t *c)
+static uint32_t validate_runtime_case(const soc_runtime_case_t *c)
 {
     uint32_t expected_size;
     uint32_t lhs_elem_bytes;
@@ -112,7 +124,7 @@ static uint32_t validate_runtime_case(const volatile soc_runtime_case_t *c)
     return SOC_TEST_OK;
 }
 
-static void load_runtime_config(const volatile soc_runtime_case_t *c,
+static void load_runtime_config(const soc_runtime_case_t *c,
                                 dsa_matmul_config_t *config)
 {
     dsa_matmul_config_init(config);
@@ -147,21 +159,71 @@ static void load_runtime_config(const volatile soc_runtime_case_t *c,
     config->w_reuse_num = c->w_reuse_num;
 }
 
-static void clear_runtime_output(const volatile soc_runtime_case_t *c)
+static void clear_runtime_output(const soc_runtime_case_t *c)
 {
-    volatile int8_t *dst = (volatile int8_t *)(uintptr_t)c->output_addr;
+    int8_t *dst = (int8_t *)(uintptr_t)c->output_addr;
     uint32_t idx;
+
+    if (((c->output_addr | c->output_size) & 3u) == 0u) {
+        uint32_t *dst32 = (uint32_t *)(uintptr_t)c->output_addr;
+        uint32_t words = c->output_size >> 2;
+
+        for (idx = 0; idx < words; idx++) {
+            dst32[idx] = 0u;
+        }
+        return;
+    }
 
     for (idx = 0; idx < c->output_size; idx++) {
         dst[idx] = 0;
     }
 }
 
-static uint32_t compare_runtime_output(const volatile soc_runtime_case_t *c)
+static uint32_t compare_runtime_output(const soc_runtime_case_t *c)
 {
-    volatile int8_t *dst = (volatile int8_t *)(uintptr_t)c->output_addr;
+    const int8_t *dst = (const int8_t *)(uintptr_t)c->output_addr;
     const int8_t *expected = (const int8_t *)(uintptr_t)c->expected_addr;
     uint32_t idx;
+
+    if (((c->output_addr | c->expected_addr | c->expected_dst_size) & 3u) == 0u) {
+        const uint32_t *dst32 = (const uint32_t *)(uintptr_t)c->output_addr;
+        const uint32_t *expected32 = (const uint32_t *)(uintptr_t)c->expected_addr;
+        uint32_t words = c->expected_dst_size >> 2;
+
+        for (idx = 0; idx < words; idx++) {
+            if (dst32[idx] != expected32[idx]) {
+                uint32_t base = idx << 2;
+                uint32_t byte_idx;
+
+                for (byte_idx = 0; byte_idx < 4u; byte_idx++) {
+                    uint32_t elem_idx = base + byte_idx;
+                    uint8_t actual = (uint8_t)dst[elem_idx];
+                    uint8_t expect = (uint8_t)expected[elem_idx];
+
+                    if (actual != expect) {
+                        uint32_t row = elem_idx / c->M;
+                        uint32_t col;
+                        printf("[soc_rt] MISMATCH idx=%u row=%u col=%u actual=%d expected=%d actual_u=0x%02x expected_u=0x%02x\n",
+                               elem_idx, row, elem_idx % c->M,
+                               (int)((int8_t)actual), (int)((int8_t)expect),
+                               actual, expect);
+                        printf("[soc_rt] actual_row:");
+                        for (col = 0; col < c->M; col++) {
+                            printf(" %d", (int)dst[row * c->M + col]);
+                        }
+                        printf("\n[soc_rt] expect_row:");
+                        for (col = 0; col < c->M; col++) {
+                            printf(" %d", (int)expected[row * c->M + col]);
+                        }
+                        printf("\n");
+                        return SOC_TEST_FAIL_COMPARE | (elem_idx & 0x00ffffffu);
+                    }
+                }
+            }
+        }
+
+        return SOC_TEST_OK;
+    }
 
     for (idx = 0; idx < c->expected_dst_size; idx++) {
         uint8_t actual = (uint8_t)dst[idx];
@@ -190,9 +252,8 @@ static uint32_t compare_runtime_output(const volatile soc_runtime_case_t *c)
     return SOC_TEST_OK;
 }
 
-static uint32_t test_runtime_case(void)
+static uint32_t test_runtime_case(const soc_runtime_case_t *c)
 {
-    const volatile soc_runtime_case_t *c = runtime_case();
     dsa_matmul_config_t config;
     uint32_t status;
 
@@ -214,16 +275,17 @@ static uint32_t test_runtime_case(void)
 
 int main(void)
 {
-    const volatile soc_runtime_case_t *c = runtime_case();
+    soc_runtime_case_t c;
     uint32_t status;
 
     picosoc_uart_init();
+    load_runtime_case_snapshot(&c);
     printf("[soc_rt] case seed=%u random=%u K=%u N=%u M=%u lhs_dtype=%u quant=%u dataflow=%u R=%u W=%u base=0x%08x\n",
-           c->seed, c->random_case, c->K, c->N, c->M, c->lhs_dtype,
-           c->quant_mode, c->dataflow_mode, c->ia_reuse_num, c->w_reuse_num,
+           c.seed, c.random_case, c.K, c.N, c.M, c.lhs_dtype,
+           c.quant_mode, c.dataflow_mode, c.ia_reuse_num, c.w_reuse_num,
            (uint32_t)SOC_RUNTIME_CASE_BASE);
 
-    status = test_runtime_case();
+    status = test_runtime_case(&c);
     if (status == SOC_TEST_OK) {
         printf("[soc_rt] PASS\n");
     } else {

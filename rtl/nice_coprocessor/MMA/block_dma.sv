@@ -3,7 +3,7 @@
  * ============================================================
  * 功能：
  *   1. 读模式：支持按行 burst 的块读，以及单拍顺序的线性 1D 读
- *   2. 写模式：按行/beat 写回外存，支持分块写入
+ *   2. 写模式：按行 burst 写回外存，支持分块写入
  *
  * 说明：
  *   - 保持与 tile_loader 读通路兼容，便于 ia_loader 平滑迁移
@@ -102,11 +102,8 @@ module block_dma #(
     // 写模式状态
     logic        [           REG_WIDTH-1:0] wr_row_cnt;
     logic        [           REG_WIDTH-1:0] wr_beat_cnt;
-    logic                                   wr_cmd_inflight;
-    logic                                   wr_w_pending;
-    logic        [           BUS_WIDTH-1:0] wr_data_buf;
-    logic        [         BUS_WIDTH/8-1:0] wr_mask_buf;
-    logic                                   wr_data_buf_valid;
+    logic                                   wr_row_active;
+    logic                                   wr_rsp_pending;
 
     logic                                   active;
     logic                                   tile_done_r;
@@ -114,7 +111,7 @@ module block_dma #(
     assign busy          = active;
     assign wr_use_16bits = cfg_use_16bits;
     assign wr_slot       = cfg_slot;
-    assign icb_w_valid   = active && cfg_is_write && wr_w_pending && wr_data_buf_valid;
+    assign icb_w_valid   = active && cfg_is_write && wr_row_active && !wr_rsp_pending && src_wvalid;
 
     // ICB 固定信号
     assign icb_rsp_ready = active;
@@ -134,7 +131,7 @@ module block_dma #(
 
     wire last_rsp_write = rsp_hs
                      && cfg_is_write
-                     && (wr_beat_cnt == {28'd0, cfg_burst_len_m1})
+                     && wr_rsp_pending
                      && (wr_row_cnt  == cfg_rows - 1);
 
     always_ff @(posedge clk or negedge rst_n) begin
@@ -176,17 +173,16 @@ module block_dma #(
     // 默认命令字段
     always_comb begin
         icb_cmd_read  = !cfg_is_write;
-        icb_cmd_len   = cfg_is_write ? 4'd0 : (cfg_linear_read ? 4'd0 : cfg_burst_len_m1);
-        icb_cmd_wdata = wr_data_buf;
-        icb_cmd_wmask = wr_mask_buf;
+        icb_cmd_len   = cfg_linear_read ? 4'd0 : cfg_burst_len_m1;
+        icb_cmd_wdata = src_wdata;
+        icb_cmd_wmask = src_wmask;
     end
 
-    // 源写数据就绪：仅写模式且缓存空、当前无 outstanding
+    // 写模式按行发送 burst，wready 直接承接 ICB 写数据通道反压。
     assign src_wready = active && cfg_is_write
-	                   && !wr_data_buf_valid
-	                   && !icb_cmd_valid
-	                   && !wr_w_pending
-	                   && !wr_cmd_inflight
+	                   && wr_row_active
+	                   && !wr_rsp_pending
+	                   && icb_w_ready
 	                   && (wr_row_cnt < cfg_rows);
 
     // 命令发送
@@ -199,11 +195,8 @@ module block_dma #(
             wr_row_cnt        <= '0;
             wr_beat_cnt       <= '0;
             rd_cmd_inflight   <= 1'b0;
-            wr_cmd_inflight   <= 1'b0;
-            wr_w_pending      <= 1'b0;
-            wr_data_buf       <= '0;
-            wr_mask_buf       <= '0;
-            wr_data_buf_valid <= 1'b0;
+            wr_row_active     <= 1'b0;
+            wr_rsp_pending    <= 1'b0;
         end else if (start && !active) begin
             icb_cmd_valid     <= 1'b0;
             icb_cmd_addr      <= tile_base_addr;
@@ -212,25 +205,14 @@ module block_dma #(
             wr_row_cnt        <= '0;
             wr_beat_cnt       <= '0;
             rd_cmd_inflight   <= 1'b0;
-            wr_cmd_inflight   <= 1'b0;
-            wr_w_pending      <= 1'b0;
-            wr_data_buf       <= '0;
-            wr_mask_buf       <= '0;
-            wr_data_buf_valid <= 1'b0;
+            wr_row_active     <= 1'b0;
+            wr_rsp_pending    <= 1'b0;
         end else if (active) begin
-            // 写模式下先缓存上游待写数据，再发命令
-            if (cfg_is_write && src_wvalid && src_wready) begin
-                wr_data_buf       <= src_wdata;
-                wr_mask_buf       <= src_wmask;
-                wr_data_buf_valid <= 1'b1;
-            end
-
             if (tile_done_r) begin
                 icb_cmd_valid     <= 1'b0;
                 rd_cmd_inflight   <= 1'b0;
-                wr_cmd_inflight   <= 1'b0;
-                wr_w_pending      <= 1'b0;
-                wr_data_buf_valid <= 1'b0;
+                wr_row_active     <= 1'b0;
+                wr_rsp_pending    <= 1'b0;
             end else if (!cfg_is_write) begin
                 // 读模式：块读（逐行 burst）或线性 1D 读（单拍顺序）
                 if (cmd_row_cnt < cfg_rows && !rd_cmd_inflight) begin
@@ -252,32 +234,28 @@ module block_dma #(
                 if (cmd_hs) rd_cmd_inflight <= 1'b1;
                 if (read_rsp_done) rd_cmd_inflight <= 1'b0;
             end else begin
-                // 写模式：按 row/beat 发单拍写命令（len=0）
-                if (!icb_cmd_valid && !wr_w_pending && !wr_cmd_inflight) begin
-                    if (wr_data_buf_valid && (wr_row_cnt < cfg_rows)) begin
-                        icb_cmd_valid <= 1'b1;
-                        icb_cmd_addr  <= cfg_base_addr + wr_row_cnt * cfg_row_stride + wr_beat_cnt * BYTE_PER_BEAT;
-                    end
+                // 写模式：每行发一次 burst 命令，随后连续推送该行所有 beat。
+                if (!icb_cmd_valid && !wr_row_active && (wr_row_cnt < cfg_rows)) begin
+                    icb_cmd_valid <= 1'b1;
+                    icb_cmd_addr  <= cfg_base_addr + wr_row_cnt * cfg_row_stride;
                 end else if (cmd_hs) begin
                     icb_cmd_valid <= 1'b0;
-                    wr_w_pending  <= 1'b1;
+                    wr_row_active <= 1'b1;
+                    wr_beat_cnt   <= '0;
                 end
 
                 if (w_hs) begin
-                    wr_w_pending      <= 1'b0;
-                    wr_cmd_inflight   <= 1'b1;
-                    wr_data_buf_valid <= 1'b0;
+                    if (wr_beat_cnt == {28'd0, cfg_burst_len_m1}) begin
+                        wr_beat_cnt    <= '0;
+                        wr_rsp_pending <= 1'b1;
+                    end else begin
+                        wr_beat_cnt <= wr_beat_cnt + 1;
+                    end
                 end
-                if (rsp_hs) wr_cmd_inflight <= 1'b0;
-            end
-
-            // 写模式计数器按 rsp 推进
-            if (rsp_hs && cfg_is_write) begin
-                if (wr_beat_cnt == {28'd0, cfg_burst_len_m1}) begin
-                    wr_beat_cnt <= '0;
+                if (rsp_hs && cfg_is_write) begin
+                    wr_rsp_pending <= 1'b0;
+                    wr_row_active  <= 1'b0;
                     if (wr_row_cnt < cfg_rows) wr_row_cnt <= wr_row_cnt + 1;
-                end else begin
-                    wr_beat_cnt <= wr_beat_cnt + 1;
                 end
             end
         end else begin
@@ -286,11 +264,8 @@ module block_dma #(
             wr_row_cnt        <= '0;
             wr_beat_cnt       <= '0;
             rd_cmd_inflight   <= 1'b0;
-            wr_cmd_inflight   <= 1'b0;
-            wr_w_pending      <= 1'b0;
-            wr_data_buf       <= '0;
-            wr_mask_buf       <= '0;
-            wr_data_buf_valid <= 1'b0;
+            wr_row_active     <= 1'b0;
+            wr_rsp_pending    <= 1'b0;
         end
     end
 
