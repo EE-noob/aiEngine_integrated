@@ -74,12 +74,17 @@ constexpr uint32_t kCsrMultActMax = 0x7d0u;
 #ifndef DSA_IA_CACHE_BLOCKS
 #define DSA_IA_CACHE_BLOCKS 4
 #endif
+#ifndef TFLM_SOC_MMA_MIN_MACS
+#define TFLM_SOC_MMA_MIN_MACS 0
+#endif
 constexpr int kMmaVectorCols = static_cast<int>(DSA_TILE_SIZE);
 constexpr int kMmaMaxRows = 512;
 constexpr int kMmaMaxInner = 512;
 constexpr int kMmaTimeout = 2000000;
 constexpr uint32_t kMmaIaCacheBlocks =
     static_cast<uint32_t>(DSA_IA_CACHE_BLOCKS);
+constexpr uint32_t kMmaMinMacs =
+    static_cast<uint32_t>(TFLM_SOC_MMA_MIN_MACS);
 
 alignas(16) int8_t g_mma_lhs[kMmaMaxRows * kMmaMaxInner];
 alignas(16) int8_t g_mma_rhs[kMmaMaxInner * kMmaVectorCols];
@@ -142,6 +147,20 @@ uint32_t SatMulU32(uint32_t a, uint32_t b) {
     return 0xffffffffu;
   }
   return a * b;
+}
+
+bool ShouldUseMmaShape(int rows, int inner, int cols) {
+  if (kMmaMinMacs == 0) {
+    return true;
+  }
+  if (rows <= 0 || inner <= 0 || cols <= 0) {
+    return false;
+  }
+  const uint32_t macs =
+      SatMulU32(SatMulU32(static_cast<uint32_t>(rows),
+                          static_cast<uint32_t>(inner)),
+                static_cast<uint32_t>(cols));
+  return macs >= kMmaMinMacs;
 }
 
 uint32_t EvalReuseTime(uint32_t x_tiles, uint32_t y_tiles, uint32_t z_tiles,
@@ -428,6 +447,11 @@ bool TryMmaConvInt8(const TfLiteConvParams& params, const OpDataConv& data,
       output_depth <= 0 || total_rows <= 0 || data.filter_zero_point != 0) {
     return false;
   }
+#if !defined(TFLM_SOC_MMA_SOFT)
+  if (!ShouldUseMmaShape(total_rows, inner, output_depth)) {
+    return false;
+  }
+#endif
 
   SocProgress(0x5c311000u);
   const int input_batch_stride = input_height * input_width * input_depth;

@@ -124,6 +124,7 @@ TFLM_MICRO_SPEECH_TIMEOUT_CYCLES ?= 50000000
 TFLM_HELLO_WORLD_TIMEOUT_CYCLES ?= 5000000
 TFLM_PERSON_DETECTION_TIMEOUT_CYCLES ?= 320000000
 SOC_HW_DEFINES := -DDSA_TILE_SIZE=$(MMA_SIZE) -DDSA_IA_CACHE_BLOCKS=$(MMA_IA_CACHE_BLOCKS) -DDSA_PS_FRAME_COUNT=$(MMA_PS_FRAME_COUNT)
+TFLM_EXTRA_DEFINES ?=
 TFLM_RV32_REBUILD_DEPS := \
                 $(TFLM_ROOT)/tensorflow/lite/micro/kernels/conv.cc \
                 $(TFLM_ROOT)/tensorflow/lite/micro/kernels/depthwise_conv.cc \
@@ -138,7 +139,7 @@ TFLM_INCLUDES = -I$(TFLM_ROOT) \
                 -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/flatbuffers/include \
                 -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/kissfft \
                 -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/ruy
-TFLM_CXXFLAGS = -march=rv32im -mabi=ilp32 $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) \
+TFLM_CXXFLAGS = -march=rv32im -mabi=ilp32 $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) $(TFLM_EXTRA_DEFINES) \
                 -std=c++17 -fno-rtti -fno-exceptions -fno-threadsafe-statics \
                 -fno-unwind-tables -ffunction-sections -fdata-sections \
                 -fmessage-length=0 -DNDEBUG -DTF_LITE_STRIP_ERROR_STRINGS \
@@ -288,7 +289,7 @@ $(SOC_RUNTIME_CPU_MEM): $(SOC_RUNTIME_C_SRC) ../soc_csrc/start.S ../soc_csrc/pic
 soc_runtime_c: $(SOC_RUNTIME_CPU_MEM)
 
 $(TFLM_LIB): $(TFLM_RV32_REBUILD_DEPS)
-> $(MAKE) -C $(TFLM_DIR) BUILD_DIR=$(TFLM_BUILD_DIR) CC=$(SOC_GCC) CXX=$(SOC_GXX) AR=$(SOC_AR) TARGET_FLAGS="-march=rv32im -mabi=ilp32 $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) -DTFLM_SOC_PROGRESS -DTFLM_SOC_MMA" BUILD_TYPE=Release $(TFLM_BUILD_DIR)/libtflite-micro.a
+> $(MAKE) -C $(TFLM_DIR) BUILD_DIR=$(TFLM_BUILD_DIR) CC=$(SOC_GCC) CXX=$(SOC_GXX) AR=$(SOC_AR) TARGET_FLAGS="-march=rv32im -mabi=ilp32 $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) $(TFLM_EXTRA_DEFINES) -DTFLM_SOC_PROGRESS -DTFLM_SOC_MMA" BUILD_TYPE=Release $(TFLM_BUILD_DIR)/libtflite-micro.a
 
 $(TFLM_HOST_LIB):
 > $(MAKE) -C $(TFLM_DIR) BUILD_DIR=$(TFLM_HOST_BUILD_DIR) TARGET_FLAGS="$(HOST_OPT_LEVEL)" BUILD_TYPE=Release $(TFLM_HOST_BUILD_DIR)/libtflite-micro.a

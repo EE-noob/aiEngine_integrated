@@ -542,3 +542,47 @@ kernel 仍保持最高优先级；quant 是每个 per-channel op 的短读，把
 - `runs/soc_deep_rebaseline/micro`
 - `runs/soc_pico_reset_fix/hello`
 - `runs/soc_pico_reset_fix/micro`
+
+### 2026-07-01 补充：TFLM 小算子 MMA 阈值实验
+
+前面 trace 已经说明 `my_model` 的 90 次 MMA 合计 active 只占端到端周期约 0.61%。为确认“跳过很小的硬件算子、改走 CPU fallback”是否能减少 SoC 端到端回退，本轮在 TFLM `conv.cc/depthwise_conv.cc` 中增加了默认关闭的诊断宏：
+
+```text
+TFLM_SOC_MMA_MIN_MACS
+```
+
+当该宏为 0 时保持原行为；非 0 时，只有 `rows * inner * cols >= TFLM_SOC_MMA_MIN_MACS` 的 int8 conv/depthwise 才走 MMA。`veri/sim/Makefile` 新增 `TFLM_EXTRA_DEFINES`，用于在不改源码的情况下给 TFLM 库和 SoC app 同步传入该宏。
+
+同时修复了 `run_axi_soc_perf_sweep.py` 的利用率解析：旧逻辑会把多条 `MMA_UTIL/MMA_CTRL_UTIL` 覆盖成最后一条 op 的值；新逻辑会对所有 op 聚合，并从总 `mma_active` 重新计算 `mma_ia_row_util_bp` 与 `mma_acc_util_bp`。因此下面的 active/stall 均为整次模型运行的累计值。
+
+![TFLM my_model min MACs sweep](perf_plots/tflm_min_macs_threshold_sweep.png)
+
+| `TFLM_SOC_MMA_MIN_MACS` | SoC cycles | 相对 0 阈值 | MMA ops | MMA active | IA stall | W stall | tail pending | 结论 |
+|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| 0 | 77,016,232 | 0.00% | 90 | 469,134 | 325,408 | 23,290 | 85,536 | 当前稳定基线 |
+| 8,192 | 76,566,886 | -0.58% | 90 | 469,134 | 325,408 | 23,290 | 85,536 | 硬件 op 集合未变，差异来自软件布局/分支扰动 |
+| 12,288 | 79,017,550 | +2.60% | 82 | 447,670 | 311,056 | 21,170 | 82,000 | 少跑 8 个 MMA，但 CPU fallback 更慢 |
+| 16,384 | 79,017,550 | +2.60% | 82 | 447,670 | 311,056 | 21,170 | 82,000 | 与 12,288 过滤到同一组 op |
+| 32,768 | 95,263,158 | +23.69% | 74 | 368,318 | 253,744 | 19,050 | 67,856 | 过度 fallback，端到端明显劣化 |
+
+#### 结论
+
+- `8192` 阈值没有减少实际 MMA op，不能证明“小算子过滤”有效；0.58% 的变化更可能来自编译后代码布局、分支预测或 Pico 指令路径的轻微扰动。
+- `12288/16384/32768` 的确减少了 MMA active 和控制器 stall，但端到端 cycles 反而增加。也就是说，当前模型里被过滤掉的 conv/depthwise 在 CPU 上执行代价高于 MMA 启动、DMA 和收尾气泡。
+- 因此 SoC 小模型劣化的主因不是某个小 MMA op 应该被 fallback，而是 TFLM 端到端粒度过碎：Pico 执行、tensor/算子调度、打包、MMIO 配置、UART/校验等固定开销占大头。硬件侧 cache/reuse 在大矩阵和较大模型中仍是正收益。
+- 当前提交保留 `TFLM_SOC_MMA_MIN_MACS=0` 作为默认值，阈值只作为后续模型特定调参或性能诊断入口，不作为通用优化策略。
+
+后续真正值得投入的方向：
+
+1. 在软件层合并/批量提交相邻的小 conv/depthwise，减少 MMIO 启动次数和打包循环反复进入退出。
+2. 为常见小 shape 设计更轻量的 MMA 提交路径，减少 descriptor 配置和缓存 fill 固定成本。
+3. 如果要降低纯 CPU store 开销，应设计有序 posted-write/store-buffer，并在 MMIO/read 前显式 drain，而不是让 RAM 立即返回 B response。
+4. 继续保留大矩阵随机回归和 TFLM 模型回归作为双重门禁：前者验证 MMA 数据流，后者验证 SoC 软件/外设真实端到端效果。
+
+验证日志：
+
+- `runs/tflm_deep_trace/my_model_quant_prio`
+- `runs/tflm_threshold/my_model_min8192_trace`
+- `runs/tflm_threshold/my_model_min12288_trace`
+- `runs/tflm_threshold/my_model_min16384_trace`
+- `runs/tflm_threshold/my_model_min32768_trace`

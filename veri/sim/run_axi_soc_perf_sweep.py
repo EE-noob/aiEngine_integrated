@@ -212,6 +212,7 @@ def parse_cycles(output):
 
 def parse_util_trace(output):
     parsed = {name: "" for name in UTIL_FIELDNAMES}
+    sums = {}
     ctrl_ops = 0
     mma_ops = 0
     for match in UTIL_LINE_RE.finditer(output):
@@ -224,11 +225,18 @@ def parse_util_trace(output):
             mma_ops += 1
             prefix = "mma_"
         for key, value in values.items():
+            if key == "op":
+                continue
             field = f"{prefix}{key}"
             if field in parsed:
-                parsed[field] = value
+                sums[field] = sums.get(field, 0) + value
+    parsed.update(sums)
     parsed["ctrl_util_ops"] = ctrl_ops
     parsed["mma_util_ops"] = mma_ops
+    mma_active = parsed.get("mma_active") or 0
+    if mma_active:
+        parsed["mma_ia_row_util_bp"] = (parsed.get("mma_ia_row", 0) * 10000) // mma_active
+        parsed["mma_acc_util_bp"] = (parsed.get("mma_acc_valid", 0) * 10000) // mma_active
     return parsed
 
 
