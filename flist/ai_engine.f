@@ -4,6 +4,8 @@
 ../rtl/nice_coprocessor/MMA/bias_loader_buffer.sv
 ../rtl/nice_coprocessor/MMA/bias_loader_ctrl.sv
 ../rtl/nice_coprocessor/MMA/bias_mux.sv
+../rtl/nice_coprocessor/MMA/axi_block_dma_arbiter.sv
+../rtl/nice_coprocessor/MMA/axi_dual_block_dma.sv
 ../rtl/nice_coprocessor/MMA/block_dma.sv
 ../rtl/nice_coprocessor/MMA/block_dma_arbiter.sv
 ../rtl/nice_coprocessor/MMA/compute_core.sv

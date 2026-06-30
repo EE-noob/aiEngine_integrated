@@ -359,11 +359,51 @@ module vec_requant #(
               // per-tensor 或 已有参数: 直接响应输入
               if (!cfg_per_channel || quant_params_valid) begin
                 if (in_valid) begin
-                  // start compute for this tile/row-stream
-                  state <= COMPUTE;
-                  // ensure counter starts at 0 when entering a fresh compute
-                  // row_in_tile_cnt will be incremented on out_valid
-                  // do not clear quant_params_valid here (should remain valid during compute)
+                  if (in_tile_done) begin
+                    logic [31:0] next_tile_row;
+                    logic [31:0] next_tile_col;
+                    logic        final_tile_cur;
+
+                    calc_next_tile(tile_row, tile_col, num_row_tiles, num_col_tiles,
+                                   ia_reuse_num_r, next_tile_row, next_tile_col);
+                    final_tile_cur = (tile_col + 1 == num_col_tiles) &&
+                                     (tile_row + 1 == num_row_tiles);
+
+                    row_in_tile_cnt <= 5'd0;
+                    all_tiles_done  <= final_tile_cur;
+
+                    if (final_tile_cur) begin
+                      tile_row <= 32'd0;
+                      tile_col <= 32'd0;
+                      load_quant_req <= 1'b0;
+                      quant_params_valid <= cfg_per_channel ? 1'b0 : 1'b1;
+                      state <= IDLE;
+                    end else begin
+                      tile_row <= next_tile_row;
+                      tile_col <= next_tile_col;
+
+                      if (!cfg_per_channel) begin
+                        state <= COMPUTE;
+                      end else if ((!is_mode_r && (next_tile_col == tile_col)) ||
+                                   ( is_mode_r &&
+                                     (((next_tile_row / ia_reuse_num_r) * ia_reuse_num_r) ==
+                                      ((tile_row      / ia_reuse_num_r) * ia_reuse_num_r)))) begin
+                        load_quant_req <= 1'b0;
+                        quant_params_valid <= 1'b1;
+                        state <= COMPUTE;
+                      end else begin
+                        load_quant_req <= 1'b1;
+                        load_offset <= 32'd0;
+                        quant_params_valid <= 1'b0;
+                        state <= LOAD;
+                      end
+                    end
+                  end else begin
+                    // IDLE 中接住的第一拍 in_valid 已经被数据通路消费，
+                    // 行计数也必须同步推进，避免下一拍把 tile_done 提前一行。
+                    row_in_tile_cnt <= 5'd1;
+                    state <= COMPUTE;
+                  end
                 end
               end
             end
@@ -466,11 +506,13 @@ module vec_requant #(
 
             if (in_valid) begin
               if (requant_trace_en) begin
-                $display("[%0t] REQ in tile=(%0d,%0d) row_cnt=%0d/%0d done=%0d acc0=%0d acc1=%0d acc2=%0d acc3=%0d acc4=%0d",
-                         $time, tile_row, tile_col, row_in_tile_cnt,
-                         rows_need_cur, in_tile_done,
-                         in_vec_s32[0], in_vec_s32[1], in_vec_s32[2],
-                         in_vec_s32[3], in_vec_s32[4]);
+                $write("[%0t] REQ in tile=(%0d,%0d) row_cnt=%0d/%0d done=%0d acc=",
+                       $time, tile_row, tile_col, row_in_tile_cnt,
+                       rows_need_cur, in_tile_done);
+                for (int dbg_i = 0; dbg_i < VLEN; dbg_i++) begin
+                  $write("%0d%s", in_vec_s32[dbg_i], (dbg_i == VLEN - 1) ? "" : ",");
+                end
+                $write("\n");
               end
 
               if (in_tile_done) begin
@@ -546,9 +588,8 @@ module vec_requant #(
     end
   end
 
-  assign out_valid = (!cfg_per_channel) ? out_valid_q : (out_valid_q && quant_params_valid);
-  assign out_tile_done = (!cfg_per_channel) ? out_tile_done_q :
-                         (out_tile_done_q && quant_params_valid);
+  assign out_valid = out_valid_q;
+  assign out_tile_done = out_tile_done_q;
 
   function automatic signed [31:0] round_divide_by_power_of_two(input signed [31:0] x,
                                                                 input integer rshift);

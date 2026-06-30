@@ -61,7 +61,7 @@ def build_sim_args(args):
 
 def make_vars(seed, case_name, case_dir, min_dim, max_dim, dim_multiple,
               size, cache_blocks, ps_frame_count, dataflow_mode, sim_args,
-              soc_app, lhs_dtype=0, quant_mode=-1):
+              soc_app, lhs_dtype=0, quant_mode=-1, unaligned_layout=False):
     vars_for_make = [
         "DUT_MODE=axi_soc",
         f"SOC_APP={soc_app}",
@@ -85,6 +85,8 @@ def make_vars(seed, case_name, case_dir, min_dim, max_dim, dim_multiple,
         vars_for_make.append(f"SOC_RANDOM_LHS_DTYPE={lhs_dtype}")
     if quant_mode >= 0:
         vars_for_make.append(f"SOC_RANDOM_QUANT_MODE={quant_mode}")
+    if unaligned_layout:
+        vars_for_make.append("SOC_UNALIGNED_LAYOUT=1")
     if sim_args:
         vars_for_make.append(f"SIM_ARGS={sim_args}")
     return vars_for_make
@@ -142,6 +144,8 @@ def main():
     parser.add_argument("--ddr-cmd-max-lat", type=int, default=3)
     parser.add_argument("--ddr-w-max-lat", type=int, default=2)
     parser.add_argument("--ddr-rsp-max-lat", type=int, default=8)
+    parser.add_argument("--unaligned-layout", action="store_true",
+                        help="place runtime data at byte offsets to exercise DMA unaligned access")
     args = parser.parse_args()
 
     sim_dir = Path(__file__).resolve().parent
@@ -188,7 +192,7 @@ def main():
                         seed, case_name, case_dir, args.min_dim, args.max_dim,
                         dim_multiple, size, cache_blocks, ps_frame_count,
                         dataflow_mode, sim_args, args.soc_app,
-                        lhs_dtype, quant_mode)
+                        lhs_dtype, quant_mode, args.unaligned_layout)
                     build_log = log_root / f"compile_{combo_label}.log"
                     print(f"compile: {combo_label}")
                     compile_targets = ["com"]
@@ -228,6 +232,7 @@ def main():
                         args.soc_app,
                         lhs_dtype,
                         quant_mode,
+                        args.unaligned_layout,
                     )
 
                     print(f"iter {iteration}: {combo_label}, seed={seed}, running make sim")

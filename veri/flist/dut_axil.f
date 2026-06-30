@@ -1,10 +1,6 @@
 ../../rtl/nice_coprocessor/csr_unit.v
 ../../rtl/nice_coprocessor/decode_dispatch.v
 ../../rtl/nice_coprocessor/dummy_mma_top.v
-../../rtl/nice_coprocessor/icb_unalign_bridge.sv
-../../rtl/nice_coprocessor/icb2axi/axi_buffer.v
-../../rtl/nice_coprocessor/icb2axi/fifo_async.v
-../../rtl/nice_coprocessor/icb2axi/icb2axi.v
 ../../rtl/nice_coprocessor/inst_pingpong_buf.v
 ../../rtl/nice_coprocessor/inst_tracker.v
 ../../rtl/nice_coprocessor/axi_top/mma_axil_top.sv
@@ -17,6 +13,8 @@
 ../../rtl/nice_coprocessor/MMA/bias_loader_buffer.sv
 ../../rtl/nice_coprocessor/MMA/bias_loader_ctrl.sv
 ../../rtl/nice_coprocessor/MMA/bias_mux.sv
+../../rtl/nice_coprocessor/MMA/axi_block_dma_arbiter.sv
+../../rtl/nice_coprocessor/MMA/axi_dual_block_dma.sv
 ../../rtl/nice_coprocessor/MMA/block_dma.sv
 ../../rtl/nice_coprocessor/MMA/block_dma_arbiter.sv
 ../../rtl/nice_coprocessor/MMA/compute_core.sv

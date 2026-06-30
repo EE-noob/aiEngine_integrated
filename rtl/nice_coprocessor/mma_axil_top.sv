@@ -12,8 +12,7 @@ module mma_axil_top #(
     parameter ICB_LEN_W       = 4,
     parameter IA_CACHE_BLOCKS = 4,
     parameter PS_FRAME_COUNT  = SIZE,
-    parameter AXI_FIFO_DP     = 2,
-    parameter AXI_FIFO_OUTS   = 8,
+    parameter AXI_READ_OUTSTANDING = 4,
     parameter [31:0] IRQ_STATUS_MASK = 32'h0000_0004
 ) (
     input  wire clk,
@@ -40,22 +39,7 @@ module mma_axil_top #(
     output wire                       s_axil_rvalid,
     input  wire                       s_axil_rready,
 
-    // Legacy MMA ICB interface (kept for compatibility/observability)
-    output wire                         m_icb_cmd_valid,
-    input  wire                         m_icb_cmd_ready,
-    output wire [ICB_ADDR_WIDTH-1:0]    m_icb_cmd_addr,
-    output wire                         m_icb_cmd_read,
-    output wire [ICB_LEN_W-1:0]         m_icb_cmd_len,
-    output wire [BUS_WIDTH-1:0]         m_icb_cmd_wdata,
-    output wire [BUS_WIDTH/8-1:0]       m_icb_cmd_wmask,
-    output wire                         m_icb_w_valid,
-    input  wire                         m_icb_w_ready,
-    input  wire                         m_icb_rsp_valid,
-    output wire                         m_icb_rsp_ready,
-    input  wire [BUS_WIDTH-1:0]         m_icb_rsp_rdata,
-    input  wire                         m_icb_rsp_err,
-
-    // AXI master interface (generated from internal ICB->AXI bridge)
+    // Native AXI master interface from MMA DMA
     output wire                         m_axi_arvalid,
     input  wire                         m_axi_arready,
     output wire [ICB_ADDR_WIDTH-1:0]    m_axi_araddr,
@@ -63,7 +47,7 @@ module mma_axil_top #(
     output wire [2:0]                   m_axi_arprot,
     output wire [1:0]                   m_axi_arlock,
     output wire [1:0]                   m_axi_arburst,
-    output wire [3:0]                   m_axi_arlen,
+    output wire [7:0]                   m_axi_arlen,
     output wire [2:0]                   m_axi_arsize,
 
     output wire                         m_axi_awvalid,
@@ -73,7 +57,7 @@ module mma_axil_top #(
     output wire [2:0]                   m_axi_awprot,
     output wire [1:0]                   m_axi_awlock,
     output wire [1:0]                   m_axi_awburst,
-    output wire [3:0]                   m_axi_awlen,
+    output wire [7:0]                   m_axi_awlen,
     output wire [2:0]                   m_axi_awsize,
 
     input  wire                         m_axi_rvalid,
@@ -108,7 +92,6 @@ module mma_axil_top #(
     localparam [11:0] REG_W_REUSE  = 12'h005;
     localparam [11:0] CSR_ADDR_MIN = 12'h7C0;
     localparam [11:0] CSR_ADDR_MAX = 12'h7D0;
-    localparam [1:0]  ICB_CMD_SIZE = (BUS_WIDTH == 64) ? 2'b11 : 2'b10;
 
     // AXI-Lite register request bus from verilog-axi
     wire [AXIL_ADDR_WIDTH-1:0] reg_wr_addr;
@@ -150,33 +133,6 @@ module mma_axil_top #(
     wire [REG_WIDTH-1:0] rhs_col_stride_b;
     wire signed [REG_WIDTH-1:0] act_min;
     wire signed [REG_WIDTH-1:0] act_max;
-
-    // Raw MMA ICB interface (SA side)
-    wire                         sa_icb_cmd_valid;
-    wire                         sa_icb_cmd_ready;
-    wire [ICB_ADDR_WIDTH-1:0]    sa_icb_cmd_addr;
-    wire                         sa_icb_cmd_read;
-    wire [ICB_LEN_W-1:0]         sa_icb_cmd_len;
-    wire [BUS_WIDTH-1:0]         sa_icb_cmd_wdata;
-    wire [BUS_WIDTH/8-1:0]       sa_icb_cmd_wmask;
-    wire                         sa_icb_w_valid;
-    wire                         sa_icb_w_ready;
-    wire                         sa_icb_rsp_valid;
-    wire                         sa_icb_rsp_ready;
-    wire [BUS_WIDTH-1:0]         sa_icb_rsp_rdata;
-    wire                         sa_icb_rsp_err;
-
-    // Flattened and aligned ICB interface between unalign bridge and icb2axi
-    wire                         mem_icb_cmd_valid;
-    wire                         mem_icb_cmd_ready;
-    wire [ICB_ADDR_WIDTH-1:0]    mem_icb_cmd_addr;
-    wire                         mem_icb_cmd_read;
-    wire [BUS_WIDTH-1:0]         mem_icb_cmd_wdata;
-    wire [BUS_WIDTH/8-1:0]       mem_icb_cmd_wmask;
-    wire                         mem_icb_rsp_valid;
-    wire                         mem_icb_rsp_ready;
-    wire [BUS_WIDTH-1:0]         mem_icb_rsp_rdata;
-    wire                         mem_icb_rsp_err;
 
     // MMA/WBU write-back path
     wire                 mma_sa_ready;
@@ -241,15 +197,12 @@ module mma_axil_top #(
     assign status_irq_bits = status_bits & IRQ_STATUS_MASK;
     assign status_irq_set = status_irq_bits & ~status_irq_bits_d;
 
-    // Keep legacy ICB ports visible for compatibility/debug.
-    assign m_icb_cmd_valid = sa_icb_cmd_valid;
-    assign m_icb_cmd_addr  = sa_icb_cmd_addr;
-    assign m_icb_cmd_read  = sa_icb_cmd_read;
-    assign m_icb_cmd_len   = sa_icb_cmd_len;
-    assign m_icb_cmd_wdata = sa_icb_cmd_wdata;
-    assign m_icb_cmd_wmask = sa_icb_cmd_wmask;
-    assign m_icb_w_valid   = sa_icb_w_valid;
-    assign m_icb_rsp_ready = sa_icb_rsp_ready;
+    assign m_axi_arcache = 4'b0011;
+    assign m_axi_arprot  = 3'b000;
+    assign m_axi_arlock  = 2'b00;
+    assign m_axi_awcache = 4'b0011;
+    assign m_axi_awprot  = 3'b000;
+    assign m_axi_awlock  = 2'b00;
 
     // AXI-Lite frontend from verilog-axi
     axil_reg_if #(
@@ -401,10 +354,10 @@ module mma_axil_top #(
 	                done_sticky  <= 1'b1;
 	            end
 
-	            if (nice_rsp_valid && nice_rsp_ready && !ctrl_start_write) begin
-	                last_wb_data  <= nice_rsp_rdat;
-	                last_wb_valid <= 1'b1;
-	            end
+            if (nice_rsp_valid && nice_rsp_ready && !ctrl_start_write) begin
+                last_wb_data  <= nice_rsp_rdat;
+                last_wb_valid <= 1'b1;
+            end
         end
     end
 
@@ -453,7 +406,8 @@ module mma_axil_top #(
         .ADDR_WIDTH(ICB_ADDR_WIDTH),
         .ICB_LEN_W(ICB_LEN_W),
         .IA_CACHE_BLOCKS(IA_CACHE_BLOCKS),
-        .PS_FRAME_COUNT(PS_FRAME_COUNT)
+        .PS_FRAME_COUNT(PS_FRAME_COUNT),
+        .AXI_READ_OUTSTANDING(AXI_READ_OUTSTANDING)
     ) u_mma_top (
         .clk(clk),
         .rst_n(rst_n),
@@ -484,106 +438,31 @@ module mma_axil_top #(
         .rhs_col_stride_b(rhs_col_stride_b),
         .act_min(act_min),
         .act_max(act_max),
-        .sa_icb_cmd_valid(sa_icb_cmd_valid),
-        .sa_icb_cmd_ready(sa_icb_cmd_ready),
-        .sa_icb_cmd_addr(sa_icb_cmd_addr),
-        .sa_icb_cmd_read(sa_icb_cmd_read),
-        .sa_icb_cmd_len(sa_icb_cmd_len),
-        .sa_icb_cmd_wdata(sa_icb_cmd_wdata),
-        .sa_icb_cmd_wmask(sa_icb_cmd_wmask),
-        .sa_icb_w_valid(sa_icb_w_valid),
-        .sa_icb_w_ready(sa_icb_w_ready),
-        .sa_icb_rsp_valid(sa_icb_rsp_valid),
-        .sa_icb_rsp_ready(sa_icb_rsp_ready),
-        .sa_icb_rsp_rdata(sa_icb_rsp_rdata),
-        .sa_icb_rsp_err(sa_icb_rsp_err)
-    );
-
-    icb_unalign_bridge #(
-        .WIDTH(BUS_WIDTH),
-        .ADDR_W(ICB_ADDR_WIDTH),
-        .OUTS_DEPTH(16),
-        .ICB_LEN_W(ICB_LEN_W)
-    ) u_icb_unalign_bridge (
-        .clk(clk),
-        .rst_n(rst_n),
-        .sa_icb_cmd_valid(sa_icb_cmd_valid),
-        .sa_icb_cmd_ready(sa_icb_cmd_ready),
-        .sa_icb_cmd_addr(sa_icb_cmd_addr),
-        .sa_icb_cmd_read(sa_icb_cmd_read),
-        .sa_icb_cmd_len(sa_icb_cmd_len),
-        .sa_icb_cmd_wdata(sa_icb_cmd_wdata),
-        .sa_icb_cmd_wmask(sa_icb_cmd_wmask),
-        .sa_icb_w_valid(sa_icb_w_valid),
-        .sa_icb_w_ready(sa_icb_w_ready),
-        .sa_icb_rsp_valid(sa_icb_rsp_valid),
-        .sa_icb_rsp_ready(sa_icb_rsp_ready),
-        .sa_icb_rsp_rdata(sa_icb_rsp_rdata),
-        .sa_icb_rsp_err(sa_icb_rsp_err),
-        .m_icb_cmd_valid(mem_icb_cmd_valid),
-        .m_icb_cmd_ready(mem_icb_cmd_ready),
-        .m_icb_cmd_addr(mem_icb_cmd_addr),
-        .m_icb_cmd_read(mem_icb_cmd_read),
-        .m_icb_cmd_wdata(mem_icb_cmd_wdata),
-        .m_icb_cmd_wmask(mem_icb_cmd_wmask),
-        .m_icb_rsp_valid(mem_icb_rsp_valid),
-        .m_icb_rsp_ready(mem_icb_rsp_ready),
-        .m_icb_rsp_rdata(mem_icb_rsp_rdata),
-        .m_icb_rsp_err(mem_icb_rsp_err)
-    );
-
-    icb2axi #(
-        .AXI_FIFO_DP(AXI_FIFO_DP),
-        .AW(ICB_ADDR_WIDTH),
-        .FIFO_OUTS_NUM(AXI_FIFO_OUTS),
-        .DW(BUS_WIDTH)
-    ) u_icb2axi (
-        .i_clk(clk),
-        .i_rst_n(rst_n),
-        .i_icb_cmd_valid(mem_icb_cmd_valid),
-        .i_icb_cmd_ready(mem_icb_cmd_ready),
-        .i_icb_cmd_read(mem_icb_cmd_read),
-        .i_icb_cmd_addr(mem_icb_cmd_addr),
-        .i_icb_cmd_wdata(mem_icb_cmd_wdata),
-        .i_icb_cmd_wmask(mem_icb_cmd_wmask),
-        .i_icb_cmd_size(ICB_CMD_SIZE),
-        .i_icb_rsp_valid(mem_icb_rsp_valid),
-        .i_icb_rsp_ready(mem_icb_rsp_ready),
-        .i_icb_rsp_err(mem_icb_rsp_err),
-        .i_icb_rsp_rdata(mem_icb_rsp_rdata),
-        .o_clk(clk),
-        .o_rst_n(rst_n),
-        .o_axi_arvalid(m_axi_arvalid),
-        .o_axi_arready(m_axi_arready),
-        .o_axi_araddr(m_axi_araddr),
-        .o_axi_arcache(m_axi_arcache),
-        .o_axi_arprot(m_axi_arprot),
-        .o_axi_arlock(m_axi_arlock),
-        .o_axi_arburst(m_axi_arburst),
-        .o_axi_arlen(m_axi_arlen),
-        .o_axi_arsize(m_axi_arsize),
-        .o_axi_awvalid(m_axi_awvalid),
-        .o_axi_awready(m_axi_awready),
-        .o_axi_awaddr(m_axi_awaddr),
-        .o_axi_awcache(m_axi_awcache),
-        .o_axi_awprot(m_axi_awprot),
-        .o_axi_awlock(m_axi_awlock),
-        .o_axi_awburst(m_axi_awburst),
-        .o_axi_awlen(m_axi_awlen),
-        .o_axi_awsize(m_axi_awsize),
-        .o_axi_rvalid(m_axi_rvalid),
-        .o_axi_rready(m_axi_rready),
-        .o_axi_rdata(m_axi_rdata),
-        .o_axi_rresp(m_axi_rresp),
-        .o_axi_rlast(m_axi_rlast),
-        .o_axi_wvalid(m_axi_wvalid),
-        .o_axi_wready(m_axi_wready),
-        .o_axi_wdata(m_axi_wdata),
-        .o_axi_wstrb(m_axi_wstrb),
-        .o_axi_wlast(m_axi_wlast),
-        .o_axi_bvalid(m_axi_bvalid),
-        .o_axi_bready(m_axi_bready),
-        .o_axi_bresp(m_axi_bresp)
+        .m_axi_arvalid(m_axi_arvalid),
+        .m_axi_arready(m_axi_arready),
+        .m_axi_araddr(m_axi_araddr),
+        .m_axi_arlen(m_axi_arlen),
+        .m_axi_arsize(m_axi_arsize),
+        .m_axi_arburst(m_axi_arburst),
+        .m_axi_rvalid(m_axi_rvalid),
+        .m_axi_rready(m_axi_rready),
+        .m_axi_rdata(m_axi_rdata),
+        .m_axi_rresp(m_axi_rresp),
+        .m_axi_rlast(m_axi_rlast),
+        .m_axi_awvalid(m_axi_awvalid),
+        .m_axi_awready(m_axi_awready),
+        .m_axi_awaddr(m_axi_awaddr),
+        .m_axi_awlen(m_axi_awlen),
+        .m_axi_awsize(m_axi_awsize),
+        .m_axi_awburst(m_axi_awburst),
+        .m_axi_wvalid(m_axi_wvalid),
+        .m_axi_wready(m_axi_wready),
+        .m_axi_wdata(m_axi_wdata),
+        .m_axi_wstrb(m_axi_wstrb),
+        .m_axi_wlast(m_axi_wlast),
+        .m_axi_bvalid(m_axi_bvalid),
+        .m_axi_bready(m_axi_bready),
+        .m_axi_bresp(m_axi_bresp)
     );
 
     wbu #(

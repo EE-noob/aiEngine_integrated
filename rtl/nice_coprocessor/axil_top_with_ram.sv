@@ -8,6 +8,9 @@ module axil_top_with_ram #(
     parameter REG_WIDTH       = 32,
     parameter ICB_ADDR_WIDTH  = 32,
     parameter ICB_LEN_W       = 4,
+    parameter IA_CACHE_BLOCKS = 4,
+    parameter PS_FRAME_COUNT  = SIZE,
+    parameter AXI_READ_OUTSTANDING = 4,
     parameter MEM_DP          = 512,
     parameter MEM_PATH        = "",
     parameter MEM_INIT_EN     = 0,
@@ -44,16 +47,6 @@ module axil_top_with_ram #(
     output wire                           mma_busy
 );
 
-    // Legacy ICB sideband outputs from mma_axil_top (kept for debug)
-    wire                          legacy_icb_cmd_valid;
-    wire [ICB_ADDR_WIDTH-1:0]     legacy_icb_cmd_addr;
-    wire                          legacy_icb_cmd_read;
-    wire [ICB_LEN_W-1:0]          legacy_icb_cmd_len;
-    wire [BUS_WIDTH-1:0]          legacy_icb_cmd_wdata;
-    wire [BUS_WIDTH/8-1:0]        legacy_icb_cmd_wmask;
-    wire                          legacy_icb_w_valid;
-    wire                          legacy_icb_rsp_ready;
-
     // AXI master interconnect between mma_axil_top and axi_sim_ram
     wire                          m_axi_arvalid;
     wire                          m_axi_arready;
@@ -62,7 +55,7 @@ module axil_top_with_ram #(
     wire [2:0]                    m_axi_arprot;
     wire [1:0]                    m_axi_arlock;
     wire [1:0]                    m_axi_arburst;
-    wire [3:0]                    m_axi_arlen;
+    wire [7:0]                    m_axi_arlen;
     wire [2:0]                    m_axi_arsize;
 
     wire                          m_axi_awvalid;
@@ -72,7 +65,7 @@ module axil_top_with_ram #(
     wire [2:0]                    m_axi_awprot;
     wire [1:0]                    m_axi_awlock;
     wire [1:0]                    m_axi_awburst;
-    wire [3:0]                    m_axi_awlen;
+    wire [7:0]                    m_axi_awlen;
     wire [2:0]                    m_axi_awsize;
 
     wire                          m_axi_rvalid;
@@ -101,6 +94,9 @@ module axil_top_with_ram #(
         .REG_WIDTH(REG_WIDTH),
         .ICB_ADDR_WIDTH(ICB_ADDR_WIDTH),
         .ICB_LEN_W(ICB_LEN_W),
+        .IA_CACHE_BLOCKS(IA_CACHE_BLOCKS),
+        .PS_FRAME_COUNT(PS_FRAME_COUNT),
+        .AXI_READ_OUTSTANDING(AXI_READ_OUTSTANDING),
         .IRQ_STATUS_MASK(IRQ_STATUS_MASK)
     ) u_mma_axil_top (
         .clk(clk),
@@ -124,20 +120,6 @@ module axil_top_with_ram #(
         .s_axil_rresp(s_axil_rresp),
         .s_axil_rvalid(s_axil_rvalid),
         .s_axil_rready(s_axil_rready),
-
-        .m_icb_cmd_valid(legacy_icb_cmd_valid),
-        .m_icb_cmd_ready(1'b0),
-        .m_icb_cmd_addr(legacy_icb_cmd_addr),
-        .m_icb_cmd_read(legacy_icb_cmd_read),
-        .m_icb_cmd_len(legacy_icb_cmd_len),
-        .m_icb_cmd_wdata(legacy_icb_cmd_wdata),
-        .m_icb_cmd_wmask(legacy_icb_cmd_wmask),
-        .m_icb_w_valid(legacy_icb_w_valid),
-        .m_icb_w_ready(1'b0),
-        .m_icb_rsp_valid(1'b0),
-        .m_icb_rsp_ready(legacy_icb_rsp_ready),
-        .m_icb_rsp_rdata({BUS_WIDTH{1'b0}}),
-        .m_icb_rsp_err(1'b0),
 
         .m_axi_arvalid(m_axi_arvalid),
         .m_axi_arready(m_axi_arready),

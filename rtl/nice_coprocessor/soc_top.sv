@@ -171,15 +171,6 @@ module soc_top #(
                                               mem_is_write) ? mem_wstrb[0] : 1'b0;
     wire                      uart_data_re = uart_issue && mem_sel_uart_data && !mem_is_write;
 
-    wire                          legacy_icb_cmd_valid;
-    wire [ICB_ADDR_WIDTH-1:0]     legacy_icb_cmd_addr;
-    wire                          legacy_icb_cmd_read;
-    wire [ICB_LEN_W-1:0]          legacy_icb_cmd_len;
-    wire [BUS_WIDTH-1:0]          legacy_icb_cmd_wdata;
-    wire [BUS_WIDTH/8-1:0]        legacy_icb_cmd_wmask;
-    wire                          legacy_icb_w_valid;
-    wire                          legacy_icb_rsp_ready;
-
     wire                          m_axi_arvalid;
     wire                          m_axi_arready;
     wire [ICB_ADDR_WIDTH-1:0]     m_axi_araddr;
@@ -187,7 +178,7 @@ module soc_top #(
     wire [2:0]                    m_axi_arprot;
     wire [1:0]                    m_axi_arlock;
     wire [1:0]                    m_axi_arburst;
-    wire [3:0]                    m_axi_arlen;
+    wire [7:0]                    m_axi_arlen;
     wire [2:0]                    m_axi_arsize;
 
     wire                          m_axi_awvalid;
@@ -197,7 +188,7 @@ module soc_top #(
     wire [2:0]                    m_axi_awprot;
     wire [1:0]                    m_axi_awlock;
     wire [1:0]                    m_axi_awburst;
-    wire [3:0]                    m_axi_awlen;
+    wire [7:0]                    m_axi_awlen;
     wire [2:0]                    m_axi_awsize;
 
     wire                          m_axi_rvalid;
@@ -218,11 +209,14 @@ module soc_top #(
 
     reg                           mma_aw_pending;
     reg [ICB_ADDR_WIDTH-1:0]      mma_aw_addr_q;
-    reg [3:0]                     mma_aw_len_q;
-    reg                           mma_w_pending;
-    reg [BUS_WIDTH-1:0]           mma_w_data_q;
-    reg [BUS_WIDTH/8-1:0]         mma_w_strb_q;
-    reg                           mma_w_last_q;
+    reg [7:0]                     mma_aw_len_q;
+    reg [7:0]                     mma_w_beat_cnt;
+    reg                           mma_wr_error_q;
+    reg                           mma_rd_active;
+    reg [ICB_ADDR_WIDTH-1:0]      mma_rd_addr_q;
+    reg [7:0]                     mma_rd_len_q;
+    reg [7:0]                     mma_rd_beat_cnt;
+    reg                           mma_rd_error_q;
     reg [7:0]                     mma_aw_ready_delay;
     reg [7:0]                     mma_w_ready_delay;
     reg [7:0]                     mma_ar_ready_delay;
@@ -246,22 +240,26 @@ module soc_top #(
     wire mma_w_fire  = m_axi_wvalid  & m_axi_wready;
     wire mma_ar_fire = m_axi_arvalid & m_axi_arready;
 
-    wire [31:0] mma_aw_offset = mma_aw_addr_q[31:0] - CPU_RAM_BASE;
-    wire [31:0] mma_ar_offset = m_axi_araddr[31:0] - CPU_RAM_BASE;
+    wire [31:0] mma_wr_cur_addr = mma_aw_addr_q[31:0] +
+                                  ((32'(mma_w_beat_cnt)) << CPU_ADDR_LSB);
+    wire [31:0] mma_rd_cur_addr = mma_rd_addr_q[31:0] +
+                                  ((32'(mma_rd_beat_cnt)) << CPU_ADDR_LSB);
+    wire [31:0] mma_aw_offset = mma_wr_cur_addr - CPU_RAM_BASE;
+    wire [31:0] mma_ar_offset = mma_rd_cur_addr - CPU_RAM_BASE;
     wire [CPU_ADDR_BITS-1:0] mma_wr_idx =
         mma_aw_offset[CPU_ADDR_LSB + CPU_ADDR_BITS - 1:CPU_ADDR_LSB];
     wire [CPU_ADDR_BITS-1:0] mma_rd_idx =
         mma_ar_offset[CPU_ADDR_LSB + CPU_ADDR_BITS - 1:CPU_ADDR_LSB];
-    wire mma_wr_addr_oob = (mma_aw_addr_q[31:0] < CPU_RAM_BASE) ||
+    wire mma_wr_addr_oob = (mma_wr_cur_addr < CPU_RAM_BASE) ||
                            (mma_aw_offset[31:CPU_ADDR_LSB] >= CPU_MEM_DP);
-    wire mma_rd_addr_oob = (m_axi_araddr[31:0] < CPU_RAM_BASE) ||
+    wire mma_rd_addr_oob = (mma_rd_cur_addr < CPU_RAM_BASE) ||
                            (mma_ar_offset[31:CPU_ADDR_LSB] >= CPU_MEM_DP);
 
     assign m_axi_awready = (!mma_aw_pending) && (!m_axi_bvalid_q) &&
                            (!mma_wr_rsp_pending) && (mma_aw_ready_delay == 8'd0);
-    assign m_axi_wready  = (!mma_w_pending) && (!m_axi_bvalid_q) &&
+    assign m_axi_wready  = mma_aw_pending && (!m_axi_bvalid_q) &&
                            (!mma_wr_rsp_pending) && (mma_w_ready_delay == 8'd0);
-    assign m_axi_arready = (!m_axi_rvalid_q) && (!mma_rd_rsp_pending) &&
+    assign m_axi_arready = (!mma_rd_active) && (!m_axi_rvalid_q) && (!mma_rd_rsp_pending) &&
                            (mma_ar_ready_delay == 8'd0);
     assign m_axi_bvalid  = m_axi_bvalid_q;
     assign m_axi_bresp   = m_axi_bresp_q;
@@ -331,20 +329,6 @@ module soc_top #(
         .s_axil_rresp(axil_rresp),
         .s_axil_rvalid(axil_rvalid),
         .s_axil_rready(axil_rready_q),
-
-        .m_icb_cmd_valid(legacy_icb_cmd_valid),
-        .m_icb_cmd_ready(1'b0),
-        .m_icb_cmd_addr(legacy_icb_cmd_addr),
-        .m_icb_cmd_read(legacy_icb_cmd_read),
-        .m_icb_cmd_len(legacy_icb_cmd_len),
-        .m_icb_cmd_wdata(legacy_icb_cmd_wdata),
-        .m_icb_cmd_wmask(legacy_icb_cmd_wmask),
-        .m_icb_w_valid(legacy_icb_w_valid),
-        .m_icb_w_ready(1'b0),
-        .m_icb_rsp_valid(1'b0),
-        .m_icb_rsp_ready(legacy_icb_rsp_ready),
-        .m_icb_rsp_rdata({BUS_WIDTH{1'b0}}),
-        .m_icb_rsp_err(1'b0),
 
         .m_axi_arvalid(m_axi_arvalid),
         .m_axi_arready(m_axi_arready),
@@ -419,11 +403,14 @@ module soc_top #(
             axil_rready_q  <= 1'b0;
             mma_aw_pending <= 1'b0;
             mma_aw_addr_q  <= {ICB_ADDR_WIDTH{1'b0}};
-            mma_aw_len_q   <= 4'b0;
-            mma_w_pending  <= 1'b0;
-            mma_w_data_q   <= {BUS_WIDTH{1'b0}};
-            mma_w_strb_q   <= {(BUS_WIDTH/8){1'b0}};
-            mma_w_last_q   <= 1'b0;
+            mma_aw_len_q   <= 8'b0;
+            mma_w_beat_cnt <= 8'b0;
+            mma_wr_error_q <= 1'b0;
+            mma_rd_active  <= 1'b0;
+            mma_rd_addr_q  <= {ICB_ADDR_WIDTH{1'b0}};
+            mma_rd_len_q   <= 8'b0;
+            mma_rd_beat_cnt <= 8'b0;
+            mma_rd_error_q <= 1'b0;
             mma_aw_ready_delay <= 8'd0;
             mma_w_ready_delay  <= 8'd0;
             mma_ar_ready_delay <= 8'd0;
@@ -451,42 +438,42 @@ module soc_top #(
                 mma_aw_pending <= 1'b1;
                 mma_aw_addr_q  <= m_axi_awaddr;
                 mma_aw_len_q   <= m_axi_awlen;
+                mma_w_beat_cnt <= 8'd0;
+                mma_wr_error_q <= 1'b0;
                 mma_aw_ready_delay <= random_ddr_delay(ddr_cmd_max_lat);
             end else if (mma_aw_ready_delay != 8'd0) begin
                 mma_aw_ready_delay <= mma_aw_ready_delay - 8'd1;
             end
 
             if (mma_w_fire) begin
-                mma_w_pending <= 1'b1;
-                mma_w_data_q  <= m_axi_wdata;
-                mma_w_strb_q  <= m_axi_wstrb;
-                mma_w_last_q  <= m_axi_wlast;
+                if (mma_wr_addr_oob) begin
+                    mma_wr_error_q <= 1'b1;
+                end else begin
+                    for (i = 0; i < BUS_WIDTH/8; i = i + 1) begin
+                        if (m_axi_wstrb[i]) begin
+                            cpu_mem[mma_wr_idx][8*i +: 8] <= m_axi_wdata[8*i +: 8];
+                        end
+                    end
+                end
+                if (m_axi_wlast != (mma_w_beat_cnt == mma_aw_len_q)) begin
+                    mma_wr_error_q <= 1'b1;
+                end
+                if (m_axi_wlast || (mma_w_beat_cnt == mma_aw_len_q)) begin
+                    mma_aw_pending <= 1'b0;
+                    mma_wr_rsp_pending <= 1'b1;
+                    mma_wr_rsp_delay <= random_ddr_delay(ddr_rsp_max_lat);
+                end else begin
+                    mma_w_beat_cnt <= mma_w_beat_cnt + 8'd1;
+                end
                 mma_w_ready_delay <= random_ddr_delay(ddr_w_max_lat);
             end else if (mma_w_ready_delay != 8'd0) begin
                 mma_w_ready_delay <= mma_w_ready_delay - 8'd1;
             end
 
-            if ((!m_axi_bvalid_q) && (!mma_wr_rsp_pending) && mma_aw_pending && mma_w_pending) begin
-                if (mma_wr_addr_oob || (mma_aw_len_q != 4'd0) || (!mma_w_last_q)) begin
-                    m_axi_bresp_q <= 2'b10;
-                end else begin
-                    m_axi_bresp_q <= 2'b00;
-                    for (i = 0; i < BUS_WIDTH/8; i = i + 1) begin
-                        if (mma_w_strb_q[i]) begin
-                            cpu_mem[mma_wr_idx][8*i +: 8] <= mma_w_data_q[8*i +: 8];
-                        end
-                    end
-                end
-
-                mma_aw_pending <= 1'b0;
-                mma_w_pending  <= 1'b0;
-                mma_wr_rsp_pending <= 1'b1;
-                mma_wr_rsp_delay <= random_ddr_delay(ddr_rsp_max_lat);
-            end
-
             if (mma_wr_rsp_pending && (!m_axi_bvalid_q)) begin
                 if (mma_wr_rsp_delay == 8'd0) begin
                     m_axi_bvalid_q <= 1'b1;
+                    m_axi_bresp_q <= mma_wr_error_q ? 2'b10 : 2'b00;
                     mma_wr_rsp_pending <= 1'b0;
                 end else begin
                     mma_wr_rsp_delay <= mma_wr_rsp_delay - 8'd1;
@@ -498,17 +485,13 @@ module soc_top #(
             end
 
             if (mma_ar_fire) begin
-                m_axi_rlast_q  <= 1'b1;
-                mma_ar_ready_delay <= random_ddr_delay(ddr_cmd_max_lat);
-
-                if (mma_rd_addr_oob || (m_axi_arlen != 4'd0)) begin
-                    m_axi_rresp_q <= 2'b10;
-                    m_axi_rdata_q <= {BUS_WIDTH{1'b0}};
-                end else begin
-                    m_axi_rresp_q <= 2'b00;
-                    m_axi_rdata_q <= cpu_mem[mma_rd_idx];
-                end
+                mma_rd_active <= 1'b1;
+                mma_rd_addr_q <= m_axi_araddr;
+                mma_rd_len_q <= m_axi_arlen;
+                mma_rd_beat_cnt <= 8'd0;
+                mma_rd_error_q <= 1'b0;
                 mma_rd_rsp_pending <= 1'b1;
+                mma_ar_ready_delay <= random_ddr_delay(ddr_cmd_max_lat);
                 mma_rd_rsp_delay <= random_ddr_delay(ddr_rsp_max_lat);
             end else if (mma_ar_ready_delay != 8'd0) begin
                 mma_ar_ready_delay <= mma_ar_ready_delay - 8'd1;
@@ -517,6 +500,15 @@ module soc_top #(
             if (mma_rd_rsp_pending && (!m_axi_rvalid_q)) begin
                 if (mma_rd_rsp_delay == 8'd0) begin
                     m_axi_rvalid_q <= 1'b1;
+                    m_axi_rlast_q <= (mma_rd_beat_cnt == mma_rd_len_q);
+                    if (mma_rd_addr_oob) begin
+                        m_axi_rresp_q <= 2'b10;
+                        m_axi_rdata_q <= {BUS_WIDTH{1'b0}};
+                        mma_rd_error_q <= 1'b1;
+                    end else begin
+                        m_axi_rresp_q <= mma_rd_error_q ? 2'b10 : 2'b00;
+                        m_axi_rdata_q <= cpu_mem[mma_rd_idx];
+                    end
                     mma_rd_rsp_pending <= 1'b0;
                 end else begin
                     mma_rd_rsp_delay <= mma_rd_rsp_delay - 8'd1;
@@ -526,6 +518,13 @@ module soc_top #(
             if (m_axi_rvalid_q && m_axi_rready) begin
                 m_axi_rvalid_q <= 1'b0;
                 m_axi_rlast_q  <= 1'b0;
+                if (mma_rd_beat_cnt == mma_rd_len_q) begin
+                    mma_rd_active <= 1'b0;
+                end else begin
+                    mma_rd_beat_cnt <= mma_rd_beat_cnt + 8'd1;
+                    mma_rd_rsp_pending <= 1'b1;
+                    mma_rd_rsp_delay <= random_ddr_delay(ddr_rsp_max_lat);
+                end
             end
 
             case (state_q)
@@ -626,10 +625,6 @@ module soc_top #(
     wire _unused = mem_instr | |axil_rresp | |m_axi_arcache | |m_axi_arprot |
                    |m_axi_arlock | |m_axi_arburst | |m_axi_arsize |
                    |m_axi_awcache | |m_axi_awprot | |m_axi_awlock |
-                   |m_axi_awburst | |m_axi_awsize | legacy_icb_cmd_valid |
-                   legacy_icb_cmd_read | legacy_icb_w_valid |
-                   legacy_icb_rsp_ready | |legacy_icb_cmd_addr |
-                   |legacy_icb_cmd_len | |legacy_icb_cmd_wdata |
-                   |legacy_icb_cmd_wmask;
+                   |m_axi_awburst | |m_axi_awsize;
 
 endmodule

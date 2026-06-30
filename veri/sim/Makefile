@@ -37,6 +37,7 @@ SOC_FIX_MODE ?= 1
 SOC_SEED ?= 1
 SOC_RANDOM_LHS_DTYPE ?=
 SOC_RANDOM_QUANT_MODE ?=
+SOC_UNALIGNED_LAYOUT ?= 0
 SOC_MIN_DIM ?=
 SOC_MAX_DIM ?=
 SOC_DIM_MULTIPLE ?= 16
@@ -74,11 +75,14 @@ SOC_SIZE_LIST ?= $(MMA_SIZE)
 SOC_CACHE_BLOCKS_LIST ?= $(MMA_IA_CACHE_BLOCKS)
 SOC_PS_FRAME_COUNT_LIST ?=
 SOC_DATAFLOW_MODE_LIST ?= $(SOC_DATAFLOW_MODE)
+SOC_REGRESS_LHS_DTYPE_LIST ?=
+SOC_REGRESS_QUANT_MODE_LIST ?=
 SOC_REGRESS_SIM_ARGS ?= $(SIM_ARGS)
 SOC_REGRESS_DDR_RAND_LAT ?= 0
 SOC_REGRESS_DDR_CMD_MAX_LAT ?= 3
 SOC_REGRESS_DDR_W_MAX_LAT ?= 2
 SOC_REGRESS_DDR_RSP_MAX_LAT ?= 8
+SOC_REGRESS_UNALIGNED_LAYOUT ?= 0
 SOC_PERF_LOG_ROOT ?= runs/axi_soc_perf_sweep
 SOC_PERF_SEED ?= 80000
 SOC_PERF_DIMS ?= 32x32x32
@@ -184,6 +188,7 @@ SOC_GEN_ARGS = --seed $(SOC_SEED) \
                $(if $(SOC_DST_SHIFT),--dst_shift $(SOC_DST_SHIFT),) \
                $(if $(SOC_RANDOM_LHS_DTYPE),--lhs_dtype $(SOC_RANDOM_LHS_DTYPE),) \
                $(if $(SOC_RANDOM_QUANT_MODE),--quant_mode $(SOC_RANDOM_QUANT_MODE),) \
+               $(if $(filter 1 yes true TRUE,$(SOC_UNALIGNED_LAYOUT)),--unaligned_layout,) \
                $(if $(SOC_MIN_DIM),--min_dim $(SOC_MIN_DIM),) \
                $(if $(SOC_MAX_DIM),--max_dim $(SOC_MAX_DIM),) \
                --dim_multiple $(SOC_DIM_MULTIPLE)
@@ -333,7 +338,7 @@ sim: $(SIMV) $(RUN_DEPS)
 > $(SIM_RUNNER) $(SIM_OPTS) $(SIM_ARGS) $(DUMPFSDB) +fsdbfile+$(FSDB) +UVM_TESTNAME=$(case) +case=$(case) +ntb_random_seed=$(seed) -l $(SIM_LOG) +vcs+initreg+0
 
 soc_regress:
-> @python3 ./run_axi_soc_c_regression.py --iterations $(SOC_REGRESS_ITERS) --start-seed $(SOC_REGRESS_START_SEED) --timeout $(SOC_REGRESS_TIMEOUT) --log-root $(SOC_REGRESS_LOG_ROOT) --sizes "$(SOC_SIZE_LIST)" --cache-blocks "$(SOC_CACHE_BLOCKS_LIST)" --ps-frame-counts "$(SOC_PS_FRAME_COUNT_LIST)" --dataflow-modes "$(SOC_DATAFLOW_MODE_LIST)" --dim-multiple $(SOC_REGRESS_DIM_MULTIPLE) --sim-args "$(SOC_REGRESS_SIM_ARGS)" --ddr-cmd-max-lat $(SOC_REGRESS_DDR_CMD_MAX_LAT) --ddr-w-max-lat $(SOC_REGRESS_DDR_W_MAX_LAT) --ddr-rsp-max-lat $(SOC_REGRESS_DDR_RSP_MAX_LAT) $(if $(filter 1 yes true TRUE,$(SOC_REGRESS_DDR_RAND_LAT)),--ddr-rand-lat,) $(if $(SOC_MIN_DIM),--min-dim $(SOC_MIN_DIM),) $(if $(SOC_MAX_DIM),--max-dim $(SOC_MAX_DIM),)
+> @python3 ./run_axi_soc_c_regression.py --iterations $(SOC_REGRESS_ITERS) --start-seed $(SOC_REGRESS_START_SEED) --timeout $(SOC_REGRESS_TIMEOUT) --log-root $(SOC_REGRESS_LOG_ROOT) --sizes "$(SOC_SIZE_LIST)" --cache-blocks "$(SOC_CACHE_BLOCKS_LIST)" --ps-frame-counts "$(SOC_PS_FRAME_COUNT_LIST)" --dataflow-modes "$(SOC_DATAFLOW_MODE_LIST)" --lhs-dtypes "$(SOC_REGRESS_LHS_DTYPE_LIST)" --quant-modes "$(SOC_REGRESS_QUANT_MODE_LIST)" --dim-multiple $(SOC_REGRESS_DIM_MULTIPLE) --sim-args "$(SOC_REGRESS_SIM_ARGS)" --ddr-cmd-max-lat $(SOC_REGRESS_DDR_CMD_MAX_LAT) --ddr-w-max-lat $(SOC_REGRESS_DDR_W_MAX_LAT) --ddr-rsp-max-lat $(SOC_REGRESS_DDR_RSP_MAX_LAT) $(if $(filter 1 yes true TRUE,$(SOC_REGRESS_DDR_RAND_LAT)),--ddr-rand-lat,) $(if $(filter 1 yes true TRUE,$(SOC_REGRESS_UNALIGNED_LAYOUT)),--unaligned-layout,) $(if $(SOC_MIN_DIM),--min-dim $(SOC_MIN_DIM),) $(if $(SOC_MAX_DIM),--max-dim $(SOC_MAX_DIM),)
 
 soc_perf_sweep:
 > @python3 ./run_axi_soc_perf_sweep.py --seed $(SOC_PERF_SEED) --log-root $(SOC_PERF_LOG_ROOT) --dims "$(SOC_PERF_DIMS)" --sizes "$(SOC_PERF_SIZE_LIST)" --cache-blocks "$(SOC_PERF_CACHE_BLOCKS_LIST)" --ps-frame-counts "$(SOC_PERF_PS_FRAME_COUNT_LIST)" --dataflow-modes "$(SOC_PERF_DATAFLOW_MODE_LIST)" --lhs-dtypes "$(SOC_PERF_LHS_DTYPE_LIST)" --quant-modes "$(SOC_PERF_QUANT_MODE_LIST)" --ia-reuse-list "$(SOC_PERF_IA_REUSE_LIST)" --w-reuse-list "$(SOC_PERF_W_REUSE_LIST)" --jobs $(SOC_PERF_JOBS) --sim-args "$(SOC_PERF_SIM_ARGS)" --ddr-cmd-max-lat $(SOC_PERF_DDR_CMD_MAX_LAT) --ddr-w-max-lat $(SOC_PERF_DDR_W_MAX_LAT) --ddr-rsp-max-lat $(SOC_PERF_DDR_RSP_MAX_LAT) $(if $(filter 1 yes true TRUE,$(SOC_PERF_INCLUDE_AUTO)),--include-auto,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_KEEP_GOING)),--keep-going,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_FORCE_COMPILE)),--force-compile,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_DDR_RAND_LAT)),--ddr-rand-lat,)
@@ -370,7 +375,7 @@ help:
 > @echo "  make force_com [DUT_MODE=nice|axil|axi_soc]  # rebuild simv"
 > @echo "  make sim   [DUT_MODE=nice|axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
 > @echo "  make soc_regress [SOC_REGRESS_ITERS=<n>] [SOC_REGRESS_START_SEED=<int>] [SOC_MIN_DIM=<n>] [SOC_MAX_DIM=<n>] [SOC_REGRESS_DIM_MULTIPLE=<n>]"
-> @echo "                   [SOC_SIZE_LIST='8 16'] [SOC_CACHE_BLOCKS_LIST='2 4'] [SOC_REGRESS_DDR_RAND_LAT=1]"
+> @echo "                   [SOC_SIZE_LIST='8 16'] [SOC_CACHE_BLOCKS_LIST='2 4'] [SOC_REGRESS_DDR_RAND_LAT=1] [SOC_REGRESS_UNALIGNED_LAYOUT=1]"
 > @echo "  make soc_perf_sweep [SOC_PERF_DIMS='32x32x32'] [SOC_PERF_SIZE_LIST='8 16'] [SOC_PERF_CACHE_BLOCKS_LIST='2 4']"
 > @echo "                      [SOC_PERF_INCLUDE_AUTO=1] [SOC_PERF_FORCE_COMPILE=1] [SOC_PERF_JOBS=4] [SOC_PERF_DDR_RAND_LAT=1]"
 > @echo "  make tflm_run"

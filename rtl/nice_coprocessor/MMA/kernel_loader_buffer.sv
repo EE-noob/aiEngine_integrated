@@ -104,11 +104,11 @@ module kernel_loader_buffer #(
           weight_out[c] <= mem[rd_slot][SIZE - 1][c];
         end
         if (kernel_buf_trace_en) begin
-          $display("[KBUF_TRACE] time=%0t send row=%0d w0=%0d w1=%0d w2=%0d w3=%0d w4=%0d",
-                   $time, SIZE - 1,
-                   mem[rd_slot][SIZE - 1][0], mem[rd_slot][SIZE - 1][1],
-                   mem[rd_slot][SIZE - 1][2], mem[rd_slot][SIZE - 1][3],
-                   mem[rd_slot][SIZE - 1][4]);
+          $write("[KBUF_TRACE] time=%0t send row=%0d w=", $time, SIZE - 1);
+          for (int dbg_c = 0; dbg_c < SIZE; dbg_c++) begin
+            $write("%0d%s", mem[rd_slot][SIZE - 1][dbg_c], (dbg_c == SIZE - 1) ? "" : ",");
+          end
+          $write("\n");
         end
         if (SIZE == 1) begin
           send_active         <= 1'b0;
@@ -123,11 +123,11 @@ module kernel_loader_buffer #(
           weight_out[c] <= mem[rd_slot][send_row_idx][c];
         end
         if (kernel_buf_trace_en) begin
-          $display("[KBUF_TRACE] time=%0t send row=%0d w0=%0d w1=%0d w2=%0d w3=%0d w4=%0d",
-                   $time, send_row_idx,
-                   mem[rd_slot][send_row_idx][0], mem[rd_slot][send_row_idx][1],
-                   mem[rd_slot][send_row_idx][2], mem[rd_slot][send_row_idx][3],
-                   mem[rd_slot][send_row_idx][4]);
+          $write("[KBUF_TRACE] time=%0t send row=%0d w=", $time, send_row_idx);
+          for (int dbg_c = 0; dbg_c < SIZE; dbg_c++) begin
+            $write("%0d%s", mem[rd_slot][send_row_idx][dbg_c], (dbg_c == SIZE - 1) ? "" : ",");
+          end
+          $write("\n");
         end
         if (send_row_idx == '0) begin
           send_active         <= 1'b0;

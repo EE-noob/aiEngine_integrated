@@ -12,7 +12,8 @@ module mma_top #(
     parameter int unsigned ADDR_WIDTH = 19,  // 地址宽度
     parameter int unsigned ICB_LEN_W = 4,  // ICB 突发长度宽度
     parameter int unsigned IA_CACHE_BLOCKS = 4,  // IA loader cache slots；默认 IA reuse = IA_CACHE_BLOCKS/2
-    parameter int unsigned PS_FRAME_COUNT = SIZE  // PS buffer 可保留的输出列 tile 数
+    parameter int unsigned PS_FRAME_COUNT = SIZE,  // PS buffer 可保留的输出列 tile 数
+    parameter int unsigned AXI_READ_OUTSTANDING = 4  // AXI 读通道最多提前排队的 burst 数
 ) (
     //==== 时钟与复位 ====
     input wire clk,   // 系统时钟
@@ -60,20 +61,33 @@ module mma_top #(
     input logic signed [REG_WIDTH-1:0] act_min,  // (MULT_ACT_MIN)
     input logic signed [REG_WIDTH-1:0] act_max,  // (MULT_ACT_MAX)
 
-    //==== 扁平化 ICB 接口 ====
-    output logic                   sa_icb_cmd_valid,
-    input  logic                   sa_icb_cmd_ready,
-    output logic [ ADDR_WIDTH-1:0] sa_icb_cmd_addr,
-    output logic                   sa_icb_cmd_read,
-    output logic [  ICB_LEN_W-1:0] sa_icb_cmd_len,
-    output logic [  BUS_WIDTH-1:0] sa_icb_cmd_wdata,
-    output logic [BUS_WIDTH/8-1:0] sa_icb_cmd_wmask,
-    output logic                   sa_icb_w_valid,
-    input  logic                   sa_icb_w_ready,
-    input  logic                   sa_icb_rsp_valid,
-    output logic                   sa_icb_rsp_ready,
-    input  logic [  BUS_WIDTH-1:0] sa_icb_rsp_rdata,
-    input  logic                   sa_icb_rsp_err
+    //==== AXI4 master 接口 ====
+    output logic                   m_axi_arvalid,
+    input  logic                   m_axi_arready,
+    output logic [  REG_WIDTH-1:0] m_axi_araddr,
+    output logic [            7:0] m_axi_arlen,
+    output logic [            2:0] m_axi_arsize,
+    output logic [            1:0] m_axi_arburst,
+    input  logic                   m_axi_rvalid,
+    output logic                   m_axi_rready,
+    input  logic [  BUS_WIDTH-1:0] m_axi_rdata,
+    input  logic [            1:0] m_axi_rresp,
+    input  logic                   m_axi_rlast,
+
+    output logic                   m_axi_awvalid,
+    input  logic                   m_axi_awready,
+    output logic [  REG_WIDTH-1:0] m_axi_awaddr,
+    output logic [            7:0] m_axi_awlen,
+    output logic [            2:0] m_axi_awsize,
+    output logic [            1:0] m_axi_awburst,
+    output logic                   m_axi_wvalid,
+    input  logic                   m_axi_wready,
+    output logic [  BUS_WIDTH-1:0] m_axi_wdata,
+    output logic [BUS_WIDTH/8-1:0] m_axi_wstrb,
+    output logic                   m_axi_wlast,
+    input  logic                   m_axi_bvalid,
+    output logic                   m_axi_bready,
+    input  logic [            1:0] m_axi_bresp
 );
 
 	    //========================================
@@ -219,12 +233,6 @@ module mma_top #(
 	    logic [BUS_WIDTH/8-1:0] oa_dma_src_wmask;
 	    logic oa_dma_src_wvalid, oa_dma_src_wready, oa_dma_busy, oa_dma_done;
 
-	    logic shared_icb_cmd_valid, shared_icb_cmd_read, shared_icb_w_valid, shared_icb_rsp_ready;
-	    logic [REG_WIDTH-1:0] shared_icb_cmd_addr;
-	    logic [3:0] shared_icb_cmd_len;
-	    logic [BUS_WIDTH-1:0] shared_icb_cmd_wdata;
-	    logic [BUS_WIDTH/8-1:0] shared_icb_cmd_wmask;
-
     // 添加缺少的内部信号
     // per-submodule init_cfg signals (由mma_controller产生的单拍脉冲)
     wire init_cfg_ia;
@@ -276,23 +284,15 @@ module mma_top #(
 	          ? ia_reuse_num_eff
 	          : w_reuse_num_clamped_max;
 
-	    assign sa_icb_cmd_valid = shared_icb_cmd_valid;
-	    assign sa_icb_cmd_addr  = shared_icb_cmd_addr[ADDR_WIDTH-1:0];
-	    assign sa_icb_cmd_read  = shared_icb_cmd_read;
-	    assign sa_icb_cmd_len   = shared_icb_cmd_len[ICB_LEN_W-1:0];
-	    assign sa_icb_cmd_wdata = shared_icb_cmd_wdata;
-	    assign sa_icb_cmd_wmask = shared_icb_cmd_wmask;
-	    assign sa_icb_w_valid   = shared_icb_w_valid;
-	    assign sa_icb_rsp_ready = shared_icb_rsp_ready;
-
-	    block_dma_arbiter #(
+	    axi_block_dma_arbiter #(
 	        .DATA_WIDTH  (DATA_WIDTH),
 	        .KERNEL_WIDTH(WEIGHT_WIDTH),
 	        .SIZE        (SIZE),
 	        .DMA_SIZE    (SHARED_DMA_SIZE),
 	        .BUS_WIDTH   (BUS_WIDTH),
 	        .REG_WIDTH   (REG_WIDTH),
-	        .CACHE_BLOCKS(IA_CACHE_BLOCKS)
+	        .CACHE_BLOCKS(IA_CACHE_BLOCKS),
+	        .READ_OUTSTANDING(AXI_READ_OUTSTANDING)
 	    ) u_block_dma_arbiter (
 	        .clk                     (clk),
 	        .rst_n                   (rst_n),
@@ -388,19 +388,31 @@ module mma_top #(
 	        .oa_src_wready           (oa_dma_src_wready),
 	        .oa_busy                 (oa_dma_busy),
 	        .oa_done                 (oa_dma_done),
-	        .icb_cmd_valid           (shared_icb_cmd_valid),
-	        .icb_cmd_ready           (sa_icb_cmd_ready),
-	        .icb_cmd_read            (shared_icb_cmd_read),
-	        .icb_cmd_addr            (shared_icb_cmd_addr),
-	        .icb_cmd_len             (shared_icb_cmd_len),
-	        .icb_cmd_wdata           (shared_icb_cmd_wdata),
-	        .icb_cmd_wmask           (shared_icb_cmd_wmask),
-	        .icb_w_valid             (shared_icb_w_valid),
-	        .icb_w_ready             (sa_icb_w_ready),
-	        .icb_rsp_valid           (sa_icb_rsp_valid),
-	        .icb_rsp_ready           (shared_icb_rsp_ready),
-	        .icb_rsp_rdata           (sa_icb_rsp_rdata),
-	        .icb_rsp_err             (sa_icb_rsp_err)
+	        .m_axi_arvalid           (m_axi_arvalid),
+	        .m_axi_arready           (m_axi_arready),
+	        .m_axi_araddr            (m_axi_araddr),
+	        .m_axi_arlen             (m_axi_arlen),
+	        .m_axi_arsize            (m_axi_arsize),
+	        .m_axi_arburst           (m_axi_arburst),
+	        .m_axi_rvalid            (m_axi_rvalid),
+	        .m_axi_rready            (m_axi_rready),
+	        .m_axi_rdata             (m_axi_rdata),
+	        .m_axi_rresp             (m_axi_rresp),
+	        .m_axi_rlast             (m_axi_rlast),
+	        .m_axi_awvalid           (m_axi_awvalid),
+	        .m_axi_awready           (m_axi_awready),
+	        .m_axi_awaddr            (m_axi_awaddr),
+	        .m_axi_awlen             (m_axi_awlen),
+	        .m_axi_awsize            (m_axi_awsize),
+	        .m_axi_awburst           (m_axi_awburst),
+	        .m_axi_wvalid            (m_axi_wvalid),
+	        .m_axi_wready            (m_axi_wready),
+	        .m_axi_wdata             (m_axi_wdata),
+	        .m_axi_wstrb             (m_axi_wstrb),
+	        .m_axi_wlast             (m_axi_wlast),
+	        .m_axi_bvalid            (m_axi_bvalid),
+	        .m_axi_bready            (m_axi_bready),
+	        .m_axi_bresp             (m_axi_bresp)
 	    );
 
 	    //========================================
@@ -985,8 +997,11 @@ module mma_top #(
     longint unsigned top_util_bias_dma_busy_cycles;
     longint unsigned top_util_quant_dma_busy_cycles;
     longint unsigned top_util_oa_dma_busy_cycles;
-    longint unsigned top_util_shared_cmd_cycles;
-    longint unsigned top_util_shared_rsp_cycles;
+    longint unsigned top_util_axi_ar_cycles;
+    longint unsigned top_util_axi_r_cycles;
+    longint unsigned top_util_axi_aw_cycles;
+    longint unsigned top_util_axi_w_cycles;
+    longint unsigned top_util_axi_b_cycles;
 
     initial begin
         top_util_trace_en = 1'b0;
@@ -1018,8 +1033,11 @@ module mma_top #(
             top_util_bias_dma_busy_cycles   <= '0;
             top_util_quant_dma_busy_cycles  <= '0;
             top_util_oa_dma_busy_cycles     <= '0;
-            top_util_shared_cmd_cycles      <= '0;
-            top_util_shared_rsp_cycles      <= '0;
+            top_util_axi_ar_cycles          <= '0;
+            top_util_axi_r_cycles           <= '0;
+            top_util_axi_aw_cycles          <= '0;
+            top_util_axi_w_cycles           <= '0;
+            top_util_axi_b_cycles           <= '0;
         end else begin
             if (top_util_start_event) begin
                 top_util_active                 <= 1'b1;
@@ -1042,8 +1060,11 @@ module mma_top #(
                 top_util_bias_dma_busy_cycles   <= '0;
                 top_util_quant_dma_busy_cycles  <= '0;
                 top_util_oa_dma_busy_cycles     <= '0;
-                top_util_shared_cmd_cycles      <= '0;
-                top_util_shared_rsp_cycles      <= '0;
+                top_util_axi_ar_cycles          <= '0;
+                top_util_axi_r_cycles           <= '0;
+                top_util_axi_aw_cycles          <= '0;
+                top_util_axi_w_cycles           <= '0;
+                top_util_axi_b_cycles           <= '0;
             end else if (top_util_active) begin
                 top_util_active_cycles <= top_util_active_cycles + 1'b1;
 
@@ -1098,17 +1119,26 @@ module mma_top #(
                 if (oa_dma_busy) begin
                     top_util_oa_dma_busy_cycles <= top_util_oa_dma_busy_cycles + 1'b1;
                 end
-                if (shared_icb_cmd_valid && sa_icb_cmd_ready) begin
-                    top_util_shared_cmd_cycles <= top_util_shared_cmd_cycles + 1'b1;
+                if (m_axi_arvalid && m_axi_arready) begin
+                    top_util_axi_ar_cycles <= top_util_axi_ar_cycles + 1'b1;
                 end
-                if (sa_icb_rsp_valid && shared_icb_rsp_ready) begin
-                    top_util_shared_rsp_cycles <= top_util_shared_rsp_cycles + 1'b1;
+                if (m_axi_rvalid && m_axi_rready) begin
+                    top_util_axi_r_cycles <= top_util_axi_r_cycles + 1'b1;
+                end
+                if (m_axi_awvalid && m_axi_awready) begin
+                    top_util_axi_aw_cycles <= top_util_axi_aw_cycles + 1'b1;
+                end
+                if (m_axi_wvalid && m_axi_wready) begin
+                    top_util_axi_w_cycles <= top_util_axi_w_cycles + 1'b1;
+                end
+                if (m_axi_bvalid && m_axi_bready) begin
+                    top_util_axi_b_cycles <= top_util_axi_b_cycles + 1'b1;
                 end
             end
 
             if (top_util_finish_event) begin
                 if (top_util_trace_en) begin
-                    $display("[MMA_UTIL] op=%0d active=%0d ia_row=%0d ia_row_util_bp=%0d acc_valid=%0d acc_util_bp=%0d requant_valid=%0d fifo_valid=%0d fifo_full=%0d store_weight=%0d send_weight=%0d send_ia=%0d tile_start=%0d tile_over=%0d partial_over=%0d l1_switch=%0d dma_busy_ia=%0d dma_busy_kernel=%0d dma_busy_bias=%0d dma_busy_quant=%0d dma_busy_oa=%0d bus_cmd=%0d bus_rsp=%0d",
+                    $display("[MMA_UTIL] op=%0d active=%0d ia_row=%0d ia_row_util_bp=%0d acc_valid=%0d acc_util_bp=%0d requant_valid=%0d fifo_valid=%0d fifo_full=%0d store_weight=%0d send_weight=%0d send_ia=%0d tile_start=%0d tile_over=%0d partial_over=%0d l1_switch=%0d dma_busy_ia=%0d dma_busy_kernel=%0d dma_busy_bias=%0d dma_busy_quant=%0d dma_busy_oa=%0d axi_ar=%0d axi_r=%0d axi_aw=%0d axi_w=%0d axi_b=%0d",
                              top_util_op_id,
                              top_util_active_cycles,
                              top_util_ia_row_cycles,
@@ -1130,8 +1160,11 @@ module mma_top #(
                              top_util_bias_dma_busy_cycles,
                              top_util_quant_dma_busy_cycles,
                              top_util_oa_dma_busy_cycles,
-                             top_util_shared_cmd_cycles,
-                             top_util_shared_rsp_cycles);
+                             top_util_axi_ar_cycles,
+                             top_util_axi_r_cycles,
+                             top_util_axi_aw_cycles,
+                             top_util_axi_w_cycles,
+                             top_util_axi_b_cycles);
                 end
                 top_util_active <= 1'b0;
             end

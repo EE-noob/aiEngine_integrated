@@ -71,13 +71,17 @@ def write_mem_words(path, data_bytes):
             f.write(f"{word:08x}\n")
 
 
-def emit_runtime_mem(out_dir, cfg, lhs, rhs, bias, expected, dtype_value, random_case=False):
+def emit_runtime_mem(out_dir, cfg, lhs, rhs, bias, expected, dtype_value,
+                     random_case=False, unaligned_layout=False):
     base_addr = RUNTIME_BASE_ADDR
     cursor = RUNTIME_HEADER_BYTES
+    rng = np.random.default_rng(int(cfg.get("seed", 0)) ^ 0x5A17)
 
     def place(data):
         nonlocal cursor
         cursor = align_up(cursor, 16)
+        if unaligned_layout:
+            cursor += int(rng.integers(0, 4))
         offset = cursor
         cursor += len(data)
         return offset
@@ -126,6 +130,8 @@ def emit_runtime_mem(out_dir, cfg, lhs, rhs, bias, expected, dtype_value, random
     lhs_row_stride = cfg["K"] * lhs_elem_bytes if is_mode else cfg["lhs_row_stride"]
     rhs_row_stride = cfg["N"] if is_mode else cfg["rhs_row_stride"]
 
+    layout_flags = 1 if unaligned_layout else 0
+
     words = [
         RUNTIME_MAGIC,
         RUNTIME_VERSION,
@@ -165,6 +171,7 @@ def emit_runtime_mem(out_dir, cfg, lhs, rhs, bias, expected, dtype_value, random
         len(bias_bytes),
         len(dst_mult_bytes),
         len(dst_shift_bytes),
+        layout_flags,
     ]
 
     for idx, value in enumerate(words):
@@ -176,7 +183,7 @@ def emit_runtime_mem(out_dir, cfg, lhs, rhs, bias, expected, dtype_value, random
     return runtime_mem_path
 
 
-def emit_soc_case_files(out_dir, cfg, random_case=False):
+def emit_soc_case_files(out_dir, cfg, random_case=False, unaligned_layout=False):
     dtype = cfg.get("lhs_dtype", "DSA_DTYPE_S8")
     if isinstance(dtype, str):
         dtype_value = 2 if dtype == "DSA_DTYPE_S16" else 1
@@ -268,7 +275,9 @@ def emit_soc_case_files(out_dir, cfg, random_case=False):
             emit_c_array(f, "int32_t", "dst_shift_data", dst_shift, per_line=m)
 
     runtime_mem_path = emit_runtime_mem(out_dir, cfg, lhs, rhs, bias, expected,
-                                        dtype_value, random_case=random_case)
+                                        dtype_value,
+                                        random_case=random_case,
+                                        unaligned_layout=unaligned_layout)
 
     return header_path, c_path, runtime_mem_path
 
@@ -297,6 +306,8 @@ def main():
     parser.add_argument("--min_dim", type=int, default=16)
     parser.add_argument("--max_dim", type=int, default=32)
     parser.add_argument("--dim_multiple", type=int, default=16)
+    parser.add_argument("--unaligned_layout", action="store_true",
+                        help="place runtime data sections at deterministic byte offsets")
     parser.add_argument("--out_dir", type=str, default="./axi_soc_case")
     args = parser.parse_args()
 
@@ -326,7 +337,8 @@ def main():
     cfg["ia_reuse_num"] = args.ia_reuse_num
     cfg["w_reuse_num"] = args.w_reuse_num
     header_path, c_path, runtime_mem_path = emit_soc_case_files(
-        args.out_dir, cfg, random_case=args.random)
+        args.out_dir, cfg, random_case=args.random,
+        unaligned_layout=args.unaligned_layout)
     print(f"Generated AXI SoC case in {args.out_dir}")
     print(f"Generated {header_path}")
     print(f"Generated {c_path}")
