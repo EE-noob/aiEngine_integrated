@@ -258,3 +258,6 @@ soc_finish(SOC_STATUS_PASS);
 | TFLM | `hello_world/micro_speech/my_model/person_detection,SIZE=16,CACHE=4,PS_FRAME=16,O3` | PASS |
 | 量化优先级边界回归 | `SIZE={8,16},CACHE=4,DF={WS,IS},lhs={s8,s16},Q={per-tensor,per-channel},MIN_DIM=1,MAX_DIM=65,unaligned_layout,DDR_RAND_LAT=1` | PASS 16/16 |
 | 量化优先级 TFLM | `micro_speech/my_model/person_detection,SIZE=16,CACHE=4,PS_FRAME=16,O3` | PASS；`quant_stall` 在已采样 per-channel TFLM op 中清零 |
+| Pico AXI reset 修复 | `picorv32_axi_adapter` 复位清 `ack_arvalid/ack_wvalid/xfer_done`；`hello_world/micro_speech` | PASS，周期保持 430,815 / 15,720,057 |
+
+已复现但未保留的性能实验：`soc_axi_ram` 无延迟写响应 B 旁路可让 `hello_world` 回到 425,071 cycles，但 `micro_speech` 会稳定超时在 `progress=0x5b313000`。当前稳定实现继续保留 RAM B 队列；后续若要减少 CPU store 开销，应使用显式 posted-write buffer 并在读/MMIO 前 drain。

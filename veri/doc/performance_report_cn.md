@@ -515,3 +515,30 @@ kernel 仍保持最高优先级；quant 是每个 per-channel op 的短读，把
 - `runs/tflm_deep_trace/person_quant_prio`
 - `runs/soc_quant_prio_regress_s16`
 - `runs/soc_quant_prio_regress_s8`
+
+### 2026-07-01 补充：SoC 小模型回退复核与 Pico AXI reset 修复
+
+为进一步确认“裸 MMA 单测变快、SoC 小模型端到端略慢”的来源，本轮复现实验把 `soc_axi_ram` 的无延迟写响应改成 B 队列旁路。结果再次证明该方向不能直接采用：
+
+| 实验 | 结果 | 结论 |
+|---|---|---|
+| `hello_world` + RAM B 旁路 | PASS，425,071 cycles | 能追回早期记录，说明小模型回退确实有一部分来自 CPU store/B 响应固定开销 |
+| `micro_speech` + RAM B 旁路 | TIMEOUT，`progress=0x5b313000` | 卡在第一段 `depthwise_conv` 打包 LHS 后、提交 MMA 前；快路径破坏了复杂 store 循环/AXI 响应时序假设 |
+| 撤销 B 旁路后的基线 | `micro_speech` PASS，15,720,057 cycles | 当前保留 B 队列是正确性优先的稳定实现 |
+
+结合 PicoRV32 官方 `picorv32_axi_adapter` 的实现可以看到，`mem_ready` 直接由 `BVALID/RVALID` 产生，而内部 `xfer_done` 延后一拍清 `ack_awvalid/ack_wvalid`。过早返回 B 会压缩 Pico native 访问和 AXI 写响应之间的保护窗口；虽然这能减少 `hello_world` 的纯 CPU store 开销，但会让 `micro_speech` 的 depthwise 打包循环稳定卡死。因此性能优化不能再走“RAM 立即 B”这条路，后续如需减少 CPU store 开销，应设计显式 store buffer/posted write，并在 MMIO/read 前做有序 drain。
+
+本轮同时修复了一个独立的复位稳健性问题：`picorv32_axi_adapter` 复位分支原本只清 `ack_awvalid`，没有清 `ack_arvalid`、`ack_wvalid` 和 `xfer_done`。仿真使用 `+vcs+initreg+0` 时该问题不显性，但硬件复位语义不完整。修复后验证：
+
+| 测试 | 配置 | 结果 |
+|---|---|---|
+| `tflm_hello_world_run` | `SIZE=16,CACHE=4,PS_FRAME=16,O3` | PASS，430,815 cycles |
+| `tflm_micro_speech_run` | `SIZE=16,CACHE=4,PS_FRAME=16,O3,+MMA_UTIL_TRACE` | PASS，15,720,057 cycles；MMA active=32,319，`quant_stall=0` |
+
+新增日志目录：
+
+- `runs/soc_deep_bypass_b/hello`
+- `runs/soc_deep_bypass_b/micro`
+- `runs/soc_deep_rebaseline/micro`
+- `runs/soc_pico_reset_fix/hello`
+- `runs/soc_pico_reset_fix/micro`
