@@ -154,9 +154,7 @@ module mma_controller #(
 	    end
 
 	    assign bias_ready_for_compute = bias_sleep || bias_valid;
-	    assign compute_tail_done = compute_tail_pending &&
-	        (partial_sum_calc_over ||
-	         (cfg_dataflow_mode && compute_tail_is_final && tile_calc_over));
+	    assign compute_tail_done = compute_tail_pending && partial_sum_calc_over;
 	    assign weight_safe_to_send = !compute_tail_pending || compute_tail_done;
 
     // 参数校验函数

@@ -729,6 +729,7 @@ module mma_top #(
         .ia_calc_done    (ia_calc_done),
         .ia_is_init_data (ia_is_init_data),
         .ia_l1_switch    (ia_l1_switch),
+        .ia_sending_done (ia_sending_done),
         .send_ia_trigger (send_ia_trigger),
         .bias_sleep      (compute_bias_sleep),
         .bias_in         (compute_bias_in),

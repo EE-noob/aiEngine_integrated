@@ -16,6 +16,7 @@ module compute_core #(
     input  logic                         ia_calc_done,
     input  logic                         ia_is_init_data,
     input  logic                         ia_l1_switch,
+    input  logic                         ia_sending_done,
     input  logic                         send_ia_trigger,
     input  logic                         bias_sleep,
     input  logic signed [31:0]           bias_in     [SIZE],
@@ -59,6 +60,7 @@ module compute_core #(
     logic                partial_sum_calc_over_r;
     logic [SIZE:0]       ia_tile_start_pipe;
     logic                ps_tile_start_aligned;
+    logic                final_l1_calc_done_seen;
     bit                  compute_trace_en;
 
     initial begin
@@ -96,6 +98,7 @@ module compute_core #(
             final_group_calc_pending <= 1'b0;
             partial_sum_calc_over_r  <= 1'b0;
             ia_tile_start_pipe       <= '0;
+            final_l1_calc_done_seen  <= 1'b0;
         end else begin
             partial_sum_calc_over_r <= 1'b0;
             ia_row_valid_d <= ia_row_valid;
@@ -132,9 +135,17 @@ module compute_core #(
                 end
             end
 
-            if ((final_group_calc_pending || (ps_group_switch_d && ps_calc_done_d)) && ps_tile_calc_over) begin
+            if (ia_sending_done && ps_burst_is_final) begin
+                final_l1_calc_done_seen <= 1'b1;
+            end
+
+            if ((final_group_calc_pending ||
+                 final_l1_calc_done_seen ||
+                 (ia_sending_done && ps_burst_is_final) ||
+                 (ps_group_switch_d && ps_calc_done_d)) && ps_tile_calc_over) begin
                 partial_sum_calc_over_r  <= 1'b1;
                 final_group_calc_pending <= 1'b0;
+                final_l1_calc_done_seen  <= 1'b0;
             end
 
             if (compute_trace_en &&
