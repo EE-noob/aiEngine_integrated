@@ -103,3 +103,112 @@
   - `plots/old_new_mma_ws_cycles.png`
   - `plots/old_new_mma_ws_ratio.png`
   - `plots/tflm_old_new_cycles.png`
+
+## 2026-06-30 22:25 补充：握手修复与随机延迟回归
+
+### 背景
+
+在继续优化 de-diagonalizer 连续 IA 输出和写回路径时，`SIZE=8` 的列尾边界 case 暴露出一个超时：
+
+- `KxNxM=8x8x9`，`SIZE=8`，`IA_CACHE_BLOCKS=8`，`PS_FRAME_COUNT=8`
+- 第一列 tile 写回完成，第二列 tile 的 quant/bias 读命令已经被 `block_dma` 发出并被上游 ICB 接收
+- 之后没有读响应返回，SoC 端停在 `progress=0x5a000003`
+
+### 根因
+
+根因在 `icb_unalign_bridge` 的响应元数据保持语义。桥把非对齐 ICB burst 拆成多个对齐单拍下游 ICB 请求，但旧逻辑在 downstream 命令拍全部发完、响应还没全部回来时，把 `cur_len_0start` 清零。这样多拍写 burst 会被响应通道误判成单拍写：
+
+1. 非对齐 OA 写回行，例如地址 `0x801ff`、`len=1`，会被拆成 3 个对齐写请求。
+2. 响应通道因为 `len` 被清零，只看到第一个 B response 就向上游返回写完成。
+3. 剩余 B response 变成游离响应，污染下一次 DMA 事务。
+4. 当下一列 tile 开始读 quant/bias 时，桥内部状态和响应 FIFO 次序已经错位，导致读命令卡住。
+
+这个问题在 `SIZE=16` 和整齐地址上不容易出现；`SIZE=8, M=9` 的列尾写回刚好产生大量 stride=9 的非对齐写行，因此稳定复现。
+
+### RTL 修复
+
+- `icb_unalign_bridge.sv`
+  - 删除在 `cmd_state/rsp_state` 临时空闲时清零 `cur_len_0start` 的逻辑。
+  - 当前请求的 `read/addr/len` 元数据从 FIFO pop 起保持到响应流完成，下一条请求 pop 时再更新。
+  - 删除旧 `LAST` 状态残留和未使用 `last_beat_sent` 标志。
+  - 增加 `+MMA_BUS_TRACE` 调试打印，默认关闭。
+
+- `block_dma.sv`
+  - 写响应只在 `wr_rsp_pending` 时推进写行计数，避免游离写响应提前完成行写回。
+  - 读响应增加 `rd_cmd_inflight` 过滤，读写响应的 pending/in-flight 语义保持一致。
+  - 非对齐读或非对齐 stride 读改为单拍顺序命令，避免把跨行非对齐数据交给 burst 路径拼接。
+  - 增加 `valid_cols`，尾列载入时无效 lane 置零。
+
+- `compute_core.sv`
+  - 删除未使用的 `ia_row_valid_d`。
+  - partial-sum 完成使用 de-diagonalizer 的 stream 结束信号，而不是普通 tile done，避免连续 IA L1 stream 中早释放。
+
+### de-diagonalizer 连续输出结论
+
+当前 de-diagonalizer 的连续输出机制是有效的：IA cache 在块全部缓存好后可以连续吐出多个分块，de-diagonalizer 只在连续 stream 的第一拍清空 delay line，后续 tile start 不再冲刷流水。因此输出侧只承担第一次填充延迟，stream 中间不再插入额外清空气泡。
+
+trace 中看到 `vec_requant` 打印 `row_cnt=6/8 done=1` 并不是少算一行。原因是 `vec_requant` 的 IDLE 状态会接收第一行但不打印，后续 COMPUTE 状态打印第 2 到第 8 行；实际 `ps_buffer_fifo` 观察到的 bank rows 为 8，边界回归也确认输出 mem 正确。
+
+### 边界功能回归
+
+`SIZE=8, CACHE=8, PS=8`，DDR 随机延迟关闭，覆盖行尾、K 尾、列尾和组合尾块，全部 PASS：
+
+| Dims | cycles | eff |
+|---|---:|---|
+| 9x8x8 | 21,401 | R4/W1 |
+| 8x9x8 | 21,494 | R4/W1 |
+| 8x8x9 | 21,749 | R4/W2 |
+| 9x9x8 | 21,662 | R4/W1 |
+| 9x8x9 | 26,772 | R4/W2 |
+| 8x9x9 | 22,039 | R4/W2 |
+| 9x9x9 | 27,120 | R4/W2 |
+| 17x8x8 | 22,757 | R4/W1 |
+| 8x17x8 | 22,057 | R4/W1 |
+| 8x8x17 | 23,279 | R4/W3 |
+| 17x17x17 | 45,477 | R4/W3 |
+
+`SIZE=16, CACHE=8, PS=16`，DDR 随机延迟关闭，全部 PASS：
+
+| Dims | cycles | eff |
+|---|---:|---|
+| 1x1x1 | 20,067 | R4/W1 |
+| 7x13x5 | 23,668 | R4/W1 |
+| 16x16x16 | 25,270 | R4/W1 |
+| 17x31x33 | 69,402 | R4/W3 |
+| 31x16x17 | 62,826 | R4/W2 |
+| 32x16x32 | 37,802 | R4/W2 |
+| 16x32x32 | 30,559 | R4/W2 |
+| 33x47x29 | 104,448 | R4/W2 |
+| 65x31x49 | 282,225 | R4/W4 |
+| 64x64x64 | 94,542 | R4/W4 |
+
+### 随机 DDR 延迟下的 cache 参数回归
+
+DDR 随机延迟打开，`DDR_CMD_MAX_LAT=3`，`DDR_W_MAX_LAT=2`，`DDR_RSP_MAX_LAT=8`。`SIZE=8` 与 `SIZE=16` 均覆盖 `IA_CACHE_BLOCKS=2/4/8`，全部 PASS。
+
+![随机 DDR 延迟下 cache cycles](plots/cache_rand_latency_cycles.png)
+
+`SIZE=8, PS=8`：
+
+| Dims | C2 cycles | C4 cycles | C8 cycles | C8 相对 C2 |
+|---|---:|---:|---:|---:|
+| 7x13x5 | 24,133 | 24,134 | 24,134 | 1.00x |
+| 17x31x33 | 86,368 | 80,221 | 73,928 | 1.17x |
+| 33x47x29 | 145,948 | 129,071 | 120,806 | 1.21x |
+
+`SIZE=16, PS=16`：
+
+| Dims | C2 cycles | C4 cycles | C8 cycles | C8 相对 C2 |
+|---|---:|---:|---:|---:|
+| 7x13x5 | 24,131 | 24,132 | 24,132 | 1.00x |
+| 17x31x33 | 79,319 | 73,201 | 73,201 | 1.08x |
+| 33x47x29 | 127,676 | 119,441 | 111,205 | 1.15x |
+
+小矩阵中 C2/C4/C8 基本重合，是因为 CPU 配置、DMA 启动、quant/bias 装载、写回收尾等固定成本占主导；cache 容量提升无法抵消这些固定开销。矩阵变大后，IA L1 group 可连续复用更多行 tile，C8 的优势逐渐显现。随机 DDR 延迟下 C8 仍然优于 C2，说明当前优化并不依赖理想零延迟内存模型。
+
+### 本次日志目录
+
+- `runs/s8_tail_combo_after_cleanup_v2`
+- `runs/s16_boundary_after_cleanup`
+- `runs/s8_cache_rand_after_cleanup`
+- `runs/s16_cache_rand_after_cleanup`
