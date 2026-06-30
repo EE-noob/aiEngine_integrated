@@ -252,8 +252,10 @@ module tb_top #(
     end
 
 `ifdef DUT_AXI_SOC
+    integer pico_uart_bit_period;
     integer pico_uart_half_period;
     reg [7:0] pico_uart_buffer;
+    integer pico_uart_bit_idx;
     bit soc_progress_trace;
     logic [31:0] soc_progress_last;
 
@@ -265,21 +267,26 @@ module tb_top #(
         forever begin
             @(negedge soc_uart_tx);
 
-	            pico_uart_half_period = ($root.tb_top.u_soc_top.u_soc_uart.cfg_divider / 2) + 1;
+            pico_uart_bit_period = $root.tb_top.u_soc_top.u_soc_uart.cfg_divider + 2;
+            if (pico_uart_bit_period < 2) begin
+                pico_uart_bit_period = 2;
+            end
+            pico_uart_half_period = pico_uart_bit_period / 2;
             if (pico_uart_half_period < 1) begin
                 pico_uart_half_period = 1;
             end
 
-            repeat (pico_uart_half_period) @(posedge nice_clk);
+            pico_uart_buffer = 8'h00;
+            repeat (pico_uart_bit_period + pico_uart_half_period) @(posedge nice_clk);
 
-            repeat (8) begin
-                repeat (pico_uart_half_period) @(posedge nice_clk);
-                repeat (pico_uart_half_period) @(posedge nice_clk);
-                pico_uart_buffer = {soc_uart_tx, pico_uart_buffer[7:1]};
+            for (pico_uart_bit_idx = 0; pico_uart_bit_idx < 8; pico_uart_bit_idx++) begin
+                pico_uart_buffer[pico_uart_bit_idx] = soc_uart_tx;
+                if (pico_uart_bit_idx != 7) begin
+                    repeat (pico_uart_bit_period) @(posedge nice_clk);
+                end
             end
 
-            repeat (pico_uart_half_period) @(posedge nice_clk);
-            repeat (pico_uart_half_period) @(posedge nice_clk);
+            repeat (pico_uart_bit_period) @(posedge nice_clk);
 
             if (pico_uart_buffer == 8'h0d) begin
                 // Drop CR; BSP prints CRLF and the simulator console only needs LF.

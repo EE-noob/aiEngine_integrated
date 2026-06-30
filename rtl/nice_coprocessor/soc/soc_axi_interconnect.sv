@@ -248,8 +248,10 @@ module soc_axi_interconnect #(
     wire ram_ar_from_cpu = ram_rd_active_q ? (ram_rd_owner_q == OWNER_CPU) : ram_rd_select_cpu;
     wire ram_aw_from_mma = ram_wr_active_q ? (ram_wr_owner_q == OWNER_MMA) : ram_wr_select_mma;
     wire ram_aw_from_cpu = ram_wr_active_q ? (ram_wr_owner_q == OWNER_CPU) : ram_wr_select_cpu;
-    wire ram_w_from_mma = ram_wr_active_q && (ram_wr_owner_q == OWNER_MMA);
-    wire ram_w_from_cpu = ram_wr_active_q && (ram_wr_owner_q == OWNER_CPU);
+    wire ram_w_from_mma = (ram_wr_active_q && (ram_wr_owner_q == OWNER_MMA)) ||
+                          (!ram_wr_active_q && ram_wr_select_mma);
+    wire ram_w_from_cpu = (ram_wr_active_q && (ram_wr_owner_q == OWNER_CPU)) ||
+                          (!ram_wr_active_q && ram_wr_select_cpu);
 
     wire ram_ar_hs = m_ram_arvalid && m_ram_arready;
     wire ram_r_last_hs = m_ram_rvalid && m_ram_rready && m_ram_rlast;
@@ -257,6 +259,13 @@ module soc_axi_interconnect #(
     wire ram_b_hs = m_ram_bvalid && m_ram_bready;
     wire ram_rd_slot_avail = (ram_rd_outs_q != RD_OUTS_W'(RD_OUTS_DEPTH)) || ram_r_last_hs;
     wire ram_wr_slot_avail = (ram_wr_outs_q != WR_OUTS_W'(WR_OUTS_DEPTH)) || ram_b_hs;
+    wire cpu_ar_hs = s0_axi_arvalid && s0_axi_arready;
+    wire cpu_r_last_hs = s0_axi_rvalid && s0_axi_rready && s0_axi_rlast;
+    wire cpu_aw_hs = s0_axi_awvalid && s0_axi_awready;
+    wire cpu_w_hs = s0_axi_wvalid && s0_axi_wready;
+    wire cpu_b_hs = s0_axi_bvalid && s0_axi_bready;
+    wire cpu_err_write_hs = cpu_aw_hs && (cpu_aw_dest == D_ERR) &&
+                            cpu_w_hs && (cpu_w_dest == D_ERR);
 
     always_comb begin
         s0_axi_arready = 1'b0;
@@ -544,28 +553,37 @@ module soc_axi_interconnect #(
                 default: ram_wr_outs_q <= ram_wr_outs_q;
             endcase
 
-            if (s0_axi_arvalid && s0_axi_arready) begin
+            if (cpu_r_last_hs && (cpu_rd_dest_q == D_ERR)) begin
+                err_rvalid_q <= 1'b0;
+            end
+            if (cpu_ar_hs) begin
                 cpu_rd_dest_q <= cpu_ar_dest;
-                cpu_rd_active_q <= 1'b1;
                 if (cpu_ar_dest == D_ERR) err_rvalid_q <= 1'b1;
             end
-            if (s0_axi_rvalid && s0_axi_rready && s0_axi_rlast) begin
-                cpu_rd_active_q <= 1'b0;
-                if (cpu_rd_dest_q == D_ERR) err_rvalid_q <= 1'b0;
-            end
 
-            if (s0_axi_awvalid && s0_axi_awready) begin
-                cpu_wr_dest_q <= cpu_aw_dest;
-                cpu_wr_active_q <= 1'b1;
+            unique case ({cpu_ar_hs, cpu_r_last_hs})
+                2'b10: cpu_rd_active_q <= 1'b1;
+                2'b01: cpu_rd_active_q <= 1'b0;
+                2'b11: cpu_rd_active_q <= 1'b1;
+                default: cpu_rd_active_q <= cpu_rd_active_q;
+            endcase
+
+            if (cpu_b_hs && (cpu_wr_dest_q == D_ERR)) begin
+                err_bvalid_q <= 1'b0;
             end
-            if ((cpu_aw_dest == D_ERR) && s0_axi_awvalid && s0_axi_awready &&
-                ((cpu_w_dest == D_ERR) && s0_axi_wvalid && s0_axi_wready)) begin
+            if (cpu_aw_hs) begin
+                cpu_wr_dest_q <= cpu_aw_dest;
+            end
+            if (cpu_err_write_hs) begin
                 err_bvalid_q <= 1'b1;
             end
-            if (s0_axi_bvalid && s0_axi_bready) begin
-                cpu_wr_active_q <= 1'b0;
-                if (cpu_wr_dest_q == D_ERR) err_bvalid_q <= 1'b0;
-            end
+
+            unique case ({cpu_aw_hs, cpu_b_hs})
+                2'b10: cpu_wr_active_q <= 1'b1;
+                2'b01: cpu_wr_active_q <= 1'b0;
+                2'b11: cpu_wr_active_q <= 1'b1;
+                default: cpu_wr_active_q <= cpu_wr_active_q;
+            endcase
         end
     end
 

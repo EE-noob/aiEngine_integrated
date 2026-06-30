@@ -61,7 +61,8 @@ def build_sim_args(args):
 
 def make_vars(seed, case_name, case_dir, min_dim, max_dim, dim_multiple,
               size, cache_blocks, ps_frame_count, dataflow_mode, sim_args,
-              soc_app, lhs_dtype=0, quant_mode=-1, unaligned_layout=False):
+              soc_app, soc_timeout_cycles=0, lhs_dtype=0, quant_mode=-1,
+              unaligned_layout=False):
     vars_for_make = [
         "DUT_MODE=axi_soc",
         f"SOC_APP={soc_app}",
@@ -89,6 +90,8 @@ def make_vars(seed, case_name, case_dir, min_dim, max_dim, dim_multiple,
         vars_for_make.append("SOC_UNALIGNED_LAYOUT=1")
     if sim_args:
         vars_for_make.append(f"SIM_ARGS={sim_args}")
+    if soc_timeout_cycles:
+        vars_for_make.append(f"SOC_TIMEOUT_CYCLES={soc_timeout_cycles}")
     return vars_for_make
 
 
@@ -119,6 +122,8 @@ def main():
     parser.add_argument("--iterations", type=int, default=10)
     parser.add_argument("--start-seed", type=int, default=1)
     parser.add_argument("--timeout", type=int, default=300)
+    parser.add_argument("--soc-timeout-cycles", type=int, default=0,
+                        help="0 keeps the testbench default SOC_TIMEOUT_CYCLES")
     parser.add_argument("--log-root", type=Path, default=Path("runs/axi_soc_c_regression"))
     parser.add_argument("--min-dim", type=int, default=16)
     parser.add_argument("--max-dim", type=int, default=32)
@@ -192,6 +197,7 @@ def main():
                         seed, case_name, case_dir, args.min_dim, args.max_dim,
                         dim_multiple, size, cache_blocks, ps_frame_count,
                         dataflow_mode, sim_args, args.soc_app,
+                        args.soc_timeout_cycles,
                         lhs_dtype, quant_mode, args.unaligned_layout)
                     build_log = log_root / f"compile_{combo_label}.log"
                     print(f"compile: {combo_label}")
@@ -230,6 +236,7 @@ def main():
                         dataflow_mode,
                         sim_args,
                         args.soc_app,
+                        args.soc_timeout_cycles,
                         lhs_dtype,
                         quant_mode,
                         args.unaligned_layout,

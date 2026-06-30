@@ -68,6 +68,7 @@ module soc_axi_ram #(
     logic [RD_CNT_W-1:0] rd_count_q;
     logic [7:0] rd_beat_q;
     logic rd_error_accum_q;
+    logic rd_direct_out_q;
     logic [7:0] ar_ready_delay_q;
     logic [7:0] r_rsp_delay_q;
 
@@ -101,6 +102,8 @@ module soc_axi_ram #(
     wire w_fire  = s_axi_wvalid  && s_axi_wready;
     wire b_fire  = s_axi_bvalid  && s_axi_bready;
     wire rd_pop  = r_fire && s_axi_rlast;
+    wire rd_direct_fire = ar_fire && !s_axi_rvalid && (rd_count_q == '0) &&
+                          (s_axi_arlen == 8'd0) && (ddr_rand_lat_en == 0);
 
     function automatic [RD_PTR_W-1:0] inc_rd_ptr(input [RD_PTR_W-1:0] ptr);
         if (RD_DEPTH <= 1) inc_rd_ptr = '0;
@@ -141,11 +144,12 @@ module soc_axi_ram #(
     wire rd_queue_full = (rd_count_q == RD_CNT_W'(RD_DEPTH));
     wire wr_aw_queue_full = (wr_aw_count_q == WR_CNT_W'(WR_DEPTH));
     wire wr_b_queue_full = (wr_b_count_q == WR_CNT_W'(WR_DEPTH));
-    wire wr_b_pop = s_axi_bvalid && s_axi_bready;
+    wire wr_b_pop = b_fire;
+    wire wr_has_addr_for_w = (wr_aw_count_q != '0) || aw_fire;
 
     assign s_axi_arready = !rd_queue_full && (ar_ready_delay_q == 8'd0);
     assign s_axi_awready = !wr_aw_queue_full && (aw_ready_delay_q == 8'd0);
-    assign s_axi_wready  = (wr_aw_count_q != '0) &&
+    assign s_axi_wready  = wr_has_addr_for_w &&
                             ((wr_b_count_q < WR_CNT_W'(WR_DEPTH)) || wr_b_pop) &&
                             (w_ready_delay_q == 8'd0);
 
@@ -156,6 +160,7 @@ module soc_axi_ram #(
             rd_count_q        <= '0;
             rd_beat_q         <= 8'd0;
             rd_error_accum_q  <= 1'b0;
+            rd_direct_out_q   <= 1'b0;
             ar_ready_delay_q  <= 8'd0;
             r_rsp_delay_q     <= 8'd0;
             s_axi_rvalid      <= 1'b0;
@@ -164,16 +169,26 @@ module soc_axi_ram #(
             s_axi_rlast       <= 1'b0;
         end else begin
             if (ar_fire) begin
-                rd_addr_q[rd_wr_ptr_q] <= s_axi_araddr;
-                rd_len_q[rd_wr_ptr_q]  <= s_axi_arlen;
-                rd_wr_ptr_q <= inc_rd_ptr(rd_wr_ptr_q);
-                if (!rd_pop) rd_count_q <= rd_count_q + 1'b1;
+                if (rd_direct_fire) begin
+                    logic rd_oob;
+                    rd_oob = addr_oob(s_axi_araddr);
+                    s_axi_rvalid <= 1'b1;
+                    s_axi_rlast  <= 1'b1;
+                    s_axi_rdata  <= rd_oob ? '0 : mem_r[word_idx(s_axi_araddr)];
+                    s_axi_rresp  <= rd_oob ? 2'b10 : 2'b00;
+                    rd_direct_out_q <= 1'b1;
+                end else begin
+                    rd_addr_q[rd_wr_ptr_q] <= s_axi_araddr;
+                    rd_len_q[rd_wr_ptr_q]  <= s_axi_arlen;
+                    rd_wr_ptr_q <= inc_rd_ptr(rd_wr_ptr_q);
+                    if (!rd_pop || rd_direct_out_q) rd_count_q <= rd_count_q + 1'b1;
+                end
                 ar_ready_delay_q <= random_ddr_delay(ddr_cmd_max_lat);
             end else if (ar_ready_delay_q != 8'd0) begin
                 ar_ready_delay_q <= ar_ready_delay_q - 8'd1;
             end
 
-            if (!s_axi_rvalid && (rd_count_q != '0)) begin
+            if (!rd_direct_fire && !s_axi_rvalid && (rd_count_q != '0)) begin
                 if (r_rsp_delay_q == 8'd0) begin
                     logic [AW-1:0] rd_cur_addr;
                     logic rd_oob;
@@ -183,6 +198,7 @@ module soc_axi_ram #(
                     s_axi_rlast  <= (rd_beat_q == rd_len_q[rd_rd_ptr_q]);
                     s_axi_rdata  <= rd_oob ? '0 : mem_r[word_idx(rd_cur_addr)];
                     s_axi_rresp  <= (rd_error_accum_q || rd_oob) ? 2'b10 : 2'b00;
+                    rd_direct_out_q <= 1'b0;
                     if (rd_oob) rd_error_accum_q <= 1'b1;
                 end else begin
                     r_rsp_delay_q <= r_rsp_delay_q - 8'd1;
@@ -193,10 +209,14 @@ module soc_axi_ram #(
                 s_axi_rvalid <= 1'b0;
                 s_axi_rlast  <= 1'b0;
                 if (s_axi_rlast) begin
-                    rd_rd_ptr_q      <= inc_rd_ptr(rd_rd_ptr_q);
-                    rd_beat_q        <= 8'd0;
-                    rd_error_accum_q <= 1'b0;
-                    if (!ar_fire) rd_count_q <= rd_count_q - 1'b1;
+                    if (rd_direct_out_q) begin
+                        rd_direct_out_q <= 1'b0;
+                    end else begin
+                        rd_rd_ptr_q      <= inc_rd_ptr(rd_rd_ptr_q);
+                        rd_beat_q        <= 8'd0;
+                        rd_error_accum_q <= 1'b0;
+                        if (!ar_fire) rd_count_q <= rd_count_q - 1'b1;
+                    end
                 end else begin
                     rd_beat_q     <= rd_beat_q + 8'd1;
                     r_rsp_delay_q <= random_ddr_delay(ddr_rsp_max_lat);
@@ -238,14 +258,20 @@ module soc_axi_ram #(
             end
 
             if (w_fire) begin
+                logic use_queued_aw;
+                logic [AW-1:0] wr_base_addr;
+                logic [7:0] wr_cur_len;
                 logic [AW-1:0] wr_cur_addr;
                 logic wr_oob;
                 logic wr_last_expected;
                 logic wr_error_next;
 
-                wr_cur_addr = wr_addr_q[wr_aw_rd_ptr_q] + (AW'(wr_beat_q) << ADDR_LSB);
+                use_queued_aw = (wr_aw_count_q != '0);
+                wr_base_addr = use_queued_aw ? wr_addr_q[wr_aw_rd_ptr_q] : s_axi_awaddr;
+                wr_cur_len = use_queued_aw ? wr_len_q[wr_aw_rd_ptr_q] : s_axi_awlen;
+                wr_cur_addr = wr_base_addr + (AW'(wr_beat_q) << ADDR_LSB);
                 wr_oob = addr_oob(wr_cur_addr);
-                wr_last_expected = (wr_beat_q == wr_len_q[wr_aw_rd_ptr_q]);
+                wr_last_expected = (wr_beat_q == wr_cur_len);
                 wr_error_next = wr_error_accum_q | wr_oob | (s_axi_wlast != wr_last_expected);
 
                 if (!wr_oob) begin
@@ -258,8 +284,8 @@ module soc_axi_ram #(
 
                 if (s_axi_wlast || wr_last_expected) begin
                     wr_cmd_pop = 1'b1;
-                    wr_b_push = 1'b1;
                     wr_b_push_resp = wr_error_next ? 2'b10 : 2'b00;
+                    wr_b_push = 1'b1;
                     wr_aw_rd_ptr_q <= inc_wr_ptr(wr_aw_rd_ptr_q);
                     wr_beat_q <= 8'd0;
                     wr_error_accum_q <= 1'b0;
