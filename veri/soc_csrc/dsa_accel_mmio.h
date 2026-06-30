@@ -33,6 +33,10 @@
 #define DSA_IA_CACHE_BLOCKS 4u
 #endif
 
+#ifndef DSA_PS_FRAME_COUNT
+#define DSA_PS_FRAME_COUNT DSA_TILE_SIZE
+#endif
+
 static inline void dsa_mmio_write(uint32_t addr, uint32_t data)
 {
     *(volatile uint32_t *)(uintptr_t)addr = data;

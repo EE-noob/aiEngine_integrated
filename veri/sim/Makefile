@@ -71,6 +71,7 @@ HOST_OPT_LEVEL ?= -O3
 SOC_REGRESS_ITERS ?= 10
 SOC_REGRESS_START_SEED ?= 1
 SOC_REGRESS_TIMEOUT ?= 300
+SOC_REGRESS_SOC_TIMEOUT_CYCLES ?= $(SOC_TIMEOUT_CYCLES)
 SOC_REGRESS_LOG_ROOT ?= runs/axi_soc_c_regression
 SOC_REGRESS_DIM_MULTIPLE ?= 0
 SOC_SIZE_LIST ?= $(MMA_SIZE)
@@ -107,11 +108,11 @@ SOC_PERF_DDR_W_MAX_LAT ?= 2
 SOC_PERF_DDR_RSP_MAX_LAT ?= 8
 SOC_RUNTIME_BASE_ADDR ?= 0x00080000
 SOC_RUNTIME_BASE_WORD ?= 131072
-SOC_RUNTIME_BUILD_DIR ?= ../tb/axi_soc_runtime_build_S$(MMA_SIZE)_C$(MMA_IA_CACHE_BLOCKS)
+SOC_RUNTIME_BUILD_DIR ?= ../tb/axi_soc_runtime_build_S$(MMA_SIZE)_C$(MMA_IA_CACHE_BLOCKS)_P$(MMA_PS_FRAME_COUNT)
 SOC_RUNTIME_CPU_MEM ?= $(SOC_RUNTIME_BUILD_DIR)/cpu.mem
 TFLM_DIR ?= ../../drivers/tflm/my_tflm
 TFLM_ROOT ?= $(TFLM_DIR)/tflite-micro
-TFLM_BUILD_DIR ?= build-rv32im-S$(MMA_SIZE)-C$(MMA_IA_CACHE_BLOCKS)
+TFLM_BUILD_DIR ?= build-rv32im-S$(MMA_SIZE)-C$(MMA_IA_CACHE_BLOCKS)-P$(MMA_PS_FRAME_COUNT)
 TFLM_LIB ?= $(TFLM_DIR)/$(TFLM_BUILD_DIR)/libtflite-micro.a
 TFLM_GENFILES ?= $(TFLM_ROOT)/gen/linux_x86_64_default/genfiles
 TFLM_HOST_BUILD_DIR ?= build-host
@@ -122,7 +123,7 @@ TFLM_MY_MODEL_TIMEOUT_CYCLES ?= 120000000
 TFLM_MICRO_SPEECH_TIMEOUT_CYCLES ?= 50000000
 TFLM_HELLO_WORLD_TIMEOUT_CYCLES ?= 5000000
 TFLM_PERSON_DETECTION_TIMEOUT_CYCLES ?= 320000000
-SOC_HW_DEFINES := -DDSA_TILE_SIZE=$(MMA_SIZE) -DDSA_IA_CACHE_BLOCKS=$(MMA_IA_CACHE_BLOCKS)
+SOC_HW_DEFINES := -DDSA_TILE_SIZE=$(MMA_SIZE) -DDSA_IA_CACHE_BLOCKS=$(MMA_IA_CACHE_BLOCKS) -DDSA_PS_FRAME_COUNT=$(MMA_PS_FRAME_COUNT)
 TFLM_RV32_REBUILD_DEPS := \
                 $(TFLM_ROOT)/tensorflow/lite/micro/kernels/conv.cc \
                 $(TFLM_ROOT)/tensorflow/lite/micro/kernels/depthwise_conv.cc \
@@ -245,6 +246,7 @@ FSDB_PLI = -P $(NOVAS_HOME)/share/PLI/VCS/LINUX64/novas.tab $(NOVAS_HOME)/share/
 endif
 VCS_OPTS = -cpp $(VCS_CXX) -cc $(VCS_CC) -LDFLAGS -Wl,--no-as-needed \
            -full64 -sverilog -timescale=1ns/1ps -debug_access+all -kdb -lca \
+           -Mdir=$(SIMV).csrc \
            $(UVM_VER) \
            $(FSDB_PLI)
 MMA_PARAM_OPTS = -pvalue+tb_top.DUT_SIZE=$(MMA_SIZE) \
@@ -342,7 +344,7 @@ sim: $(SIMV) $(RUN_DEPS)
 > $(SIM_RUNNER) $(SIM_OPTS) $(SIM_ARGS) $(DUMPFSDB) +fsdbfile+$(FSDB) +UVM_TESTNAME=$(case) +case=$(case) +ntb_random_seed=$(seed) -l $(SIM_LOG) +vcs+initreg+0
 
 soc_regress:
-> @python3 ./run_axi_soc_c_regression.py --iterations $(SOC_REGRESS_ITERS) --start-seed $(SOC_REGRESS_START_SEED) --timeout $(SOC_REGRESS_TIMEOUT) --log-root $(SOC_REGRESS_LOG_ROOT) --sizes "$(SOC_SIZE_LIST)" --cache-blocks "$(SOC_CACHE_BLOCKS_LIST)" --ps-frame-counts "$(SOC_PS_FRAME_COUNT_LIST)" --dataflow-modes "$(SOC_DATAFLOW_MODE_LIST)" --lhs-dtypes "$(SOC_REGRESS_LHS_DTYPE_LIST)" --quant-modes "$(SOC_REGRESS_QUANT_MODE_LIST)" --dim-multiple $(SOC_REGRESS_DIM_MULTIPLE) --sim-args "$(SOC_REGRESS_SIM_ARGS)" --ddr-cmd-max-lat $(SOC_REGRESS_DDR_CMD_MAX_LAT) --ddr-w-max-lat $(SOC_REGRESS_DDR_W_MAX_LAT) --ddr-rsp-max-lat $(SOC_REGRESS_DDR_RSP_MAX_LAT) $(if $(filter 1 yes true TRUE,$(SOC_REGRESS_DDR_RAND_LAT)),--ddr-rand-lat,) $(if $(filter 1 yes true TRUE,$(SOC_REGRESS_UNALIGNED_LAYOUT)),--unaligned-layout,) $(if $(SOC_MIN_DIM),--min-dim $(SOC_MIN_DIM),) $(if $(SOC_MAX_DIM),--max-dim $(SOC_MAX_DIM),)
+> @python3 ./run_axi_soc_c_regression.py --iterations $(SOC_REGRESS_ITERS) --start-seed $(SOC_REGRESS_START_SEED) --timeout $(SOC_REGRESS_TIMEOUT) --log-root $(SOC_REGRESS_LOG_ROOT) --sizes "$(SOC_SIZE_LIST)" --cache-blocks "$(SOC_CACHE_BLOCKS_LIST)" --ps-frame-counts "$(SOC_PS_FRAME_COUNT_LIST)" --dataflow-modes "$(SOC_DATAFLOW_MODE_LIST)" --lhs-dtypes "$(SOC_REGRESS_LHS_DTYPE_LIST)" --quant-modes "$(SOC_REGRESS_QUANT_MODE_LIST)" --dim-multiple $(SOC_REGRESS_DIM_MULTIPLE) --sim-args "$(SOC_REGRESS_SIM_ARGS)" --ddr-cmd-max-lat $(SOC_REGRESS_DDR_CMD_MAX_LAT) --ddr-w-max-lat $(SOC_REGRESS_DDR_W_MAX_LAT) --ddr-rsp-max-lat $(SOC_REGRESS_DDR_RSP_MAX_LAT) $(if $(SOC_REGRESS_SOC_TIMEOUT_CYCLES),--soc-timeout-cycles $(SOC_REGRESS_SOC_TIMEOUT_CYCLES),) $(if $(filter 1 yes true TRUE,$(SOC_REGRESS_DDR_RAND_LAT)),--ddr-rand-lat,) $(if $(filter 1 yes true TRUE,$(SOC_REGRESS_UNALIGNED_LAYOUT)),--unaligned-layout,) $(if $(SOC_MIN_DIM),--min-dim $(SOC_MIN_DIM),) $(if $(SOC_MAX_DIM),--max-dim $(SOC_MAX_DIM),)
 
 soc_perf_sweep:
 > @python3 ./run_axi_soc_perf_sweep.py --seed $(SOC_PERF_SEED) --log-root $(SOC_PERF_LOG_ROOT) --dims "$(SOC_PERF_DIMS)" --sizes "$(SOC_PERF_SIZE_LIST)" --cache-blocks "$(SOC_PERF_CACHE_BLOCKS_LIST)" --ps-frame-counts "$(SOC_PERF_PS_FRAME_COUNT_LIST)" --dataflow-modes "$(SOC_PERF_DATAFLOW_MODE_LIST)" --lhs-dtypes "$(SOC_PERF_LHS_DTYPE_LIST)" --quant-modes "$(SOC_PERF_QUANT_MODE_LIST)" --ia-reuse-list "$(SOC_PERF_IA_REUSE_LIST)" --w-reuse-list "$(SOC_PERF_W_REUSE_LIST)" --jobs $(SOC_PERF_JOBS) --sim-args "$(SOC_PERF_SIM_ARGS)" --ddr-cmd-max-lat $(SOC_PERF_DDR_CMD_MAX_LAT) --ddr-w-max-lat $(SOC_PERF_DDR_W_MAX_LAT) --ddr-rsp-max-lat $(SOC_PERF_DDR_RSP_MAX_LAT) $(if $(filter 1 yes true TRUE,$(SOC_PERF_INCLUDE_AUTO)),--include-auto,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_KEEP_GOING)),--keep-going,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_FORCE_COMPILE)),--force-compile,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_DDR_RAND_LAT)),--ddr-rand-lat,)
@@ -368,7 +370,7 @@ vd:
 > $(VERDI) -sv $(INCDIRS:%=-y %) $(DEFINES:%=+define+%) $(MODE_DEFINES:%=+define+%) -f $(FILELIST) +incdir+$(UVM_HOME)/src -top $(TOP) $(VERDI_OPTS) -ssf $(FSDB) &
 
 clean:
-> rm -rf $(SIMV) simv_* csrc simv.daidir simv_*.daidir *.log *.key novas.* verdiLog runs
+> rm -rf $(SIMV) simv_* csrc *.csrc simv.daidir simv_*.daidir *.log *.key novas.* verdiLog runs
 
 help:
 > @echo "Targets:"

@@ -92,6 +92,7 @@ static void dsa_matmul_legalize_reuse(uint32_t K, uint32_t M,
     uint32_t stream_m;
     uint32_t output_col_tiles;
     uint32_t ia_limit;
+    uint32_t w_limit;
 
     if ((ia_reuse_num == 0) || (w_reuse_num == 0)) {
         return;
@@ -105,12 +106,17 @@ static void dsa_matmul_legalize_reuse(uint32_t K, uint32_t M,
     output_col_tiles = max_u32(1u, ceil_div_u32(stream_m, DSA_TILE_SIZE));
     ia_limit = (ia_cache_blocks < 2u) ? 1u : (ia_cache_blocks / 2u);
     ia_limit = max_u32(1u, ia_limit);
+    w_limit = max_u32(1u, DSA_PS_FRAME_COUNT);
+    w_limit = min_u32(output_col_tiles, w_limit);
+    if (dataflow_mode == DSA_DATAFLOW_IS) {
+        ia_limit = min_u32(ia_limit, w_limit);
+    }
 
     if ((*ia_reuse_num != 0u) && (*ia_reuse_num > ia_limit)) {
         *ia_reuse_num = ia_limit;
     }
-    if ((*w_reuse_num != 0u) && (*w_reuse_num > output_col_tiles)) {
-        *w_reuse_num = output_col_tiles;
+    if ((*w_reuse_num != 0u) && (*w_reuse_num > w_limit)) {
+        *w_reuse_num = w_limit;
     }
     if ((dataflow_mode == DSA_DATAFLOW_IS) &&
         (*ia_reuse_num != 0u) && (*w_reuse_num != 0u) &&
@@ -128,6 +134,7 @@ void dsa_matmul_select_reuse(uint32_t K, uint32_t N, uint32_t M,
     uint32_t stream_cols;
     uint32_t output_col_tiles;
     uint32_t ia_limit;
+    uint32_t w_limit;
 
     if ((ia_reuse_num == 0) || (w_reuse_num == 0)) {
         return;
@@ -147,10 +154,15 @@ void dsa_matmul_select_reuse(uint32_t K, uint32_t N, uint32_t M,
     output_col_tiles = max_u32(1u, ceil_div_u32(stream_cols, DSA_TILE_SIZE));
     ia_limit = (ia_cache_blocks < 2u) ? 1u : (ia_cache_blocks / 2u);
     ia_limit = max_u32(1u, ia_limit);
+    w_limit = max_u32(1u, DSA_PS_FRAME_COUNT);
+    w_limit = min_u32(output_col_tiles, w_limit);
+    if (dataflow_mode == DSA_DATAFLOW_IS) {
+        ia_limit = min_u32(ia_limit, w_limit);
+    }
 
     (void)N;
     *ia_reuse_num = ia_limit;
-    *w_reuse_num = output_col_tiles;
+    *w_reuse_num = w_limit;
     dsa_matmul_legalize_reuse(K, M, ia_cache_blocks, dataflow_mode,
                               ia_reuse_num, w_reuse_num);
 }
