@@ -709,3 +709,47 @@ TFLM_SOC_MMA_MIN_MACS
 2. 为 `rows=1`、`cols` 很小的 FC 增加轻量提交路径，减少 MMIO 配置、DMA 启动和写回尾部固定成本。
 3. 若继续优化 Pico store/软件打包，应设计显式有序 store buffer，并在 MMIO/read 前 drain；不要回到 RAM 立即 B response 的实验路径。
 4. 继续将 SoC TFLM 回归和裸 MMA 大矩阵回归分开看：前者衡量真实软件端到端，后者衡量 cache/reuse/阵列数据流本身。
+
+### 2026-07-01 补充：控制器触发旁路与 bias 双 bank 预取
+
+在前一轮确认 SoC 劣化主要来自软件路径后，本轮继续看硬件 active 内部的剩余气泡。选取 `K=N=M=256,SIZE=16,CACHE=4,WS,reuse=auto` 作为硬件主导 runtime 点。该配置下 driver 自动选择 `IA reuse=2,W reuse=16`，但因为 IA cache 只能覆盖 2 个输出 row tile，同一组权重仍需随 8 个 IA row group 重读，kernel 读侧成为主瓶颈。
+
+本轮 RTL 改动：
+
+- `mma_controller` 删除 v2 数据流后不再参与决策的 `WAIT_PARTIAL_SUM`、`compute_tail_is_final`、`ia_send_done_seen`，并在 `weight_sending_done` 或 `ia_sending_done` 到来且下一侧已 ready 时直接发下一侧 trigger，减少 START 空拍。
+- `bias_loader_ctrl` 利用已有双 bank，在当前 bias group 可用后后台预取下一 group；若消费端提前 `bias_switch`，则把后台加载提升为前台等待，保持原有握手语义。
+- 读仲裁优先级最终保持 `kernel > quant > IA > bias`。实验中把 bias 提到最高优先级可把 `bias_stall` 压到 239 cycles，但会把 `weight_data_stall` 推高到 140,394 cycles，净收益不如保持 kernel 优先。
+
+![SoC bias prefetch stall breakdown](perf_plots/soc_bias_prefetch_stalls.png)
+
+| 配置 | SoC cycles | MMA active | weight_data_stall | ia_data_stall | bias_stall | IA 行利用率 |
+|---|---:|---:|---:|---:|---:|---:|
+| 基线 | 1,255,357 | 316,472 | 127,844 | 382 | 14,037 | 20.70% |
+| trigger 旁路 + bias 预取 | 1,254,943 | 316,078 | 132,198 | 382 | 11,218 | 20.73% |
+
+结论：
+
+- bias 预取确实减少了部分关键路径等待，但在 `CACHE=4` 下 kernel 权重重载更占主导，后台 bias 读若抢占读侧会反过来增加 `weight_data_stall`。因此当前保留原读优先级，让 bias 预取只利用读侧空隙。
+- 本轮对裸 runtime 的端到端收益很小，约 414 cycles；这符合 trace：主要瓶颈不是控制器 START 空拍，而是小 cache 下权重 DMA 平均供数不足。
+- 对更大 cache 的收益仍应主要来自增加 `IA reuse`，减少权重随 IA row group 重载的次数；对 `CACHE=4` 继续优化时，优先方向应是权重侧复用/压缩/更宽读带宽，而不是继续调整 bias 优先级。
+
+#### TFLM 回归确认
+
+配置：`SIZE=16,CACHE=4,PS_FRAME=16,+MMA_UTIL_TRACE`，DDR 随机延迟关闭。
+
+| Case | 本轮 cycles | 报告前值 | MMA active | 结果 |
+|---|---:|---:|---:|---|
+| `hello_world` | 372,504 | 372,504 | 2,520 | PASS |
+| `micro_speech` | 13,659,062 | 13,659,301 | 45,725 | PASS |
+| `my_model` | 74,079,370 | 74,079,370 | 471,784 | PASS |
+
+边界随机回归：`SIZE={8,16},CACHE={2,4},DF={WS,IS},lhs=s8,quant={per-tensor,per-channel},unaligned_layout,DDR_RAND_LAT=1,MIN_DIM=1,MAX_DIM=65,seed=83000..83001`，PASS 32/32。
+
+日志目录：
+
+- `runs/soc_ctrl_bypass_baseline`
+- `runs/soc_bias_prefetch_orig_arb`
+- `runs/soc_bias_prefetch_regress`
+- `runs/soc_bias_prefetch_tflm/hello`
+- `runs/soc_bias_prefetch_tflm/micro`
+- `runs/soc_bias_prefetch_tflm/my_model`

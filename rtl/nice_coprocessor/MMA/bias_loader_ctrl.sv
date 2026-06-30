@@ -57,6 +57,12 @@ module bias_loader_ctrl #(
   logic [REG_WIDTH-1:0] last_block_elems;
   logic                 bias_switch_d;
   logic                 bias_switch_last_loop_pending;
+  logic                 load_is_prefetch;
+  logic                 prefetch_valid;
+  logic                 prefetch_promoted;
+  logic                 finish_after_load;
+  logic                 prefetch_bank;
+  logic [REG_WIDTH-1:0] prefetch_block_idx;
 
   wire bias_switch_rise = bias_switch && !bias_switch_d;
 
@@ -132,6 +138,20 @@ module bias_loader_ctrl #(
     end
   endtask
 
+  task automatic request_load(input logic [REG_WIDTH-1:0] blk_idx,
+                              input logic                 bank,
+                              input logic                 is_prefetch);
+    begin
+      setup_load(blk_idx);
+      load_bank          <= bank;
+      load_is_prefetch   <= is_prefetch;
+      prefetch_promoted  <= 1'b0;
+      finish_after_load  <= 1'b0;
+      load_bias_req      <= 1'b1;
+      state              <= S_REQ;
+    end
+  endtask
+
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       state             <= S_IDLE;
@@ -151,6 +171,12 @@ module bias_loader_ctrl #(
       bias_switch_d     <= 1'b0;
       switch_pending    <= 1'b0;
       bias_switch_last_loop_pending <= 1'b0;
+      load_is_prefetch  <= 1'b0;
+      prefetch_valid    <= 1'b0;
+      prefetch_promoted <= 1'b0;
+      finish_after_load <= 1'b0;
+      prefetch_bank     <= 1'b0;
+      prefetch_block_idx <= '0;
     end else begin
       dma_start <= 1'b0;
       bias_switch_d <= bias_switch;
@@ -171,6 +197,12 @@ module bias_loader_ctrl #(
         load_bias_req     <= (m != 0);
         switch_pending    <= (m != 0);
         bias_switch_last_loop_pending <= 1'b0;
+        load_is_prefetch  <= 1'b0;
+        prefetch_valid    <= 1'b0;
+        prefetch_promoted <= 1'b0;
+        finish_after_load <= 1'b0;
+        prefetch_bank     <= 1'b0;
+        prefetch_block_idx <= '0;
         state             <= (m == 0) ? S_DONE : S_REQ;
 
         load_block_idx      <= '0;
@@ -195,18 +227,64 @@ module bias_loader_ctrl #(
 
           S_REQ: begin
             load_bias_req <= 1'b1;
+            if (bias_switch_rise && load_is_prefetch &&
+                f_is_last_group(current_block_idx, group_blocks_needed) &&
+                bias_last_loop) begin
+              load_bias_req     <= 1'b0;
+              prefetch_valid    <= 1'b0;
+              prefetch_promoted <= 1'b0;
+              state             <= S_DONE;
+            end else begin
+              if (bias_switch_rise && load_is_prefetch) begin
+                current_block_idx <= load_block_idx;
+                switch_pending    <= 1'b1;
+                load_is_prefetch  <= 1'b0;
+              end
             if (load_bias_granted) begin
               load_bias_req <= 1'b0;
               dma_start     <= 1'b1;
               state         <= S_LOAD;
             end
+            end
           end
 
           S_LOAD: begin
+            if (bias_switch_rise && load_is_prefetch) begin
+              if (f_is_last_group(current_block_idx, group_blocks_needed) &&
+                  bias_last_loop) begin
+                finish_after_load <= 1'b1;
+              end else begin
+                current_block_idx <= load_block_idx;
+                switch_pending    <= 1'b1;
+                prefetch_promoted <= 1'b1;
+              end
+            end
             if (dma_done) begin
-              active_bank    <= load_bank;
-              switch_pending <= 1'b0;
-              state          <= S_WAIT;
+              if (finish_after_load ||
+                  (bias_switch_rise &&
+                   f_is_last_group(current_block_idx, group_blocks_needed) &&
+                   bias_last_loop)) begin
+                prefetch_valid    <= 1'b0;
+                prefetch_promoted <= 1'b0;
+                switch_pending    <= 1'b0;
+                state             <= S_DONE;
+              end else if (load_is_prefetch &&
+                           !(prefetch_promoted || bias_switch_rise)) begin
+                prefetch_valid     <= 1'b1;
+                prefetch_block_idx <= load_block_idx;
+                prefetch_bank      <= load_bank;
+                prefetch_promoted  <= 1'b0;
+                state              <= S_WAIT;
+              end else begin
+                if (load_is_prefetch && (prefetch_promoted || bias_switch_rise)) begin
+                  current_block_idx <= load_block_idx;
+                end
+                active_bank        <= load_bank;
+                prefetch_valid     <= 1'b0;
+                prefetch_promoted  <= 1'b0;
+                switch_pending     <= 1'b0;
+                state              <= S_WAIT;
+              end
             end
           end
 
@@ -215,14 +293,31 @@ module bias_loader_ctrl #(
               if (f_is_last_group(current_block_idx, group_blocks_needed) && bias_last_loop) begin
                 state         <= S_DONE;
                 load_bias_req <= 1'b0;
+                prefetch_valid <= 1'b0;
               end else begin
                 logic [REG_WIDTH-1:0] next_blk;
                 next_blk = f_advance_block(current_block_idx);
-                current_block_idx <= next_blk;
-                load_bank         <= ~active_bank;
-                switch_pending    <= 1'b1;
-                setup_load(next_blk);
-                state             <= S_REQ;
+                if (prefetch_valid && (prefetch_block_idx == next_blk)) begin
+                  current_block_idx <= next_blk;
+                  active_bank       <= prefetch_bank;
+                  switch_pending    <= 1'b0;
+                  prefetch_valid    <= 1'b0;
+                  setup_load(next_blk);
+                end else begin
+                  current_block_idx <= next_blk;
+                  switch_pending    <= 1'b1;
+                  prefetch_valid    <= 1'b0;
+                  request_load(next_blk, ~active_bank, 1'b0);
+                end
+              end
+            end else begin
+              logic [REG_WIDTH-1:0] prefetch_blk;
+              prefetch_blk = f_advance_block(current_block_idx);
+              if (!prefetch_valid &&
+                  (prefetch_blk != current_block_idx) &&
+                  !(f_is_last_group(current_block_idx, group_blocks_needed) &&
+                    bias_last_loop)) begin
+                request_load(prefetch_blk, ~active_bank, 1'b1);
               end
             end
           end

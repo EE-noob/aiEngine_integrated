@@ -111,7 +111,6 @@ module mma_controller #(
         INIT = 4'b0001,
         WEIGHT_START = 4'b0010,
         IA_START = 4'b0011,
-        WAIT_PARTIAL_SUM = 4'b0100,  // legacy, no longer used by v2 datapath
         WEIGHT_WAIT = 4'b0101,  // 在发送权重触发后等待发送完成
         IA_WAIT = 4'b0110,      // 在发送IA触发后等待发送完成（保证单拍脉冲）
         WAIT_WB = 4'b0111,      // 等待写回握手完成
@@ -124,10 +123,10 @@ module mma_controller #(
 	    reg [1:0] error_type;  // 错误类型: 01=配置错误, 10=资源缺失
 	    wire      bias_ready_for_compute;
 	    logic     compute_tail_pending;
-	    logic     compute_tail_is_final;
-	    logic     ia_send_done_seen;
 	    wire      compute_tail_done;
 	    wire      weight_safe_to_send;
+	    wire      issue_weight_now;
+	    wire      issue_ia_now;
 	    bit       ctrl_trace_en;
 	    bit       util_trace_en;
 	    logic     util_active;
@@ -161,6 +160,16 @@ module mma_controller #(
 	    assign bias_ready_for_compute = bias_sleep || bias_valid;
 	    assign compute_tail_done = compute_tail_pending && partial_sum_calc_over;
 	    assign weight_safe_to_send = !compute_tail_pending || compute_tail_done;
+	    assign issue_weight_now = !oa_calc_over &&
+	                              weight_safe_to_send &&
+	                              weight_data_valid &&
+	                              !weight_sending_done;
+	    assign issue_ia_now = !oa_calc_over &&
+	                          ia_data_valid &&
+	                          bias_ready_for_compute &&
+	                          quant_params_valid &&
+	                          !fifo_full_flag &&
+	                          !ia_sending_done;
 
 	    wire util_start_event = (current_state == IDLE) && calc_start;
 	    wire util_finish_event = util_active && (current_state != IDLE) && (next_state == IDLE);
@@ -218,8 +227,6 @@ module mma_controller #(
 	            config_error      <= 1'b0;
 	            error_type        <= 2'b00;
 	            compute_tail_pending <= 1'b0;
-	            compute_tail_is_final <= 1'b0;
-	            ia_send_done_seen    <= 1'b0;
 	        end else begin
 	            current_state <= next_state;
 	            if (ctrl_trace_en && (current_state != next_state)) begin
@@ -247,28 +254,16 @@ module mma_controller #(
 
 	            if (current_state == INIT) begin
 	                compute_tail_pending <= 1'b0;
-	                compute_tail_is_final <= 1'b0;
-	                ia_send_done_seen    <= 1'b0;
 	            end else begin
 	                if (send_ia_trigger) begin
 	                    compute_tail_pending <= 1'b1;
-	                    compute_tail_is_final <= ia_group_calc_done;
-	                    ia_send_done_seen    <= 1'b0;
 	                    if (ctrl_trace_en) begin
 	                        $display("[%0t] CTRL send_ia ia_group_calc_done=%0d",
 	                                 $time, ia_group_calc_done);
 	                    end
 	                end else begin
-	                    if (compute_tail_pending && ia_group_calc_done) begin
-	                        compute_tail_is_final <= 1'b1;
-	                    end
-	                    if (ia_sending_done) begin
-	                        ia_send_done_seen <= 1'b1;
-	                    end
 	                    if (compute_tail_done) begin
 	                        compute_tail_pending <= 1'b0;
-	                        compute_tail_is_final <= 1'b0;
-	                        ia_send_done_seen    <= 1'b0;
 	                        if (ctrl_trace_en) begin
 	                            $display("[%0t] CTRL tail_done", $time);
 	                        end
@@ -368,14 +363,16 @@ module mma_controller #(
                 if (compute_tail_done) begin
                     util_tail_done_count <= util_tail_done_count + 1'b1;
                 end
-                if (current_state == WEIGHT_START && weight_safe_to_send &&
-                    weight_data_valid && !weight_sending_done && !oa_calc_over) begin
-                    util_weight_trigger_count <= util_weight_trigger_count + 1'b1;
-                end
-                if (current_state == IA_START && ia_data_valid && bias_ready_for_compute &&
-                    quant_params_valid && !fifo_full_flag && !ia_sending_done) begin
-                    util_ia_trigger_count <= util_ia_trigger_count + 1'b1;
-                end
+	                if (((current_state == WEIGHT_START) ||
+	                     (current_state == IA_WAIT && ia_sending_done)) &&
+	                    issue_weight_now) begin
+	                    util_weight_trigger_count <= util_weight_trigger_count + 1'b1;
+	                end
+	                if (((current_state == IA_START) ||
+	                     (current_state == WEIGHT_WAIT && weight_sending_done)) &&
+	                    issue_ia_now) begin
+	                    util_ia_trigger_count <= util_ia_trigger_count + 1'b1;
+	                end
             end
 
             if (util_finish_event) begin
@@ -436,9 +433,9 @@ module mma_controller #(
                     if (ctrl_trace_en) begin
                         $display("MMA Controller: Calculation completed.");
                     end
-                end else if (weight_safe_to_send && weight_data_valid && !weight_sending_done) begin
-	                    next_state = WEIGHT_WAIT;
-	                end
+                end else if (issue_weight_now) begin
+		                    next_state = WEIGHT_WAIT;
+		                end
             end
 
             // 新增等待状态：在发出触发后等待 weight_sending_done 完成
@@ -454,14 +451,13 @@ module mma_controller #(
                         $display("MMA Controller: Calculation completed.");
                     end
                 end else if (weight_sending_done) begin
-                    next_state = IA_START;
+                    next_state = issue_ia_now ? IA_WAIT : IA_START;
                 end
             end
 
             IA_START: begin
                 // 如果满足发送条件，发出一次触发并进入 IA_WAIT（保证触发为单拍）
-                if (ia_data_valid && bias_ready_for_compute && quant_params_valid &&
-                         !fifo_full_flag && !ia_sending_done) begin
+                if (issue_ia_now) begin
                     next_state = IA_WAIT;
                 end
             end
@@ -469,7 +465,15 @@ module mma_controller #(
             // 新增 IA_WAIT：在发出 IA 触发后等待 ia_sending_done 完成
             IA_WAIT: begin
                 if (ia_sending_done) begin
-                    next_state = WEIGHT_START;
+                    if (oa_calc_over) begin
+                        if (wb_ready) begin
+                            next_state = IDLE;
+                        end else begin
+                            next_state = WAIT_WB;
+                        end
+                    end else begin
+                        next_state = issue_weight_now ? WEIGHT_WAIT : WEIGHT_START;
+                    end
                 end
             end
 
@@ -532,31 +536,40 @@ module mma_controller #(
 
 	                WEIGHT_START: begin
 	                    // 仅在 WEIGHT_START 一拍内发出发送触发，之后转到 WEIGHT_WAIT 等待完成 -> 保证单拍脉冲
-	                    if (weight_safe_to_send && weight_data_valid && !weight_sending_done) begin
-	                        send_weight_trigger <= 1'b1;
-	                        if (ctrl_trace_en) begin
-	                            $display("[%0t] CTRL send_weight", $time);
-	                        end
-	                    end
-	                end
+		                    if (issue_weight_now) begin
+		                        send_weight_trigger <= 1'b1;
+		                        if (ctrl_trace_en) begin
+		                            $display("[%0t] CTRL send_weight", $time);
+		                        end
+		                    end
+		                end
 
                 WEIGHT_WAIT: begin
-                    // 等待 weight_sending_done 完成，不重复发出触发
+                    if (weight_sending_done && issue_ia_now) begin
+                        send_ia_trigger <= 1'b1;
+                        if (ctrl_trace_en) begin
+                            $display("[%0t] CTRL arm_ia_bypass", $time);
+                        end
+                    end
                 end
 
                 IA_START: begin
                     // 仅在 IA_START 一拍内发出发送触发，之后转到 IA_WAIT 等待完成 -> 保证单拍脉冲
-	                    if (ia_data_valid && bias_ready_for_compute && quant_params_valid &&
-	                        !fifo_full_flag && !ia_sending_done) begin
-	                        send_ia_trigger <= 1'b1;
-	                        if (ctrl_trace_en) begin
-	                            $display("[%0t] CTRL arm_ia", $time);
-	                        end
-	                    end
-	                end
+		                    if (issue_ia_now) begin
+		                        send_ia_trigger <= 1'b1;
+		                        if (ctrl_trace_en) begin
+		                            $display("[%0t] CTRL arm_ia", $time);
+		                        end
+		                    end
+		                end
 
                 IA_WAIT: begin
-                    // 等待 ia_sending_done 完成，不重复发出触发
+                    if (ia_sending_done && issue_weight_now) begin
+                        send_weight_trigger <= 1'b1;
+                        if (ctrl_trace_en) begin
+                            $display("[%0t] CTRL send_weight_bypass", $time);
+                        end
+                    end
                 end
 
                 ERROR: begin
