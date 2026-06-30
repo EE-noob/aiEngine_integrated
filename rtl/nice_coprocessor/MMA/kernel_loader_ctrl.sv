@@ -18,6 +18,8 @@ module kernel_loader_ctrl #(
     input  logic                        send_weight_trigger,
     input  logic                        buf_weight_data_valid,
     input  logic                        buf_weight_sending_done,
+    input  logic                        buf_load_ready,
+    input  logic                        load_done,
     output logic                        load_weight_req,
     output logic                        dma_start,
     output logic [REG_WIDTH-1:0]        dma_tile_base_addr,
@@ -33,7 +35,7 @@ module kernel_loader_ctrl #(
     output logic [REG_WIDTH-1:0]        repeat_dbg
 );
 
-  typedef enum logic [2:0] {S_IDLE, S_REQ_LOAD, S_LOAD, S_WAIT_SEND, S_SEND, S_DONE} state_t;
+  typedef enum logic [1:0] {S_IDLE, S_RUN, S_DONE} state_t;
 
   state_t state;
 
@@ -44,12 +46,19 @@ module kernel_loader_ctrl #(
   logic [REG_WIDTH-1:0] repeat_total;
   logic [REG_WIDTH-1:0] current_group_width;
   logic [REG_WIDTH-1:0] rows_remaining;
+  logic [REG_WIDTH-1:0] total_tiles;
+  logic [REG_WIDTH-1:0] w_reuse_norm;
+  logic [REG_WIDTH-1:0] ia_reuse_norm;
 
-  logic [REG_WIDTH-1:0] cur_tile_row;
-  logic [REG_WIDTH-1:0] cur_repeat;
-  logic [REG_WIDTH-1:0] cur_l2;
-  logic [REG_WIDTH-1:0] cur_col_in_group;
+  logic [REG_WIDTH-1:0] load_tile_row;
+  logic [REG_WIDTH-1:0] load_repeat;
+  logic [REG_WIDTH-1:0] load_l2;
+  logic [REG_WIDTH-1:0] load_col_in_group;
   logic [REG_WIDTH-1:0] group_base_col;
+  logic [REG_WIDTH-1:0] load_tile_col;
+  logic [REG_WIDTH-1:0] loaded_count;
+  logic [REG_WIDTH-1:0] sent_count;
+  logic                 load_complete;
 
   function automatic logic [REG_WIDTH-1:0] ceil_div(input logic [REG_WIDTH-1:0] a,
                                                     input logic [REG_WIDTH-1:0] b);
@@ -63,112 +72,107 @@ module kernel_loader_ctrl #(
   endfunction
 
   always_comb begin
-    // Top-level GEMM dimensions are KxN times NxM.  The RHS/kernel matrix
-    // therefore has cfg_n rows and cfg_m columns; cfg_k controls how many
-    // output-row groups consume the same RHS stream.
-    tile_rows_total   = ceil_div(cfg_n, SIZE);
-    tile_cols_total   = ceil_div(cfg_m, SIZE);
+    ia_reuse_norm = (cfg_ia_reuse_num == 0) ? REG_WIDTH'(1) : cfg_ia_reuse_num;
+    w_reuse_norm  = (cfg_w_reuse_num  == 0) ? REG_WIDTH'(1) : cfg_w_reuse_num;
+
+    tile_rows_total        = ceil_div(cfg_n, SIZE);
+    tile_cols_total        = ceil_div(cfg_m, SIZE);
     output_row_tiles_total = ceil_div(cfg_k, SIZE);
-    l2_groups_total   = ceil_div(tile_cols_total, (cfg_w_reuse_num == 0) ? 1 : cfg_w_reuse_num);
-    repeat_total      = ceil_div(output_row_tiles_total, (cfg_ia_reuse_num == 0) ? 1 : cfg_ia_reuse_num);
-    if (repeat_total == 0) repeat_total = 1;
-    group_base_col    = cur_l2 * ((cfg_w_reuse_num == 0) ? 1 : cfg_w_reuse_num);
-    current_group_width = min_u(cfg_w_reuse_num, tile_cols_total - group_base_col);
-    if (current_group_width == 0) begin
-      current_group_width = (cfg_w_reuse_num == 0) ? 1 : cfg_w_reuse_num;
+    l2_groups_total        = ceil_div(tile_cols_total, w_reuse_norm);
+    repeat_total           = ceil_div(output_row_tiles_total, ia_reuse_norm);
+    if (repeat_total == 0) repeat_total = REG_WIDTH'(1);
+
+    total_tiles = tile_rows_total * tile_cols_total * repeat_total;
+    if (total_tiles == 0) total_tiles = REG_WIDTH'(1);
+
+    group_base_col = load_l2 * w_reuse_norm;
+    if (tile_cols_total > group_base_col) begin
+      current_group_width = min_u(w_reuse_norm, tile_cols_total - group_base_col);
+    end else begin
+      current_group_width = REG_WIDTH'(1);
     end
+    if (current_group_width == 0) current_group_width = REG_WIDTH'(1);
 
-    tile_row_dbg = cur_tile_row;
-    tile_col_dbg = group_base_col + cur_col_in_group;
-    repeat_dbg   = cur_repeat;
+    load_tile_col = group_base_col + load_col_in_group;
+    rows_remaining = (cfg_n > (load_tile_row * SIZE))
+                   ? (cfg_n - (load_tile_row * SIZE))
+                   : REG_WIDTH'(0);
 
-    rows_remaining = cfg_n - (cur_tile_row * SIZE);
+    load_complete = (loaded_count >= total_tiles);
 
-    load_weight_req = (state == S_REQ_LOAD);
-    dma_start       = (state == S_REQ_LOAD) && load_weight_granted;
+    tile_row_dbg = load_tile_row;
+    tile_col_dbg = load_tile_col;
+    repeat_dbg   = load_repeat;
+
+    load_weight_req = (state == S_RUN) && !load_complete && buf_load_ready;
+    dma_start       = load_weight_req && load_weight_granted;
     buf_load_start  = dma_start;
-    buf_send_start  = ((state == S_LOAD) || (state == S_WAIT_SEND))
-            && send_weight_trigger
-            && buf_weight_data_valid;
+    buf_send_start  = (state == S_RUN) && send_weight_trigger && buf_weight_data_valid;
     ctrl_all_done   = (state == S_DONE);
 
     dma_tile_base_addr = cfg_rhs_base
-                       + (cur_tile_row * SIZE * cfg_rhs_row_stride_b)
-                       + ((group_base_col + cur_col_in_group) * SIZE * (cfg_use_16bits ? 2 : 1));
+                       + (load_tile_row * SIZE * cfg_rhs_row_stride_b)
+                       + (load_tile_col * SIZE * (cfg_use_16bits ? 2 : 1));
     dma_rows_to_read   = min_u(SIZE, rows_remaining);
     dma_row_stride_b   = cfg_rhs_row_stride_b;
     dma_rhs_zp         = cfg_rhs_zp;
-    if ((group_base_col + cur_col_in_group + 1) * SIZE > cfg_m) begin
-      dma_valid_cols = cfg_m - ((group_base_col + cur_col_in_group) * SIZE);
+    if (((load_tile_col + 1) * SIZE) > cfg_m) begin
+      dma_valid_cols = (cfg_m > (load_tile_col * SIZE))
+                     ? (cfg_m - (load_tile_col * SIZE))
+                     : REG_WIDTH'(1);
     end else begin
-      dma_valid_cols = SIZE;
+      dma_valid_cols = REG_WIDTH'(SIZE);
     end
   end
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      state           <= S_IDLE;
-      cur_tile_row    <= '0;
-      cur_repeat      <= '0;
-      cur_l2          <= '0;
-      cur_col_in_group<= '0;
+      state             <= S_IDLE;
+      load_tile_row     <= '0;
+      load_repeat       <= '0;
+      load_l2           <= '0;
+      load_col_in_group <= '0;
+      loaded_count      <= '0;
+      sent_count        <= '0;
     end else begin
       case (state)
         S_IDLE: begin
           if (cfg_valid) begin
-            cur_tile_row     <= '0;
-            cur_repeat       <= '0;
-            cur_l2           <= '0;
-            cur_col_in_group <= '0;
-            state            <= S_REQ_LOAD;
+            load_tile_row     <= '0;
+            load_repeat       <= '0;
+            load_l2           <= '0;
+            load_col_in_group <= '0;
+            loaded_count      <= '0;
+            sent_count        <= '0;
+            state             <= S_RUN;
           end
         end
 
-        S_REQ_LOAD: begin
-          if (load_weight_granted) begin
-            state <= S_LOAD;
-          end
-        end
-
-        S_LOAD: begin
-          if (send_weight_trigger && buf_weight_data_valid) begin
-            state <= S_SEND;
-          end else if (buf_weight_data_valid) begin
-            state <= S_WAIT_SEND;
-          end
-        end
-
-        S_WAIT_SEND: begin
-          if (buf_send_start) begin
-            state <= S_SEND;
-          end
-        end
-
-        S_SEND: begin
-          if (buf_weight_sending_done) begin
-            if (cur_repeat + 1 >= repeat_total
-                && cur_l2 + 1 >= l2_groups_total
-                && cur_tile_row + 1 >= tile_rows_total
-                && cur_col_in_group + 1 >= current_group_width) begin
-              state <= S_DONE;
+        S_RUN: begin
+          if (load_done) begin
+            loaded_count <= loaded_count + 1'b1;
+            if (load_col_in_group + 1 < current_group_width) begin
+              load_col_in_group <= load_col_in_group + 1'b1;
             end else begin
-              if (cur_col_in_group + 1 < current_group_width) begin
-                cur_col_in_group <= cur_col_in_group + 1;
+              load_col_in_group <= '0;
+              if (load_tile_row + 1 < tile_rows_total) begin
+                load_tile_row <= load_tile_row + 1'b1;
               end else begin
-                cur_col_in_group <= '0;
-                if (cur_tile_row + 1 < tile_rows_total) begin
-                  cur_tile_row <= cur_tile_row + 1;
+                load_tile_row <= '0;
+                if (load_l2 + 1 < l2_groups_total) begin
+                  load_l2 <= load_l2 + 1'b1;
                 end else begin
-                  cur_tile_row <= '0;
-                  if (cur_l2 + 1 < l2_groups_total) begin
-                    cur_l2 <= cur_l2 + 1;
-                  end else begin
-                    cur_l2 <= '0;
-                    cur_repeat <= cur_repeat + 1;
-                  end
+                  load_l2 <= '0;
+                  load_repeat <= load_repeat + 1'b1;
                 end
               end
-              state <= S_REQ_LOAD;
+            end
+          end
+
+          if (buf_weight_sending_done) begin
+            sent_count <= sent_count + 1'b1;
+            if (sent_count + 1 >= total_tiles) begin
+              state <= S_DONE;
             end
           end
         end
@@ -178,6 +182,8 @@ module kernel_loader_ctrl #(
             state <= S_IDLE;
           end
         end
+
+        default: state <= S_IDLE;
       endcase
     end
   end

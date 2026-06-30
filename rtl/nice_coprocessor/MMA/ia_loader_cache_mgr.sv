@@ -119,8 +119,8 @@ module ia_loader_cache_mgr #(
   //   1) 只在“初始列(col0)”做发射调度：决定本拍是否发射一行(row)
   //   2) 将 col0 的 rd_en/rd_addr 通过移位寄存器送往各列
   //      第 j 列天然获得 j 拍延迟，实现对角化
-  //   3) tile 边界时插入 SIZE 拍 drain，让 ps_buffer/de-diagonalizer
-  //      完整排出当前 slot 的尾部，并留 1 拍 bubble 再启动下一 slot
+  //   3) L1 组内 slot 连续发射。compute_core/ps_buffer 将整组看成一条
+  //      tall stream，de-diagonalizer 在输出侧按 tile_start 标记切分。
   //
   localparam int SLOT_W = $clog2(CACHE_BLOCKS);
 
@@ -131,7 +131,7 @@ module ia_loader_cache_mgr #(
   logic [REG_WIDTH-1:0] issue_rows_r;    // 当前 slot 总有效行数
   logic send_is_init_r;
   logic send_calc_done_r;
-  localparam int unsigned ISSUE_GAP_CYCLES = (SIZE > 1) ? SIZE : 0;
+  localparam int unsigned ISSUE_GAP_CYCLES = 0;
   localparam int unsigned GAP_CNT_W = (ISSUE_GAP_CYCLES < 2) ? 1 :
                                       $clog2(ISSUE_GAP_CYCLES + 1);
   logic [GAP_CNT_W-1:0] issue_gap_cnt;
@@ -321,9 +321,11 @@ module ia_loader_cache_mgr #(
 
   // ia_row_valid: 最大延迟列（SIZE-1）的 rd_en
 	  assign ia_row_valid = ram_rd_en_d1[SIZE-1];
-	  // Early burst start: col0 issue begins here.  This is intentionally ahead
-	  // of ia_row_valid so ps_buffer replay can absorb the cache/systolic delay.
-	  assign ia_tile_start = src_rd_en & ~src_rd_en_d1;
+	  // Early burst start: col0 issue begins here for every tile in the L1
+	  // stream.  This is intentionally ahead of ia_row_valid so ps_buffer replay
+	  // can absorb the cache/systolic delay even when adjacent slots are
+	  // emitted without a valid bubble.
+	  assign ia_tile_start = src_rd_en & src_tile_first;
 
   // =====================================================================
   // ia_is_init_data / ia_calc_done

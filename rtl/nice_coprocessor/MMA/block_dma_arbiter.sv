@@ -135,6 +135,7 @@ module block_dma_arbiter #(
     client_e active_client, next_client;
     logic active;
     logic dma_started;
+    logic dma_seen_busy;
     logic dma_start;
     logic dma_is_write;
     logic dma_linear_read_mode;
@@ -183,17 +184,20 @@ module block_dma_arbiter #(
             active_client <= C_NONE;
             active <= 1'b0;
             dma_started <= 1'b0;
+            dma_seen_busy <= 1'b0;
         end else begin
             if (!active) begin
                 if (next_client != C_NONE) begin
                     active_client <= next_client;
                     active <= 1'b1;
                     dma_started <= 1'b0;
+                    dma_seen_busy <= 1'b0;
                 end
             end else begin
                 if (!dma_started) begin
                     if (dma_start) begin
                         dma_started <= 1'b1;
+                        dma_seen_busy <= dma_busy;
                     end else if ((active_client == C_IA     && !ia_req) ||
                         (active_client == C_KERNEL && !kernel_req) ||
                         (active_client == C_BIAS   && !bias_req) ||
@@ -201,11 +205,16 @@ module block_dma_arbiter #(
                         (active_client == C_OA     && !oa_req)) begin
                         active <= 1'b0;
                         active_client <= C_NONE;
+                        dma_seen_busy <= 1'b0;
                     end
-                end else if (dma_done) begin
-                    active <= 1'b0;
-                    active_client <= C_NONE;
-                    dma_started <= 1'b0;
+                end else begin
+                    if (dma_busy) dma_seen_busy <= 1'b1;
+                    if ((dma_seen_busy || dma_busy) && dma_done) begin
+                        active <= 1'b0;
+                        active_client <= C_NONE;
+                        dma_started <= 1'b0;
+                        dma_seen_busy <= 1'b0;
+                    end
                 end
             end
         end
@@ -342,6 +351,21 @@ module block_dma_arbiter #(
             end
             dma_trace_rsp_count <= dma_trace_rsp_count + 1;
         end
+
+        if (dma_trace_en && icb_cmd_valid && icb_cmd_ready) begin
+            $display("[DMA_TRACE] time=%0t cmd client=%0d read=%0b addr=%08x len=%0d",
+                     $time, active_client, icb_cmd_read, icb_cmd_addr, icb_cmd_len);
+        end
+
+        if (dma_trace_en && icb_w_valid && icb_w_ready) begin
+            $display("[DMA_TRACE] time=%0t wdata client=%0d data=%08x mask=%b",
+                     $time, active_client, icb_cmd_wdata, icb_cmd_wmask);
+        end
+
+        if (dma_trace_en && icb_rsp_valid && icb_rsp_ready && !icb_cmd_read) begin
+            $display("[DMA_TRACE] time=%0t write_rsp client=%0d",
+                     $time, active_client);
+        end
     end
 
     for (genvar i = 0; i < BYTE_PER_BEAT; i++) begin : gen_route_wr
@@ -384,6 +408,7 @@ module block_dma_arbiter #(
         .tile_base_addr  (dma_base_addr),
         .row_stride      (dma_row_stride),
         .rows_to_read    (dma_rows_to_read),
+        .valid_cols      (REG_WIDTH'(DMA_SIZE)),
         .burst_len_m1    (dma_burst_len_m1),
         .slot_id         (dma_slot_id),
         .use_16bits      (dma_use_16bits),

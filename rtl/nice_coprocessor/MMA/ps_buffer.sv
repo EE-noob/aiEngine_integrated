@@ -17,7 +17,8 @@ module ps_buffer #(
     output logic signed [DATA_WIDTH-1:0] data_out      [0:SIZE-1],
     output logic signed [DATA_WIDTH-1:0] acc_data_out  [0:SIZE-1],
     output logic                         acc_data_valid,
-    output logic                         tile_calc_over
+    output logic                         tile_calc_over,
+    output logic                         stream_calc_over
 );
     localparam int unsigned MAX_FRAME_LEN = ((MAX_IA_REUSE + 1) * SIZE) - 1;
     // Store at most FRAME_COUNT reusable partial-sum frames, but keep one
@@ -30,6 +31,7 @@ module ps_buffer #(
 
     logic                         de_diag_data_valid;
     logic                         de_diag_tile_calc_over;
+    logic                         de_diag_stream_calc_over;
 
     genvar lane;
     generate
@@ -73,7 +75,8 @@ module ps_buffer #(
         .burst_last_i    (ia_l1_switch),
         .data_out        (de_diag_data_out),
         .data_valid_o    (de_diag_data_valid),
-        .tile_calc_over_o(de_diag_tile_calc_over)
+        .tile_calc_over_o(de_diag_tile_calc_over),
+        .stream_calc_over_o(de_diag_stream_calc_over)
     );
 
     always_comb begin
@@ -86,4 +89,5 @@ module ps_buffer #(
     // acc_data_valid and tile_calc_over are owned only by de_diagonalizer.
     assign acc_data_valid = de_diag_data_valid;
     assign tile_calc_over = de_diag_tile_calc_over;
+    assign stream_calc_over = de_diag_stream_calc_over;
 endmodule

@@ -253,6 +253,7 @@ module ia_loader #(
     logic        [           REG_WIDTH-1:0] tl_base_addr;
     logic        [           REG_WIDTH-1:0] tl_row_stride;
     logic        [           REG_WIDTH-1:0] tl_rows_to_read;
+    logic        [           REG_WIDTH-1:0] tl_valid_cols;
     logic        [                     3:0] tl_burst_len_m1;
     logic        [$clog2(CACHE_BLOCKS)-1:0] tl_slot_id;
     logic                                   tl_use_16bits;
@@ -344,6 +345,7 @@ module ia_loader #(
         .tl_base_addr   (tl_base_addr),
         .tl_row_stride  (tl_row_stride),
         .tl_rows_to_read(tl_rows_to_read),
+        .tl_valid_cols  (tl_valid_cols),
         .tl_burst_len_m1(tl_burst_len_m1),
         .tl_slot_id     (tl_slot_id),
         .tl_use_16bits  (tl_use_16bits),
@@ -383,6 +385,16 @@ module ia_loader #(
     // =======================================================================
     generate
         if (EXTERNAL_DMA) begin : gen_external_dma
+            logic [REG_WIDTH-1:0] active_valid_cols;
+
+            always_ff @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    active_valid_cols <= REG_WIDTH'(SIZE);
+                end else if (tl_start) begin
+                    active_valid_cols <= (tl_valid_cols == '0) ? REG_WIDTH'(SIZE) : tl_valid_cols;
+                end
+            end
+
             assign icb_cmd_valid    = 1'b0;
             assign icb_cmd_read     = 1'b1;
             assign icb_cmd_addr     = '0;
@@ -395,8 +407,13 @@ module ia_loader #(
             assign tl_wr_col_base   = ext_dma_wr_col_base;
             assign tl_wr_use_16bits = ext_dma_wr_use_16bits;
             for (genvar dma_i = 0; dma_i < BYTE_PER_BEAT; dma_i++) begin : gen_ext_wr
-                assign tl_wr_data[dma_i]  = ext_dma_wr_data[dma_i];
-                assign tl_wr_valid[dma_i] = ext_dma_wr_valid[dma_i];
+                localparam int unsigned DMA_I = dma_i;
+                wire [REG_WIDTH-1:0] elem_col =
+                    REG_WIDTH'(ext_dma_wr_col_base) + REG_WIDTH'(DMA_I);
+                wire elem_in_tile = elem_col < REG_WIDTH'(SIZE);
+                wire elem_valid   = elem_col < active_valid_cols;
+                assign tl_wr_data[dma_i]  = elem_valid ? ext_dma_wr_data[dma_i] : '0;
+                assign tl_wr_valid[dma_i] = ext_dma_wr_valid[dma_i] && elem_in_tile;
             end
         end else begin : gen_internal_dma
             block_dma #(
@@ -415,6 +432,7 @@ module ia_loader #(
                 .tile_base_addr  (tl_base_addr),
                 .row_stride      (tl_row_stride),
                 .rows_to_read    (tl_rows_to_read),
+                .valid_cols      (tl_valid_cols),
                 .burst_len_m1    (tl_burst_len_m1),
                 .slot_id         (tl_slot_id),
                 .use_16bits      (tl_use_16bits),

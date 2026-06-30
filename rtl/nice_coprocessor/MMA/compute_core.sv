@@ -33,13 +33,13 @@ module compute_core #(
     logic signed [31:0] ps_acc_out     [0:SIZE-1];
     logic               ps_acc_data_valid;
     logic               ps_tile_calc_over;
+    logic               ps_stream_calc_over;
 
     localparam int unsigned PS_BURST_CYCLES = (2 * SIZE) - 1;
     localparam int unsigned PS_CNT_W        = (PS_BURST_CYCLES < 2) ? 1 :
                                                $clog2(PS_BURST_CYCLES + 1);
 
     logic [PS_CNT_W-1:0] ps_tail_cnt;
-    logic                ia_row_valid_d;
     logic                ps_burst_is_final;
     logic                ps_burst_is_init;
     logic                ps_burst_is_l1_last;
@@ -84,7 +84,6 @@ module compute_core #(
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            ia_row_valid_d    <= 1'b0;
             ps_tail_cnt       <= '0;
             ps_burst_is_final <= 1'b0;
             ps_burst_is_init  <= 1'b0;
@@ -101,7 +100,6 @@ module compute_core #(
             final_l1_calc_done_seen  <= 1'b0;
         end else begin
             partial_sum_calc_over_r <= 1'b0;
-            ia_row_valid_d <= ia_row_valid;
             ia_tile_start_pipe <= {ia_tile_start_pipe[SIZE-1:0], ia_tile_start};
             ps_stream_valid_d <= ps_stream_valid;
             ps_burst_start_d  <= ps_burst_start;
@@ -142,7 +140,7 @@ module compute_core #(
             if ((final_group_calc_pending ||
                  final_l1_calc_done_seen ||
                  (ia_sending_done && ps_burst_is_final) ||
-                 (ps_group_switch_d && ps_calc_done_d)) && ps_tile_calc_over) begin
+                 (ps_group_switch_d && ps_calc_done_d)) && ps_stream_calc_over) begin
                 partial_sum_calc_over_r  <= 1'b1;
                 final_group_calc_pending <= 1'b0;
                 final_l1_calc_done_seen  <= 1'b0;
@@ -150,11 +148,13 @@ module compute_core #(
 
             if (compute_trace_en &&
                 (ia_tile_start || ps_burst_start_d || ps_calc_done_d ||
-                 ps_acc_data_valid || ps_tile_calc_over || partial_sum_calc_over_r)) begin
-                $display("[COMPUTE_TRACE] time=%0t ia_start=%0d ia_valid=%0d ia_calc=%0d ps_start=%0d ps_calc_d=%0d acc_valid=%0d tile_over=%0d partial_over=%0d",
+                 ps_acc_data_valid || ps_tile_calc_over || ps_stream_calc_over ||
+                 partial_sum_calc_over_r)) begin
+                $display("[COMPUTE_TRACE] time=%0t ia_start=%0d ia_valid=%0d ia_calc=%0d ps_start=%0d ps_calc_d=%0d acc_valid=%0d tile_over=%0d stream_over=%0d partial_over=%0d",
                          $time, ia_tile_start, ia_row_valid, ia_calc_done,
                          ps_burst_start_d, ps_calc_done_d, ps_acc_data_valid,
-                         ps_tile_calc_over, partial_sum_calc_over_r);
+                         ps_tile_calc_over, ps_stream_calc_over,
+                         partial_sum_calc_over_r);
             end
         end
     end
@@ -202,7 +202,8 @@ module compute_core #(
         .data_out       (ps_data_out),
         .acc_data_out   (ps_acc_out),
         .acc_data_valid (ps_acc_data_valid),
-        .tile_calc_over (ps_tile_calc_over)
+        .tile_calc_over (ps_tile_calc_over),
+        .stream_calc_over(ps_stream_calc_over)
     );
 
     assign acc_data_valid = ps_acc_data_valid;

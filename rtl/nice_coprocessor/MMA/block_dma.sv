@@ -27,6 +27,7 @@ module block_dma #(
     input  logic        [           REG_WIDTH-1:0] tile_base_addr,
     input  logic        [           REG_WIDTH-1:0] row_stride,
     input  logic        [           REG_WIDTH-1:0] rows_to_read,
+    input  logic        [           REG_WIDTH-1:0] valid_cols,
     input  logic        [                     3:0] burst_len_m1,
     input  logic        [$clog2(CACHE_BLOCKS)-1:0] slot_id,
     input  logic                                   use_16bits,
@@ -81,6 +82,7 @@ module block_dma #(
     logic        [           REG_WIDTH-1:0] cfg_base_addr;
     logic        [           REG_WIDTH-1:0] cfg_row_stride;
     logic        [           REG_WIDTH-1:0] cfg_rows;
+    logic        [           REG_WIDTH-1:0] cfg_valid_cols;
     logic        [                     3:0] cfg_burst_len_m1;
     logic        [$clog2(CACHE_BLOCKS)-1:0] cfg_slot;
     logic                                   cfg_linear_read;
@@ -89,8 +91,8 @@ module block_dma #(
     logic                                   cfg_is_write;
 
     // 读模式状态
-    logic        [           REG_WIDTH-1:0] current_row_addr;
     logic        [           REG_WIDTH-1:0] cmd_row_cnt;
+    logic        [           REG_WIDTH-1:0] cmd_beat_cnt;
     logic        [           REG_WIDTH-1:0] rsp_row_cnt;
     logic        [           REG_WIDTH-1:0] rsp_beat_cnt;
     logic        [           BUS_WIDTH-1:0] rsp_data_r;
@@ -116,17 +118,23 @@ module block_dma #(
     // ICB 固定信号
     assign icb_rsp_ready = active;
 
-    wire read_rsp_done = rsp_hs
-                    && !cfg_is_write
-                    && (cfg_linear_read
-                        ? 1'b1
-                        : (rsp_beat_cnt == {28'd0, cfg_burst_len_m1}));
+    wire [REG_WIDTH-1:0] cfg_burst_len_ext = REG_WIDTH'(cfg_burst_len_m1);
+    wire [REG_WIDTH-1:0] byte_per_beat_ext = REG_WIDTH'(BYTE_PER_BEAT);
+    wire cfg_single_beat_read = cfg_linear_read
+                              || (cfg_base_addr[1:0] != 2'b00)
+                              || (cfg_row_stride[1:0] != 2'b00);
 
-    wire last_rsp_read = rsp_hs
-                    && !cfg_is_write
+    wire read_rsp_hs = rsp_hs && !cfg_is_write && rd_cmd_inflight;
+
+    wire read_rsp_done = read_rsp_hs
+                    && (cfg_single_beat_read
+                        ? 1'b1
+                        : (rsp_beat_cnt == cfg_burst_len_ext));
+
+    wire last_rsp_read = read_rsp_hs
                     && (cfg_linear_read
                         ? (rsp_beat_cnt == cfg_rows - 1)
-                        : ((rsp_beat_cnt == {28'd0, cfg_burst_len_m1})
+                        : ((rsp_beat_cnt == cfg_burst_len_ext)
                            && (rsp_row_cnt  == cfg_rows - 1)));
 
     wire last_rsp_write = rsp_hs
@@ -148,6 +156,7 @@ module block_dma #(
             cfg_base_addr    <= '0;
             cfg_row_stride   <= '0;
             cfg_rows         <= '0;
+            cfg_valid_cols   <= REG_WIDTH'(SIZE);
             cfg_burst_len_m1 <= '0;
             cfg_slot         <= '0;
             cfg_linear_read  <= 1'b0;
@@ -159,6 +168,7 @@ module block_dma #(
             cfg_base_addr    <= tile_base_addr;
             cfg_row_stride   <= row_stride;
             cfg_rows         <= rows_to_read;
+            cfg_valid_cols   <= (valid_cols == '0) ? REG_WIDTH'(SIZE) : valid_cols;
             cfg_burst_len_m1 <= burst_len_m1;
             cfg_slot         <= slot_id;
             cfg_linear_read  <= linear_read_mode;
@@ -173,7 +183,7 @@ module block_dma #(
     // 默认命令字段
     always_comb begin
         icb_cmd_read  = !cfg_is_write;
-        icb_cmd_len   = cfg_linear_read ? 4'd0 : cfg_burst_len_m1;
+        icb_cmd_len   = (!cfg_is_write && cfg_single_beat_read) ? 4'd0 : cfg_burst_len_m1;
         icb_cmd_wdata = src_wdata;
         icb_cmd_wmask = src_wmask;
     end
@@ -190,8 +200,8 @@ module block_dma #(
         if (!rst_n) begin
             icb_cmd_valid     <= 1'b0;
             icb_cmd_addr      <= '0;
-            current_row_addr  <= '0;
             cmd_row_cnt       <= '0;
+            cmd_beat_cnt      <= '0;
             wr_row_cnt        <= '0;
             wr_beat_cnt       <= '0;
             rd_cmd_inflight   <= 1'b0;
@@ -200,8 +210,8 @@ module block_dma #(
         end else if (start && !active) begin
             icb_cmd_valid     <= 1'b0;
             icb_cmd_addr      <= tile_base_addr;
-            current_row_addr  <= tile_base_addr + row_stride;
             cmd_row_cnt       <= '0;
+            cmd_beat_cnt      <= '0;
             wr_row_cnt        <= '0;
             wr_beat_cnt       <= '0;
             rd_cmd_inflight   <= 1'b0;
@@ -214,24 +224,32 @@ module block_dma #(
                 wr_row_active     <= 1'b0;
                 wr_rsp_pending    <= 1'b0;
             end else if (!cfg_is_write) begin
-                // 读模式：块读（逐行 burst）或线性 1D 读（单拍顺序）
-                if (cmd_row_cnt < cfg_rows && !rd_cmd_inflight) begin
-                    if (!icb_cmd_valid || cmd_hs) begin
-                        icb_cmd_valid <= 1'b1;
-                        if (cmd_row_cnt == 0) begin
-                            icb_cmd_addr     <= cfg_base_addr;
-                            current_row_addr <= cfg_base_addr + cfg_row_stride;
-                        end else begin
-                            icb_cmd_addr     <= current_row_addr;
-                            current_row_addr <= current_row_addr + cfg_row_stride;
-                        end
-                        cmd_row_cnt <= cmd_row_cnt + 1;
-                    end
-                end else if (cmd_hs || !icb_cmd_valid) begin
+                // 读模式只有一套响应 row/beat 计数器，因此保持单 outstanding。
+                // 当前命令握手后，必须等该 burst 的最后一个 response 回来再发下一行。
+                if (cmd_hs) begin
                     icb_cmd_valid <= 1'b0;
+                    rd_cmd_inflight <= 1'b1;
+                end else if (!icb_cmd_valid && !rd_cmd_inflight && (cmd_row_cnt < cfg_rows)) begin
+                    icb_cmd_valid <= 1'b1;
+                    if (cfg_linear_read) begin
+                        icb_cmd_addr <= cfg_base_addr + cmd_row_cnt * cfg_row_stride;
+                        cmd_row_cnt  <= cmd_row_cnt + 1;
+                    end else if (cfg_single_beat_read) begin
+                        icb_cmd_addr <= cfg_base_addr
+                                      + cmd_row_cnt  * cfg_row_stride
+                                      + cmd_beat_cnt * byte_per_beat_ext;
+                        if (cmd_beat_cnt == cfg_burst_len_ext) begin
+                            cmd_beat_cnt <= '0;
+                            cmd_row_cnt  <= cmd_row_cnt + 1;
+                        end else begin
+                            cmd_beat_cnt <= cmd_beat_cnt + 1;
+                        end
+                    end else begin
+                        icb_cmd_addr <= cfg_base_addr + cmd_row_cnt * cfg_row_stride;
+                        cmd_row_cnt  <= cmd_row_cnt + 1;
+                    end
                 end
 
-                if (cmd_hs) rd_cmd_inflight <= 1'b1;
                 if (read_rsp_done) rd_cmd_inflight <= 1'b0;
             end else begin
                 // 写模式：每行发一次 burst 命令，随后连续推送该行所有 beat。
@@ -245,14 +263,14 @@ module block_dma #(
                 end
 
                 if (w_hs) begin
-                    if (wr_beat_cnt == {28'd0, cfg_burst_len_m1}) begin
+                    if (wr_beat_cnt == cfg_burst_len_ext) begin
                         wr_beat_cnt    <= '0;
                         wr_rsp_pending <= 1'b1;
                     end else begin
                         wr_beat_cnt <= wr_beat_cnt + 1;
                     end
                 end
-                if (rsp_hs && cfg_is_write) begin
+                if (rsp_hs && cfg_is_write && wr_rsp_pending) begin
                     wr_rsp_pending <= 1'b0;
                     wr_row_active  <= 1'b0;
                     if (wr_row_cnt < cfg_rows) wr_row_cnt <= wr_row_cnt + 1;
@@ -261,6 +279,7 @@ module block_dma #(
         end else begin
             icb_cmd_valid     <= 1'b0;
             cmd_row_cnt       <= '0;
+            cmd_beat_cnt      <= '0;
             wr_row_cnt        <= '0;
             wr_beat_cnt       <= '0;
             rd_cmd_inflight   <= 1'b0;
@@ -294,7 +313,7 @@ module block_dma #(
             rsp_beat_cnt <= '0;
             rsp_valid_r  <= 1'b0;
         end else if (active && !cfg_is_write) begin
-            if (rsp_hs) begin
+            if (read_rsp_hs) begin
                 rsp_data_r     <= icb_rsp_rdata;
                 rsp_row_r      <= cfg_linear_read ? '0 : rsp_row_cnt[$clog2(SIZE)-1:0];
                 rsp_col_base_r <= rsp_col_base_comb;
@@ -303,7 +322,7 @@ module block_dma #(
                 if (cfg_linear_read) begin
                     if (rsp_beat_cnt == cfg_rows - 1) rsp_beat_cnt <= '0;
                     else rsp_beat_cnt <= rsp_beat_cnt + 1;
-                end else if (rsp_beat_cnt == {28'd0, cfg_burst_len_m1}) begin
+                end else if (rsp_beat_cnt == cfg_burst_len_ext) begin
                     rsp_beat_cnt <= '0;
                     if (rsp_row_cnt == cfg_rows - 1) rsp_row_cnt <= '0;
                     else rsp_row_cnt <= rsp_row_cnt + 1;
@@ -338,15 +357,23 @@ module block_dma #(
             if (cfg_use_16bits) begin
                 for (int i = 0; i < ELEM_PER_BEAT_S16; i++) begin
                     if (rsp_col_base_r + i < SIZE) begin
-                        wr_data[i]  = DATA_WIDTH'($signed(rsp_data_r[i*16+:16]) + cfg_zp[15:0]);
+                        if (REG_WIDTH'(rsp_col_base_r + i) < cfg_valid_cols) begin
+                            wr_data[i] = DATA_WIDTH'($signed(rsp_data_r[i*16+:16]) + cfg_zp[15:0]);
+                        end else begin
+                            wr_data[i] = '0;
+                        end
                         wr_valid[i] = 1'b1;
                     end
                 end
             end else begin
                 for (int i = 0; i < ELEM_PER_BEAT_S8; i++) begin
                     if (rsp_col_base_r + i < SIZE) begin
-                        wr_data[i] = DATA_WIDTH
-                            '($signed({{8{rsp_data_r[i*8+7]}}, rsp_data_r[i*8+:8]}) + cfg_zp[15:0]);
+                        if (REG_WIDTH'(rsp_col_base_r + i) < cfg_valid_cols) begin
+                            wr_data[i] = DATA_WIDTH
+                                '($signed({{8{rsp_data_r[i*8+7]}}, rsp_data_r[i*8+:8]}) + cfg_zp[15:0]);
+                        end else begin
+                            wr_data[i] = '0;
+                        end
                         wr_valid[i] = 1'b1;
                     end
                 end

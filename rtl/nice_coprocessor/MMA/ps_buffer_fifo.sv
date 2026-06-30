@@ -183,7 +183,13 @@ module ps_buffer_fifo #(
                     $display("[PS_TRACE] time=%0t ignore trigger replay_count=%0d frame_count=%0d",
                              $time, replay_count, frame_count);
                 end
-            end else if (replay_count != '0) begin
+            end
+
+            // Back-to-back IA slots produce additional tile-start pulses while
+            // one tall partial-sum frame is already being replayed.  Those
+            // triggers must not pause the read stream; the systolic array has no
+            // valid gating on sum_in, so a skipped read becomes a real bubble.
+            if (!push_frame && !pop_frame && (replay_count != '0)) begin
                 if (replay_count == 1) begin
                     replay_count <= '0;
                 end else begin

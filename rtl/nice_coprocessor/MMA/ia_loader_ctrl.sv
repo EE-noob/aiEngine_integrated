@@ -70,6 +70,7 @@ module ia_loader_ctrl #(
     output logic [REG_WIDTH-1:0]        tl_base_addr,
     output logic [REG_WIDTH-1:0]        tl_row_stride,
     output logic [REG_WIDTH-1:0]        tl_rows_to_read,
+    output logic [REG_WIDTH-1:0]        tl_valid_cols,
     output logic [3:0]                  tl_burst_len_m1,
     output logic [$clog2(CACHE_BLOCKS)-1:0] tl_slot_id,
     output logic                        tl_use_16bits,
@@ -226,9 +227,11 @@ module ia_loader_ctrl #(
   logic load_is_last_row_tile;
   assign load_is_last_row_tile = (load_tile_row_idx == vertical_tile_num - 1);
   logic load_is_last_col_tile;
+  logic [REG_WIDTH-1:0] load_tile_col_idx;
   assign load_is_last_col_tile = prefetch_active ?
     (next_l1_idx == horizontal_tile_num - 1) :
     (tile_col_idx == horizontal_tile_num - 1);
+  assign load_tile_col_idx = prefetch_active ? next_l1_idx : tile_col_idx;
 
   // 有效行数
   logic [REG_WIDTH-1:0] send_valid_rows;
@@ -236,6 +239,21 @@ module ia_loader_ctrl #(
 
   logic [REG_WIDTH-1:0] load_rows_cur;
   assign load_rows_cur = load_is_last_row_tile ? rsp_rows_last_tile : REG_WIDTH'(SIZE);
+
+  logic [REG_WIDTH-1:0] load_cols_remaining;
+  logic [REG_WIDTH-1:0] load_cols_cur;
+  always_comb begin
+    load_cols_remaining = (cfg_n > (load_tile_col_idx * SIZE))
+                        ? (cfg_n - (load_tile_col_idx * SIZE))
+                        : REG_WIDTH'(0);
+    if (load_cols_remaining == 0) begin
+      load_cols_cur = REG_WIDTH'(SIZE);
+    end else if (load_cols_remaining > REG_WIDTH'(SIZE)) begin
+      load_cols_cur = REG_WIDTH'(SIZE);
+    end else begin
+      load_cols_cur = load_cols_remaining;
+    end
+  end
 
   // burst 长度
   logic [3:0] load_burst_len_m1;
@@ -491,6 +509,7 @@ module ia_loader_ctrl #(
   assign tl_base_addr   = computed_tile_base;
   assign tl_row_stride  = cfg_lhs_row_stride_b;
   assign tl_rows_to_read = load_rows_cur;
+  assign tl_valid_cols  = load_cols_cur;
   assign tl_burst_len_m1 = load_burst_len_m1;
   assign tl_slot_id     = wr_slot_ptr;
   assign tl_use_16bits  = cfg_use_16bits;

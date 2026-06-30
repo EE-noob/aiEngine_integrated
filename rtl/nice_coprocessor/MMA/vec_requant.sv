@@ -39,8 +39,10 @@ module vec_requant #(
 
     // 数据口
     input  logic               in_valid,
+    input  logic               in_tile_done,
     input  logic signed [31:0] in_vec_s32[VLEN],
     output logic               out_valid,
+    output logic               out_tile_done,
     output logic signed [ 7:0] out_vec_s8[VLEN]
 );
 
@@ -57,12 +59,11 @@ module vec_requant #(
   typedef enum logic [1:0] {
     IDLE,
     LOAD,
-    COMPUTE,
-    TILE_COMPLETE
+    COMPUTE
   } state_e;
-  state_e state, state_n;
+  state_e state;
 
-  // 只保留 4 个状态名，LOAD 内部用 phase 区分 mul/shift
+  // LOAD 内部用 phase 区分 mul/shift。
   typedef enum logic [0:0] {
     PH_MUL   = 1'b0,
     PH_SHIFT = 1'b1
@@ -461,102 +462,63 @@ module vec_requant #(
 
           // ----------------------
           COMPUTE: begin
-            // 现在 COMPUTE 负责一整块 tile 的所有行：
-            // 在 out_valid 的上升周期计数；当计数达到 rows_need_cur 时转到 TILE_COMPLETE
             load_phase <= PH_MUL;
 
-            if (out_valid) begin
+            if (in_valid) begin
               if (requant_trace_en) begin
-                $display("[%0t] REQ out tile=(%0d,%0d) row_cnt=%0d/%0d",
-                         $time, tile_row, tile_col, row_in_tile_cnt, rows_need_cur);
+                $display("[%0t] REQ in tile=(%0d,%0d) row_cnt=%0d/%0d done=%0d acc0=%0d acc1=%0d acc2=%0d acc3=%0d acc4=%0d",
+                         $time, tile_row, tile_col, row_in_tile_cnt,
+                         rows_need_cur, in_tile_done,
+                         in_vec_s32[0], in_vec_s32[1], in_vec_s32[2],
+                         in_vec_s32[3], in_vec_s32[4]);
               end
-              if (row_in_tile_cnt == rows_need_cur[4:0] - 1) begin
-                // 本 tile 行数已全部处理完毕 -> 执行收尾
-                state <= TILE_COMPLETE;
+
+              if (in_tile_done) begin
+                logic [31:0] next_tile_row;
+                logic [31:0] next_tile_col;
+                logic        final_tile_cur;
+
+                calc_next_tile(tile_row, tile_col, num_row_tiles, num_col_tiles,
+                               ia_reuse_num_r, next_tile_row, next_tile_col);
+                final_tile_cur = (tile_col + 1 == num_col_tiles) &&
+                                 (tile_row + 1 == num_row_tiles);
+
                 row_in_tile_cnt <= 5'd0;
+                all_tiles_done  <= final_tile_cur;
+
+                if (final_tile_cur) begin
+                  tile_row <= 32'd0;
+                  tile_col <= 32'd0;
+                  load_quant_req <= 1'b0;
+                  quant_params_valid <= cfg_per_channel ? 1'b0 : 1'b1;
+                  state <= IDLE;
+                end else begin
+                  tile_row <= next_tile_row;
+                  tile_col <= next_tile_col;
+
+                  if (!cfg_per_channel) begin
+                    state <= COMPUTE;
+                  end else if ((!is_mode_r && (next_tile_col == tile_col)) ||
+                               ( is_mode_r &&
+                                 (((next_tile_row / ia_reuse_num_r) * ia_reuse_num_r) ==
+                                  ((tile_row      / ia_reuse_num_r) * ia_reuse_num_r)))) begin
+                    load_quant_req <= 1'b0;
+                    quant_params_valid <= 1'b1;
+                    state <= COMPUTE;
+                  end else begin
+                    load_quant_req <= 1'b1;
+                    load_offset <= 32'd0;
+                    quant_params_valid <= 1'b0;
+                    state <= LOAD;
+                  end
+                end
               end else begin
-                // 继续在 COMPUTE 等下一行的输入
-                row_in_tile_cnt <= row_in_tile_cnt + 1;
-                // 继续在 COMPUTE 等下一行的输入
+                row_in_tile_cnt <= row_in_tile_cnt + 1'b1;
                 state <= COMPUTE;
               end
             end
-            if ((tile_col + 1 == num_col_tiles) && (tile_row + 1 == num_row_tiles) && row_in_tile_cnt == rows_need_cur[4:0]-1)
-              all_tiles_done <= 1'b1;
-            // 否则保持在 COMPUTE，等待 out_valid（或者下一次 in_valid 进入流水线）
           end
 
-          // ----------------------
-          TILE_COMPLETE: begin
-            logic [31:0] next_tile_row;
-            logic [31:0] next_tile_col;
-            logic        final_tile_cur;
-
-            // 到这里意味着本 tile 的所有行已经计算完（由 COMPUTE 决定）
-            // 做收尾工作：清参数就绪、推进 tile 坐标。
-            calc_next_tile(tile_row, tile_col, num_row_tiles, num_col_tiles,
-                           ia_reuse_num_r, next_tile_row, next_tile_col);
-            final_tile_cur = (tile_col + 1 == num_col_tiles) &&
-                             (tile_row + 1 == num_row_tiles);
-
-            row_in_tile_cnt <= 5'd0;
-            all_tiles_done  <= final_tile_cur;
-
-            if (final_tile_cur) begin
-              load_quant_req <= 1'b0;
-              quant_params_valid <= 1'b0;
-            end
-
-            if (final_tile_cur) begin
-              tile_row <= 32'd0;
-              tile_col <= 32'd0;
-              state <= IDLE;
-              if (requant_trace_en) begin
-                $display("[%0t] REQ tile_done final tile=(%0d,%0d)",
-                         $time, tile_row, tile_col);
-              end
-            end else begin
-              tile_row <= next_tile_row;
-              tile_col <= next_tile_col;
-              if (requant_trace_en) begin
-                  $display("[%0t] REQ tile_done tile=(%0d,%0d) next=(%0d,%0d) reload=%0d",
-                         $time, tile_row, tile_col, next_tile_row, next_tile_col,
-                         cfg_per_channel &&
-                         !((!is_mode_r && (next_tile_col == tile_col)) ||
-                           ( is_mode_r &&
-                             (((next_tile_row / ia_reuse_num_r) * ia_reuse_num_r) ==
-                              ((tile_row      / ia_reuse_num_r) * ia_reuse_num_r)))));
-              end
-              if (!cfg_per_channel) begin
-                state <= COMPUTE;
-              end else if ((!is_mode_r && (next_tile_col == tile_col)) ||
-                           ( is_mode_r &&
-                             (((next_tile_row / ia_reuse_num_r) * ia_reuse_num_r) ==
-                              ((tile_row      / ia_reuse_num_r) * ia_reuse_num_r)))) begin
-                // Per-channel 参数只随输出列 tile 变化。IA reuse group 内会连续
-                // 输出多个 row tile，必须沿用同一组量化参数，避免吞掉无反压数据。
-                // IS 模式下 requant 前是转置流，量化参数随 stream row tile 变化。
-                load_quant_req <= 1'b0;
-                quant_params_valid <= 1'b1;
-                state <= COMPUTE;
-              end else begin
-                load_quant_req <= 1'b1;
-                load_offset <= 32'd0;
-                quant_params_valid <= 1'b0;
-                state <= LOAD;
-              end
-            end
-
-            // 仿真断言：超出范围直接暴露
-`ifndef SYNTHESIS
-            if (row_in_tile_cnt > VLEN) begin
-              $display("[%0t] ERROR: row_in_tile_cnt (%0d) > VLEN", $time, row_in_tile_cnt);
-              $fatal;
-            end
-`endif
-          end
-
-          // ----------------------
           default: begin
             // 保底：防止卡死
             state <= IDLE;
@@ -572,15 +534,21 @@ module vec_requant #(
   // 数据通路（1 拍管线：in_valid -> out_valid）
   // ----------------------------
   logic out_valid_q;
+  logic out_tile_done_q;
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       out_valid_q <= 1'b0;
+      out_tile_done_q <= 1'b0;
     end else begin
       out_valid_q <= in_valid && ((!cfg_per_channel) || quant_params_valid);
+      out_tile_done_q <= in_valid && in_tile_done &&
+                         ((!cfg_per_channel) || quant_params_valid);
     end
   end
 
   assign out_valid = (!cfg_per_channel) ? out_valid_q : (out_valid_q && quant_params_valid);
+  assign out_tile_done = (!cfg_per_channel) ? out_tile_done_q :
+                         (out_tile_done_q && quant_params_valid);
 
   function automatic signed [31:0] round_divide_by_power_of_two(input signed [31:0] x,
                                                                 input integer rshift);
@@ -638,10 +606,6 @@ module vec_requant #(
   logic [31:0] input_group_idx_cur;
   always_comb begin
     input_row_idx_cur = row_in_tile_cnt;
-    if ((state == COMPUTE) && out_valid &&
-        ((row_in_tile_cnt + 5'd1) < rows_need_cur[4:0])) begin
-      input_row_idx_cur = row_in_tile_cnt + 5'd1;
-    end
     input_group_idx_cur = (row_offset_in_group * VLEN) + input_row_idx_cur;
   end
 

@@ -169,6 +169,7 @@ module bias_loader #(
 	                .tile_base_addr  (ctrl_dma_base_addr),
 	                .row_stride      (REG_WIDTH'(SIZE * (DATA_WIDTH / 8))),
 	                .rows_to_read    (ctrl_dma_rows_to_read),
+	                .valid_cols      (REG_WIDTH'(DMA_SIZE)),
 	                .burst_len_m1    (ctrl_dma_burst_len_m1),
 	                .slot_id         (ctrl_load_bank),
 	                .use_16bits      (1'b0),

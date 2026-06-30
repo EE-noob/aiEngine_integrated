@@ -147,8 +147,8 @@ module mma_top #(
     wire load_quant_granted;
     wire quant_params_valid;
     wire requant_out_valid;
+    wire requant_out_tile_done;
     wire signed [7:0] requant_out[SIZE];
-    logic requant_tile_done;
 
     // FIFO 内部信号
     wire fifo_output_req;
@@ -810,14 +810,6 @@ module mma_top #(
         end
     endgenerate
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            requant_tile_done <= 1'b0;
-        end else begin
-            requant_tile_done <= tile_calc_over;
-        end
-    end
-
 	    vec_requant #(
 	        .VLEN        (SIZE),
 	        .REG_WIDTH   (REG_WIDTH),
@@ -846,8 +838,10 @@ module mma_top #(
         .icb_rsp_s         (vec_requant_rsp),
         .icb_rsp_m         (vec_requant_rsp_ready),
         .in_valid          (acc_data_valid),
+        .in_tile_done      (tile_calc_over),
         .in_vec_s32        (requant_in_vec),
         .out_valid         (requant_out_valid),
+        .out_tile_done     (requant_out_tile_done),
 	        .out_vec_s8        (requant_out)
 	    );
 	    assign vec_requant_w_ready.w_ready = 1'b0;
@@ -897,7 +891,7 @@ module mma_top #(
         .clk              (clk),
         .rst_n            (rst_n),
         .in_valid         (requant_out_valid),
-        .in_tile_done     (requant_tile_done),
+        .in_tile_done     (requant_out_tile_done),
         //.in_vec_s8        (requant_out),
         .in_vec_s8        (in_vec_s8),
         //.output_req       (fifo_output_req),
@@ -960,6 +954,189 @@ module mma_top #(
 	        .write_done       (write_done),
 	        .oa_calc_over     (oa_calc_over)
 	    );
+
+    function automatic longint unsigned util_bp(
+        input longint unsigned numerator,
+        input longint unsigned denominator
+    );
+        begin
+            util_bp = (denominator == 0) ? 0 : ((numerator * 10000) / denominator);
+        end
+    endfunction
+
+    bit top_util_trace_en;
+    logic top_util_active;
+    longint unsigned top_util_op_id;
+    longint unsigned top_util_active_cycles;
+    longint unsigned top_util_ia_row_cycles;
+    longint unsigned top_util_acc_valid_cycles;
+    longint unsigned top_util_requant_valid_cycles;
+    longint unsigned top_util_fifo_valid_cycles;
+    longint unsigned top_util_fifo_full_cycles;
+    longint unsigned top_util_store_weight_cycles;
+    longint unsigned top_util_send_weight_count;
+    longint unsigned top_util_send_ia_count;
+    longint unsigned top_util_tile_start_count;
+    longint unsigned top_util_tile_over_count;
+    longint unsigned top_util_partial_over_count;
+    longint unsigned top_util_ia_l1_switch_count;
+    longint unsigned top_util_ia_dma_busy_cycles;
+    longint unsigned top_util_kernel_dma_busy_cycles;
+    longint unsigned top_util_bias_dma_busy_cycles;
+    longint unsigned top_util_quant_dma_busy_cycles;
+    longint unsigned top_util_oa_dma_busy_cycles;
+    longint unsigned top_util_shared_cmd_cycles;
+    longint unsigned top_util_shared_rsp_cycles;
+
+    initial begin
+        top_util_trace_en = 1'b0;
+        if ($test$plusargs("MMA_UTIL_TRACE")) top_util_trace_en = 1'b1;
+    end
+
+    wire top_util_start_event = calc_start && sa_ready;
+    wire top_util_finish_event = top_util_active && wb_valid && wb_ready;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            top_util_active                 <= 1'b0;
+            top_util_op_id                  <= '0;
+            top_util_active_cycles          <= '0;
+            top_util_ia_row_cycles          <= '0;
+            top_util_acc_valid_cycles       <= '0;
+            top_util_requant_valid_cycles   <= '0;
+            top_util_fifo_valid_cycles      <= '0;
+            top_util_fifo_full_cycles       <= '0;
+            top_util_store_weight_cycles    <= '0;
+            top_util_send_weight_count      <= '0;
+            top_util_send_ia_count          <= '0;
+            top_util_tile_start_count       <= '0;
+            top_util_tile_over_count        <= '0;
+            top_util_partial_over_count     <= '0;
+            top_util_ia_l1_switch_count     <= '0;
+            top_util_ia_dma_busy_cycles     <= '0;
+            top_util_kernel_dma_busy_cycles <= '0;
+            top_util_bias_dma_busy_cycles   <= '0;
+            top_util_quant_dma_busy_cycles  <= '0;
+            top_util_oa_dma_busy_cycles     <= '0;
+            top_util_shared_cmd_cycles      <= '0;
+            top_util_shared_rsp_cycles      <= '0;
+        end else begin
+            if (top_util_start_event) begin
+                top_util_active                 <= 1'b1;
+                top_util_op_id                  <= top_util_op_id + 1'b1;
+                top_util_active_cycles          <= '0;
+                top_util_ia_row_cycles          <= '0;
+                top_util_acc_valid_cycles       <= '0;
+                top_util_requant_valid_cycles   <= '0;
+                top_util_fifo_valid_cycles      <= '0;
+                top_util_fifo_full_cycles       <= '0;
+                top_util_store_weight_cycles    <= '0;
+                top_util_send_weight_count      <= '0;
+                top_util_send_ia_count          <= '0;
+                top_util_tile_start_count       <= '0;
+                top_util_tile_over_count        <= '0;
+                top_util_partial_over_count     <= '0;
+                top_util_ia_l1_switch_count     <= '0;
+                top_util_ia_dma_busy_cycles     <= '0;
+                top_util_kernel_dma_busy_cycles <= '0;
+                top_util_bias_dma_busy_cycles   <= '0;
+                top_util_quant_dma_busy_cycles  <= '0;
+                top_util_oa_dma_busy_cycles     <= '0;
+                top_util_shared_cmd_cycles      <= '0;
+                top_util_shared_rsp_cycles      <= '0;
+            end else if (top_util_active) begin
+                top_util_active_cycles <= top_util_active_cycles + 1'b1;
+
+                if (ia_row_valid) begin
+                    top_util_ia_row_cycles <= top_util_ia_row_cycles + 1'b1;
+                end
+                if (acc_data_valid) begin
+                    top_util_acc_valid_cycles <= top_util_acc_valid_cycles + 1'b1;
+                end
+                if (requant_out_valid) begin
+                    top_util_requant_valid_cycles <= top_util_requant_valid_cycles + 1'b1;
+                end
+                if (fifo_output_valid) begin
+                    top_util_fifo_valid_cycles <= top_util_fifo_valid_cycles + 1'b1;
+                end
+                if (fifo_full_flag) begin
+                    top_util_fifo_full_cycles <= top_util_fifo_full_cycles + 1'b1;
+                end
+                if (store_weight_req) begin
+                    top_util_store_weight_cycles <= top_util_store_weight_cycles + 1'b1;
+                end
+                if (send_weight_trigger) begin
+                    top_util_send_weight_count <= top_util_send_weight_count + 1'b1;
+                end
+                if (send_ia_trigger) begin
+                    top_util_send_ia_count <= top_util_send_ia_count + 1'b1;
+                end
+                if (ia_tile_start) begin
+                    top_util_tile_start_count <= top_util_tile_start_count + 1'b1;
+                end
+                if (tile_calc_over) begin
+                    top_util_tile_over_count <= top_util_tile_over_count + 1'b1;
+                end
+                if (partial_sum_calc_over) begin
+                    top_util_partial_over_count <= top_util_partial_over_count + 1'b1;
+                end
+                if (ia_l1_switch) begin
+                    top_util_ia_l1_switch_count <= top_util_ia_l1_switch_count + 1'b1;
+                end
+                if (ia_dma_busy) begin
+                    top_util_ia_dma_busy_cycles <= top_util_ia_dma_busy_cycles + 1'b1;
+                end
+                if (kernel_dma_busy) begin
+                    top_util_kernel_dma_busy_cycles <= top_util_kernel_dma_busy_cycles + 1'b1;
+                end
+                if (bias_dma_busy) begin
+                    top_util_bias_dma_busy_cycles <= top_util_bias_dma_busy_cycles + 1'b1;
+                end
+                if (quant_dma_busy) begin
+                    top_util_quant_dma_busy_cycles <= top_util_quant_dma_busy_cycles + 1'b1;
+                end
+                if (oa_dma_busy) begin
+                    top_util_oa_dma_busy_cycles <= top_util_oa_dma_busy_cycles + 1'b1;
+                end
+                if (shared_icb_cmd_valid && sa_icb_cmd_ready) begin
+                    top_util_shared_cmd_cycles <= top_util_shared_cmd_cycles + 1'b1;
+                end
+                if (sa_icb_rsp_valid && shared_icb_rsp_ready) begin
+                    top_util_shared_rsp_cycles <= top_util_shared_rsp_cycles + 1'b1;
+                end
+            end
+
+            if (top_util_finish_event) begin
+                if (top_util_trace_en) begin
+                    $display("[MMA_UTIL] op=%0d active=%0d ia_row=%0d ia_row_util_bp=%0d acc_valid=%0d acc_util_bp=%0d requant_valid=%0d fifo_valid=%0d fifo_full=%0d store_weight=%0d send_weight=%0d send_ia=%0d tile_start=%0d tile_over=%0d partial_over=%0d l1_switch=%0d dma_busy_ia=%0d dma_busy_kernel=%0d dma_busy_bias=%0d dma_busy_quant=%0d dma_busy_oa=%0d bus_cmd=%0d bus_rsp=%0d",
+                             top_util_op_id,
+                             top_util_active_cycles,
+                             top_util_ia_row_cycles,
+                             util_bp(top_util_ia_row_cycles, top_util_active_cycles),
+                             top_util_acc_valid_cycles,
+                             util_bp(top_util_acc_valid_cycles, top_util_active_cycles),
+                             top_util_requant_valid_cycles,
+                             top_util_fifo_valid_cycles,
+                             top_util_fifo_full_cycles,
+                             top_util_store_weight_cycles,
+                             top_util_send_weight_count,
+                             top_util_send_ia_count,
+                             top_util_tile_start_count,
+                             top_util_tile_over_count,
+                             top_util_partial_over_count,
+                             top_util_ia_l1_switch_count,
+                             top_util_ia_dma_busy_cycles,
+                             top_util_kernel_dma_busy_cycles,
+                             top_util_bias_dma_busy_cycles,
+                             top_util_quant_dma_busy_cycles,
+                             top_util_oa_dma_busy_cycles,
+                             top_util_shared_cmd_cycles,
+                             top_util_shared_rsp_cycles);
+                end
+                top_util_active <= 1'b0;
+            end
+        end
+    end
 
     //assign calc_done = oa_calc_over;
 endmodule

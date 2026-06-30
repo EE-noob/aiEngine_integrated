@@ -147,15 +147,41 @@ module mma_controller #(
 	    wire      compute_tail_done;
 	    wire      weight_safe_to_send;
 	    bit       ctrl_trace_en;
+	    bit       util_trace_en;
+	    logic     util_active;
+	    longint unsigned util_op_id;
+	    longint unsigned util_active_cycles;
+	    longint unsigned util_weight_start_cycles;
+	    longint unsigned util_weight_wait_cycles;
+	    longint unsigned util_ia_start_cycles;
+	    longint unsigned util_ia_wait_cycles;
+	    longint unsigned util_wait_wb_cycles;
+	    longint unsigned util_stall_weight_tail_cycles;
+	    longint unsigned util_stall_weight_data_cycles;
+	    longint unsigned util_stall_weight_done_cycles;
+	    longint unsigned util_stall_ia_data_cycles;
+	    longint unsigned util_stall_bias_cycles;
+	    longint unsigned util_stall_quant_cycles;
+	    longint unsigned util_stall_fifo_cycles;
+	    longint unsigned util_stall_ia_done_cycles;
+	    longint unsigned util_tail_pending_cycles;
+	    longint unsigned util_tail_done_count;
+	    longint unsigned util_weight_trigger_count;
+	    longint unsigned util_ia_trigger_count;
 
 	    initial begin
 	        ctrl_trace_en = 1'b0;
+	        util_trace_en = 1'b0;
 	        if ($test$plusargs("MMA_CTRL_TRACE")) ctrl_trace_en = 1'b1;
+	        if ($test$plusargs("MMA_UTIL_TRACE")) util_trace_en = 1'b1;
 	    end
 
 	    assign bias_ready_for_compute = bias_sleep || bias_valid;
 	    assign compute_tail_done = compute_tail_pending && partial_sum_calc_over;
 	    assign weight_safe_to_send = !compute_tail_pending || compute_tail_done;
+
+	    wire util_start_event = (current_state == IDLE) && calc_start;
+	    wire util_finish_event = util_active && (current_state != IDLE) && (next_state == IDLE);
 
     // 参数校验函数
     function automatic logic check_config_valid();
@@ -269,6 +295,134 @@ module mma_controller #(
 	            end
 	        end
 	    end
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            util_active                   <= 1'b0;
+            util_op_id                    <= '0;
+            util_active_cycles            <= '0;
+            util_weight_start_cycles      <= '0;
+            util_weight_wait_cycles       <= '0;
+            util_ia_start_cycles          <= '0;
+            util_ia_wait_cycles           <= '0;
+            util_wait_wb_cycles           <= '0;
+            util_stall_weight_tail_cycles <= '0;
+            util_stall_weight_data_cycles <= '0;
+            util_stall_weight_done_cycles <= '0;
+            util_stall_ia_data_cycles     <= '0;
+            util_stall_bias_cycles        <= '0;
+            util_stall_quant_cycles       <= '0;
+            util_stall_fifo_cycles        <= '0;
+            util_stall_ia_done_cycles     <= '0;
+            util_tail_pending_cycles      <= '0;
+            util_tail_done_count          <= '0;
+            util_weight_trigger_count     <= '0;
+            util_ia_trigger_count         <= '0;
+        end else begin
+            if (util_start_event) begin
+                util_active                   <= 1'b1;
+                util_op_id                    <= util_op_id + 1'b1;
+                util_active_cycles            <= '0;
+                util_weight_start_cycles      <= '0;
+                util_weight_wait_cycles       <= '0;
+                util_ia_start_cycles          <= '0;
+                util_ia_wait_cycles           <= '0;
+                util_wait_wb_cycles           <= '0;
+                util_stall_weight_tail_cycles <= '0;
+                util_stall_weight_data_cycles <= '0;
+                util_stall_weight_done_cycles <= '0;
+                util_stall_ia_data_cycles     <= '0;
+                util_stall_bias_cycles        <= '0;
+                util_stall_quant_cycles       <= '0;
+                util_stall_fifo_cycles        <= '0;
+                util_stall_ia_done_cycles     <= '0;
+                util_tail_pending_cycles      <= '0;
+                util_tail_done_count          <= '0;
+                util_weight_trigger_count     <= '0;
+                util_ia_trigger_count         <= '0;
+            end else if (util_active) begin
+                util_active_cycles <= util_active_cycles + 1'b1;
+
+                unique case (current_state)
+                    WEIGHT_START: util_weight_start_cycles <= util_weight_start_cycles + 1'b1;
+                    WEIGHT_WAIT:  util_weight_wait_cycles  <= util_weight_wait_cycles + 1'b1;
+                    IA_START:     util_ia_start_cycles     <= util_ia_start_cycles + 1'b1;
+                    IA_WAIT:      util_ia_wait_cycles      <= util_ia_wait_cycles + 1'b1;
+                    WAIT_WB:      util_wait_wb_cycles      <= util_wait_wb_cycles + 1'b1;
+                    default: begin
+                    end
+                endcase
+
+                if (current_state == WEIGHT_START && !oa_calc_over && !weight_safe_to_send) begin
+                    util_stall_weight_tail_cycles <= util_stall_weight_tail_cycles + 1'b1;
+                end
+                if (current_state == WEIGHT_START && !oa_calc_over &&
+                    weight_safe_to_send && !weight_data_valid) begin
+                    util_stall_weight_data_cycles <= util_stall_weight_data_cycles + 1'b1;
+                end
+                if (current_state == WEIGHT_WAIT && !weight_sending_done) begin
+                    util_stall_weight_done_cycles <= util_stall_weight_done_cycles + 1'b1;
+                end
+                if (current_state == IA_START && !ia_data_valid) begin
+                    util_stall_ia_data_cycles <= util_stall_ia_data_cycles + 1'b1;
+                end
+                if (current_state == IA_START && ia_data_valid && !bias_ready_for_compute) begin
+                    util_stall_bias_cycles <= util_stall_bias_cycles + 1'b1;
+                end
+                if (current_state == IA_START && ia_data_valid &&
+                    bias_ready_for_compute && !quant_params_valid) begin
+                    util_stall_quant_cycles <= util_stall_quant_cycles + 1'b1;
+                end
+                if (current_state == IA_START && ia_data_valid &&
+                    bias_ready_for_compute && quant_params_valid && fifo_full_flag) begin
+                    util_stall_fifo_cycles <= util_stall_fifo_cycles + 1'b1;
+                end
+                if (current_state == IA_WAIT && !ia_sending_done) begin
+                    util_stall_ia_done_cycles <= util_stall_ia_done_cycles + 1'b1;
+                end
+                if (compute_tail_pending) begin
+                    util_tail_pending_cycles <= util_tail_pending_cycles + 1'b1;
+                end
+                if (compute_tail_done) begin
+                    util_tail_done_count <= util_tail_done_count + 1'b1;
+                end
+                if (current_state == WEIGHT_START && weight_safe_to_send &&
+                    weight_data_valid && !weight_sending_done && !oa_calc_over) begin
+                    util_weight_trigger_count <= util_weight_trigger_count + 1'b1;
+                end
+                if (current_state == IA_START && ia_data_valid && bias_ready_for_compute &&
+                    quant_params_valid && !fifo_full_flag && !ia_sending_done) begin
+                    util_ia_trigger_count <= util_ia_trigger_count + 1'b1;
+                end
+            end
+
+            if (util_finish_event) begin
+                if (util_trace_en) begin
+                    $display("[MMA_CTRL_UTIL] op=%0d active=%0d weight_start=%0d weight_wait=%0d ia_start=%0d ia_wait=%0d wait_wb=%0d weight_tail_stall=%0d weight_data_stall=%0d weight_done_wait=%0d ia_data_stall=%0d bias_stall=%0d quant_stall=%0d fifo_stall=%0d ia_done_wait=%0d tail_pending=%0d tail_done=%0d weight_trig=%0d ia_trig=%0d",
+                             util_op_id,
+                             util_active_cycles,
+                             util_weight_start_cycles,
+                             util_weight_wait_cycles,
+                             util_ia_start_cycles,
+                             util_ia_wait_cycles,
+                             util_wait_wb_cycles,
+                             util_stall_weight_tail_cycles,
+                             util_stall_weight_data_cycles,
+                             util_stall_weight_done_cycles,
+                             util_stall_ia_data_cycles,
+                             util_stall_bias_cycles,
+                             util_stall_quant_cycles,
+                             util_stall_fifo_cycles,
+                             util_stall_ia_done_cycles,
+                             util_tail_pending_cycles,
+                             util_tail_done_count,
+                             util_weight_trigger_count,
+                             util_ia_trigger_count);
+                end
+                util_active <= 1'b0;
+            end
+        end
+    end
 
     // 状态转换逻辑
     always_comb begin

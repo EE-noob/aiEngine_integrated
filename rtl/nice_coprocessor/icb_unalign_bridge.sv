@@ -107,7 +107,6 @@ module icb_unalign_bridge #(
   typedef enum logic [1:0] {
     IDLE  = 2'b00,
     FIRST = 2'b01,
-    LAST  = 2'b10,
     BURST = 2'b11
   } state_t;
 
@@ -121,9 +120,6 @@ module icb_unalign_bridge #(
   logic   rsp_fire;
   logic   is_last_burst;  // cmd通道的最后burst标志
   logic   rd_last_burst;  // rsp通道独立的最后burst标志
-  logic   last_beat_sent;
-
-
   logic cmd_pending;
 
   // ========================================
@@ -198,10 +194,9 @@ module icb_unalign_bridge #(
       cur_len_0start <= '0;
       cmd_pending <= 1'b0;
     end else begin
-      // 在读取FIFO时就锁定当前请求信息，直到rsp完成才更新下一个
-      if (rsp_state_nxt == IDLE && cmd_state_nxt == IDLE) begin
-        cur_len_0start <= '0;
-      end
+      // 在读取 FIFO 时锁定当前请求信息，响应通道必须一直使用该元数据。
+      // 命令拍可能先于响应拍结束，不能在 cmd/rsp 临时空闲时清零 len，
+      // 否则多拍写响应会被误判为单拍响应，留下游离 B response。
       if ((cur_burst_cnt == burst_cycle_1start - 1) && cmd_fire) begin
         cmd_pending <= 1'b0;
       end
@@ -230,21 +225,9 @@ module icb_unalign_bridge #(
     if (!rst_n) begin
       cmd_state <= IDLE;
       cur_burst_cnt <= '0;
-      last_beat_sent <= 1'b0;
     end else begin
       cmd_state <= cmd_state_nxt;
       cur_burst_cnt <= burst_cnt_nxt;
-
-      case (cmd_state_nxt)
-        IDLE: last_beat_sent <= 1'b0;
-        FIRST: begin
-          if (cmd_fire && cur_cross_boundary) last_beat_sent <= 1'b0;
-        end
-        LAST: begin
-          if (cmd_fire) last_beat_sent <= 1'b1;
-        end
-        default: ;
-      endcase
     end
   end
 
@@ -290,19 +273,6 @@ module icb_unalign_bridge #(
           burst_cnt_nxt = '0;
         end
       end
-
-      // LAST: begin
-      //   if (cmd_fire) begin
-      //     if (is_last_burst) begin
-      //       cmd_state_nxt = IDLE;
-      //     end else begin
-      //       cmd_state_nxt = BURST;
-      //       burst_cnt_nxt = cur_burst_cnt + 1'b1;
-      //     end
-      //   end
-      // end
-
-
     endcase
   end
 
@@ -416,16 +386,6 @@ module icb_unalign_bridge #(
         end
       end
     end
-    // else if (cmd_state == LAST) begin
-    //   // 跨界最后一拍：缓存的高位部分或拼接数据
-    //   if (wdata_buf_valid) begin
-    //     wdata_aligned = wdata_buf | (sa_icb_cmd_wdata << cur_offsetX8);
-    //     wmask_aligned = wmask_buf | (sa_icb_cmd_wmask << cur_offset);
-    //   end else begin
-    //     wdata_aligned = sa_icb_cmd_wdata << cur_offsetX8;
-    //     wmask_aligned = sa_icb_cmd_wmask << cur_offset;
-    //   end
-    // end
   end
 
   // ========================================
@@ -444,7 +404,7 @@ module icb_unalign_bridge #(
           // 缓存跨界的高位部分，用于下一拍拼接
           rdata_buf <= m_icb_rsp_rdata >> cur_offsetX8;  // 优化乘法为移位
           rdata_buf_valid <= 1'b1;
-        end else if (rd_last_burst || rsp_state == LAST) begin
+        end else if (rd_last_burst) begin
           rdata_buf_valid <= 1'b0;
         end
       end
@@ -517,9 +477,44 @@ module icb_unalign_bridge #(
   // rsp_fire只有在有效响应且上游能接收时才为真
   // 直连响应信号 - 不经过FIFO
   logic sa_rsp_valid_comb;
-  logic sa_rsp_ready_comb;
   //assign rsp_fire = sa_rsp_valid_comb & sa_icb_rsp_ready;
   assign rsp_fire = m_icb_rsp_ready & m_icb_rsp_valid;
+
+  bit unalign_trace_en;
+  initial begin
+    unalign_trace_en = 1'b0;
+    if ($test$plusargs("MMA_BUS_TRACE")) unalign_trace_en = 1'b1;
+  end
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+    end else if (unalign_trace_en) begin
+      if (sa_icb_cmd_valid && sa_icb_cmd_ready) begin
+        $display("[UNALIGN_TRACE] time=%0t sa_cmd read=%0b addr=%08x len=%0d fifo_wptr=%0d fifo_rptr=%0d",
+                 $time, sa_icb_cmd_read, sa_icb_cmd_addr, sa_icb_cmd_len,
+                 cmd_fifo_wptr, cmd_fifo_rptr);
+      end
+      if (cmd_fifo_ren) begin
+        $display("[UNALIGN_TRACE] time=%0t fifo_pop read=%0b addr=%08x len=%0d cmd_state=%0d rsp_state=%0d pending=%0b",
+                 $time, fifo_is_read, fifo_addr, fifo_len, cmd_state, rsp_state,
+                 cmd_pending);
+      end
+      if (m_icb_cmd_valid && m_icb_cmd_ready) begin
+        $display("[UNALIGN_TRACE] time=%0t m_cmd read=%0b addr=%08x state=%0d burst=%0d last=%0b cross=%0b",
+                 $time, m_icb_cmd_read, m_icb_cmd_addr, cmd_state,
+                 cur_burst_cnt, is_last_burst, cur_cross_boundary);
+      end
+      if (m_icb_rsp_valid && m_icb_rsp_ready) begin
+        $display("[UNALIGN_TRACE] time=%0t m_rsp cur_read=%0b sa_valid=%0b state=%0d rsp_burst=%0d last=%0b err=%0b",
+                 $time, cur_is_read, sa_rsp_valid_comb, rsp_state,
+                 rsp_burst_cnt, rd_last_burst, m_icb_rsp_err);
+      end
+      if (sa_icb_rsp_valid && sa_icb_rsp_ready) begin
+        $display("[UNALIGN_TRACE] time=%0t sa_rsp read=%0b rdata=%08x err=%0b",
+                 $time, cur_is_read_comb, sa_icb_rsp_rdata, sa_icb_rsp_err);
+      end
+    end
+  end
 
 
 

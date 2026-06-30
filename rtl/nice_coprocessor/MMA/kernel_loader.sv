@@ -74,6 +74,7 @@ module kernel_loader #(
   logic signed [REG_WIDTH-1:0] dma_rhs_zp;
   logic                        buf_load_start;
   logic                        buf_send_start;
+  logic                        buf_load_ready;
   logic                        dma_busy;
 	  logic                        dma_done;
 	  assign load_weight_done = dma_done;
@@ -176,6 +177,8 @@ module kernel_loader #(
     .send_weight_trigger    (send_weight_trigger),
     .buf_weight_data_valid  (weight_data_valid),
     .buf_weight_sending_done(weight_sending_done),
+    .buf_load_ready          (buf_load_ready),
+    .load_done               (dma_done),
     .load_weight_req       (load_weight_req),
     .dma_start             (dma_start),
     .dma_tile_base_addr    (dma_tile_base_addr),
@@ -327,6 +330,7 @@ module kernel_loader #(
     .row_data            (dma_row_data),
     .load_done           (dma_done),
     .send_start          (buf_send_start),
+    .load_ready          (buf_load_ready),
     .weight_data_valid   (weight_data_valid),
     .weight_sending_done (weight_sending_done),
     .store_weight_req    (store_weight_req),
