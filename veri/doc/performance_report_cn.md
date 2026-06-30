@@ -633,3 +633,79 @@ TFLM_SOC_MMA_MIN_MACS
 - `runs/native_quant_regress_s8`
 - `runs/native_quant_tflm/micro`
 - `runs/native_quant_tflm/my_model`
+
+### 2026-07-01 补充：SoC 劣化闭环、`.noinit` 与 FC-MMA 修复
+
+本轮针对“裸 MMA 单独仿真性能已经优化，但 SoC 上端到端反而劣化”的现象做了更细的 trace。结论是：MMA/cache/reuse 数据流本身没有退化，AXI outstanding 也在工作；SoC 端的主要损失来自软件和启动路径，尤其是 TFLM 临时 buffer 启动清零、FullyConnected 仍走 CPU reference、以及小矩阵提交导致阵列有效计算拍占比很低。
+
+新增诊断：
+
+- `axi_dual_block_dma.sv` 增加 `+MMA_DMA_TRACE`，统计每次 DMA 的 AR/AW/R/W/B beat、非对齐/跨 beat 访问和最大 outstanding。`micro_speech` 中未触发 unaligned 读，读/写 outstanding 可达到 4，说明本轮问题不是 DMA 对齐或 outstanding 失效。
+- `soc_axil_ctrl.sv` 增加 `+SOC_PROGRESS_TRACE`，为 TFLM progress 写入打 cycle 戳，用来拆开启动、tensor allocation、conv/depthwise/FC/softmax 和校验阶段。
+- `veri/sim/Makefile` 将 `fully_connected.cc` 加入 `TFLM_RV32_REBUILD_DEPS`。此前 FC 源码变化可能不会触发 `libtflite-micro.a` 重新构建，容易造成“源码已改、仿真还在跑旧库”的误判。
+
+修复和优化：
+
+- 将 conv/depthwise/fully_connected 的 MMA 临时 buffer 放入 `.noinit.mma`，并在 `link.ld` 中新增 `.noinit (NOLOAD)` 段，避免启动阶段对数百 KB 临时 buffer 做 `.bss` 清零。
+- 为 int8 FullyConnected 增加 SoC MMA 路径，支持 per-tensor/per-channel 输出量化。当前硬件缓冲上限为 `rows <= 16` 分块、`inner <= 4096`、输出列按 `DSA_TILE_SIZE` 分块；不满足 shape、filter zero-point 非 0 或异常维度时自动 fallback 到原 reference。
+- FC RHS packing 使用预计算列指针，避免内层重复计算 `(col_base + col) * inner`。之前尝试过 word copy/`__builtin_memcpy` 打包，实际让 `micro_speech` 变慢，因此未保留。
+
+#### 端到端性能结果
+
+![SoC TFLM noinit + FC-MMA cycles](perf_plots/soc_tflm_fc_noinit_cycles.png)
+
+| Case | 修复前 cycles | 修复后 cycles | 变化 | 说明 |
+|---|---:|---:|---:|---|
+| `hello_world` | 430,815 | 372,504 | -13.53% | 12 个极小 FC 均走硬件，启动清零也明显减少 |
+| `micro_speech` | 15,720,062 | 13,659,301 | -13.11% | `.noinit` 节省约 1.39M cycles，FC-MMA 再减少约 0.67M cycles |
+| `my_model` | 77,016,620 | 74,079,370 | -3.81% | 大模型仍主要受 TFLM 调度和 conv/depthwise 打包支配，但未再劣化 |
+
+对 `micro_speech` 的阶段拆分：
+
+- 启动 `.bss` 清零从约 1,543,422 cycles 降到 149,823 cycles，说明 `.noinit` 是端到端收益最大的单点。
+- 原 FC CPU reference 约 1,299,861 cycles；FC-MMA 后 FC 总段约 632K cycles，其中 RHS packing 约 585K cycles，硬件 active 只有 13,664 cycles。
+- 这说明 FC 的算术本身已经很快，剩余瓶颈主要是 TFLM 侧为硬件格式做打包/转置，而不是阵列计算。
+
+#### 利用率解释
+
+最新 trace 汇总如下：
+
+| Case | SoC cycles | MMA ops | MMA active | `acc_valid` | acc 利用率 | `ia_row` | IA 行利用率 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `hello_world` | 372,504 | 12 | 2,532 | 12 | 0.47% | 12 | 0.47% |
+| `micro_speech` | 13,659,301 | 2 | 45,977 | 501 | 1.08% | 2,750 | 5.98% |
+| `my_model` | 74,079,370 | 94 | 471,882 | 7,556 | 1.60% | 27,792 | 5.88% |
+
+这些数字解释了为什么裸 MMA 的收益在小模型 SoC 端不总是线性体现：
+
+- `hello_world` 和 FC 层多为 `rows=1` 的极小矩阵，MMA 每次只能产生 1 个或少量有效 accumulator，阵列大部分时间花在固定启动、DMA、量化和写回尾部。
+- `micro_speech` 的 FC 为 `1x4000 * 4000x4`，输出列只有 4，硬件 active 主要被 kernel 侧 4000 个权重加载和软件 RHS packing 支配。
+- `my_model` 虽然有更多 conv/depthwise 能摊薄固定开销，但端到端仍包含 Pico 执行、TFLM tensor/算子调度、打包、MMIO 配置、UART/校验等软件路径，因此 MMA active 只占 SoC 总周期的一小部分。
+
+因此，本轮“劣化”不是 cache/reuse 设计失效，而是 SoC 指标把硬件计算和软件准备混在一起统计。修复后，三个 TFLM 模型端到端均不再比前一版差；其中 `micro_speech` 从此前小幅劣化变为明显收益。
+
+#### 验证
+
+| 测试 | 配置 | 结果 |
+|---|---|---|
+| `tflm_hello_world_run` | `SIZE=16,CACHE=4,PS_FRAME=16,+SOC_PROGRESS_TRACE,+MMA_UTIL_TRACE` | PASS，372,504 cycles |
+| `tflm_micro_speech_run` | `SIZE=16,CACHE=4,PS_FRAME=16,+SOC_PROGRESS_TRACE,+MMA_UTIL_TRACE` | PASS，13,659,301 cycles |
+| `tflm_my_model_run` | `SIZE=16,CACHE=4,PS_FRAME=16,+SOC_PROGRESS_TRACE,+MMA_UTIL_TRACE` | PASS，74,079,370 cycles |
+| SoC 随机边界回归 | `SIZE={8,16},CACHE={2,4},DF={WS,IS},lhs=s8,per-channel,unaligned_layout,DDR_RAND_LAT=1,MIN_DIM=1,MAX_DIM=65,seed=81000..81001` | PASS 16/16 |
+
+日志目录：
+
+- `runs/soc_deep_dma_trace/micro`
+- `runs/soc_deep_stage_trace/micro`
+- `runs/soc_deep_stage_trace/my_model`
+- `runs/soc_deep_final/hello_latest`
+- `runs/soc_deep_final/micro_latest`
+- `runs/soc_deep_final/my_model_latest`
+- `runs/soc_deep_final/rand_boundary`
+
+后续优化方向：
+
+1. 对常量权重的 FC/conv 做离线或 Prepare 阶段预打包，减少每次 Invoke 中的 RHS transpose/packing。
+2. 为 `rows=1`、`cols` 很小的 FC 增加轻量提交路径，减少 MMIO 配置、DMA 启动和写回尾部固定成本。
+3. 若继续优化 Pico store/软件打包，应设计显式有序 store buffer，并在 MMIO/read 前 drain；不要回到 RAM 立即 B response 的实验路径。
+4. 继续将 SoC TFLM 回归和裸 MMA 大矩阵回归分开看：前者衡量真实软件端到端，后者衡量 cache/reuse/阵列数据流本身。
