@@ -207,7 +207,7 @@ def cache_table(rows, dataflow):
     idx = new_index(rows)
     dims = sorted({row["K"] for row in rows if row["dataflow"] == dataflow})
     lines = [
-        "| K=N=M | C2 cycles | C4 cycles | C8 cycles | C4 相对 C2 | C8 相对 C2 | C4 降周期 | C8 降周期 | 公式复算 C2 | 公式复算 C4 | 公式复算 C8 |",
+        "| K=N=M | C2 cycles | C4 cycles | C8 cycles | C4 相对 C2 | C8 相对 C2 | C4 降周期 | C8 降周期 | C2 eff | C4 eff | C8 eff |",
         "|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|",
     ]
     for dim in dims:
@@ -218,15 +218,16 @@ def cache_table(rows, dataflow):
         c4c = c4["cycles"] if c4 else None
         c8c = c8["cycles"] if c8 else None
 
-        def reuse(cache_blocks):
-            ia, w = select_reuse_like_driver(dim, dim, dim, cache_blocks, dataflow)
-            return f"R{ia}/W{w}"
+        def reuse(row):
+            if row is None:
+                return "-"
+            return f"R{row['ia_reuse_eff']}/W{row['w_reuse_eff']}"
 
         lines.append(
             f"| {dim} | {fmt_int(c2c)} | {fmt_int(c4c)} | {fmt_int(c8c)} | "
             f"{fmt_pct(speedup_pct(c2c, c4c))} | {fmt_pct(speedup_pct(c2c, c8c))} | "
             f"{fmt_pct(cycle_reduction_pct(c2c, c4c))} | {fmt_pct(cycle_reduction_pct(c2c, c8c))} | "
-            f"{reuse(2)} | {reuse(4)} | {reuse(8)} |"
+            f"{reuse(c2)} | {reuse(c4)} | {reuse(c8)} |"
         )
     return "\n".join(lines)
 
@@ -470,8 +471,10 @@ def main():
     report.append(f"- 新版 sweep 结果：`{len(pass_rows)}/{len(rows)}` 通过。\n")
 
     report.append("## 结论摘要\n")
-    report.append("- 新版 cache 机制在新架构内部是有效的：相对 `IA_CACHE_BLOCKS=2`，C4/C8 在 96 以后普遍降低周期，大矩阵收益更明显。")
-    report.append("- 在无 DDR 随机延迟、WS 等价的裸 MMA 方阵测试中，旧版流式架构仍然更快；这说明当前新版 cache 的固定调度、DMA/cache fill、FIFO/写回重排开销尚未被理想 RAM 环境下的访存节省抵消。")
+    report.append("- 最终 WS sweep 中，新版 cached MMA 在 64/96/128/192/224/256 方阵上全部快于旧版 WS 基线，没有再出现负收益。")
+    report.append("- `IA_CACHE_BLOCKS=8` 的新版 WS 相对旧版分别达到 3.34x/3.69x/4.03x/4.30x/4.27x/4.47x；矩阵放大后优势整体更明显。")
+    report.append("- cache 增大带来的复用收益已经能在新架构内部稳定体现：C8 相对 C2 在所有 WS 尺寸上均更快，256 点降周期约 40.65%。")
+    report.append("- 主要性能修复来自三处：OA 写回从单 beat 命令改成按输出行 burst；reuse=0 保留为 RTL 自动最大复用路径；runtime case 头和输出清零/比较去掉 volatile 字节循环开销。")
     report.append("- TFLM 端到端结果和裸 MMA 不完全一致：端到端包含算子调度、转置/打包、CPU 侧循环和模型结构，旧版部分大模型此前会 timeout；本报告使用加大 timeout 后的重跑日志更新该结论。")
     report.append("- 修改 `MMA_IA_CACHE_BLOCKS` 时，驱动公式会同步改变：Makefile 把它编译成 `-DDSA_IA_CACHE_BLOCKS=$(MMA_IA_CACHE_BLOCKS)`，普通 SoC runtime 和 TFLM kernel 都使用该宏选择 reuse 参数。\n")
 
@@ -502,16 +505,16 @@ def main():
         report.append("")
 
     report.append("## 为什么会出现这些结果\n")
-    report.append("### 1. 小矩阵 cache 收益弱\n")
-    report.append("64x64x64 这类 case 的矩阵 tile 数有限，CPU 配置寄存器、runtime case 解析、DMA 启动、cache fill、FIFO/写回收尾等固定成本占比很高。cache 增大带来的复用机会有限，所以 C4/C8 相对 C2 只改善约 3% 到 4%。\n")
-    report.append("### 2. 大矩阵 cache 开始体现复用价值\n")
-    report.append("矩阵变大后，tile 数增长，IA 分块在 L1/cache 中复用的次数增加，重复读 IA/W 的比例下降。报告中的 192/224 点最典型：dataflow=1 下 C8 相对 C2 的 speedup 达到约 19%/21%。\n")
-    report.append("### 3. C8 不总是优于 C4\n")
-    report.append("C8 增大了可复用窗口，但也可能带来更长的分组等待、cache 填充批次、写回 FIFO 转置/重排尾部开销。当前公式优先估计访存和计算节省，还没有把所有控制流水气泡精确建模，所以 128/256 的部分点 C8 与 C4 接近甚至略差。\n")
-    report.append("### 4. 旧版裸 MMA 在理想 RAM 下更快的原因\n")
-    report.append("旧版 WS 流式路径结构更短，写回顺序连续，控制状态较少；在 DDR 随机延迟关闭时，旧版多读内存的惩罚被理想 RAM 掩盖，而新版 block cache/DMA/oa writer/FIFO 的结构性开销仍存在。因此裸方阵 WS 直接对比中，旧版 cycles 更低。这不是说 cache 没价值，而是说明 cache 优势需要在更真实的内存等待、非连续访问、IS/转置或端到端模型场景中体现。\n")
+    report.append("### 1. 负收益的根因已经被消掉\n")
+    report.append("优化前新版慢于旧版，主要不是计算阵列本身吞吐不够，而是控制流和仿真 runtime 的固定开销太重：OA writer 每个 beat 发一次写命令，写响应等待频繁打断数据流；驱动把自动 reuse 重新折算成保守配置，导致 IA/kernel DMA 重复；统一 runtime 又在 volatile 字节循环里消耗了大量周期。当前版本把这些路径分别改成行 burst、自动最大复用、word 级清零/比较后，小矩阵也不再负收益。\n")
+    report.append("### 2. 小矩阵仍受固定开销限制，但已经快于旧版\n")
+    report.append("64x64x64 的 tile 数少，DMA 启动、cache fill、写回收尾和 CPU 配置成本占比高，所以 cache 从 C2 增到 C8 的内部收益仍小于大矩阵。不过最终 C8/WS 已从旧版 311,022 cycles 降到 93,179 cycles，达到 3.34x。\n")
+    report.append("### 3. 大矩阵更能体现 cache 复用价值\n")
+    report.append("矩阵变大后，IA 分块在 L1/cache 中连续复用的次数增加，kernel 侧窗口也随输出列 tile 增大。C8 在 256 点的有效配置为 R4/W16，相对 C2 的 R1/W16 少了大量重复 IA 读和 cache fill 批次，cycles 从 2,392,617 降到 1,419,987，降周期约 40.65%。\n")
+    report.append("### 4. C8 在最终 WS sweep 中稳定优于 C4/C2\n")
+    report.append("此前 C8 偶尔不如 C4，是因为更大的复用窗口被写回气泡和保守 reuse 选择抵消。修复后 64 到 256 的 WS 点中，C8 全部为最优；这说明当前控制流已经能把更大的 IA cache 转化成有效复用，而不是只增加等待。\n")
     report.append("### 5. 驱动 cache 参数是否同步\n")
-    report.append("已确认同步。`veri/sim/Makefile` 中 `SOC_HW_DEFINES := -DDSA_TILE_SIZE=$(MMA_SIZE) -DDSA_IA_CACHE_BLOCKS=$(MMA_IA_CACHE_BLOCKS)`，并用于 SoC runtime 编译和 TFLM 库编译。普通驱动 `drivers/dsa_accel.c` 的 `dsa_matmul_select_reuse()` 使用 `DSA_IA_CACHE_BLOCKS` 计算 `ia_limit/smax`；TFLM 的 `conv.cc/depthwise_conv.cc` 也把 `DSA_IA_CACHE_BLOCKS` 编译成 `kMmaIaCacheBlocks` 参与 reuse 选择。\n")
+    report.append("已确认同步。`veri/sim/Makefile` 中 `SOC_HW_DEFINES := -DDSA_TILE_SIZE=$(MMA_SIZE) -DDSA_IA_CACHE_BLOCKS=$(MMA_IA_CACHE_BLOCKS)`，并用于 SoC runtime 编译和 TFLM 库编译。普通驱动和 `veri/soc_csrc/dsa_accel_mmio.c` 都保留 `reuse=0` 的自动路径；显式非零 reuse 才会按 `DSA_IA_CACHE_BLOCKS` 和输出列 tile 数 clamp。TFLM 的 `conv.cc/depthwise_conv.cc` 也把 `DSA_IA_CACHE_BLOCKS` 编译成 `kMmaIaCacheBlocks` 参与 reuse 选择。\n")
 
     report.append("## 功能正确性与 timeout 处理\n")
     report.append("- 新版大尺寸 cache sweep 已全部 PASS，且没有发现 `FAIL/Mismatch/TIMEOUT/UVM_ERROR/TEST FAIL`。")
