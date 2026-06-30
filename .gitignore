@@ -9,6 +9,7 @@ veri/work/*
 !veri/sim/run_simv_lxc.sh
 !veri/sim/run_axi_soc_c_regression.py
 !veri/sim/run_axi_soc_perf_sweep.py
+!veri/sim/gen_cache_perf_report.py
 
 # Local E203 SoC reference workspace
 e203_soc/
@@ -137,4 +138,5 @@ veri/tb/axi_soc_o3_*/
 veri/tb/axi_soc_pc_*/
 veri/tb/axi_soc_perf_*/
 veri/tb/axi_soc_runtime_*/
+veri/tb/axi_soc_cmp_*/
 veri/tb/axi_soc_ws_*/

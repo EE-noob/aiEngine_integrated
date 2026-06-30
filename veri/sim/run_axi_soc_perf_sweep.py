@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import concurrent.futures
 import csv
 import itertools
 import re
@@ -181,6 +182,54 @@ def write_summary(summary_path, rows):
             )
 
 
+def run_perf_job(job, sim_dir, log_root, exception_root, timeout):
+    label = job["label"]
+    log_path = log_root / f"{label}.log"
+    out_dir = log_root / "sim_out" / label
+    case_name = f"axi_soc_perf_{label}"
+    case_dir = f"../tb/{case_name}"
+    vars_for_make = make_vars(
+        job["seed"], case_name, case_dir, job["size"], job["cache_blocks"],
+        job["ps_frame_count"], job["dims"], job["dataflow"], job["lhs_dtype"],
+        job["quant_mode"], job["ia_reuse"], job["w_reuse"], job["sim_args"])
+    vars_for_make.append(f"OUT_DIR={out_dir}")
+    code, output = run_command(
+        ["make", "sim", *vars_for_make], sim_dir, log_path, timeout)
+    result = "pass" if code == 0 and passed(output) else "fail"
+    cycles = parse_cycles(output)
+    k, n, m = job["dims"]
+    row = {
+        "result": result,
+        "cycles": cycles if cycles is not None else "",
+        "size": job["size"],
+        "cache_blocks": job["cache_blocks"],
+        "ps_frame_count": job["ps_frame_count"],
+        "dataflow": job["dataflow"],
+        "lhs_dtype": job["lhs_dtype"],
+        "quant_mode": job["quant_mode"],
+        "K": k,
+        "N": n,
+        "M": m,
+        "ia_reuse": job["ia_reuse"],
+        "w_reuse": job["w_reuse"],
+        "ia_reuse_eff": job["ia_reuse_eff"],
+        "w_reuse_eff": job["w_reuse_eff"],
+        "seed": job["seed"],
+        "log": str(log_path),
+    }
+    if result != "pass":
+        case_path = (sim_dir / case_dir).resolve()
+        dst = exception_root / label
+        if dst.exists():
+            shutil.rmtree(dst)
+        dst.mkdir(parents=True, exist_ok=True)
+        if case_path.exists():
+            shutil.copytree(case_path, dst / "case")
+        if log_path.exists():
+            shutil.copy2(log_path, dst / log_path.name)
+    return row
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--timeout", type=int, default=900)
@@ -203,6 +252,8 @@ def main():
     parser.add_argument("--keep-going", action="store_true")
     parser.add_argument("--force-compile", action="store_true",
                         help="rebuild simv once per SIZE/CACHE/PS tuple instead of reusing it")
+    parser.add_argument("--jobs", type=int, default=1,
+                        help="number of simulation cases to run in parallel")
     parser.add_argument("--sim-args", default="")
     parser.add_argument("--ddr-rand-lat", action="store_true")
     parser.add_argument("--ddr-cmd-max-lat", type=int, default=3)
@@ -227,9 +278,11 @@ def main():
     explicit_ia_reuse = parse_int_list(args.ia_reuse_list)
     explicit_w_reuse = parse_int_list(args.w_reuse_list)
     sim_args = build_sim_args(args)
+    jobs = max(1, args.jobs)
 
     rows = []
     compiled = set()
+    case_jobs = []
 
     fieldnames = [
         "result", "cycles", "size", "cache_blocks", "ps_frame_count",
@@ -284,58 +337,64 @@ def main():
                     )
                     case_name = f"axi_soc_perf_{label}"
                     case_dir = f"../tb/{case_name}"
-                    log_path = log_root / f"{label}.log"
-                    vars_for_make = make_vars(
-                        args.seed, case_name, case_dir, size, cache_blocks,
-                        ps_frame_count, dims, dataflow, lhs_dtype, quant_mode,
-                        ia_reuse, w_reuse, sim_args)
-                    print(f"run: {label}")
-                    code, output = run_command(
-                        ["make", "sim", *vars_for_make],
-                        sim_dir, log_path, args.timeout)
-                    result = "pass" if code == 0 and passed(output) else "fail"
-                    cycles = parse_cycles(output)
-                    row = {
-                        "result": result,
-                        "cycles": cycles if cycles is not None else "",
+                    case_jobs.append({
+                        "label": label,
+                        "seed": args.seed,
                         "size": size,
                         "cache_blocks": cache_blocks,
                         "ps_frame_count": ps_frame_count,
+                        "dims": dims,
                         "dataflow": dataflow,
                         "lhs_dtype": lhs_dtype,
                         "quant_mode": quant_mode,
-                        "K": k,
-                        "N": n,
-                        "M": m,
                         "ia_reuse": ia_reuse,
                         "w_reuse": w_reuse,
                         "ia_reuse_eff": ia_eff,
                         "w_reuse_eff": w_eff,
-                        "seed": args.seed,
-                        "log": str(log_path),
-                    }
-                    rows.append(row)
-                    writer.writerow(row)
-                    csv_file.flush()
-                    if result == "pass":
-                        if ia_eff != ia_reuse or w_eff != w_reuse:
-                            print(f"pass: cycles={cycles} eff=R{ia_eff}/W{w_eff}")
-                        else:
-                            print(f"pass: cycles={cycles}")
-                    else:
-                        case_path = (sim_dir / case_dir).resolve()
-                        dst = exception_root / label
-                        if dst.exists():
-                            shutil.rmtree(dst)
-                        dst.mkdir(parents=True, exist_ok=True)
-                        if case_path.exists():
-                            shutil.copytree(case_path, dst / "case")
-                        if log_path.exists():
-                            shutil.copy2(log_path, dst / log_path.name)
-                        print(f"fail: log={log_path}")
-                        if not args.keep_going:
-                            write_summary(summary_path, rows)
-                            return 1
+                        "sim_args": sim_args,
+                    })
+
+        def record_row(row):
+            rows.append(row)
+            writer.writerow(row)
+            csv_file.flush()
+            if row["result"] == "pass":
+                if (row["ia_reuse_eff"] != row["ia_reuse"] or
+                        row["w_reuse_eff"] != row["w_reuse"]):
+                    print(
+                        f"pass: {Path(row['log']).stem} cycles={row['cycles']} "
+                        f"eff=R{row['ia_reuse_eff']}/W{row['w_reuse_eff']}"
+                    )
+                else:
+                    print(f"pass: {Path(row['log']).stem} cycles={row['cycles']}")
+            else:
+                print(f"fail: {Path(row['log']).stem} log={row['log']}")
+
+        if jobs == 1:
+            for job in case_jobs:
+                print(f"run: {job['label']}")
+                row = run_perf_job(job, sim_dir, log_root, exception_root, args.timeout)
+                record_row(row)
+                if row["result"] != "pass" and not args.keep_going:
+                    write_summary(summary_path, rows)
+                    return 1
+        else:
+            print(f"running {len(case_jobs)} cases with jobs={jobs}")
+            failed = False
+            with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
+                futures = {
+                    executor.submit(
+                        run_perf_job, job, sim_dir, log_root, exception_root,
+                        args.timeout): job
+                    for job in case_jobs
+                }
+                for future in concurrent.futures.as_completed(futures):
+                    row = future.result()
+                    record_row(row)
+                    failed = failed or row["result"] != "pass"
+            if failed and not args.keep_going:
+                write_summary(summary_path, rows)
+                return 1
 
     write_summary(summary_path, rows)
     print(f"wrote {csv_path}")
