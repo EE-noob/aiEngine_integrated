@@ -46,6 +46,10 @@ module kernel_loader_ctrl #(
   logic [REG_WIDTH-1:0] repeat_total;
   logic [REG_WIDTH-1:0] current_group_width;
   logic [REG_WIDTH-1:0] rows_remaining;
+  logic [REG_WIDTH-1:0] cols_remaining;
+  logic [REG_WIDTH-1:0] valid_n_rows;
+  logic [REG_WIDTH-1:0] valid_m_cols;
+  logic [REG_WIDTH-1:0] elem_bytes;
   logic [REG_WIDTH-1:0] total_tiles;
   logic [REG_WIDTH-1:0] w_reuse_norm;
   logic [REG_WIDTH-1:0] ia_reuse_norm;
@@ -97,6 +101,14 @@ module kernel_loader_ctrl #(
     rows_remaining = (cfg_n > (load_tile_row * SIZE))
                    ? (cfg_n - (load_tile_row * SIZE))
                    : REG_WIDTH'(0);
+    cols_remaining = (cfg_m > (load_tile_col * SIZE))
+                   ? (cfg_m - (load_tile_col * SIZE))
+                   : REG_WIDTH'(0);
+    valid_n_rows = min_u(SIZE, rows_remaining);
+    valid_m_cols = min_u(SIZE, cols_remaining);
+    if (valid_n_rows == 0) valid_n_rows = REG_WIDTH'(1);
+    if (valid_m_cols == 0) valid_m_cols = REG_WIDTH'(1);
+    elem_bytes = cfg_use_16bits ? REG_WIDTH'(2) : REG_WIDTH'(1);
 
     load_complete = (loaded_count >= total_tiles);
 
@@ -110,19 +122,15 @@ module kernel_loader_ctrl #(
     buf_send_start  = (state == S_RUN) && send_weight_trigger && buf_weight_data_valid;
     ctrl_all_done   = (state == S_DONE);
 
+    // W is column-flattened: each DMA "row" is one output column,
+    // and each burst reads contiguous N/K elements from that column.
     dma_tile_base_addr = cfg_rhs_base
-                       + (load_tile_row * SIZE * cfg_rhs_row_stride_b)
-                       + (load_tile_col * SIZE * (cfg_use_16bits ? 2 : 1));
-    dma_rows_to_read   = min_u(SIZE, rows_remaining);
+                       + (load_tile_col * SIZE * cfg_rhs_row_stride_b)
+                       + (load_tile_row * SIZE * elem_bytes);
+    dma_rows_to_read   = valid_m_cols;
     dma_row_stride_b   = cfg_rhs_row_stride_b;
     dma_rhs_zp         = cfg_rhs_zp;
-    if (((load_tile_col + 1) * SIZE) > cfg_m) begin
-      dma_valid_cols = (cfg_m > (load_tile_col * SIZE))
-                     ? (cfg_m - (load_tile_col * SIZE))
-                     : REG_WIDTH'(1);
-    end else begin
-      dma_valid_cols = REG_WIDTH'(SIZE);
-    end
+    dma_valid_cols     = valid_n_rows;
   end
 
   always_ff @(posedge clk or negedge rst_n) begin

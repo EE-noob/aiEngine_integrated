@@ -100,9 +100,8 @@ static uint32_t validate_runtime_case(const soc_runtime_case_t *c)
     }
 
     lhs_elem_bytes = (runtime_lhs_dtype(c) == (uint32_t)DSA_DTYPE_S16) ? 2u : 1u;
-    lhs_stride = (c->dataflow_mode == 0u) ? (c->N * lhs_elem_bytes) :
-                                           (c->K * lhs_elem_bytes);
-    rhs_stride = (c->dataflow_mode == 0u) ? c->M : c->N;
+    lhs_stride = c->N * lhs_elem_bytes;
+    rhs_stride = c->N;
 
     if (c->lhs_row_stride != lhs_stride) {
         return SOC_TEST_FAIL_CONFIG | 0x05u;

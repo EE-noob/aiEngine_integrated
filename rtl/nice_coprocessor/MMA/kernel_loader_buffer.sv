@@ -83,7 +83,7 @@ module kernel_loader_buffer #(
 
       if (row_valid && load_busy) begin
         for (int c = 0; c < SIZE; c++) begin
-          mem[load_slot][row_idx][c] <= row_data[c];
+          mem[load_slot][c][row_idx] <= row_data[c];
         end
       end
 

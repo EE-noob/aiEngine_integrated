@@ -2,12 +2,6 @@
 
 #define DSA_MATMUL_TIMEOUT 2000000u
 
-#ifndef DSA_RHS_REPACK_BYTES
-#define DSA_RHS_REPACK_BYTES (64u * 1024u)
-#endif
-
-static int8_t g_dsa_rhs_repack[DSA_RHS_REPACK_BYTES];
-
 static uint32_t ceil_div_u32(uint32_t a, uint32_t b)
 {
     return (b == 0u) ? 0u : ((a + b - 1u) / b);
@@ -39,52 +33,6 @@ static void dsa_memory_barrier(void)
 #else
     __asm__ volatile("" ::: "memory");
 #endif
-}
-
-static uint32_t repack_rhs_for_ws(dsa_matmul_config_t *config)
-{
-    const int8_t *src;
-    uint32_t src_row_stride;
-    uint32_t total_bytes;
-    uint32_t red;
-    uint32_t out_ch;
-
-    if (config->dataflow_mode != DSA_DATAFLOW_WS) {
-        return DSA_SUCCESS;
-    }
-
-    if ((config->rhs_ptr == 0) || (config->N == 0u) || (config->M == 0u)) {
-        return DSA_ERR_NULL_PTR;
-    }
-
-    if (config->rhs_dtype != DSA_DTYPE_S8) {
-        return DSA_ERR_INVALID_DIM;
-    }
-
-    if (config->M > (0xffffffffu / config->N)) {
-        return DSA_ERR_INVALID_DIM;
-    }
-    total_bytes = config->N * config->M * (uint32_t)sizeof(int8_t);
-    if (total_bytes > DSA_RHS_REPACK_BYTES) {
-        return DSA_ERR_INVALID_DIM;
-    }
-
-    src = (const int8_t *)config->rhs_ptr;
-    src_row_stride = config->rhs_row_stride;
-    if (src_row_stride == 0u) {
-        src_row_stride = config->N * (uint32_t)sizeof(int8_t);
-    }
-
-    for (red = 0u; red < config->N; red++) {
-        for (out_ch = 0u; out_ch < config->M; out_ch++) {
-            g_dsa_rhs_repack[red * config->M + out_ch] =
-                src[out_ch * src_row_stride + red];
-        }
-    }
-
-    config->rhs_ptr = g_dsa_rhs_repack;
-    config->rhs_row_stride = config->M * (uint32_t)sizeof(int8_t);
-    return DSA_SUCCESS;
 }
 
 static void dsa_matmul_legalize_reuse(uint32_t K, uint32_t M,
@@ -280,10 +228,6 @@ uint32_t dsa_matmul_execute(const dsa_matmul_config_t *config)
     }
 
     cfg_local = *config;
-    status = repack_rhs_for_ws(&cfg_local);
-    if (status != DSA_SUCCESS) {
-        return status;
-    }
 
     ia_reuse_num = cfg_local.ia_reuse_num;
     w_reuse_num = cfg_local.w_reuse_num;

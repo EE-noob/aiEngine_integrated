@@ -125,10 +125,8 @@ def emit_runtime_mem(out_dir, cfg, lhs, rhs, bias, expected, dtype_value,
     blob[expected_offset:expected_offset + len(expected_bytes)] = expected_bytes
 
     dataflow_mode = cfg.get("dataflow_mode", 0)
-    is_mode = dataflow_mode == 1
-    lhs_elem_bytes = 2 if dtype_value == 2 else 1
-    lhs_row_stride = cfg["K"] * lhs_elem_bytes if is_mode else cfg["lhs_row_stride"]
-    rhs_row_stride = cfg["N"] if is_mode else cfg["rhs_row_stride"]
+    lhs_row_stride = cfg["lhs_row_stride"]
+    rhs_row_stride = cfg["rhs_row_stride"]
 
     layout_flags = 1 if unaligned_layout else 0
 
@@ -194,20 +192,13 @@ def emit_soc_case_files(out_dir, cfg, random_case=False, unaligned_layout=False)
     n = cfg["N"]
     m = cfg["M"]
     dataflow_mode = cfg.get("dataflow_mode", 0)
-    is_mode = dataflow_mode == 1
     lhs_c_type = "int16_t" if dtype_value == 2 else "int8_t"
     lhs_matrix = read_matrix(os.path.join(out_dir, "lhs.txt"), (k, n))
     rhs_matrix = read_matrix(os.path.join(out_dir, "rhs.txt"), (n, m))
-    if is_mode:
-        lhs = lhs_matrix.T.reshape(k * n)
-        rhs = rhs_matrix.T.reshape(n * m)
-        lhs_row_stride = k * (2 if dtype_value == 2 else 1)
-        rhs_row_stride = n
-    else:
-        lhs = lhs_matrix.reshape(k * n)
-        rhs = rhs_matrix.reshape(n * m)
-        lhs_row_stride = cfg["lhs_row_stride"]
-        rhs_row_stride = cfg["rhs_row_stride"]
+    lhs = lhs_matrix.reshape(k * n)
+    rhs = rhs_matrix.T.reshape(n * m)
+    lhs_row_stride = cfg["lhs_row_stride"]
+    rhs_row_stride = cfg["rhs_row_stride"]
     bias = read_vector(os.path.join(out_dir, "bias.txt"), m)
     expected = read_matrix(os.path.join(out_dir, "expected_dst.txt"), (k, m)).reshape(k * m)
 
@@ -263,8 +254,8 @@ def emit_soc_case_files(out_dir, cfg, random_case=False, unaligned_layout=False)
     c_path = os.path.join(out_dir, "soc_case.c")
     with open(c_path, "w", encoding="utf-8") as f:
         f.write('#include "soc_case.h"\n\n')
-        emit_c_array(f, lhs_c_type, "lhs_data", lhs, per_line=(k if is_mode else n))
-        emit_c_array(f, "int8_t", "rhs_data", rhs, per_line=(n if is_mode else m))
+        emit_c_array(f, lhs_c_type, "lhs_data", lhs, per_line=n)
+        emit_c_array(f, "int8_t", "rhs_data", rhs, per_line=n)
         emit_c_array(f, "int32_t", "bias_data", bias, per_line=m)
         emit_c_array(f, "int8_t", "expected_dst_data", expected, per_line=m, qualifiers="const")
         emit_zero_array(f, "int8_t", "dst_data", k * m, qualifiers="volatile")
