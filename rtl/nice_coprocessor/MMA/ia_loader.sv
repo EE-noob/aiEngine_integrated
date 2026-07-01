@@ -31,6 +31,7 @@ module ia_loader #(
     parameter int unsigned BUS_WIDTH    = 32,
     parameter int unsigned REG_WIDTH    = 32,
     parameter int unsigned CACHE_BLOCKS = 4,
+    parameter int unsigned PS_FRAME_COUNT = SIZE,
     parameter bit          EXTERNAL_DMA = 1'b0
 ) (
     input logic clk,
@@ -349,7 +350,8 @@ module ia_loader #(
         .SIZE        (SIZE),
         .BUS_WIDTH   (BUS_WIDTH),
         .REG_WIDTH   (REG_WIDTH),
-        .CACHE_BLOCKS(CACHE_BLOCKS)
+        .CACHE_BLOCKS(CACHE_BLOCKS),
+        .PS_FRAME_COUNT(PS_FRAME_COUNT)
     ) u_ctrl (
         .clk  (clk),
         .rst_n(rst_n),

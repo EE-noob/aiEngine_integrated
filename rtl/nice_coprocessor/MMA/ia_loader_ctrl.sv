@@ -24,7 +24,8 @@ module ia_loader_ctrl #(
     parameter int unsigned SIZE         = 16,
     parameter int unsigned BUS_WIDTH    = 32,
     parameter int unsigned REG_WIDTH    = 32,
-    parameter int unsigned CACHE_BLOCKS = 4
+    parameter int unsigned CACHE_BLOCKS = 4,
+    parameter int unsigned PS_FRAME_COUNT = SIZE
 ) (
     input  logic clk,
     input  logic rst_n,
@@ -100,6 +101,7 @@ module ia_loader_ctrl #(
   localparam int LOG2_BPB      = $clog2(BYTE_PER_BEAT);
   localparam int SLOT_W        = $clog2(CACHE_BLOCKS);
   localparam int LOAD_CNT_W    = $clog2(CACHE_BLOCKS + 1);
+  localparam int W_CNT_W       = (PS_FRAME_COUNT <= 1) ? 1 : ($clog2(PS_FRAME_COUNT) + 1);
 
   // =====================================================================
   // 状态机
@@ -233,8 +235,21 @@ module ia_loader_ctrl #(
 
   logic ia_iter_last;
   logic w_iter_last;
+  logic ia_iter_last_narrow;
+  logic w_iter_last_narrow;
+  logic retirement_l1_guard;
+  logic [LOAD_CNT_W-1:0] ia_idx_cnt;
+  logic [LOAD_CNT_W-1:0] r_cur_cnt;
+  logic [W_CNT_W-1:0] w_cnt_narrow;
+  logic [W_CNT_W-1:0] w_cur_narrow;
   assign ia_iter_last = (ia_idx == r_cur - 1);
   assign w_iter_last  = (w_cnt == w_cur - 1);
+  assign ia_idx_cnt = ia_idx[LOAD_CNT_W-1:0];
+  assign r_cur_cnt = r_cur[LOAD_CNT_W-1:0];
+  assign w_cnt_narrow = w_cnt[W_CNT_W-1:0];
+  assign w_cur_narrow = w_cur[W_CNT_W-1:0];
+  assign ia_iter_last_narrow = ((ia_idx_cnt + LOAD_CNT_W'(1)) == r_cur_cnt);
+  assign w_iter_last_narrow = ((w_cnt_narrow + W_CNT_W'(1)) == w_cur_narrow);
 
   always_comb begin
     first_w_group_width = (w_groups_total <= REG_WIDTH'(1))
@@ -488,6 +503,9 @@ module ia_loader_ctrl #(
   // L1 组退休条件
   assign retirement_l1 = (state == S_SEND || state == S_LOAD) && cache_tile_done &&
                          ia_iter_last && w_iter_last;
+  assign retirement_l1_guard = cache_tile_done &&
+                               ia_iter_last_narrow &&
+                               w_iter_last_narrow;
 
   // 缓冲区空余容量足以同时容纳当前组和下一组时，可从第一轮 W 复用起预取。
   // 合法配置要求 cfg_ia_reuse_num <= CACHE_BLOCKS/2；该条件只需在 init 锁存一次。
@@ -504,8 +522,8 @@ module ia_loader_ctrl #(
   assign can_prefetch = (state == S_SEND) && !is_final_l1_group &&
                         (can_overlap_prefetch || w_iter_last);
 
-  // 预取进入脉冲。cache_tile_done 当拍会处理 L1 退休，下一拍仍可重新判断预取。
-  assign prefetch_entering = can_prefetch && !prefetch_active && !cache_tile_done;
+  // 预取进入脉冲。只避开 L1 退休拍，保留同组 tile 完成拍的重叠预取机会。
+  assign prefetch_entering = can_prefetch && !prefetch_active && !retirement_l1_guard;
 
   // prefetch_active 寄存器
   always_ff @(posedge clk or negedge rst_n) begin

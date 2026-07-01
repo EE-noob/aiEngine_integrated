@@ -670,6 +670,7 @@ module mma_top #(
 	        .BUS_WIDTH   (BUS_WIDTH),
 	        .REG_WIDTH   (REG_WIDTH),
 	        .CACHE_BLOCKS(IA_CACHE_BLOCKS),
+	        .PS_FRAME_COUNT(PS_FRAME_COUNT),
 	        .EXTERNAL_DMA(1'b1)
 	    ) u_ia_loader (
         .clk             (clk),
