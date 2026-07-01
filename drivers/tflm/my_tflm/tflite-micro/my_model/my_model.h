@@ -26,6 +26,8 @@ int Setup();
  */
 uint8_t* RunInference(const uint8_t* image_data);
 
+uint32_t LastInvokeCycles();
+
 /**
  * @brief 释放模型资源
  */

@@ -10,6 +10,7 @@
 #include "tensorflow/lite/schema/schema_generated.h"
 
 extern "C" void picosoc_uart_init(void);
+extern "C" uint32_t soc_get_cycle(void);
 
 namespace {
 
@@ -48,9 +49,13 @@ int RunOne(tflite::MicroInterpreter* interpreter, int8_t input_value) {
   }
 
   tflite::GetTensorData<int8_t>(input)[0] = input_value;
-  if (interpreter->Invoke() != kTfLiteOk) {
+  const uint32_t invoke_start = soc_get_cycle();
+  TfLiteStatus invoke_status = interpreter->Invoke();
+  const uint32_t invoke_cycles = soc_get_cycle() - invoke_start;
+  if (invoke_status != kTfLiteOk) {
     return -131;
   }
+  printf("[tflm_perf] hello_world invoke_cycles=%u\n", invoke_cycles);
   return tflite::GetTensorData<int8_t>(output)[0];
 }
 

@@ -39,6 +39,8 @@ uint32_t RunMyModelInferenceTest() {
   WriteProgress(0x5a200001u);
   int z_result = ModelInference(g_Z_test_image_data);
   WriteProgress(0x5a200100u | (z_result & 0xff));
+  printf("[tflm_perf] my_model invoke_cycles=%u\n",
+         ModelLastInvokeCycles());
   printf("[tflm] Z result=%d expected=%d\n", z_result, kZIndex);
   if (z_result != kZIndex) {
     return EncodeMismatch(kCaseZ, kZIndex, z_result);
@@ -47,6 +49,8 @@ uint32_t RunMyModelInferenceTest() {
   WriteProgress(0x5a200002u);
   int w_result = ModelInference(g_W_test_image_data);
   WriteProgress(0x5a200200u | (w_result & 0xff));
+  printf("[tflm_perf] my_model invoke_cycles=%u\n",
+         ModelLastInvokeCycles());
   printf("[tflm] W result=%d expected=%d\n", w_result, kWIndex);
   if (w_result != kWIndex) {
     return EncodeMismatch(kCaseW, kWIndex, w_result);

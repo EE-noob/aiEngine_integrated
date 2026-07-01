@@ -16,6 +16,9 @@ int ModelInit(void);
 // 返回: 识别到的类别ID (0~N-1)，如果推理失败返回 -1
 int ModelInference(const uint8_t* image_data);
 
+// 返回最近一次 ModelInference 内部 interpreter->Invoke() 的周期数。
+uint32_t ModelLastInvokeCycles(void);
+
 // 测试用推理函数（带打印输出）
 // 输入: image_data - 图像数据指针
 // 返回: 识别到的字符 (A-Z), 如果推理失败返回 '\0'

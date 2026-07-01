@@ -11,6 +11,7 @@
 #include "tflm_micro_speech_features.h"
 
 extern "C" void picosoc_uart_init(void);
+extern "C" uint32_t soc_get_cycle(void);
 
 namespace {
 
@@ -60,10 +61,14 @@ int RunInference(tflite::MicroInterpreter* interpreter,
   }
 
   WriteProgress(0x5b200001u);
-  if (interpreter->Invoke() != kTfLiteOk) {
+  const uint32_t invoke_start = soc_get_cycle();
+  TfLiteStatus invoke_status = interpreter->Invoke();
+  const uint32_t invoke_cycles = soc_get_cycle() - invoke_start;
+  if (invoke_status != kTfLiteOk) {
     return -4;
   }
   WriteProgress(0x5b200002u);
+  printf("[tflm_perf] micro_speech invoke_cycles=%u\n", invoke_cycles);
 
   const int8_t* scores = tflite::GetTensorData<int8_t>(output);
   int best = 0;
@@ -108,7 +113,8 @@ uint32_t RunMicroSpeechInferenceTest() {
     return 0x94000003u;
   }
   WriteProgress(0x5b100005u);
-  printf("[tflm] tensors allocated arena=%d\n", kTensorArenaSize);
+  printf("[tflm] tensors allocated arena=%d used=%u\n", kTensorArenaSize,
+         static_cast<unsigned>(interpreter.arena_used_bytes()));
 
   int yes_result =
       RunInference(&interpreter, g_tflm_micro_speech_yes_features);

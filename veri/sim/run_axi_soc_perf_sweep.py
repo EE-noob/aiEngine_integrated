@@ -95,28 +95,46 @@ def powers_of_two_upto(limit):
     return values
 
 
+def floor_pow2(value):
+    out = 1
+    while (out << 1) <= max(1, value):
+        out <<= 1
+    return out
+
+
 def ceil_div(a, b):
     return (a + b - 1) // b
 
 
-def default_reuse_lists(size, cache_blocks, dataflow_mode, dims):
+def default_reuse_lists(size, cache_blocks, ps_frame_count, dataflow_mode, dims):
     k, _n, m = dims
+    stream_rows = m if dataflow_mode == 1 else k
     stream_cols = k if dataflow_mode == 1 else m
+    output_row_tiles = max(1, ceil_div(stream_rows, size))
     output_col_tiles = max(1, ceil_div(stream_cols, size))
-    ia_limit = max(1, cache_blocks // 2)
-    w_limit = max(1, min(cache_blocks, output_col_tiles))
+    ps_limit = max(1, ps_frame_count)
+    ia_limit = floor_pow2(min(output_row_tiles, max(1, cache_blocks // 2)))
+    w_limit = floor_pow2(max(1, min(ps_limit, output_col_tiles)))
+    if dataflow_mode == 1:
+        ia_limit = min(ia_limit, w_limit)
     return powers_of_two_upto(ia_limit), powers_of_two_upto(w_limit)
 
 
-def effective_reuse(size, cache_blocks, dataflow_mode, dims, ia_reuse, w_reuse):
+def effective_reuse(size, cache_blocks, ps_frame_count, dataflow_mode, dims, ia_reuse, w_reuse):
     k, _n, m = dims
+    stream_rows = m if dataflow_mode == 1 else k
     stream_cols = k if dataflow_mode == 1 else m
+    output_row_tiles = max(1, ceil_div(stream_rows, size))
     output_col_tiles = max(1, ceil_div(stream_cols, size))
-    ia_max = max(1, cache_blocks // 2)
+    ps_limit = max(1, ps_frame_count)
+    ia_max = floor_pow2(min(output_row_tiles, max(1, cache_blocks // 2)))
+    w_max = floor_pow2(max(1, min(ps_limit, output_col_tiles)))
+    if dataflow_mode == 1:
+        ia_max = min(ia_max, w_max)
     ia_raw = ia_max if ia_reuse == 0 else ia_reuse
-    ia_eff = max(1, min(ia_raw, ia_max))
-    w_raw = output_col_tiles if w_reuse == 0 else w_reuse
-    w_eff = max(1, min(w_raw, output_col_tiles))
+    ia_eff = floor_pow2(max(1, min(ia_raw, ia_max)))
+    w_raw = w_max if w_reuse == 0 else w_reuse
+    w_eff = floor_pow2(max(1, min(w_raw, w_max)))
     if dataflow_mode == 1 and w_eff < ia_eff and output_col_tiles >= ia_eff:
         w_eff = ia_eff
     return ia_eff, w_eff
@@ -164,7 +182,7 @@ def run_command(cmd, cwd, log_path, timeout):
 
 def make_vars(seed, case_name, case_dir, size, cache_blocks, ps_frame_count,
               dims, dataflow_mode, lhs_dtype, quant_mode, ia_reuse, w_reuse,
-              sim_args):
+              sim_args, soc_timeout_cycles=0):
     k, n, m = dims
     vars_for_make = [
         "DUT_MODE=axi_soc",
@@ -192,6 +210,8 @@ def make_vars(seed, case_name, case_dir, size, cache_blocks, ps_frame_count,
     ]
     if sim_args:
         vars_for_make.append(f"SIM_ARGS={sim_args}")
+    if soc_timeout_cycles:
+        vars_for_make.append(f"SOC_TIMEOUT_CYCLES={soc_timeout_cycles}")
     return vars_for_make
 
 
@@ -271,7 +291,8 @@ def run_perf_job(job, sim_dir, log_root, exception_root, timeout):
     vars_for_make = make_vars(
         job["seed"], case_name, case_dir, job["size"], job["cache_blocks"],
         job["ps_frame_count"], job["dims"], job["dataflow"], job["lhs_dtype"],
-        job["quant_mode"], job["ia_reuse"], job["w_reuse"], job["sim_args"])
+        job["quant_mode"], job["ia_reuse"], job["w_reuse"], job["sim_args"],
+        job["soc_timeout_cycles"])
     vars_for_make.append(f"OUT_DIR={out_dir}")
     code, output = run_command(
         ["make", "sim", *vars_for_make], sim_dir, log_path, timeout)
@@ -314,6 +335,8 @@ def run_perf_job(job, sim_dir, log_root, exception_root, timeout):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--timeout", type=int, default=900)
+    parser.add_argument("--soc-timeout-cycles", type=int, default=0,
+                        help="0 keeps the testbench default SOC_TIMEOUT_CYCLES")
     parser.add_argument("--log-root", type=Path, default=Path("runs/axi_soc_perf_sweep"))
     parser.add_argument("--seed", type=int, default=80000)
     parser.add_argument("--sizes", default="16")
@@ -386,7 +409,8 @@ def main():
                     build_vars = make_vars(
                         args.seed, combo_name, f"../tb/{combo_name}",
                         size, cache_blocks, ps_frame_count, dims,
-                        dataflow, lhs_dtype, quant_mode, 0, 0, sim_args)
+                        dataflow, lhs_dtype, quant_mode, 0, 0, sim_args,
+                        args.soc_timeout_cycles)
                     print(f"compile: S{size}_C{cache_blocks}_P{ps_frame_count}")
                     compile_target = "force_com" if args.force_compile else "com"
                     code, _ = run_command(
@@ -400,11 +424,13 @@ def main():
                 if explicit_ia_reuse:
                     ia_values = explicit_ia_reuse
                 else:
-                    ia_values, _ = default_reuse_lists(size, cache_blocks, dataflow, dims)
+                    ia_values, _ = default_reuse_lists(
+                        size, cache_blocks, ps_frame_count, dataflow, dims)
                 if explicit_w_reuse:
                     w_values = explicit_w_reuse
                 else:
-                    _, w_values = default_reuse_lists(size, cache_blocks, dataflow, dims)
+                    _, w_values = default_reuse_lists(
+                        size, cache_blocks, ps_frame_count, dataflow, dims)
                 reuse_pairs = list(itertools.product(ia_values, w_values))
                 if args.include_auto:
                     reuse_pairs.insert(0, (0, 0))
@@ -412,7 +438,8 @@ def main():
                 for ia_reuse, w_reuse in reuse_pairs:
                     k, n, m = dims
                     ia_eff, w_eff = effective_reuse(
-                        size, cache_blocks, dataflow, dims, ia_reuse, w_reuse)
+                        size, cache_blocks, ps_frame_count, dataflow, dims,
+                        ia_reuse, w_reuse)
                     label = (
                         f"S{size}_C{cache_blocks}_P{ps_frame_count}_DF{dataflow}_"
                         f"D{lhs_dtype}_Q{quant_mode}_{k}x{n}x{m}_R{ia_reuse}_W{w_reuse}"
@@ -434,6 +461,7 @@ def main():
                         "ia_reuse_eff": ia_eff,
                         "w_reuse_eff": w_eff,
                         "sim_args": sim_args,
+                        "soc_timeout_cycles": args.soc_timeout_cycles,
                     })
 
         def record_row(row):

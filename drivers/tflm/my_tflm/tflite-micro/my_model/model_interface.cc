@@ -62,6 +62,10 @@ int ModelInference(const uint8_t* image_data) {
     return max_index;
 }
 
+uint32_t ModelLastInvokeCycles(void) {
+    return my_model::LastInvokeCycles();
+}
+
 // 测试用推理函数（带打印输出）
 char ModelInferenceTest(const uint8_t* image_data) {
     if (image_data == nullptr) {

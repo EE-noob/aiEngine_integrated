@@ -66,6 +66,9 @@ SOC_GCC ?= $(if $(SOC_GCC_FROM_PATH),$(SOC_GCC_FROM_PATH),$(SOC_TOOLCHAIN_DIR)/r
 SOC_GXX ?= $(if $(SOC_GXX_FROM_PATH),$(SOC_GXX_FROM_PATH),$(SOC_TOOLCHAIN_DIR)/riscv64-unknown-elf-g++)
 SOC_AR ?= $(if $(SOC_AR_FROM_PATH),$(SOC_AR_FROM_PATH),$(SOC_TOOLCHAIN_DIR)/riscv64-unknown-elf-ar)
 SOC_OBJCOPY ?= $(if $(SOC_OBJCOPY_FROM_PATH),$(SOC_OBJCOPY_FROM_PATH),$(SOC_TOOLCHAIN_DIR)/riscv64-unknown-elf-objcopy)
+SOC_ARCH_FLAGS ?= -march=rv32im -mabi=ilp32
+SOC_ARCH_TAG ?= rv32im
+SOC_BARE_LIBS ?= -lgcc
 SOC_OPT_LEVEL ?= -O3
 HOST_OPT_LEVEL ?= -O3
 SOC_REGRESS_ITERS ?= 10
@@ -88,6 +91,8 @@ SOC_REGRESS_DDR_RSP_MAX_LAT ?= 8
 SOC_REGRESS_UNALIGNED_LAYOUT ?= 0
 SOC_PERF_LOG_ROOT ?= runs/axi_soc_perf_sweep
 SOC_PERF_SEED ?= 80000
+SOC_PERF_TIMEOUT ?= 900
+SOC_PERF_SOC_TIMEOUT_CYCLES ?=
 SOC_PERF_DIMS ?= 32x32x32
 SOC_PERF_SIZE_LIST ?= $(MMA_SIZE)
 SOC_PERF_CACHE_BLOCKS_LIST ?= $(MMA_IA_CACHE_BLOCKS)
@@ -112,7 +117,7 @@ SOC_RUNTIME_BUILD_DIR ?= ../tb/axi_soc_runtime_build_S$(MMA_SIZE)_C$(MMA_IA_CACH
 SOC_RUNTIME_CPU_MEM ?= $(SOC_RUNTIME_BUILD_DIR)/cpu.mem
 TFLM_DIR ?= ../../drivers/tflm/my_tflm
 TFLM_ROOT ?= $(TFLM_DIR)/tflite-micro
-TFLM_BUILD_DIR ?= build-rv32im-S$(MMA_SIZE)-C$(MMA_IA_CACHE_BLOCKS)-P$(MMA_PS_FRAME_COUNT)
+TFLM_BUILD_DIR ?= build-$(SOC_ARCH_TAG)-S$(MMA_SIZE)-C$(MMA_IA_CACHE_BLOCKS)-P$(MMA_PS_FRAME_COUNT)
 TFLM_LIB ?= $(TFLM_DIR)/$(TFLM_BUILD_DIR)/libtflite-micro.a
 TFLM_GENFILES ?= $(TFLM_ROOT)/gen/linux_x86_64_default/genfiles
 TFLM_HOST_BUILD_DIR ?= build-host
@@ -125,11 +130,19 @@ TFLM_HELLO_WORLD_TIMEOUT_CYCLES ?= 5000000
 TFLM_PERSON_DETECTION_TIMEOUT_CYCLES ?= 320000000
 SOC_HW_DEFINES := -DDSA_TILE_SIZE=$(MMA_SIZE) -DDSA_IA_CACHE_BLOCKS=$(MMA_IA_CACHE_BLOCKS) -DDSA_PS_FRAME_COUNT=$(MMA_PS_FRAME_COUNT)
 TFLM_EXTRA_DEFINES ?=
+TFLM_NMSIS_NN_SOURCE_DIR := $(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/nuclei_sdk/NMSIS/NN/Source
+TFLM_NMSIS_SRCS := $(wildcard $(TFLM_NMSIS_NN_SOURCE_DIR)/*/*.c)
 TFLM_RV32_REBUILD_DEPS := \
+                $(TFLM_DIR)/Makefile \
                 $(TFLM_ROOT)/tensorflow/lite/micro/kernels/conv.cc \
                 $(TFLM_ROOT)/tensorflow/lite/micro/kernels/depthwise_conv.cc \
                 $(TFLM_ROOT)/tensorflow/lite/micro/kernels/fully_connected.cc \
-                $(TFLM_ROOT)/my_model/my_model.cc
+                $(TFLM_ROOT)/tensorflow/lite/micro/kernels/nmsis_nn/conv.cc \
+                $(TFLM_ROOT)/tensorflow/lite/micro/kernels/nmsis_nn/depthwise_conv.cc \
+                $(TFLM_ROOT)/tensorflow/lite/micro/kernels/nmsis_nn/fully_connected.cc \
+                $(TFLM_ROOT)/my_model/my_model.cc \
+                $(TFLM_ROOT)/my_model/model_interface.cc \
+                $(TFLM_NMSIS_SRCS)
 
 TFLM_INCLUDES = -I$(TFLM_ROOT) \
                 -I$(TFLM_ROOT)/gen \
@@ -140,7 +153,7 @@ TFLM_INCLUDES = -I$(TFLM_ROOT) \
                 -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/flatbuffers/include \
                 -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/kissfft \
                 -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/ruy
-TFLM_CXXFLAGS = -march=rv32im -mabi=ilp32 $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) $(TFLM_EXTRA_DEFINES) \
+TFLM_CXXFLAGS = $(SOC_ARCH_FLAGS) $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) $(TFLM_EXTRA_DEFINES) \
                 -std=c++17 -fno-rtti -fno-exceptions -fno-threadsafe-statics \
                 -fno-unwind-tables -ffunction-sections -fdata-sections \
                 -fmessage-length=0 -DNDEBUG -DTF_LITE_STRIP_ERROR_STRINGS \
@@ -276,21 +289,21 @@ soc_case:
 soc_c: soc_case
 > @mkdir -p $(SOC_CASE_DIR)
 > @echo "[SOC_C] $(SOC_C_SRC) -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GCC) -march=rv32im -mabi=ilp32 $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) -ffreestanding -nostdlib -nostartfiles -DPICOSOC_UART_CLKDIV=$(SOC_UART_CLKDIV) -I../soc_csrc -I$(SOC_CASE_DIR) -T ../soc_csrc/link.ld ../soc_csrc/start.S ../soc_csrc/picosoc_bsp.c ../soc_csrc/dsa_accel_mmio.c $(SOC_CASE_DIR)/soc_case.c $(SOC_C_SRC) -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_GCC) $(SOC_ARCH_FLAGS) $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) -ffreestanding -nostdlib -nostartfiles -DPICOSOC_UART_CLKDIV=$(SOC_UART_CLKDIV) -I../soc_csrc -I$(SOC_CASE_DIR) -T ../soc_csrc/link.ld ../soc_csrc/start.S ../soc_csrc/picosoc_bsp.c ../soc_csrc/dsa_accel_mmio.c $(SOC_CASE_DIR)/soc_case.c $(SOC_C_SRC) $(SOC_BARE_LIBS) -o $(SOC_CASE_DIR)/cpu.elf
 > $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
 > python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 $(SOC_RUNTIME_CPU_MEM): $(SOC_RUNTIME_C_SRC) ../soc_csrc/start.S ../soc_csrc/picosoc_bsp.c ../soc_csrc/picosoc_bsp.h ../soc_csrc/dsa_accel_mmio.c ../soc_csrc/dsa_accel_mmio.h ../soc_csrc/link.ld Makefile
 > @mkdir -p $(@D)
 > @echo "[SOC_RUNTIME_C] $(SOC_RUNTIME_C_SRC) -> $@"
-> $(SOC_GCC) -march=rv32im -mabi=ilp32 $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) -DSOC_RUNTIME_CASE_BASE=$(SOC_RUNTIME_BASE_ADDR) -ffreestanding -nostdlib -nostartfiles -DPICOSOC_UART_CLKDIV=$(SOC_UART_CLKDIV) -I../soc_csrc -T ../soc_csrc/link.ld ../soc_csrc/start.S ../soc_csrc/picosoc_bsp.c ../soc_csrc/dsa_accel_mmio.c $(SOC_RUNTIME_C_SRC) -o $(@D)/cpu.elf
+> $(SOC_GCC) $(SOC_ARCH_FLAGS) $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) -DSOC_RUNTIME_CASE_BASE=$(SOC_RUNTIME_BASE_ADDR) -ffreestanding -nostdlib -nostartfiles -DPICOSOC_UART_CLKDIV=$(SOC_UART_CLKDIV) -I../soc_csrc -T ../soc_csrc/link.ld ../soc_csrc/start.S ../soc_csrc/picosoc_bsp.c ../soc_csrc/dsa_accel_mmio.c $(SOC_RUNTIME_C_SRC) $(SOC_BARE_LIBS) -o $(@D)/cpu.elf
 > $(SOC_OBJCOPY) -O binary $(@D)/cpu.elf $(@D)/cpu.bin
 > python3 ../tb/elf_to_mem.py $(@D)/cpu.bin $@ --depth $(SOC_CPU_MEM_DP)
 
 soc_runtime_c: $(SOC_RUNTIME_CPU_MEM)
 
 $(TFLM_LIB): $(TFLM_RV32_REBUILD_DEPS)
-> $(MAKE) -C $(TFLM_DIR) BUILD_DIR=$(TFLM_BUILD_DIR) CC=$(SOC_GCC) CXX=$(SOC_GXX) AR=$(SOC_AR) TARGET_FLAGS="-march=rv32im -mabi=ilp32 $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) $(TFLM_EXTRA_DEFINES) -DTFLM_SOC_PROGRESS -DTFLM_SOC_MMA" BUILD_TYPE=Release $(TFLM_BUILD_DIR)/libtflite-micro.a
+> $(MAKE) -C $(TFLM_DIR) BUILD_DIR=$(TFLM_BUILD_DIR) CC=$(SOC_GCC) CXX=$(SOC_GXX) AR=$(SOC_AR) TARGET_FLAGS="$(SOC_ARCH_FLAGS) $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) $(TFLM_EXTRA_DEFINES) -DTFLM_SOC_PROGRESS -DTFLM_SOC_MMA" BUILD_TYPE=Release $(TFLM_BUILD_DIR)/libtflite-micro.a
 
 $(TFLM_HOST_LIB):
 > $(MAKE) -C $(TFLM_DIR) BUILD_DIR=$(TFLM_HOST_BUILD_DIR) TARGET_FLAGS="$(HOST_OPT_LEVEL)" BUILD_TYPE=Release $(TFLM_HOST_BUILD_DIR)/libtflite-micro.a
@@ -349,7 +362,7 @@ soc_regress:
 > @python3 ./run_axi_soc_c_regression.py --iterations $(SOC_REGRESS_ITERS) --start-seed $(SOC_REGRESS_START_SEED) --timeout $(SOC_REGRESS_TIMEOUT) --log-root $(SOC_REGRESS_LOG_ROOT) --sizes "$(SOC_SIZE_LIST)" --cache-blocks "$(SOC_CACHE_BLOCKS_LIST)" --ps-frame-counts "$(SOC_PS_FRAME_COUNT_LIST)" --dataflow-modes "$(SOC_DATAFLOW_MODE_LIST)" --lhs-dtypes "$(SOC_REGRESS_LHS_DTYPE_LIST)" --quant-modes "$(SOC_REGRESS_QUANT_MODE_LIST)" --dim-multiple $(SOC_REGRESS_DIM_MULTIPLE) --sim-args "$(SOC_REGRESS_SIM_ARGS)" --ddr-cmd-max-lat $(SOC_REGRESS_DDR_CMD_MAX_LAT) --ddr-w-max-lat $(SOC_REGRESS_DDR_W_MAX_LAT) --ddr-rsp-max-lat $(SOC_REGRESS_DDR_RSP_MAX_LAT) $(if $(SOC_REGRESS_SOC_TIMEOUT_CYCLES),--soc-timeout-cycles $(SOC_REGRESS_SOC_TIMEOUT_CYCLES),) $(if $(filter 1 yes true TRUE,$(SOC_REGRESS_DDR_RAND_LAT)),--ddr-rand-lat,) $(if $(filter 1 yes true TRUE,$(SOC_REGRESS_UNALIGNED_LAYOUT)),--unaligned-layout,) $(if $(SOC_MIN_DIM),--min-dim $(SOC_MIN_DIM),) $(if $(SOC_MAX_DIM),--max-dim $(SOC_MAX_DIM),)
 
 soc_perf_sweep:
-> @python3 ./run_axi_soc_perf_sweep.py --seed $(SOC_PERF_SEED) --log-root $(SOC_PERF_LOG_ROOT) --dims "$(SOC_PERF_DIMS)" --sizes "$(SOC_PERF_SIZE_LIST)" --cache-blocks "$(SOC_PERF_CACHE_BLOCKS_LIST)" --ps-frame-counts "$(SOC_PERF_PS_FRAME_COUNT_LIST)" --dataflow-modes "$(SOC_PERF_DATAFLOW_MODE_LIST)" --lhs-dtypes "$(SOC_PERF_LHS_DTYPE_LIST)" --quant-modes "$(SOC_PERF_QUANT_MODE_LIST)" --ia-reuse-list "$(SOC_PERF_IA_REUSE_LIST)" --w-reuse-list "$(SOC_PERF_W_REUSE_LIST)" --jobs $(SOC_PERF_JOBS) --sim-args "$(SOC_PERF_SIM_ARGS)" --ddr-cmd-max-lat $(SOC_PERF_DDR_CMD_MAX_LAT) --ddr-w-max-lat $(SOC_PERF_DDR_W_MAX_LAT) --ddr-rsp-max-lat $(SOC_PERF_DDR_RSP_MAX_LAT) $(if $(filter 1 yes true TRUE,$(SOC_PERF_INCLUDE_AUTO)),--include-auto,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_KEEP_GOING)),--keep-going,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_FORCE_COMPILE)),--force-compile,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_DDR_RAND_LAT)),--ddr-rand-lat,)
+> @python3 ./run_axi_soc_perf_sweep.py --seed $(SOC_PERF_SEED) --timeout $(SOC_PERF_TIMEOUT) --log-root $(SOC_PERF_LOG_ROOT) --dims "$(SOC_PERF_DIMS)" --sizes "$(SOC_PERF_SIZE_LIST)" --cache-blocks "$(SOC_PERF_CACHE_BLOCKS_LIST)" --ps-frame-counts "$(SOC_PERF_PS_FRAME_COUNT_LIST)" --dataflow-modes "$(SOC_PERF_DATAFLOW_MODE_LIST)" --lhs-dtypes "$(SOC_PERF_LHS_DTYPE_LIST)" --quant-modes "$(SOC_PERF_QUANT_MODE_LIST)" --ia-reuse-list "$(SOC_PERF_IA_REUSE_LIST)" --w-reuse-list "$(SOC_PERF_W_REUSE_LIST)" --jobs $(SOC_PERF_JOBS) --sim-args "$(SOC_PERF_SIM_ARGS)" --ddr-cmd-max-lat $(SOC_PERF_DDR_CMD_MAX_LAT) --ddr-w-max-lat $(SOC_PERF_DDR_W_MAX_LAT) --ddr-rsp-max-lat $(SOC_PERF_DDR_RSP_MAX_LAT) $(if $(SOC_PERF_SOC_TIMEOUT_CYCLES),--soc-timeout-cycles $(SOC_PERF_SOC_TIMEOUT_CYCLES),) $(if $(filter 1 yes true TRUE,$(SOC_PERF_INCLUDE_AUTO)),--include-auto,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_KEEP_GOING)),--keep-going,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_FORCE_COMPILE)),--force-compile,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_DDR_RAND_LAT)),--ddr-rand-lat,)
 
 tflm_my_model_run:
 > $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm SOC_CASE=axi_soc_tflm case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MY_MODEL_TIMEOUT_CYCLES))

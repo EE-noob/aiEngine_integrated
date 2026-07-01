@@ -17,6 +17,7 @@
 #include "tensorflow/lite/schema/schema_generated.h"
 
 extern "C" void picosoc_uart_init(void);
+extern "C" uint32_t soc_get_cycle(void);
 
 namespace {
 
@@ -80,9 +81,13 @@ int RunInference(tflite::MicroInterpreter* interpreter,
   }
 
   memcpy(input->data.int8, image_data, input->bytes);
-  if (interpreter->Invoke() != kTfLiteOk) {
+  const uint32_t invoke_start = soc_get_cycle();
+  TfLiteStatus invoke_status = interpreter->Invoke();
+  const uint32_t invoke_cycles = soc_get_cycle() - invoke_start;
+  if (invoke_status != kTfLiteOk) {
     return -6;
   }
+  printf("[tflm_perf] person_detection invoke_cycles=%u\n", invoke_cycles);
 
   *person_score = output->data.int8[kPersonIndex];
   *no_person_score = output->data.int8[kNotAPersonIndex];

@@ -19,17 +19,23 @@ namespace {
 const tflite::Model* model = nullptr;
 tflite::MicroInterpreter* interpreter = nullptr;
 TfLiteTensor* input = nullptr;
+uint32_t last_invoke_cycles = 0;
 
 // Tensor arena - 与justure_detection保持一致的大小和对齐
 constexpr int kTensorArenaSize = TENSOR_ARENA_SIZE;
 alignas(16) static uint8_t tensor_arena[kTensorArenaSize];
 
 #if defined(TFLM_SOC_PROGRESS)
+extern "C" uint32_t soc_get_cycle(void);
+
 void SocProgress(uint32_t value) {
   *reinterpret_cast<volatile uint32_t*>(0x2000000cu) = value;
 }
+
+uint32_t ReadCycle() { return soc_get_cycle(); }
 #else
 void SocProgress(uint32_t value) { (void)value; }
+uint32_t ReadCycle() { return 0; }
 #endif
 }  // namespace
 
@@ -133,12 +139,15 @@ uint8_t* RunInference(const uint8_t* image_data) {
 
   // 运行模型推理
   SocProgress(0x5a210002u);
+  const uint32_t invoke_start = ReadCycle();
   if (kTfLiteOk != interpreter->Invoke()) {
+    last_invoke_cycles = ReadCycle() - invoke_start;
 #if !defined(TFLM_SOC_QUIET)
     MicroPrintf("Invoke failed.");
 #endif
     return nullptr;
   }
+  last_invoke_cycles = ReadCycle() - invoke_start;
 
   SocProgress(0x5a210003u);
   TfLiteTensor* output = interpreter->output(0);
@@ -149,6 +158,8 @@ uint8_t* RunInference(const uint8_t* image_data) {
 
 // 辅助函数
 TfLiteTensor* GetInputTensor() { return input; }
+
+uint32_t LastInvokeCycles() { return last_invoke_cycles; }
 
 TfLiteTensor* GetOutputTensor() {
   if (!interpreter) {

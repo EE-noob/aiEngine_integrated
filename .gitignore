@@ -138,6 +138,7 @@ veri/tb/axi_soc_o3_*/
 veri/tb/axi_soc_pc_*/
 veri/tb/axi_soc_perf_*/
 veri/tb/axi_soc_runtime_*/
+veri/tb/axi_soc_reuse_*/
 veri/tb/axi_soc_util_*/
 veri/tb/axi_soc_cmp_*/
 veri/tb/axi_soc_ws_*/
