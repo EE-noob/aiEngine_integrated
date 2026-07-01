@@ -1,0 +1,1115 @@
+#include "riscv_nn_mat_mult_acc.h"
+#include "riscv_nnfunctions.h"
+#include "riscv_nnsupportfunctions.h"
+#include <stdio.h>
+#include <string.h>
+
+#include "dsa_accel.h"
+
+// 公共 helper: 填充基础 DSA config (不含步进)
+static void dsa_matmul_common_init(dsa_matmul_config_t *cfg)
+{
+    dsa_matmul_config_init(cfg);
+    cfg->rhs_dtype = DSA_DTYPE_S8;
+    cfg->bias_dtype = DSA_DTYPE_S32;
+    cfg->out_dtype = DSA_DTYPE_S8;
+    cfg->rhs_offset = 0; // 权重对称量化
+}
+
+// 对应 riscv_nn_mat_mult_nt_t_s8
+riscv_nmsis_nn_status riscv_nn_mat_mult_nt_t_s8_acc(
+    const int8_t *lhs, const int8_t *rhs, const int32_t *bias, int8_t *dst,
+    const int32_t *dst_multipliers, const int32_t *dst_shifts,
+    const int32_t lhs_rows, const int32_t rhs_rows, const int32_t rhs_cols,
+    const int32_t lhs_offset, const int32_t dst_offset,
+    const int32_t activation_min, const int32_t activation_max,
+    const int32_t row_address_offset, const int32_t lhs_cols_offset)
+{
+    (void)row_address_offset;
+    (void)lhs_cols_offset;
+
+    dsa_matmul_config_t cfg;
+    dsa_matmul_common_init(&cfg);
+
+    cfg.lhs_ptr = lhs;
+    cfg.rhs_ptr = rhs;
+    cfg.dst_ptr = dst;
+    cfg.bias_ptr = bias;
+
+    cfg.K = (uint32_t)lhs_rows;
+    cfg.N = (uint32_t)rhs_cols;
+    cfg.M = (uint32_t)rhs_rows;
+
+    cfg.lhs_dtype = DSA_DTYPE_S8;
+
+    // 行步长: LHS dense, RHS 每行 N, DST 每行 M
+    cfg.lhs_row_stride = cfg.N * sizeof(int8_t);
+    cfg.rhs_row_stride = cfg.N * sizeof(int8_t);
+    cfg.dst_row_stride = cfg.M * sizeof(int8_t);
+
+    // 量化
+    cfg.quant_mode = DSA_QUANT_PER_CHANNEL;
+    cfg.lhs_offset = lhs_offset;
+    cfg.dst_offset = dst_offset;
+    cfg.act_min = activation_min;
+    cfg.act_max = activation_max;
+
+    cfg.dst_mult_ptr = dst_multipliers;
+    cfg.dst_shift_ptr = dst_shifts;
+
+    // printf("K=%d, N=%d, M=%d\n", cfg.K, cfg.N, cfg.M);
+    // printf("lhs_row_stride=%d, rhs_row_stride=%d, dst_row_stride=%d\n",
+    //        cfg.lhs_row_stride, cfg.rhs_row_stride, cfg.dst_row_stride);
+
+    uint32_t status = dsa_matmul_execute(&cfg);
+    return (status == DSA_SUCCESS) ? RISCV_NMSIS_NN_SUCCESS
+                                   : RISCV_NMSIS_NN_FAILURE;
+}
+
+int8_t *riscv_nn_mat_mult_kernel_s8_s16_acc_old(
+    const int8_t *input_a, const int16_t *input_b, const uint16_t output_ch,
+    const int32_t *out_shift, const int32_t *out_mult, const int32_t out_offset,
+    const int16_t activation_min, const int16_t activation_max,
+    const int32_t num_col_a, const int32_t aligned_num_col_a,
+    const int32_t *const output_bias, int8_t *out_0)
+{
+    dsa_matmul_config_t cfg;
+    dsa_matmul_common_init(&cfg);
+
+    cfg.lhs_ptr = input_b; // s16, LHS
+    cfg.rhs_ptr = input_a; // s8, RHS
+    cfg.dst_ptr = out_0;
+    cfg.bias_ptr = output_bias;
+
+    cfg.K = 2;                   // 该内核一次处理2“行”输入, 由调用者循环
+    cfg.N = (uint32_t)num_col_a; // 累加深度
+    cfg.M = (uint32_t)output_ch; // output_ch
+
+    cfg.lhs_dtype = DSA_DTYPE_S16;
+    cfg.rhs_dtype = DSA_DTYPE_S8;
+
+    // 行步长:
+    cfg.lhs_row_stride = aligned_num_col_a * sizeof(int16_t); // input_b 行步长
+    cfg.rhs_row_stride = cfg.N * sizeof(int8_t);              // input_a 行步长
+    cfg.dst_row_stride = cfg.M * sizeof(int8_t);              // 单行输出
+
+    // 量化: per-channel
+    cfg.quant_mode = DSA_QUANT_PER_CHANNEL;
+    cfg.lhs_offset = 0; // 原 SW 内核不加 lhs_offset
+    cfg.dst_offset = out_offset;
+    cfg.act_min = activation_min;
+    cfg.act_max = activation_max;
+
+    cfg.dst_mult_ptr = out_mult;
+    cfg.dst_shift_ptr = out_shift;
+
+    uint32_t status = dsa_matmul_execute(&cfg);
+
+    // 与原内核保持接口: 返回 out_0 行尾后指针 (C 行主序, 长度=output_ch)
+    return out_0 + output_ch * 2;
+}
+
+int8_t *riscv_nn_mat_mult_kernel_row_offset_s8_s16_acc_old(
+    const int8_t *input_a, const int16_t *input_b, const uint16_t output_ch,
+    const int32_t *out_shift, const int32_t *out_mult, const int32_t out_offset,
+    const int16_t activation_min, const int16_t activation_max,
+    const int32_t num_col_a, const int32_t aligned_num_col_a,
+    const int32_t *const output_bias, const int32_t row_address_offset,
+    int8_t *out_0)
+{
+    dsa_matmul_config_t cfg;
+    dsa_matmul_common_init(&cfg);
+
+    cfg.lhs_ptr = input_b;
+    cfg.rhs_ptr = input_a;
+    cfg.dst_ptr = out_0;
+    cfg.bias_ptr = output_bias;
+
+    cfg.K = 2;
+    cfg.N = (uint32_t)num_col_a;
+    cfg.M = (uint32_t)output_ch;
+
+    cfg.lhs_dtype = DSA_DTYPE_S16;
+    cfg.rhs_dtype = DSA_DTYPE_S8;
+
+    cfg.lhs_row_stride = aligned_num_col_a * sizeof(int16_t);
+    cfg.rhs_row_stride = cfg.N * sizeof(int8_t);
+
+    // 特殊: 输出行步长由 row_address_offset 控制
+    cfg.dst_row_stride = (uint32_t)row_address_offset;
+
+    cfg.quant_mode = DSA_QUANT_PER_CHANNEL;
+    cfg.lhs_offset = 0;
+    cfg.dst_offset = out_offset;
+    cfg.act_min = activation_min;
+    cfg.act_max = activation_max;
+
+    cfg.dst_mult_ptr = out_mult;
+    cfg.dst_shift_ptr = out_shift;
+
+    uint32_t status = dsa_matmul_execute(&cfg);
+    (void)status;
+
+    // 与原内核保持接口: out_0 最终返回值 = 当前行首 + 2*row_address_offset -
+    // output_ch
+    return out_0 + row_address_offset * 2;
+}
+
+int8_t *riscv_nn_mat_mult_kernel_s8_s16_acc(
+    const int8_t *input_a, const int16_t *input_b, const uint16_t output_ch,
+    const int32_t *out_shift, const int32_t *out_mult, const int32_t out_offset,
+    const int16_t activation_min, const int16_t activation_max,
+    const int32_t num_col_a, const int32_t aligned_num_col_a,
+    const int32_t *const output_bias, int8_t *out_0, const int32_t num_row_b)
+{
+    dsa_matmul_config_t cfg;
+    dsa_matmul_common_init(&cfg);
+
+    cfg.lhs_ptr = input_b; // s16, LHS
+    cfg.rhs_ptr = input_a; // s8, RHS
+    cfg.dst_ptr = out_0;
+    cfg.bias_ptr = output_bias;
+
+    cfg.K = (uint32_t)num_row_b;
+    cfg.N = (uint32_t)num_col_a;
+    cfg.M = (uint32_t)output_ch;
+
+    cfg.lhs_dtype = DSA_DTYPE_S16;
+    cfg.rhs_dtype = DSA_DTYPE_S8;
+
+    cfg.lhs_row_stride = aligned_num_col_a * sizeof(int16_t);
+    cfg.rhs_row_stride = cfg.N * sizeof(int8_t);
+    cfg.dst_row_stride = cfg.M * sizeof(int8_t);
+
+    cfg.quant_mode = DSA_QUANT_PER_CHANNEL;
+    cfg.lhs_offset = 0;
+    cfg.dst_offset = out_offset;
+    cfg.act_min = activation_min;
+    cfg.act_max = activation_max;
+
+    cfg.dst_mult_ptr = out_mult;
+    cfg.dst_shift_ptr = out_shift;
+
+    uint32_t status = dsa_matmul_execute(&cfg);
+
+    return out_0 + output_ch * num_row_b;
+}
+
+int8_t *riscv_nn_mat_mult_kernel_row_offset_s8_s16_acc(
+    const int8_t *input_a, const int16_t *input_b, const uint16_t output_ch,
+    const int32_t *out_shift, const int32_t *out_mult, const int32_t out_offset,
+    const int16_t activation_min, const int16_t activation_max,
+    const int32_t num_col_a, const int32_t aligned_num_col_a,
+    const int32_t *const output_bias, const int32_t row_address_offset,
+    int8_t *out_0, const int32_t num_row_b)
+{
+    dsa_matmul_config_t cfg;
+    dsa_matmul_common_init(&cfg);
+
+    cfg.lhs_ptr = input_b;
+    cfg.rhs_ptr = input_a;
+    cfg.dst_ptr = out_0;
+    cfg.bias_ptr = output_bias;
+
+    cfg.K = (uint32_t)num_row_b;
+    cfg.N = (uint32_t)num_col_a;
+    cfg.M = (uint32_t)output_ch;
+
+    cfg.lhs_dtype = DSA_DTYPE_S16;
+    cfg.rhs_dtype = DSA_DTYPE_S8;
+
+    cfg.lhs_row_stride = aligned_num_col_a * sizeof(int16_t);
+    cfg.rhs_row_stride = cfg.N * sizeof(int8_t);
+
+    // 特殊: 输出行步长由 row_address_offset 控制
+    cfg.dst_row_stride = (uint32_t)row_address_offset;
+
+    cfg.quant_mode = DSA_QUANT_PER_CHANNEL;
+    cfg.lhs_offset = 0;
+    cfg.dst_offset = out_offset;
+    cfg.act_min = activation_min;
+    cfg.act_max = activation_max;
+
+    cfg.dst_mult_ptr = out_mult;
+    cfg.dst_shift_ptr = out_shift;
+
+    uint32_t status = dsa_matmul_execute(&cfg);
+    (void)status;
+
+    // 与原内核保持接口: out_0 最终返回值 = 当前行首 + num_row_b*row_address_offset
+    return out_0 + (num_row_b * row_address_offset);
+}
+
+riscv_nmsis_nn_status riscv_fully_connected_s8_acc(const nmsis_nn_context *ctx,
+                                                   const nmsis_nn_fc_params *fc_params,
+                                                   const nmsis_nn_per_tensor_quant_params *quant_params,
+                                                   const nmsis_nn_dims *input_dims,
+                                                   const int8_t *input,
+                                                   const nmsis_nn_dims *filter_dims,
+                                                   const int8_t *kernel,
+                                                   const nmsis_nn_dims *bias_dims,
+                                                   const int32_t *bias,
+                                                   const nmsis_nn_dims *output_dims,
+                                                   int8_t *output)
+{
+    (void)ctx; // DSA 不使用缓冲区
+    (void)bias_dims;
+
+    int32_t batch_cnt = input_dims->n;
+
+    dsa_matmul_config_t cfg;
+    dsa_matmul_config_init(&cfg);
+    cfg.lhs_dtype = DSA_DTYPE_S8;
+    cfg.rhs_dtype = DSA_DTYPE_S8;
+    cfg.bias_dtype = DSA_DTYPE_S32;
+    cfg.out_dtype = DSA_DTYPE_S8;
+
+    cfg.lhs_ptr = input;
+    cfg.rhs_ptr = kernel;
+    cfg.dst_ptr = output;
+    cfg.bias_ptr = bias;
+
+    cfg.K = (uint32_t)batch_cnt;           // 直接使用batch_cnt作为K尺寸
+    cfg.N = (uint32_t)filter_dims->n; // 累加深度
+    cfg.M = (uint32_t)output_dims->c; // 输出深度
+
+    cfg.lhs_row_stride = cfg.N * sizeof(int8_t); // 输入向量步长（每行N元素）
+    cfg.rhs_row_stride = cfg.N * sizeof(int8_t); // kernel 行步长
+    cfg.dst_row_stride = cfg.M * sizeof(int8_t); // 输出行步长
+
+    cfg.quant_mode = DSA_QUANT_PER_TENSOR; // per-tensor 量化
+    cfg.lhs_offset = fc_params->input_offset;
+    cfg.rhs_offset = fc_params->filter_offset;
+    cfg.dst_offset = fc_params->output_offset;
+    cfg.act_min = fc_params->activation.min;
+    cfg.act_max = fc_params->activation.max;
+
+    cfg.dst_mult = quant_params->multiplier; // per-tensor multiplier
+    cfg.dst_shift = quant_params->shift;     // per-tensor shift
+
+    uint32_t status = dsa_matmul_execute(&cfg);
+    if (status != DSA_SUCCESS)
+    {
+      return RISCV_NMSIS_NN_FAILURE;
+    }
+
+    return RISCV_NMSIS_NN_SUCCESS;
+}
+
+/*
+ * S8 basic fully-connected and matrix multiplication layer function using per-channel quantization for TensorFlow Lite
+ *
+ * Refer header file for details.
+ *
+ */
+riscv_nmsis_nn_status riscv_fully_connected_per_channel_s8_acc(const nmsis_nn_context *ctx,
+                                                               const nmsis_nn_fc_params *fc_params,
+                                                               const nmsis_nn_per_channel_quant_params *quant_params,
+                                                               const nmsis_nn_dims *input_dims,
+                                                               const int8_t *input_data,
+                                                               const nmsis_nn_dims *filter_dims,
+                                                               const int8_t *kernel,
+                                                               const nmsis_nn_dims *bias_dims,
+                                                               const int32_t *bias_data,
+                                                               const nmsis_nn_dims *output_dims,
+                                                               int8_t *output_data)
+{
+    (void)ctx; // DSA 不使用缓冲区
+    (void)bias_dims;
+
+    int32_t batch_cnt = input_dims->n;
+
+    dsa_matmul_config_t cfg;
+    dsa_matmul_config_init(&cfg);
+    cfg.lhs_dtype = DSA_DTYPE_S8;
+    cfg.rhs_dtype = DSA_DTYPE_S8;
+    cfg.bias_dtype = DSA_DTYPE_S32;
+    cfg.out_dtype = DSA_DTYPE_S8;
+
+    cfg.lhs_ptr = input_data;
+    cfg.rhs_ptr = kernel;
+    cfg.dst_ptr = output_data;
+    cfg.bias_ptr = bias_data;
+
+    cfg.K = (uint32_t)batch_cnt;           // 直接使用batch_cnt作为K尺寸
+    cfg.N = (uint32_t)filter_dims->n; // 累加深度
+    cfg.M = (uint32_t)output_dims->c; // 输出深度
+
+    cfg.lhs_row_stride = cfg.N * sizeof(int8_t); // 输入向量步长（每行N元素）
+    cfg.rhs_row_stride = cfg.N * sizeof(int8_t); // kernel 行步长
+    cfg.dst_row_stride = cfg.M * sizeof(int8_t); // 输出行步长
+
+    cfg.quant_mode = DSA_QUANT_PER_CHANNEL; // per-channel 量化
+    cfg.lhs_offset = fc_params->input_offset;
+    cfg.rhs_offset = fc_params->filter_offset;
+    cfg.dst_offset = fc_params->output_offset;
+    cfg.act_min = fc_params->activation.min;
+    cfg.act_max = fc_params->activation.max;
+
+    cfg.dst_mult_ptr = quant_params->multiplier; // per-channel multiplier
+    cfg.dst_shift_ptr = quant_params->shift;     // per-channel shift
+
+    uint32_t status = dsa_matmul_execute(&cfg);
+    if (status != DSA_SUCCESS)
+    {
+        return RISCV_NMSIS_NN_FAILURE;
+    }
+
+    return RISCV_NMSIS_NN_SUCCESS;
+}
+
+/*
+ * Basic s8 convolution function with acceleration support, processing im2col in batches of 16 rows.
+ *
+ * Refer header file for details. Optimal use case for the DSP implementation is when input and output channels
+ * are multiples of 4 or atleast greater than 4.
+ *
+ */
+riscv_nmsis_nn_status riscv_convolve_s8_acc(const nmsis_nn_context *ctx,
+                                            const nmsis_nn_conv_params *conv_params,
+                                            const nmsis_nn_per_channel_quant_params *quant_params,
+                                            const nmsis_nn_dims *input_dims,
+                                            const int8_t *input_data,
+                                            const nmsis_nn_dims *filter_dims,
+                                            const int8_t *filter_data,
+                                            const nmsis_nn_dims *bias_dims,
+                                            const int32_t *bias_data,
+                                            const nmsis_nn_dims *upscale_dims,
+                                            const nmsis_nn_dims *output_dims,
+                                            int8_t *output_data)
+{
+    (void)bias_dims;
+
+    if (ctx->buf == NULL)
+    {
+        return RISCV_NMSIS_NN_ARG_ERROR;
+    }
+    int16_t *buffer_a = (int16_t *)ctx->buf;
+
+    const int32_t input_batches = input_dims->n;
+    const uint16_t input_x = input_dims->w;
+    const uint16_t input_y = input_dims->h;
+    const uint16_t input_ch = input_dims->c;
+    const uint16_t kernel_x = filter_dims->w;
+    const uint16_t kernel_y = filter_dims->h;
+    const uint16_t kernel_ch = filter_dims->c;
+    const uint16_t output_x = output_dims->w;
+    const uint16_t output_y = output_dims->h;
+    const uint16_t output_ch = output_dims->c;
+
+    const uint16_t pad_x = conv_params->padding.w;
+    const uint16_t pad_y = conv_params->padding.h;
+    const uint16_t stride_x = conv_params->stride.w;
+    const uint16_t stride_y = conv_params->stride.h;
+    const int32_t dilation_x = conv_params->dilation.w;
+    const int32_t dilation_y = conv_params->dilation.h;
+    const int32_t out_offset = conv_params->output_offset;
+    const int32_t out_activation_min = conv_params->activation.min;
+    const int32_t out_activation_max = conv_params->activation.max;
+    const int32_t input_offset = conv_params->input_offset;
+
+    const int32_t groups = input_ch / kernel_ch;
+    const int32_t rhs_cols = kernel_x * kernel_y * kernel_ch;
+    const int32_t output_ch_per_group = output_ch / groups;
+
+    const int32_t *output_mult = quant_params->multiplier;
+    const int32_t *output_shift = quant_params->shift;
+
+    if (input_ch % groups != 0 || output_ch % groups != 0)
+    {
+        return RISCV_NMSIS_NN_ARG_ERROR;
+    }
+
+    uint32_t y_rshift = 0;
+    uint32_t x_rshift = 0;
+
+    if (upscale_dims)
+    {
+        y_rshift = upscale_dims->h == 2 ? 1 : 0;
+        x_rshift = upscale_dims->w == 2 ? 1 : 0;
+    }
+
+    const int32_t input_x_rshifted = input_x >> x_rshift;
+    const int32_t input_y_rshifted = input_y >> y_rshift;
+
+    const int32_t remainder = rhs_cols % 4;
+    const int32_t aligned_rhs_cols = remainder != 0 ? rhs_cols + 4 - remainder : rhs_cols;
+
+    // 批处理行数
+    const int32_t batch_rows = 16;
+
+    // 修正: im2col_buf_base 应该在 s16 缓冲区之后
+    // s16 缓冲区大小: batch_rows * aligned_rhs_cols 个 int16_t 元素
+    // im2col_buf_base 应该从 buffer_a 偏移 (batch_rows * aligned_rhs_cols) 个 int16_t 元素后开始
+    int8_t *im2col_buf_base = (int8_t *)(buffer_a + batch_rows * aligned_rhs_cols);
+
+    static int8_t output_data_old[4096];
+    static int16_t buffer_old[4096];
+    static int8_t im2col_buf_old_base[1024];
+    static int16_t buffer_old_s16[16 * 160];  // 存储老版本im2col的s16数据，最多16行×160列(aligned)
+    static int16_t buffer_a_saved[16 * 160];  // 保存新版本的buffer_a数据，用于验证
+
+    for (int i_batch = 0; i_batch < input_batches; i_batch++)
+    {
+        int8_t *im2col_buf = im2col_buf_base;
+        int16_t *im2col_buf_start_s16 = buffer_a;
+        int32_t lhs_rows = 0;
+
+        const int8_t *filter_data_ptr = &filter_data[0];
+        const int32_t *bias_data_ptr = &bias_data[0];
+        const int32_t *output_mult_ptr = &output_mult[0];
+        const int32_t *output_shift_ptr = &output_shift[0];
+
+        int32_t batch_start_pos = 0;
+
+        for (int32_t i_group = 0; i_group < groups; i_group++)
+        {
+            // 修正: out 应该指向当前 batch 和 group 的正确输出位置
+            // output_data 已经是当前 batch 的起始位置（在循环末尾更新）
+            // 对于每个 group，偏移 i_group * output_ch_per_group
+            int8_t *out = output_data + i_group * output_ch_per_group;
+            int32_t current_pos = 0;
+            
+            for (int i_out_y = 0; i_out_y < output_y; i_out_y++)
+            {
+                for (int i_out_x = 0; i_out_x < output_x; i_out_x++)
+                {
+                    const int32_t base_idx_x = stride_x * i_out_x - pad_x;
+                    const int32_t base_idx_y = stride_y * i_out_y - pad_y;
+
+                    if (y_rshift == 1 || x_rshift == 1)
+                    {
+                        riscv_memset_s8(
+                            im2col_buf, (int8_t)-input_offset, sizeof(int8_t) * kernel_ch * kernel_x * kernel_y);
+                        int8_t *im2col_ptr = im2col_buf;
+                        for (int32_t i_ker_y = 0; i_ker_y < kernel_y; i_ker_y++)
+                        {
+                            const int32_t k_y = base_idx_y + dilation_y * i_ker_y;
+
+                            if ((k_y < 0 || k_y >= input_y) || (k_y % 2 && y_rshift == 1))
+                            {
+                                im2col_ptr += kernel_ch * kernel_x;
+                            }
+                            else
+                            {
+                                const int32_t k_y_rshifted = k_y >> y_rshift;
+                                for (int32_t i_ker_x = 0; i_ker_x < kernel_x; i_ker_x++)
+                                {
+                                    const int32_t k_x = base_idx_x + dilation_x * i_ker_x;
+
+                                    if ((k_x >= 0 && k_x < input_x) && ((k_x % 2 == 0) || x_rshift == 0))
+                                    {
+                                        const int32_t k_x_rshifted = k_x >> x_rshift;
+                                        riscv_memcpy_s8(im2col_ptr,
+                                                        input_data +
+                                                            (k_y_rshifted * input_x_rshifted + k_x_rshifted) * input_ch,
+                                                        sizeof(int8_t) * kernel_ch);
+                                    }
+                                    im2col_ptr += kernel_ch;
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        int8_t *im2col_ptr = im2col_buf;
+                        for (int32_t i_ker_y = 0; i_ker_y < kernel_y; i_ker_y++)
+                        {
+                            for (int32_t i_ker_x = 0; i_ker_x < kernel_x; i_ker_x++)
+                            {
+                                const int32_t k_y = base_idx_y + dilation_y * i_ker_y;
+                                const int32_t k_x = base_idx_x + dilation_x * i_ker_x;
+
+                                if (k_y < 0 || k_y >= input_y || k_x < 0 || k_x >= input_x)
+                                {
+                                    riscv_memset_s8(im2col_ptr, (int8_t)-input_offset, sizeof(int8_t) * kernel_ch);
+                                }
+                                else
+                                {
+                                    riscv_memcpy_s8(im2col_ptr,
+                                                    input_data + (k_y * input_x + k_x) * input_ch + i_group * kernel_ch,
+                                                    sizeof(int8_t) * kernel_ch);
+                                }
+                                im2col_ptr += kernel_ch;
+                            }
+                        }
+                    }
+                    
+                    lhs_rows++;
+                    current_pos++;
+
+                    // 转换当前行的 s8 数据为 s16
+                    riscv_q7_to_q15_with_offset(
+                        im2col_buf, im2col_buf_start_s16, rhs_cols, (int16_t)input_offset);
+
+                    im2col_buf_start_s16 += aligned_rhs_cols;
+                    // im2col_buf 复用，每次都从 im2col_buf_base 开始写入
+
+                    if (lhs_rows == batch_rows)
+                    {
+                        // 在调用加速函数前，先保存buffer_a的数据
+                        memcpy(buffer_a_saved, buffer_a, batch_rows * aligned_rhs_cols * sizeof(int16_t));
+                        
+                        int8_t *out_before = out;
+                        
+                        if (groups > 1)
+                        {
+                            out = riscv_nn_mat_mult_kernel_row_offset_s8_s16_acc(filter_data_ptr,
+                                                                                 buffer_a,
+                                                                                 output_ch_per_group,
+                                                                                 output_shift_ptr,
+                                                                                 output_mult_ptr,
+                                                                                 out_offset,
+                                                                                 out_activation_min,
+                                                                                 out_activation_max,
+                                                                                 rhs_cols,
+                                                                                 aligned_rhs_cols,
+                                                                                 bias_data_ptr,
+                                                                                 output_ch,
+                                                                                 out,
+                                                                                 batch_rows);
+                        }
+                        else
+                        {
+                            out = riscv_nn_mat_mult_kernel_s8_s16_acc(filter_data_ptr,
+                                                                      buffer_a,
+                                                                      output_ch_per_group,
+                                                                      output_shift_ptr,
+                                                                      output_mult_ptr,
+                                                                      out_offset,
+                                                                      out_activation_min,
+                                                                      out_activation_max,
+                                                                      rhs_cols,
+                                                                      aligned_rhs_cols,
+                                                                      bias_data_ptr,
+                                                                      out,
+                                                                      batch_rows);
+                        }
+
+                        // 老版本验证 - 重新生成im2col并每次处理2行
+                        int16_t *im2col_buf_old_s16_saved = buffer_old_s16;  // 用于保存所有16行的s16数据
+                        int8_t *out_old = output_data_old;
+                        
+                        // 先生成所有16行的im2col数据并转换为s16
+                        for (int32_t verify_row = 0; verify_row < batch_rows; verify_row++)
+                        {
+                            int32_t linear_pos = (current_pos - batch_rows) + verify_row;
+                            int verify_y = linear_pos / output_x;
+                            int verify_x = linear_pos % output_x;
+                            
+                            const int32_t base_idx_x_v = stride_x * verify_x - pad_x;
+                            const int32_t base_idx_y_v = stride_y * verify_y - pad_y;
+
+                            if (y_rshift == 1 || x_rshift == 1)
+                            {
+                                riscv_memset_s8(im2col_buf_old_base, (int8_t)-input_offset, 
+                                               sizeof(int8_t) * kernel_ch * kernel_x * kernel_y);
+                                int8_t *im2col_ptr = im2col_buf_old_base;
+                                for (int32_t i_ker_y = 0; i_ker_y < kernel_y; i_ker_y++)
+                                {
+                                    const int32_t k_y = base_idx_y_v + dilation_y * i_ker_y;
+                                    if ((k_y < 0 || k_y >= input_y) || (k_y % 2 && y_rshift == 1))
+                                    {
+                                        im2col_ptr += kernel_ch * kernel_x;
+                                    }
+                                    else
+                                    {
+                                        const int32_t k_y_rshifted = k_y >> y_rshift;
+                                        for (int32_t i_ker_x = 0; i_ker_x < kernel_x; i_ker_x++)
+                                        {
+                                            const int32_t k_x = base_idx_x_v + dilation_x * i_ker_x;
+                                            if ((k_x >= 0 && k_x < input_x) && ((k_x % 2 == 0) || x_rshift == 0))
+                                            {
+                                                const int32_t k_x_rshifted = k_x >> x_rshift;
+                                                riscv_memcpy_s8(im2col_ptr,
+                                                               input_data + (k_y_rshifted * input_x_rshifted + k_x_rshifted) * input_ch,
+                                                               sizeof(int8_t) * kernel_ch);
+                                            }
+                                            im2col_ptr += kernel_ch;
+                                        }
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                int8_t *im2col_ptr = im2col_buf_old_base;
+                                for (int32_t i_ker_y = 0; i_ker_y < kernel_y; i_ker_y++)
+                                {
+                                    for (int32_t i_ker_x = 0; i_ker_x < kernel_x; i_ker_x++)
+                                    {
+                                        const int32_t k_y = base_idx_y_v + dilation_y * i_ker_y;
+                                        const int32_t k_x = base_idx_x_v + dilation_x * i_ker_x;
+
+                                        if (k_y < 0 || k_y >= input_y || k_x < 0 || k_x >= input_x)
+                                        {
+                                            riscv_memset_s8(im2col_ptr, (int8_t)-input_offset, sizeof(int8_t) * kernel_ch);
+                                        }
+                                        else
+                                        {
+                                            riscv_memcpy_s8(im2col_ptr,
+                                                           input_data + (k_y * input_x + k_x) * input_ch + i_group * kernel_ch,
+                                                           sizeof(int8_t) * kernel_ch);
+                                        }
+                                        im2col_ptr += kernel_ch;
+                                    }
+                                }
+                            }
+                            
+                            // 转换为s16并保存（im2col_buf_old_base 复用，每次都用同一个位置）
+                            riscv_q7_to_q15_with_offset(im2col_buf_old_base, im2col_buf_old_s16_saved, 
+                                                       rhs_cols, (int16_t)input_offset);
+                            
+                            // im2col_buf_old_base 复用（不递增），im2col_buf_old_s16_saved 递增
+                            im2col_buf_old_s16_saved += aligned_rhs_cols;
+                        }
+                        
+                        // 然后每次处理2行进行矩阵乘法
+                        im2col_buf_old_s16_saved = buffer_old_s16;  // 重置到开始位置
+                        for (int32_t verify_row = 0; verify_row < batch_rows; verify_row += 2)
+                        {
+                            // 从保存的s16数据中读取2行
+                            memcpy(buffer_old, im2col_buf_old_s16_saved, 2 * aligned_rhs_cols * sizeof(int16_t));
+                            // 从保存的s16数据中读取2行
+                            memcpy(buffer_old, im2col_buf_old_s16_saved, 2 * aligned_rhs_cols * sizeof(int16_t));
+                            im2col_buf_old_s16_saved += 2 * aligned_rhs_cols;
+                            
+                            if (groups > 1)
+                            {
+                                out_old = riscv_nn_mat_mult_kernel_row_offset_s8_s16_acc_old(
+                                    filter_data_ptr, buffer_old, output_ch_per_group,
+                                    output_shift_ptr, output_mult_ptr, out_offset,
+                                    out_activation_min, out_activation_max,
+                                    rhs_cols, aligned_rhs_cols, bias_data_ptr,
+                                    output_ch, out_old);
+                            }
+                            else
+                            {
+                                out_old = riscv_nn_mat_mult_kernel_s8_s16_acc_old(
+                                    filter_data_ptr, buffer_old, output_ch_per_group,
+                                    output_shift_ptr, output_mult_ptr, out_offset,
+                                    out_activation_min, out_activation_max,
+                                    rhs_cols, aligned_rhs_cols, bias_data_ptr, out_old);
+                            }
+                        }
+
+                        // 对比结果
+                        int mismatch_count = 0;
+                        int first_mismatch_row = -1;
+                        int first_mismatch_ch = -1;
+                        
+                        // 打印前先统计
+                        for (int vr = 0; vr < batch_rows; vr++)
+                        {
+                            for (int c = 0; c < output_ch_per_group; c++)
+                            {
+                                int idx = vr * output_ch_per_group + c;
+                                if (out_before[idx] != output_data_old[idx])
+                                {
+                                    if (mismatch_count == 0) {
+                                        first_mismatch_row = vr;
+                                        first_mismatch_ch = c;
+                                    }
+                                    mismatch_count++;
+                                }
+                            }
+                        }
+                        
+                        if (mismatch_count > 0)
+                        {
+                            printf("\n========================================\n");
+                            printf("=== MISMATCH DETECTED ===\n");
+                            printf("========================================\n");
+                            printf("Total mismatches: %d / %d\n", mismatch_count, batch_rows * output_ch_per_group);
+                            printf("First mismatch at: row=%d, ch=%d\n", first_mismatch_row, first_mismatch_ch);
+                            printf("Matrix dimensions: K=%d, N=%d, M=%d\n", batch_rows, rhs_cols, output_ch_per_group);
+                            printf("Buffer addresses: buffer_a=%p, im2col_buf_base=%p, out_before=%p\n",
+                                   (void*)buffer_a, (void*)im2col_buf_base, (void*)out_before);
+                            printf("Buffer overlap check: out_before in [buffer_a, im2col_buf_base)? %s\n",
+                                   ((int8_t*)out_before >= (int8_t*)buffer_a && 
+                                    (int8_t*)out_before < im2col_buf_base) ? "YES (ERROR!)" : "NO");
+                            
+                            // 1. 打印所有mismatch数据(最多32个)
+                            printf("\n--- ALL MISMATCHES (up to 32) ---\n");
+                            int printed = 0;
+                            for (int vr = 0; vr < batch_rows && printed < 32; vr++)
+                            {
+                                int global_pos = (current_pos - batch_rows) + vr;
+                                int out_y = global_pos / output_x;
+                                int out_x = global_pos % output_x;
+                                
+                                for (int c = 0; c < output_ch_per_group && printed < 32; c++)
+                                {
+                                    int idx = vr * output_ch_per_group + c;
+                                    if (out_before[idx] != output_data_old[idx])
+                                    {
+                                        printf("  [%2d] batch=%d, group=%d, y=%2d, x=%2d, ch=%2d: NEW=%4d, OLD=%4d, diff=%4d\n",
+                                               printed, i_batch, i_group, out_y, out_x, c,
+                                               out_before[idx], output_data_old[idx],
+                                               (int)out_before[idx] - (int)output_data_old[idx]);
+                                        printed++;
+                                    }
+                                }
+                            }
+                            
+                            // 2. 验证输入数据是否相同
+                            printf("\n--- INPUT DATA VERIFICATION ---\n");
+                            printf("Comparing row %d (out of %d batch rows)\n", first_mismatch_row, batch_rows);
+                            printf("rhs_cols=%d, aligned_rhs_cols=%d\n", rhs_cols, aligned_rhs_cols);
+                            
+                            int16_t *new_row = buffer_a_saved + first_mismatch_row * aligned_rhs_cols;
+                            int16_t *old_row = buffer_old_s16 + first_mismatch_row * aligned_rhs_cols;
+                            
+                            int input_diff_count = 0;
+                            int diff_positions[64];  // 最多记录64个差异位置
+                            int diff_new[64];
+                            int diff_old[64];
+                            
+                            for (int k = 0; k < rhs_cols; k++) {
+                                if (new_row[k] != old_row[k]) {
+                                    if (input_diff_count < 64) {
+                                        diff_positions[input_diff_count] = k;
+                                        diff_new[input_diff_count] = new_row[k];
+                                        diff_old[input_diff_count] = old_row[k];
+                                    }
+                                    input_diff_count++;
+                                }
+                            }
+                            
+                            if (input_diff_count > 0) {
+                                printf("ERROR: Input data differs at %d positions!\n", input_diff_count);
+                                printf("First mismatch row=%d (global_pos=%d)\n", 
+                                       first_mismatch_row, (current_pos - batch_rows) + first_mismatch_row);
+                                printf("Showing first %d differences (max 32):\n", 
+                                       input_diff_count < 32 ? input_diff_count : 32);
+                                printf("rhs_cols=%d = kernel_y(%d) * kernel_x(%d) * kernel_ch(%d)\n",
+                                       rhs_cols, kernel_y, kernel_x, kernel_ch);
+                                
+                                for (int i = 0; i < input_diff_count && i < 32; i++) {
+                                    int pos = diff_positions[i];
+                                    // 计算精准二维坐标: pos = (ky * kernel_x + kx) * kernel_ch + kc
+                                    int kc = pos % kernel_ch;
+                                    int kx = (pos / kernel_ch) % kernel_x;
+                                    int ky = (pos / kernel_ch) / kernel_x;
+                                    printf("  [%2d] pos=%3d (ky=%d,kx=%d,kc=%d): NEW=%6d, OLD=%6d, diff=%6d\n",
+                                           i, pos, ky, kx, kc, diff_new[i], diff_old[i],
+                                           diff_new[i] - diff_old[i]);
+                                }
+                                
+                                // 打印完整的新旧数据对比（前32个元素）
+                                printf("\nFirst 32 elements comparison:\n");
+                                printf("pos:  ");
+                                for (int k = 0; k < 32 && k < rhs_cols; k++) {
+                                    printf("%5d ", k);
+                                }
+                                printf("\nNEW:  ");
+                                for (int k = 0; k < 32 && k < rhs_cols; k++) {
+                                    printf("%5d ", new_row[k]);
+                                }
+                                printf("\nOLD:  ");
+                                for (int k = 0; k < 32 && k < rhs_cols; k++) {
+                                    printf("%5d ", old_row[k]);
+                                }
+                                printf("\nDIFF: ");
+                                for (int k = 0; k < 32 && k < rhs_cols; k++) {
+                                    if (new_row[k] != old_row[k]) {
+                                        printf("%5d*", new_row[k] - old_row[k]);
+                                    } else {
+                                        printf("    . ");
+                                    }
+                                }
+                                printf("\n");
+                            } else {
+                                printf("OK: Input data is identical for both versions\n");
+                            }
+                            
+                            // 3. 打印量化参数
+                            printf("\n--- QUANTIZATION PARAMETERS ---\n");
+                            printf("out_offset=%d, act_min=%d, act_max=%d\n", 
+                                   out_offset, out_activation_min, out_activation_max);
+                            
+                            // 4. 手动计算多个通道(最多5个有mismatch的通道)
+                            printf("\n--- MANUAL CALCULATIONS (up to 5 channels) ---\n");
+                            int calc_count = 0;
+                            for (int c = 0; c < output_ch_per_group && calc_count < 5; c++)
+                            {
+                                int idx = first_mismatch_row * output_ch_per_group + c;
+                                if (out_before[idx] != output_data_old[idx])
+                                {
+                                    printf("\n>>> Channel %d:\n", c);
+                                    printf("    Quant params: mult=%d, shift=%d", 
+                                           output_mult_ptr[c], output_shift_ptr[c]);
+                                    if (bias_data_ptr) {
+                                        printf(", bias=%d", bias_data_ptr[c]);
+                                    }
+                                    printf("\n");
+                                    
+                                    const int8_t *filter_ch = filter_data_ptr + c * rhs_cols;
+                                    int32_t manual_sum = 0;
+                                    if (bias_data_ptr) {
+                                        manual_sum = bias_data_ptr[c];
+                                    }
+                                    
+                                    printf("    Filter (first 8): ");
+                                    for (int k = 0; k < 8 && k < rhs_cols; k++) {
+                                        printf("%d ", filter_ch[k]);
+                                    }
+                                    printf("\n");
+                                    
+                                    printf("    Input  (first 8): ");
+                                    for (int k = 0; k < 8 && k < rhs_cols; k++) {
+                                        printf("%d ", new_row[k]);
+                                    }
+                                    printf("\n");
+                                    
+                                    printf("    Dot product (first 5 terms):\n");
+                                    for (int k = 0; k < 5 && k < rhs_cols; k++) {
+                                        int32_t term = (int32_t)filter_ch[k] * (int32_t)new_row[k];
+                                        manual_sum += term;
+                                        printf("      [%d] %d * %d = %d (sum=%d)\n", 
+                                               k, filter_ch[k], new_row[k], term, manual_sum);
+                                    }
+                                    
+                                    // 完整计算
+                                    for (int k = 5; k < rhs_cols; k++) {
+                                        manual_sum += (int32_t)filter_ch[k] * (int32_t)new_row[k];
+                                    }
+                                    printf("    Sum before quant: %d\n", manual_sum);
+                                    
+                                    // 量化
+                                    int32_t quantized = riscv_nn_requantize(manual_sum, 
+                                                                             output_mult_ptr[c], 
+                                                                             output_shift_ptr[c]);
+                                    printf("    After requantize: %d\n", quantized);
+                                    quantized += out_offset;
+                                    printf("    After out_offset: %d\n", quantized);
+                                    quantized = MAX(quantized, out_activation_min);
+                                    quantized = MIN(quantized, out_activation_max);
+                                    printf("    After activation: %d\n", quantized);
+                                    printf("    EXPECTED=%d, NEW=%d, OLD=%d\n", 
+                                           quantized, out_before[idx], output_data_old[idx]);
+                                    
+                                    calc_count++;
+                                }
+                            }
+                            
+                            // 5. 输出分布统计
+                            printf("\n--- OUTPUT DISTRIBUTION ---\n");
+                            int new_saturated_pos = 0, new_saturated_neg = 0;
+                            int old_saturated_pos = 0, old_saturated_neg = 0;
+                            for (int vr = 0; vr < batch_rows; vr++) {
+                                for (int c = 0; c < output_ch_per_group; c++) {
+                                    int idx = vr * output_ch_per_group + c;
+                                    if (out_before[idx] == 127) new_saturated_pos++;
+                                    if (out_before[idx] == -128) new_saturated_neg++;
+                                    if (output_data_old[idx] == 127) old_saturated_pos++;
+                                    if (output_data_old[idx] == -128) old_saturated_neg++;
+                                }
+                            }
+                            printf("NEW version: +127=%d, -128=%d (total=%d)\n", 
+                                   new_saturated_pos, new_saturated_neg, batch_rows * output_ch_per_group);
+                            printf("OLD version: +127=%d, -128=%d (total=%d)\n", 
+                                   old_saturated_pos, old_saturated_neg, batch_rows * output_ch_per_group);
+                            
+                            printf("========================================\n\n");
+                        }
+
+                        im2col_buf_start_s16 = buffer_a;
+                        im2col_buf = im2col_buf_base;
+                        lhs_rows = 0;
+                    }
+                }
+            }
+
+            if (out == NULL)
+            {
+                return RISCV_NMSIS_NN_NO_IMPL_ERROR;
+            }
+
+            /* Handle left over columns */
+            if (lhs_rows != 0)
+            {
+                if (groups > 1)
+                {
+                    out = riscv_nn_mat_mult_kernel_row_offset_s8_s16_acc(filter_data_ptr,
+                                                                         buffer_a,
+                                                                         output_ch_per_group,
+                                                                         output_shift_ptr,
+                                                                         output_mult_ptr,
+                                                                         out_offset,
+                                                                         out_activation_min,
+                                                                         out_activation_max,
+                                                                         rhs_cols,
+                                                                         aligned_rhs_cols,
+                                                                         bias_data_ptr,
+                                                                         output_ch,
+                                                                         out,
+                                                                         lhs_rows);
+                }
+                else
+                {
+                    out = riscv_nn_mat_mult_kernel_s8_s16_acc(filter_data_ptr,
+                                                              buffer_a,
+                                                              output_ch_per_group,
+                                                              output_shift_ptr,
+                                                              output_mult_ptr,
+                                                              out_offset,
+                                                              out_activation_min,
+                                                              out_activation_max,
+                                                              rhs_cols,
+                                                              aligned_rhs_cols,
+                                                              bias_data_ptr,
+                                                              out,
+                                                              lhs_rows);
+                }
+
+                im2col_buf_start_s16 = buffer_a;
+                im2col_buf = im2col_buf_base;
+                lhs_rows = 0;
+            }
+            filter_data_ptr += output_ch_per_group * rhs_cols;
+            bias_data_ptr += output_ch_per_group;
+            output_mult_ptr += output_ch_per_group;
+            output_shift_ptr += output_ch_per_group;
+            
+            batch_start_pos = current_pos;
+        }
+        /* Advance to the next batch */
+        input_data += (input_x_rshifted * input_y_rshifted * input_ch);
+        output_data += (output_x * output_y * output_ch);
+    }
+
+    /* Return to application */
+    return RISCV_NMSIS_NN_SUCCESS;
+}
+
+int32_t riscv_convolve_s8_get_buffer_size_acc(const nmsis_nn_dims *input_dims, const nmsis_nn_dims *filter_dims)
+{
+    const int32_t rhs_cols = filter_dims->w * filter_dims->h * input_dims->c;
+    const int32_t remainder = rhs_cols % 4;
+    const int32_t aligned_rhs_cols = remainder != 0 ? rhs_cols + 4 - remainder : rhs_cols;
+    
+    // s16 缓冲区: 16 行 × aligned_rhs_cols 个 int16_t
+    const int32_t s16_buffer_size = (16 * aligned_rhs_cols) * (int32_t)sizeof(int16_t);
+    
+    // s8 缓冲区: 只需1行，用于临时存储im2col数据（会被复用）
+    const int32_t s8_buffer_size = (rhs_cols) * (int32_t)sizeof(int8_t);
+    
+    return s16_buffer_size + s8_buffer_size;
+}
+
+/*
+ * Get the required buffer size for riscv_convolve_wrapper_s8. This is the recommended function convolve wrapper s8
+ * function.
+ *
+ * Refer to header file for details.
+ *
+ */
+int32_t riscv_convolve_wrapper_s8_get_buffer_size_acc(const nmsis_nn_conv_params *conv_params,
+                                                      const nmsis_nn_dims *input_dims,
+                                                      const nmsis_nn_dims *filter_dims,
+                                                      const nmsis_nn_dims *output_dims)
+{
+#if defined(RISCV_MATH_DSP)
+    return riscv_convolve_wrapper_s8_get_buffer_size_dsp(conv_params, input_dims, filter_dims, output_dims);
+#else
+    (void)output_dims;
+    if ((conv_params->padding.w == 0) && (conv_params->padding.h == 0) && (filter_dims->w == 1) &&
+        (filter_dims->h == 1) && (conv_params->dilation.w == 1 && conv_params->dilation.h == 1))
+    {
+        if ((conv_params->stride.w == 1) && (conv_params->stride.h == 1))
+        {
+            return riscv_convolve_1x1_s8_fast_get_buffer_size(input_dims);
+        }
+        else
+        {
+            return 0;
+        }
+    }
+    else if ((input_dims->h == 1) && (conv_params->dilation.w == 1) && (filter_dims->h == 1) &&
+             (conv_params->stride.w * input_dims->c % 4 == 0))
+    {
+        return riscv_convolve_1_x_n_s8_get_buffer_size(conv_params, input_dims, filter_dims, output_dims);
+    }
+    else
+    {
+        return riscv_convolve_s8_get_buffer_size_acc(input_dims, filter_dims);
+    }
+#endif
+}
+
+riscv_nmsis_nn_status riscv_convolve_wrapper_s8_acc(const nmsis_nn_context *ctx,
+                                                    const nmsis_nn_conv_params *conv_params,
+                                                    const nmsis_nn_per_channel_quant_params *quant_params,
+                                                    const nmsis_nn_dims *input_dims,
+                                                    const int8_t *input_data,
+                                                    const nmsis_nn_dims *filter_dims,
+                                                    const int8_t *filter_data,
+                                                    const nmsis_nn_dims *bias_dims,
+                                                    const int32_t *bias_data,
+                                                    const nmsis_nn_dims *output_dims,
+                                                    int8_t *output_data)
+{
+    if ((conv_params->padding.w == 0) && (conv_params->padding.h == 0) && (filter_dims->w == 1) &&
+        (filter_dims->h == 1) && (conv_params->dilation.w == 1 && conv_params->dilation.h == 1) &&
+        (input_dims->c == filter_dims->c))
+    {
+        if ((conv_params->stride.w == 1) && (conv_params->stride.h == 1))
+        {
+            return riscv_convolve_1x1_s8_fast(ctx,
+                                              conv_params,
+                                              quant_params,
+                                              input_dims,
+                                              input_data,
+                                              filter_dims,
+                                              filter_data,
+                                              bias_dims,
+                                              bias_data,
+                                              output_dims,
+                                              output_data);
+        }
+        else
+        {
+            return riscv_convolve_1x1_s8(ctx,
+                                         conv_params,
+                                         quant_params,
+                                         input_dims,
+                                         input_data,
+                                         filter_dims,
+                                         filter_data,
+                                         bias_dims,
+                                         bias_data,
+                                         output_dims,
+                                         output_data);
+        }
+    }
+    else if ((input_dims->h == 1) && conv_params->dilation.w == 1 && (filter_dims->h == 1) &&
+             ((conv_params->stride.w * input_dims->c) % 4 == 0) && (input_dims->c == filter_dims->c))
+    {
+        return riscv_convolve_1_x_n_s8(ctx,
+                                       conv_params,
+                                       quant_params,
+                                       input_dims,
+                                       input_data,
+                                       filter_dims,
+                                       filter_data,
+                                       bias_dims,
+                                       bias_data,
+                                       output_dims,
+                                       output_data);
+    }
+    else
+    {
+        return riscv_convolve_s8_acc(ctx,
+                                     conv_params,
+                                     quant_params,
+                                     input_dims,
+                                     input_data,
+                                     filter_dims,
+                                     filter_data,
+                                     bias_dims,
+                                     bias_data,
+                                     NULL,
+                                     output_dims,
+                                     output_data);
+    }
+}

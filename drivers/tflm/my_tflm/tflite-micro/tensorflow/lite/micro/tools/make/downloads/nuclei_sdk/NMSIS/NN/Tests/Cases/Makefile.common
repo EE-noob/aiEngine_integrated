@@ -1,0 +1,44 @@
+TARGET ?= nn_test
+
+NUCLEI_SDK_ROOT ?= ../../$(BUILD_ROOT_DIR)
+NUCLEI_SDK_NMSIS ?= $(NUCLEI_SDK_ROOT)/NMSIS
+
+SRCDIRS += .
+
+INCDIRS += . .. $(NUCLEI_SDK_NMSIS)/NN/Tests/Ref/Source
+
+LIBDIRS = $(NUCLEI_SDK_NMSIS)/Library/NNREF/GCC
+
+ARCH_EXT ?=
+BENCH_UNIT ?=
+RISCV_ALIGN ?= OFF
+COMMON_FLAGS ?= -O2
+STDCLIB ?= newlib_full
+NMSIS_LIB := nmsis_nn
+
+ifeq ($(BENCH_UNIT),instret)
+$(warning "Benchmark by reading cpu instret")
+COMMON_FLAGS += -DREAD_CYCLE=read_cpu_instret
+else
+$(warning "Benchmark by reading cpu cycle")
+endif
+
+ifeq ($(RISCV_ALIGN),ON)
+COMMON_FLAGS += -DRISCV_ALIGN_ACCESS
+endif
+
+# Disable auto vectorization
+# This is important for gcc14/llvm19
+# by default auto vectorization is enabled, we need to disable it
+# so reference code will not generate any rvv instruction
+ifeq ($(TOOLCHAIN),nuclei_llvm)
+COMMON_FLAGS += -fno-vectorize -fno-slp-vectorize
+else ifeq ($(TOOLCHAIN),terapines)
+COMMON_FLAGS += -fno-vectorize -fno-slp-vectorize
+else
+COMMON_FLAGS += -fno-tree-vectorize -fno-tree-loop-vectorize -fno-tree-slp-vectorize
+endif
+
+LDLIBS = -lnmsis_nnref_$(NMSIS_LIB_ARCH) -lm
+
+include $(NUCLEI_SDK_ROOT)/Build/Makefile.base
