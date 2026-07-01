@@ -14,6 +14,7 @@ module soc_top #(
     parameter AXI_WRITE_OUTSTANDING = AXI_READ_OUTSTANDING,
     parameter CPU_MEM_DP      = 524288,
     parameter CPU_MEM_PATH    = "../tb/axi_soc_case/cpu.mem",
+    parameter CPU_MEM_INIT_EN = 1,
     parameter [31:0] CPU_RAM_BASE   = 32'h0000_0000,
     parameter [31:0] MMA_AXIL_BASE  = 32'h1000_0000,
     parameter [31:0] UART_BASE      = 32'h0200_0000,
@@ -136,6 +137,38 @@ module soc_top #(
     wire        ram_axi_bready;
     wire [1:0]  ram_axi_bresp;
 
+    wire        ram_buf_axi_arvalid;
+    wire        ram_buf_axi_arready;
+    wire [REG_WIDTH-1:0] ram_buf_axi_araddr;
+    wire [3:0]  ram_buf_axi_arcache;
+    wire [2:0]  ram_buf_axi_arprot;
+    wire [1:0]  ram_buf_axi_arlock;
+    wire [1:0]  ram_buf_axi_arburst;
+    wire [7:0]  ram_buf_axi_arlen;
+    wire [2:0]  ram_buf_axi_arsize;
+    wire        ram_buf_axi_rvalid;
+    wire        ram_buf_axi_rready;
+    wire [BUS_WIDTH-1:0] ram_buf_axi_rdata;
+    wire [1:0]  ram_buf_axi_rresp;
+    wire        ram_buf_axi_rlast;
+    wire        ram_buf_axi_awvalid;
+    wire        ram_buf_axi_awready;
+    wire [REG_WIDTH-1:0] ram_buf_axi_awaddr;
+    wire [3:0]  ram_buf_axi_awcache;
+    wire [2:0]  ram_buf_axi_awprot;
+    wire [1:0]  ram_buf_axi_awlock;
+    wire [1:0]  ram_buf_axi_awburst;
+    wire [7:0]  ram_buf_axi_awlen;
+    wire [2:0]  ram_buf_axi_awsize;
+    wire        ram_buf_axi_wvalid;
+    wire        ram_buf_axi_wready;
+    wire [BUS_WIDTH-1:0] ram_buf_axi_wdata;
+    wire [BUS_WIDTH/8-1:0] ram_buf_axi_wstrb;
+    wire        ram_buf_axi_wlast;
+    wire        ram_buf_axi_bvalid;
+    wire        ram_buf_axi_bready;
+    wire [1:0]  ram_buf_axi_bresp;
+
     wire [AXIL_ADDR_WIDTH-1:0] mma_axil_awaddr;
     wire [2:0]  mma_axil_awprot;
     wire        mma_axil_awvalid;
@@ -155,6 +188,26 @@ module soc_top #(
     wire [1:0]  mma_axil_rresp;
     wire        mma_axil_rvalid;
     wire        mma_axil_rready;
+
+    wire [AXIL_ADDR_WIDTH-1:0] mma_core_axil_awaddr;
+    wire [2:0]  mma_core_axil_awprot;
+    wire        mma_core_axil_awvalid;
+    wire        mma_core_axil_awready;
+    wire [31:0] mma_core_axil_wdata;
+    wire [3:0]  mma_core_axil_wstrb;
+    wire        mma_core_axil_wvalid;
+    wire        mma_core_axil_wready;
+    wire [1:0]  mma_core_axil_bresp;
+    wire        mma_core_axil_bvalid;
+    wire        mma_core_axil_bready;
+    wire [AXIL_ADDR_WIDTH-1:0] mma_core_axil_araddr;
+    wire [2:0]  mma_core_axil_arprot;
+    wire        mma_core_axil_arvalid;
+    wire        mma_core_axil_arready;
+    wire [31:0] mma_core_axil_rdata;
+    wire [1:0]  mma_core_axil_rresp;
+    wire        mma_core_axil_rvalid;
+    wire        mma_core_axil_rready;
 
     wire [31:0] uart_axil_awaddr;
     wire [2:0]  uart_axil_awprot;
@@ -458,21 +511,10 @@ module soc_top #(
         .m_ctrl_rready(ctrl_axil_rready)
     );
 
-    mma_axil_top #(
-        .AXIL_DATA_WIDTH(AXIL_DATA_WIDTH),
-        .AXIL_ADDR_WIDTH(AXIL_ADDR_WIDTH),
-        .WEIGHT_WIDTH(WEIGHT_WIDTH),
-        .DATA_WIDTH(DATA_WIDTH),
-        .SIZE(SIZE),
-        .BUS_WIDTH(BUS_WIDTH),
-        .REG_WIDTH(REG_WIDTH),
-        .ICB_ADDR_WIDTH(ICB_ADDR_WIDTH),
-        .ICB_LEN_W(ICB_LEN_W),
-        .IA_CACHE_BLOCKS(IA_CACHE_BLOCKS),
-        .PS_FRAME_COUNT(PS_FRAME_COUNT),
-        .AXI_READ_OUTSTANDING(AXI_READ_OUTSTANDING),
-        .AXI_WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING)
-    ) u_mma_axil_top (
+    soc_axil_pingpong_buffer #(
+        .ADDR_WIDTH(AXIL_ADDR_WIDTH),
+        .DATA_WIDTH(AXIL_DATA_WIDTH)
+    ) u_mma_axil_pingpong (
         .clk(clk),
         .rst_n(rst_n),
         .s_axil_awaddr(mma_axil_awaddr),
@@ -494,6 +536,63 @@ module soc_top #(
         .s_axil_rresp(mma_axil_rresp),
         .s_axil_rvalid(mma_axil_rvalid),
         .s_axil_rready(mma_axil_rready),
+        .m_axil_awaddr(mma_core_axil_awaddr),
+        .m_axil_awprot(mma_core_axil_awprot),
+        .m_axil_awvalid(mma_core_axil_awvalid),
+        .m_axil_awready(mma_core_axil_awready),
+        .m_axil_wdata(mma_core_axil_wdata),
+        .m_axil_wstrb(mma_core_axil_wstrb),
+        .m_axil_wvalid(mma_core_axil_wvalid),
+        .m_axil_wready(mma_core_axil_wready),
+        .m_axil_bresp(mma_core_axil_bresp),
+        .m_axil_bvalid(mma_core_axil_bvalid),
+        .m_axil_bready(mma_core_axil_bready),
+        .m_axil_araddr(mma_core_axil_araddr),
+        .m_axil_arprot(mma_core_axil_arprot),
+        .m_axil_arvalid(mma_core_axil_arvalid),
+        .m_axil_arready(mma_core_axil_arready),
+        .m_axil_rdata(mma_core_axil_rdata),
+        .m_axil_rresp(mma_core_axil_rresp),
+        .m_axil_rvalid(mma_core_axil_rvalid),
+        .m_axil_rready(mma_core_axil_rready)
+    );
+
+    mma_axil_top #(
+        .AXIL_DATA_WIDTH(AXIL_DATA_WIDTH),
+        .AXIL_ADDR_WIDTH(AXIL_ADDR_WIDTH),
+        .WEIGHT_WIDTH(WEIGHT_WIDTH),
+        .DATA_WIDTH(DATA_WIDTH),
+        .SIZE(SIZE),
+        .BUS_WIDTH(BUS_WIDTH),
+        .REG_WIDTH(REG_WIDTH),
+        .ICB_ADDR_WIDTH(ICB_ADDR_WIDTH),
+        .ICB_LEN_W(ICB_LEN_W),
+        .IA_CACHE_BLOCKS(IA_CACHE_BLOCKS),
+        .PS_FRAME_COUNT(PS_FRAME_COUNT),
+        .AXI_READ_OUTSTANDING(AXI_READ_OUTSTANDING),
+        .AXI_WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING)
+    ) u_mma_axil_top (
+        .clk(clk),
+        .rst_n(rst_n),
+        .s_axil_awaddr(mma_core_axil_awaddr),
+        .s_axil_awprot(mma_core_axil_awprot),
+        .s_axil_awvalid(mma_core_axil_awvalid),
+        .s_axil_awready(mma_core_axil_awready),
+        .s_axil_wdata(mma_core_axil_wdata),
+        .s_axil_wstrb(mma_core_axil_wstrb),
+        .s_axil_wvalid(mma_core_axil_wvalid),
+        .s_axil_wready(mma_core_axil_wready),
+        .s_axil_bresp(mma_core_axil_bresp),
+        .s_axil_bvalid(mma_core_axil_bvalid),
+        .s_axil_bready(mma_core_axil_bready),
+        .s_axil_araddr(mma_core_axil_araddr),
+        .s_axil_arprot(mma_core_axil_arprot),
+        .s_axil_arvalid(mma_core_axil_arvalid),
+        .s_axil_arready(mma_core_axil_arready),
+        .s_axil_rdata(mma_core_axil_rdata),
+        .s_axil_rresp(mma_core_axil_rresp),
+        .s_axil_rvalid(mma_core_axil_rvalid),
+        .s_axil_rready(mma_core_axil_rready),
         .m_axi_arvalid(mma_axi_arvalid),
         .m_axi_arready(mma_axi_arready),
         .m_axi_araddr(mma_axi_araddr),
@@ -530,17 +629,26 @@ module soc_top #(
         .mma_busy(mma_busy)
     );
 
-    soc_axi_ram #(
-        .DP(CPU_MEM_DP),
-        .DW(BUS_WIDTH),
-        .AW(REG_WIDTH),
-        .MEM_PATH(CPU_MEM_PATH),
-        .INIT_EN(1),
-        .READ_OUTSTANDING(AXI_READ_OUTSTANDING),
-        .WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING)
-    ) u_axi_sim_ram (
+    soc_axi_pingpong_buffer #(
+        .ADDR_WIDTH(REG_WIDTH),
+        .DATA_WIDTH(BUS_WIDTH)
+    ) u_ram_axi_pingpong (
         .clk(clk),
         .rst_n(rst_n),
+        .s_axi_arvalid(ram_axi_arvalid),
+        .s_axi_arready(ram_axi_arready),
+        .s_axi_araddr(ram_axi_araddr),
+        .s_axi_arcache(ram_axi_arcache),
+        .s_axi_arprot(ram_axi_arprot),
+        .s_axi_arlock(ram_axi_arlock),
+        .s_axi_arburst(ram_axi_arburst),
+        .s_axi_arlen(ram_axi_arlen),
+        .s_axi_arsize(ram_axi_arsize),
+        .s_axi_rvalid(ram_axi_rvalid),
+        .s_axi_rready(ram_axi_rready),
+        .s_axi_rdata(ram_axi_rdata),
+        .s_axi_rresp(ram_axi_rresp),
+        .s_axi_rlast(ram_axi_rlast),
         .s_axi_awvalid(ram_axi_awvalid),
         .s_axi_awready(ram_axi_awready),
         .s_axi_awaddr(ram_axi_awaddr),
@@ -558,20 +666,81 @@ module soc_top #(
         .s_axi_bvalid(ram_axi_bvalid),
         .s_axi_bready(ram_axi_bready),
         .s_axi_bresp(ram_axi_bresp),
-        .s_axi_arvalid(ram_axi_arvalid),
-        .s_axi_arready(ram_axi_arready),
-        .s_axi_araddr(ram_axi_araddr),
-        .s_axi_arcache(ram_axi_arcache),
-        .s_axi_arprot(ram_axi_arprot),
-        .s_axi_arlock(ram_axi_arlock),
-        .s_axi_arburst(ram_axi_arburst),
-        .s_axi_arlen(ram_axi_arlen),
-        .s_axi_arsize(ram_axi_arsize),
-        .s_axi_rvalid(ram_axi_rvalid),
-        .s_axi_rready(ram_axi_rready),
-        .s_axi_rdata(ram_axi_rdata),
-        .s_axi_rresp(ram_axi_rresp),
-        .s_axi_rlast(ram_axi_rlast),
+        .m_axi_arvalid(ram_buf_axi_arvalid),
+        .m_axi_arready(ram_buf_axi_arready),
+        .m_axi_araddr(ram_buf_axi_araddr),
+        .m_axi_arcache(ram_buf_axi_arcache),
+        .m_axi_arprot(ram_buf_axi_arprot),
+        .m_axi_arlock(ram_buf_axi_arlock),
+        .m_axi_arburst(ram_buf_axi_arburst),
+        .m_axi_arlen(ram_buf_axi_arlen),
+        .m_axi_arsize(ram_buf_axi_arsize),
+        .m_axi_rvalid(ram_buf_axi_rvalid),
+        .m_axi_rready(ram_buf_axi_rready),
+        .m_axi_rdata(ram_buf_axi_rdata),
+        .m_axi_rresp(ram_buf_axi_rresp),
+        .m_axi_rlast(ram_buf_axi_rlast),
+        .m_axi_awvalid(ram_buf_axi_awvalid),
+        .m_axi_awready(ram_buf_axi_awready),
+        .m_axi_awaddr(ram_buf_axi_awaddr),
+        .m_axi_awcache(ram_buf_axi_awcache),
+        .m_axi_awprot(ram_buf_axi_awprot),
+        .m_axi_awlock(ram_buf_axi_awlock),
+        .m_axi_awburst(ram_buf_axi_awburst),
+        .m_axi_awlen(ram_buf_axi_awlen),
+        .m_axi_awsize(ram_buf_axi_awsize),
+        .m_axi_wvalid(ram_buf_axi_wvalid),
+        .m_axi_wready(ram_buf_axi_wready),
+        .m_axi_wdata(ram_buf_axi_wdata),
+        .m_axi_wstrb(ram_buf_axi_wstrb),
+        .m_axi_wlast(ram_buf_axi_wlast),
+        .m_axi_bvalid(ram_buf_axi_bvalid),
+        .m_axi_bready(ram_buf_axi_bready),
+        .m_axi_bresp(ram_buf_axi_bresp)
+    );
+
+    soc_axi_ram #(
+        .DP(CPU_MEM_DP),
+        .DW(BUS_WIDTH),
+        .AW(REG_WIDTH),
+        .MEM_PATH(CPU_MEM_PATH),
+        .INIT_EN(CPU_MEM_INIT_EN),
+        .READ_OUTSTANDING(AXI_READ_OUTSTANDING),
+        .WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING)
+    ) u_axi_sim_ram (
+        .clk(clk),
+        .rst_n(rst_n),
+        .s_axi_awvalid(ram_buf_axi_awvalid),
+        .s_axi_awready(ram_buf_axi_awready),
+        .s_axi_awaddr(ram_buf_axi_awaddr),
+        .s_axi_awcache(ram_buf_axi_awcache),
+        .s_axi_awprot(ram_buf_axi_awprot),
+        .s_axi_awlock(ram_buf_axi_awlock),
+        .s_axi_awburst(ram_buf_axi_awburst),
+        .s_axi_awlen(ram_buf_axi_awlen),
+        .s_axi_awsize(ram_buf_axi_awsize),
+        .s_axi_wvalid(ram_buf_axi_wvalid),
+        .s_axi_wready(ram_buf_axi_wready),
+        .s_axi_wdata(ram_buf_axi_wdata),
+        .s_axi_wstrb(ram_buf_axi_wstrb),
+        .s_axi_wlast(ram_buf_axi_wlast),
+        .s_axi_bvalid(ram_buf_axi_bvalid),
+        .s_axi_bready(ram_buf_axi_bready),
+        .s_axi_bresp(ram_buf_axi_bresp),
+        .s_axi_arvalid(ram_buf_axi_arvalid),
+        .s_axi_arready(ram_buf_axi_arready),
+        .s_axi_araddr(ram_buf_axi_araddr),
+        .s_axi_arcache(ram_buf_axi_arcache),
+        .s_axi_arprot(ram_buf_axi_arprot),
+        .s_axi_arlock(ram_buf_axi_arlock),
+        .s_axi_arburst(ram_buf_axi_arburst),
+        .s_axi_arlen(ram_buf_axi_arlen),
+        .s_axi_arsize(ram_buf_axi_arsize),
+        .s_axi_rvalid(ram_buf_axi_rvalid),
+        .s_axi_rready(ram_buf_axi_rready),
+        .s_axi_rdata(ram_buf_axi_rdata),
+        .s_axi_rresp(ram_buf_axi_rresp),
+        .s_axi_rlast(ram_buf_axi_rlast),
         .mem_reload_req(mem_reload_req)
     );
 

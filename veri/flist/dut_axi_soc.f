@@ -3,6 +3,7 @@
 -f ../flist/dut_axil.f
 ../../rtl/nice_coprocessor/soc/pico_native_to_axi.sv
 ../../rtl/nice_coprocessor/soc/soc_axi_interconnect.sv
+../../rtl/nice_coprocessor/soc/soc_axi_pingpong_buffer.sv
 ../../rtl/nice_coprocessor/soc/soc_axi_ram.sv
 ../../rtl/nice_coprocessor/soc/soc_axil_ctrl.sv
 ../../rtl/nice_coprocessor/soc/soc_axil_simpleuart.sv

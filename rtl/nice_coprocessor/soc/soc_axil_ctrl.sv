@@ -36,39 +36,36 @@ module soc_axil_ctrl #(
     logic [AXIL_DATA_WIDTH/8-1:0] wstrb_q;
     logic aw_seen_q;
     logic w_seen_q;
+`ifndef SYNTHESIS
     logic progress_trace_en;
     longint unsigned cycle_q;
+`endif
 
     wire aw_fire = s_axil_awvalid && s_axil_awready;
     wire w_fire  = s_axil_wvalid  && s_axil_wready;
     wire ar_fire = s_axil_arvalid && s_axil_arready;
     wire wr_ready = (aw_seen_q || aw_fire) && (w_seen_q || w_fire) && !s_axil_bvalid;
+    wire [AXIL_DATA_WIDTH-1:0] wr_data_eff = w_seen_q ? wdata_q : s_axil_wdata;
+    wire [AXIL_DATA_WIDTH/8-1:0] wr_strb_eff = w_seen_q ? wstrb_q : s_axil_wstrb;
+    wire [31:0] wr_mask32 = {
+        {8{wr_strb_eff[3]}},
+        {8{wr_strb_eff[2]}},
+        {8{wr_strb_eff[1]}},
+        {8{wr_strb_eff[0]}}
+    };
+    wire [31:0] soc_status_next = (soc_status & ~wr_mask32) | (wr_data_eff[31:0] & wr_mask32);
+    wire [31:0] soc_progress_next = (soc_progress & ~wr_mask32) | (wr_data_eff[31:0] & wr_mask32);
 
+`ifndef SYNTHESIS
     initial begin
         progress_trace_en = 1'b0;
         if ($test$plusargs("SOC_PROGRESS_TRACE")) progress_trace_en = 1'b1;
     end
+`endif
 
     assign s_axil_awready = !aw_seen_q && !s_axil_bvalid;
     assign s_axil_wready  = !w_seen_q && !s_axil_bvalid;
     assign s_axil_arready = !s_axil_rvalid;
-
-    function automatic logic [31:0] apply_wstrb(
-        input logic [31:0] old_value,
-        input logic [31:0] new_value,
-        input logic [3:0]  strb
-    );
-        logic [31:0] result;
-        begin
-            result = old_value;
-            for (int i = 0; i < 4; i++) begin
-                if (strb[i]) begin
-                    result[8*i +: 8] = new_value[8*i +: 8];
-                end
-            end
-            apply_wstrb = result;
-        end
-    endfunction
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -85,9 +82,13 @@ module soc_axil_ctrl #(
             soc_finish    <= 1'b0;
             soc_status    <= 32'b0;
             soc_progress  <= 32'b0;
+`ifndef SYNTHESIS
             cycle_q       <= '0;
+`endif
         end else begin
+`ifndef SYNTHESIS
             cycle_q <= cycle_q + 1'b1;
+`endif
 
             if (aw_fire) begin
                 awaddr_q  <= s_axil_awaddr;
@@ -103,29 +104,25 @@ module soc_axil_ctrl #(
                 unique case ((aw_seen_q ? awaddr_q[3:2] : s_axil_awaddr[3:2]))
                     2'b00: begin
                         soc_finish <= 1'b1;
-                        soc_status <= apply_wstrb(soc_status,
-                                                  w_seen_q ? wdata_q[31:0] : s_axil_wdata[31:0],
-                                                  w_seen_q ? wstrb_q[3:0] : s_axil_wstrb[3:0]);
+                        soc_status <= soc_status_next;
+`ifndef SYNTHESIS
                         if (progress_trace_en) begin
                             $display("[SOC_PROGRESS_TRACE] cycle=%0d finish status=%08x progress=%08x",
                                      cycle_q,
-                                     apply_wstrb(soc_status,
-                                                 w_seen_q ? wdata_q[31:0] : s_axil_wdata[31:0],
-                                                 w_seen_q ? wstrb_q[3:0] : s_axil_wstrb[3:0]),
+                                     soc_status_next,
                                      soc_progress);
                         end
+`endif
                     end
                     2'b11: begin
-                        soc_progress <= apply_wstrb(soc_progress,
-                                                    w_seen_q ? wdata_q[31:0] : s_axil_wdata[31:0],
-                                                    w_seen_q ? wstrb_q[3:0] : s_axil_wstrb[3:0]);
+                        soc_progress <= soc_progress_next;
+`ifndef SYNTHESIS
                         if (progress_trace_en) begin
                             $display("[SOC_PROGRESS_TRACE] cycle=%0d progress=%08x",
                                      cycle_q,
-                                     apply_wstrb(soc_progress,
-                                                 w_seen_q ? wdata_q[31:0] : s_axil_wdata[31:0],
-                                                 w_seen_q ? wstrb_q[3:0] : s_axil_wstrb[3:0]));
+                                     soc_progress_next);
                         end
+`endif
                     end
                     default: begin
                     end

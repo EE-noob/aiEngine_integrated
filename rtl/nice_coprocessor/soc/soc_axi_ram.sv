@@ -59,7 +59,7 @@ module soc_axi_ram #(
     localparam int unsigned RD_CNT_W = (RD_DEPTH < 2) ? 1 : $clog2(RD_DEPTH + 1);
     localparam int unsigned WR_CNT_W = (WR_DEPTH < 2) ? 1 : $clog2(WR_DEPTH + 1);
 
-    logic [DW-1:0] mem_r [0:DP-1];
+    (* ram_style = "block" *) logic [DW-1:0] mem_r [0:DP-1];
 
     logic [AW-1:0] rd_addr_q [0:RD_DEPTH-1];
     logic [7:0]    rd_len_q  [0:RD_DEPTH-1];
@@ -71,6 +71,8 @@ module soc_axi_ram #(
     logic rd_direct_out_q;
     logic [7:0] ar_ready_delay_q;
     logic [7:0] r_rsp_delay_q;
+    logic rd_resp_oob_q;
+    logic [DW-1:0] mem_rd_data_q;
 
     logic [AW-1:0] wr_addr_q [0:WR_DEPTH-1];
     logic [7:0]    wr_len_q  [0:WR_DEPTH-1];
@@ -88,6 +90,7 @@ module soc_axi_ram #(
     logic [WR_PTR_W-1:0] wr_b_rd_ptr_q;
     logic [WR_CNT_W-1:0] wr_b_count_q;
 
+`ifndef SYNTHESIS
     integer ddr_rand_lat_en;
     integer ddr_cmd_max_lat;
     integer ddr_w_max_lat;
@@ -95,6 +98,11 @@ module soc_axi_ram #(
     integer data_mem_base_word_q;
     string mem_path_q;
     string data_mem_path_q;
+`else
+    localparam int ddr_cmd_max_lat = 0;
+    localparam int ddr_w_max_lat   = 0;
+    localparam int ddr_rsp_max_lat = 0;
+`endif
 
     wire ar_fire = s_axi_arvalid && s_axi_arready;
     wire r_fire  = s_axi_rvalid  && s_axi_rready;
@@ -102,8 +110,13 @@ module soc_axi_ram #(
     wire w_fire  = s_axi_wvalid  && s_axi_wready;
     wire b_fire  = s_axi_bvalid  && s_axi_bready;
     wire rd_pop  = r_fire && s_axi_rlast;
+`ifndef SYNTHESIS
     wire rd_direct_fire = ar_fire && !s_axi_rvalid && (rd_count_q == '0) &&
                           (s_axi_arlen == 8'd0) && (ddr_rand_lat_en == 0);
+`else
+    wire rd_direct_fire = ar_fire && !s_axi_rvalid && (rd_count_q == '0) &&
+                          (s_axi_arlen == 8'd0);
+`endif
 
     function automatic [RD_PTR_W-1:0] inc_rd_ptr(input [RD_PTR_W-1:0] ptr);
         if (RD_DEPTH <= 1) inc_rd_ptr = '0;
@@ -118,6 +131,7 @@ module soc_axi_ram #(
     endfunction
 
     function automatic [7:0] random_ddr_delay(input integer max_lat);
+`ifndef SYNTHESIS
         integer value;
         begin
             if ((ddr_rand_lat_en == 0) || (max_lat <= 0)) begin
@@ -127,6 +141,9 @@ module soc_axi_ram #(
                 random_ddr_delay = (value > 255) ? 8'hff : value[7:0];
             end
         end
+`else
+        random_ddr_delay = 8'd0;
+`endif
     endfunction
 
     function automatic logic addr_oob(input logic [AW-1:0] byte_addr);
@@ -141,6 +158,19 @@ module soc_axi_ram #(
         word_idx = byte_addr[ADDR_LSB + ADDR_BITS - 1:ADDR_LSB];
     endfunction
 
+    wire rd_can_issue = !s_axi_rvalid;
+    wire rd_issue_queue = rd_can_issue && !rd_direct_fire &&
+                          (rd_count_q != '0) && (r_rsp_delay_q == 8'd0);
+    wire [AW-1:0] rd_queue_byte_addr =
+        rd_addr_q[rd_rd_ptr_q] + (AW'(rd_beat_q) << ADDR_LSB);
+    wire rd_issue_any = rd_direct_fire || rd_issue_queue;
+    wire [AW-1:0] rd_issue_byte_addr = rd_direct_fire ? s_axi_araddr : rd_queue_byte_addr;
+    wire rd_issue_oob = addr_oob(rd_issue_byte_addr);
+    wire rd_issue_last = rd_direct_fire ? 1'b1 : (rd_beat_q == rd_len_q[rd_rd_ptr_q]);
+    wire [1:0] rd_issue_resp = (rd_error_accum_q || rd_issue_oob) ? 2'b10 : 2'b00;
+    wire mem_rd_en = rd_issue_any && !rd_issue_oob;
+    wire [ADDR_BITS-1:0] mem_rd_addr = word_idx(rd_issue_byte_addr);
+
     wire rd_queue_full = (rd_count_q == RD_CNT_W'(RD_DEPTH));
     wire wr_aw_queue_full = (wr_aw_count_q == WR_CNT_W'(WR_DEPTH));
     wire wr_b_queue_full = (wr_b_count_q == WR_CNT_W'(WR_DEPTH));
@@ -152,8 +182,17 @@ module soc_axi_ram #(
     assign s_axi_wready  = wr_has_addr_for_w &&
                             ((wr_b_count_q < WR_CNT_W'(WR_DEPTH)) || wr_b_pop) &&
                             (w_ready_delay_q == 8'd0);
+    assign s_axi_rdata = rd_resp_oob_q ? '0 : mem_rd_data_q;
 
-    always @(posedge clk or negedge rst_n) begin
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            mem_rd_data_q <= '0;
+        end else if (mem_rd_en) begin
+            mem_rd_data_q <= mem_r[mem_rd_addr];
+        end
+    end
+
+    always @(posedge clk) begin
         if (!rst_n) begin
             rd_wr_ptr_q       <= '0;
             rd_rd_ptr_q       <= '0;
@@ -161,23 +200,15 @@ module soc_axi_ram #(
             rd_beat_q         <= 8'd0;
             rd_error_accum_q  <= 1'b0;
             rd_direct_out_q   <= 1'b0;
+            rd_resp_oob_q     <= 1'b0;
             ar_ready_delay_q  <= 8'd0;
             r_rsp_delay_q     <= 8'd0;
             s_axi_rvalid      <= 1'b0;
-            s_axi_rdata       <= '0;
             s_axi_rresp       <= 2'b00;
             s_axi_rlast       <= 1'b0;
         end else begin
             if (ar_fire) begin
-                if (rd_direct_fire) begin
-                    logic rd_oob;
-                    rd_oob = addr_oob(s_axi_araddr);
-                    s_axi_rvalid <= 1'b1;
-                    s_axi_rlast  <= 1'b1;
-                    s_axi_rdata  <= rd_oob ? '0 : mem_r[word_idx(s_axi_araddr)];
-                    s_axi_rresp  <= rd_oob ? 2'b10 : 2'b00;
-                    rd_direct_out_q <= 1'b1;
-                end else begin
+                if (!rd_direct_fire) begin
                     rd_addr_q[rd_wr_ptr_q] <= s_axi_araddr;
                     rd_len_q[rd_wr_ptr_q]  <= s_axi_arlen;
                     rd_wr_ptr_q <= inc_rd_ptr(rd_wr_ptr_q);
@@ -188,21 +219,15 @@ module soc_axi_ram #(
                 ar_ready_delay_q <= ar_ready_delay_q - 8'd1;
             end
 
-            if (!rd_direct_fire && !s_axi_rvalid && (rd_count_q != '0)) begin
-                if (r_rsp_delay_q == 8'd0) begin
-                    logic [AW-1:0] rd_cur_addr;
-                    logic rd_oob;
-                    rd_cur_addr = rd_addr_q[rd_rd_ptr_q] + (AW'(rd_beat_q) << ADDR_LSB);
-                    rd_oob = addr_oob(rd_cur_addr);
-                    s_axi_rvalid <= 1'b1;
-                    s_axi_rlast  <= (rd_beat_q == rd_len_q[rd_rd_ptr_q]);
-                    s_axi_rdata  <= rd_oob ? '0 : mem_r[word_idx(rd_cur_addr)];
-                    s_axi_rresp  <= (rd_error_accum_q || rd_oob) ? 2'b10 : 2'b00;
-                    rd_direct_out_q <= 1'b0;
-                    if (rd_oob) rd_error_accum_q <= 1'b1;
-                end else begin
-                    r_rsp_delay_q <= r_rsp_delay_q - 8'd1;
-                end
+            if (rd_issue_any) begin
+                s_axi_rvalid <= 1'b1;
+                s_axi_rlast  <= rd_issue_last;
+                s_axi_rresp  <= rd_issue_resp;
+                rd_resp_oob_q <= rd_issue_oob;
+                rd_direct_out_q <= rd_direct_fire;
+                if (!rd_direct_fire && rd_issue_oob) rd_error_accum_q <= 1'b1;
+            end else if (rd_can_issue && (rd_count_q != '0) && (r_rsp_delay_q != 8'd0)) begin
+                r_rsp_delay_q <= r_rsp_delay_q - 8'd1;
             end
 
             if (r_fire) begin
@@ -225,7 +250,7 @@ module soc_axi_ram #(
         end
     end
 
-    always @(posedge clk or negedge rst_n) begin
+    always @(posedge clk) begin
         if (!rst_n) begin
             wr_aw_wr_ptr_q    <= '0;
             wr_aw_rd_ptr_q    <= '0;
@@ -332,6 +357,7 @@ module soc_axi_ram #(
         end
     end
 
+`ifndef SYNTHESIS
     task automatic load_initial_mem();
         if (INIT_EN && mem_path_q != "") begin
             $display("soc_axi_ram: loading memory from %s", mem_path_q);
@@ -375,6 +401,13 @@ module soc_axi_ram #(
             load_initial_mem();
         end
     end
+`else
+    initial begin
+        if (INIT_EN && MEM_PATH != "") begin
+            $readmemh(MEM_PATH, mem_r);
+        end
+    end
+`endif
 
     wire _unused_axi_attr =
         |s_axi_awcache | |s_axi_awprot | |s_axi_awlock | |s_axi_awburst | |s_axi_awsize |

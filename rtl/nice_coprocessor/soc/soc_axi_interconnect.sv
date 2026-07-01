@@ -233,16 +233,29 @@ module soc_axi_interconnect #(
         cpu_w_dest  = cpu_wr_active_q ? cpu_wr_dest_q : cpu_aw_dest;
     end
 
-    wire ram_rd_owner_valid = ram_rd_owner_q == OWNER_MMA ? s1_axi_arvalid :
-                                                           (s0_axi_arvalid && (cpu_ar_dest == D_RAM));
-    wire ram_wr_owner_aw_valid = ram_wr_owner_q == OWNER_MMA ? s1_axi_awvalid :
-                                                              (s0_axi_awvalid && (cpu_aw_dest == D_RAM));
-    wire ram_rd_select_mma = !ram_rd_active_q && s1_axi_arvalid;
-    wire ram_rd_select_cpu = !ram_rd_active_q && !s1_axi_arvalid &&
-                              s0_axi_arvalid && (cpu_ar_dest == D_RAM);
-    wire ram_wr_select_mma = !ram_wr_active_q && s1_axi_awvalid;
-    wire ram_wr_select_cpu = !ram_wr_active_q && !s1_axi_awvalid &&
-                              s0_axi_awvalid && (cpu_aw_dest == D_RAM);
+    wire cpu_ram_ar_req = s0_axi_arvalid && (cpu_ar_dest == D_RAM);
+    wire mma_ram_ar_req = s1_axi_arvalid;
+    wire cpu_ram_aw_req = s0_axi_awvalid && (cpu_aw_dest == D_RAM);
+    wire mma_ram_aw_req = s1_axi_awvalid;
+
+    wire ram_rd_owner_valid = ram_rd_owner_q == OWNER_MMA ? mma_ram_ar_req :
+                                                           cpu_ram_ar_req;
+    wire ram_wr_owner_aw_valid = ram_wr_owner_q == OWNER_MMA ? mma_ram_aw_req :
+                                                              cpu_ram_aw_req;
+    wire ram_rd_other_waiting = ram_rd_active_q &&
+                                (ram_rd_owner_q == OWNER_MMA ? cpu_ram_ar_req :
+                                                               mma_ram_ar_req);
+    wire ram_wr_other_waiting = ram_wr_active_q &&
+                                (ram_wr_owner_q == OWNER_MMA ? cpu_ram_aw_req :
+                                                               mma_ram_aw_req);
+    wire ram_rd_select_cpu = !ram_rd_active_q && cpu_ram_ar_req &&
+                             (!mma_ram_ar_req || (ram_rd_owner_q == OWNER_MMA));
+    wire ram_rd_select_mma = !ram_rd_active_q && mma_ram_ar_req &&
+                             (!cpu_ram_ar_req || (ram_rd_owner_q == OWNER_CPU));
+    wire ram_wr_select_cpu = !ram_wr_active_q && cpu_ram_aw_req &&
+                             (!mma_ram_aw_req || (ram_wr_owner_q == OWNER_MMA));
+    wire ram_wr_select_mma = !ram_wr_active_q && mma_ram_aw_req &&
+                             (!cpu_ram_aw_req || (ram_wr_owner_q == OWNER_CPU));
 
     wire ram_ar_from_mma = ram_rd_active_q ? (ram_rd_owner_q == OWNER_MMA) : ram_rd_select_mma;
     wire ram_ar_from_cpu = ram_rd_active_q ? (ram_rd_owner_q == OWNER_CPU) : ram_rd_select_cpu;
@@ -252,6 +265,8 @@ module soc_axi_interconnect #(
                           (!ram_wr_active_q && ram_wr_select_mma);
     wire ram_w_from_cpu = (ram_wr_active_q && (ram_wr_owner_q == OWNER_CPU)) ||
                           (!ram_wr_active_q && ram_wr_select_cpu);
+    wire ram_rd_yield = ram_rd_active_q && ram_rd_other_waiting;
+    wire ram_wr_yield = ram_wr_active_q && ram_wr_other_waiting;
 
     wire ram_ar_hs = m_ram_arvalid && m_ram_arready;
     wire ram_r_last_hs = m_ram_rvalid && m_ram_rready && m_ram_rlast;
@@ -289,7 +304,7 @@ module soc_axi_interconnect #(
         m_ram_rready   = 1'b0;
 
         if (ram_ar_from_mma) begin
-            m_ram_arvalid = s1_axi_arvalid && ram_rd_slot_avail;
+            m_ram_arvalid = mma_ram_ar_req && ram_rd_slot_avail && !ram_rd_yield;
             m_ram_araddr  = s1_axi_araddr;
             m_ram_arcache = s1_axi_arcache;
             m_ram_arprot  = s1_axi_arprot;
@@ -297,9 +312,9 @@ module soc_axi_interconnect #(
             m_ram_arburst = s1_axi_arburst;
             m_ram_arlen   = s1_axi_arlen;
             m_ram_arsize  = s1_axi_arsize;
-            s1_axi_arready = m_ram_arready && ram_rd_slot_avail;
+            s1_axi_arready = m_ram_arready && ram_rd_slot_avail && !ram_rd_yield;
         end else if (ram_ar_from_cpu) begin
-            m_ram_arvalid = s0_axi_arvalid && (cpu_ar_dest == D_RAM) && ram_rd_slot_avail;
+            m_ram_arvalid = cpu_ram_ar_req && ram_rd_slot_avail && !ram_rd_yield;
             m_ram_araddr  = s0_axi_araddr;
             m_ram_arcache = s0_axi_arcache;
             m_ram_arprot  = s0_axi_arprot;
@@ -307,7 +322,7 @@ module soc_axi_interconnect #(
             m_ram_arburst = s0_axi_arburst;
             m_ram_arlen   = s0_axi_arlen;
             m_ram_arsize  = s0_axi_arsize;
-            s0_axi_arready = m_ram_arready && ram_rd_slot_avail;
+            s0_axi_arready = m_ram_arready && ram_rd_slot_avail && !ram_rd_yield;
         end
 
         if (ram_rd_active_q && (ram_rd_owner_q == OWNER_MMA)) begin
@@ -386,7 +401,7 @@ module soc_axi_interconnect #(
         m_ram_bready   = 1'b0;
 
         if (ram_aw_from_mma) begin
-            m_ram_awvalid = s1_axi_awvalid && ram_wr_slot_avail;
+            m_ram_awvalid = mma_ram_aw_req && ram_wr_slot_avail && !ram_wr_yield;
             m_ram_awaddr  = s1_axi_awaddr;
             m_ram_awcache = s1_axi_awcache;
             m_ram_awprot  = s1_axi_awprot;
@@ -394,9 +409,9 @@ module soc_axi_interconnect #(
             m_ram_awburst = s1_axi_awburst;
             m_ram_awlen   = s1_axi_awlen;
             m_ram_awsize  = s1_axi_awsize;
-            s1_axi_awready = m_ram_awready && ram_wr_slot_avail;
+            s1_axi_awready = m_ram_awready && ram_wr_slot_avail && !ram_wr_yield;
         end else if (ram_aw_from_cpu) begin
-            m_ram_awvalid = s0_axi_awvalid && (cpu_aw_dest == D_RAM) && ram_wr_slot_avail;
+            m_ram_awvalid = cpu_ram_aw_req && ram_wr_slot_avail && !ram_wr_yield;
             m_ram_awaddr  = s0_axi_awaddr;
             m_ram_awcache = s0_axi_awcache;
             m_ram_awprot  = s0_axi_awprot;
@@ -404,7 +419,7 @@ module soc_axi_interconnect #(
             m_ram_awburst = s0_axi_awburst;
             m_ram_awlen   = s0_axi_awlen;
             m_ram_awsize  = s0_axi_awsize;
-            s0_axi_awready = m_ram_awready && ram_wr_slot_avail;
+            s0_axi_awready = m_ram_awready && ram_wr_slot_avail && !ram_wr_yield;
         end
 
         if (ram_w_from_mma) begin
@@ -506,6 +521,59 @@ module soc_axi_interconnect #(
     assign m_ctrl_arvalid = s0_axi_arvalid && (cpu_ar_dest == D_CTRL);
     assign m_ctrl_rready  = s0_axi_rready && cpu_rd_active_q && (cpu_rd_dest_q == D_CTRL);
 
+`ifndef SYNTHESIS
+    bit axi_stats_en;
+    longint unsigned cpu_ram_ar_wait_cycles;
+    longint unsigned mma_ram_ar_wait_cycles;
+    longint unsigned cpu_ram_aw_wait_cycles;
+    longint unsigned mma_ram_aw_wait_cycles;
+    longint unsigned rd_yield_cycles;
+    longint unsigned wr_yield_cycles;
+
+    initial begin
+        axi_stats_en = $test$plusargs("SOC_AXI_STATS");
+    end
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            cpu_ram_ar_wait_cycles <= 0;
+            mma_ram_ar_wait_cycles <= 0;
+            cpu_ram_aw_wait_cycles <= 0;
+            mma_ram_aw_wait_cycles <= 0;
+            rd_yield_cycles        <= 0;
+            wr_yield_cycles        <= 0;
+        end else if (axi_stats_en) begin
+            if (cpu_ram_ar_req && !s0_axi_arready) begin
+                cpu_ram_ar_wait_cycles <= cpu_ram_ar_wait_cycles + 1;
+            end
+            if (mma_ram_ar_req && !s1_axi_arready) begin
+                mma_ram_ar_wait_cycles <= mma_ram_ar_wait_cycles + 1;
+            end
+            if (cpu_ram_aw_req && !s0_axi_awready) begin
+                cpu_ram_aw_wait_cycles <= cpu_ram_aw_wait_cycles + 1;
+            end
+            if (mma_ram_aw_req && !s1_axi_awready) begin
+                mma_ram_aw_wait_cycles <= mma_ram_aw_wait_cycles + 1;
+            end
+            if (ram_rd_yield) begin
+                rd_yield_cycles <= rd_yield_cycles + 1;
+            end
+            if (ram_wr_yield) begin
+                wr_yield_cycles <= wr_yield_cycles + 1;
+            end
+        end
+    end
+
+    final begin
+        if (axi_stats_en) begin
+            $display("[SOC_AXI_STATS] cpu_ar_wait=%0d mma_ar_wait=%0d cpu_aw_wait=%0d mma_aw_wait=%0d rd_yield=%0d wr_yield=%0d",
+                     cpu_ram_ar_wait_cycles, mma_ram_ar_wait_cycles,
+                     cpu_ram_aw_wait_cycles, mma_ram_aw_wait_cycles,
+                     rd_yield_cycles, wr_yield_cycles);
+        end
+    end
+`endif
+
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             ram_rd_active_q <= 1'b0;
@@ -527,7 +595,8 @@ module soc_axi_interconnect #(
                     ram_rd_owner_q  <= ram_ar_from_mma ? OWNER_MMA : OWNER_CPU;
                 end
             end else if ((ram_rd_outs_q == RD_OUTS_W'(1)) && ram_r_last_hs &&
-                         !ram_ar_hs && !ram_rd_owner_valid) begin
+                         !ram_ar_hs &&
+                         (!ram_rd_owner_valid || ram_rd_other_waiting)) begin
                 ram_rd_active_q <= 1'b0;
             end
 
@@ -543,7 +612,8 @@ module soc_axi_interconnect #(
                     ram_wr_owner_q  <= ram_aw_from_mma ? OWNER_MMA : OWNER_CPU;
                 end
             end else if ((ram_wr_outs_q == WR_OUTS_W'(1)) && ram_b_hs &&
-                         !ram_aw_hs && !ram_wr_owner_aw_valid) begin
+                         !ram_aw_hs &&
+                         (!ram_wr_owner_aw_valid || ram_wr_other_waiting)) begin
                 ram_wr_active_q <= 1'b0;
             end
 

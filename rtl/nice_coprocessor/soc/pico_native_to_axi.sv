@@ -157,6 +157,7 @@ module pico_native_to_axi #(
     assign m_axi_awsize  = AXI_SIZE;
     assign m_axi_wlast   = 1'b1;
 
+`ifndef SYNTHESIS
     bit trace_en;
 
     initial begin
@@ -178,6 +179,7 @@ module pico_native_to_axi #(
             end
         end
     end
+`endif
 
     wire _unused_axi_resp = |m_axi_rresp | m_axi_rlast | |m_axi_bresp;
 
