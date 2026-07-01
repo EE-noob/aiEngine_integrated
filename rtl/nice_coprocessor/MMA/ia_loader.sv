@@ -95,7 +95,6 @@ module ia_loader #(
     output logic                         ia_tile_start,          // 单 tile 首行到达输出端
     output logic                         ia_sending_done,
     output logic                         ia_data_valid,
-    output logic                         ia_group_calc_done,
     output logic                         bias_sleep,
     output logic                         bias_switch,
     output logic                         bias_last_loop,
@@ -158,6 +157,9 @@ module ia_loader #(
     logic [REG_WIDTH-1:0] l2_group_num;
     logic [REG_WIDTH-1:0] l1_per_l2;
     logic [REG_WIDTH-1:0] ia_reuse_num_act;
+    logic [REG_WIDTH-1:0] output_col_tile_num;
+    logic [REG_WIDTH-1:0] w_groups_total;
+    logic [REG_WIDTH-1:0] w_group_last_width;
     logic [REG_WIDTH-1:0] rsp_beats_per_row_normal;
     logic [REG_WIDTH-1:0] rsp_beats_per_row_last;
     logic [REG_WIDTH-1:0] rsp_rows_last_tile;
@@ -167,7 +169,13 @@ module ia_loader #(
     // =======================================================================
     logic [REG_WIDTH-1:0] vtn_tmp;
     logic [REG_WIDTH-1:0] r_mod;
+    logic [REG_WIDTH-1:0] ia_reuse_num_safe;
+    logic [REG_WIDTH-1:0] w_reuse_num_safe;
     logic [REG_WIDTH-1:0] ia_reuse_num_act_comb;
+    logic [REG_WIDTH-1:0] l2_group_num_comb;
+    logic [REG_WIDTH-1:0] output_col_tile_num_comb;
+    logic [REG_WIDTH-1:0] w_groups_total_comb;
+    logic [REG_WIDTH-1:0] w_group_last_width_comb;
 
     logic [REG_WIDTH-1:0] last_cols_comb;
     logic [REG_WIDTH-1:0] rsp_beats_per_row_last_comb;
@@ -177,8 +185,42 @@ module ia_loader #(
 
     // 基于输入参数计算派生值
     assign vtn_tmp = (k + SIZE - 1) >> LOG2_SIZE;
-    assign r_mod = vtn_tmp & (ia_reuse_num - 1);
-    assign ia_reuse_num_act_comb = (r_mod == 0) ? ia_reuse_num : r_mod;
+    assign ia_reuse_num_safe = (ia_reuse_num == '0) ? REG_WIDTH'(1) : ia_reuse_num;
+    assign w_reuse_num_safe  = (w_reuse_num  == '0) ? REG_WIDTH'(1) : w_reuse_num;
+    assign r_mod = vtn_tmp & (ia_reuse_num_safe - REG_WIDTH'(1));
+    assign ia_reuse_num_act_comb = (r_mod == '0) ? ia_reuse_num_safe : r_mod;
+    assign output_col_tile_num_comb = (m == '0) ? REG_WIDTH'(1) : ((m + SIZE - 1) >> LOG2_SIZE);
+    assign w_group_last_width_comb = ((output_col_tile_num_comb & (w_reuse_num_safe - REG_WIDTH'(1))) == '0)
+                                   ? w_reuse_num_safe
+                                   : (output_col_tile_num_comb & (w_reuse_num_safe - REG_WIDTH'(1)));
+
+    always_comb begin
+        l2_group_num_comb = vtn_tmp;
+        case (ia_reuse_num_safe)
+            REG_WIDTH'(1):  l2_group_num_comb = vtn_tmp;
+            REG_WIDTH'(2):  l2_group_num_comb = (vtn_tmp + REG_WIDTH'(1)) >> 1;
+            REG_WIDTH'(4):  l2_group_num_comb = (vtn_tmp + REG_WIDTH'(3)) >> 2;
+            REG_WIDTH'(8):  l2_group_num_comb = (vtn_tmp + REG_WIDTH'(7)) >> 3;
+            REG_WIDTH'(16): l2_group_num_comb = (vtn_tmp + REG_WIDTH'(15)) >> 4;
+            REG_WIDTH'(32): l2_group_num_comb = (vtn_tmp + REG_WIDTH'(31)) >> 5;
+            REG_WIDTH'(64): l2_group_num_comb = (vtn_tmp + REG_WIDTH'(63)) >> 6;
+            default:        l2_group_num_comb = vtn_tmp;
+        endcase
+    end
+
+    always_comb begin
+        w_groups_total_comb = output_col_tile_num_comb;
+        case (w_reuse_num_safe)
+            REG_WIDTH'(1):  w_groups_total_comb = output_col_tile_num_comb;
+            REG_WIDTH'(2):  w_groups_total_comb = (output_col_tile_num_comb + REG_WIDTH'(1)) >> 1;
+            REG_WIDTH'(4):  w_groups_total_comb = (output_col_tile_num_comb + REG_WIDTH'(3)) >> 2;
+            REG_WIDTH'(8):  w_groups_total_comb = (output_col_tile_num_comb + REG_WIDTH'(7)) >> 3;
+            REG_WIDTH'(16): w_groups_total_comb = (output_col_tile_num_comb + REG_WIDTH'(15)) >> 4;
+            REG_WIDTH'(32): w_groups_total_comb = (output_col_tile_num_comb + REG_WIDTH'(31)) >> 5;
+            REG_WIDTH'(64): w_groups_total_comb = (output_col_tile_num_comb + REG_WIDTH'(63)) >> 6;
+            default:        w_groups_total_comb = output_col_tile_num_comb;
+        endcase
+    end
 
     assign last_cols_comb = SIZE - ((((n + SIZE - 1) >> LOG2_SIZE) << LOG2_SIZE) - n);
     assign rsp_beats_per_row_last_comb = ((last_cols_comb << (use_16bits ? 1 : 0)) + BYTE_PER_BEAT - 1) >> LOG2_BYTE_PER_BEAT;
@@ -208,6 +250,9 @@ module ia_loader #(
             l2_group_num             <= '0;
             l1_per_l2                <= '0;
             ia_reuse_num_act         <= '0;
+            output_col_tile_num      <= '0;
+            w_groups_total           <= '0;
+            w_group_last_width       <= '0;
 
             rsp_beats_per_row_normal <= '0;
             rsp_beats_per_row_last   <= '0;
@@ -223,17 +268,18 @@ module ia_loader #(
             cfg_lhs_base <= lhs_base;
             cfg_use_16bits <= use_16bits;
             cfg_bias_by_row_mode <= bias_by_row_mode;
-            cfg_ia_reuse_num <= ia_reuse_num;
-            cfg_w_reuse_num <= w_reuse_num;
+            cfg_ia_reuse_num <= ia_reuse_num_safe;
+            cfg_w_reuse_num <= w_reuse_num_safe;
 
             horizontal_tile_num <= (n + SIZE - 1) >> LOG2_SIZE;
             vertical_tile_num <= (k + SIZE - 1) >> LOG2_SIZE;
 
-            l2_group_num <= (((k + SIZE - 1) >> LOG2_SIZE) + ia_reuse_num - 1) >> $clog2(
-                ia_reuse_num
-            );
+            l2_group_num <= l2_group_num_comb;
             l1_per_l2 <= (n + SIZE - 1) >> LOG2_SIZE;
             ia_reuse_num_act <= ia_reuse_num_act_comb;
+            output_col_tile_num <= output_col_tile_num_comb;
+            w_groups_total <= w_groups_total_comb;
+            w_group_last_width <= w_group_last_width_comb;
             rsp_beats_per_row_normal <= ((SIZE << (use_16bits ? 1 : 0)) + BYTE_PER_BEAT - 1) >> LOG2_BYTE_PER_BEAT;
             rsp_beats_per_row_last <= rsp_beats_per_row_last_comb;
             rsp_rows_last_tile <= rsp_rows_last_tile_comb;
@@ -311,7 +357,6 @@ module ia_loader #(
         .cfg_valid           (ctrl_init_start),
         .cfg_k               (cfg_k),
         .cfg_n               (cfg_n),
-        .cfg_m               (cfg_m),
         .cfg_use_16bits      (cfg_use_16bits),
         .cfg_bias_by_row_mode(cfg_bias_by_row_mode),
         .cfg_lhs_base        (cfg_lhs_base),
@@ -325,6 +370,9 @@ module ia_loader #(
         .l2_group_num            (l2_group_num),
         .l1_per_l2               (l1_per_l2),
         .ia_reuse_num_act        (ia_reuse_num_act),
+        .output_col_tile_num     (output_col_tile_num),
+        .w_groups_total          (w_groups_total),
+        .w_group_last_width      (w_group_last_width),
         .rsp_beats_per_row_normal(rsp_beats_per_row_normal),
         .rsp_beats_per_row_last  (rsp_beats_per_row_last),
         .rsp_rows_last_tile      (rsp_rows_last_tile),
@@ -363,22 +411,6 @@ module ia_loader #(
         .cache_tile_done    (cache_tile_done),
         .cache_l1_done      (cache_l1_done)
     );
-
-    logic ia_group_calc_done_r;
-
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            ia_group_calc_done_r <= 1'b0;
-        end else if (state == IDLE || state == INIT) begin
-            ia_group_calc_done_r <= 1'b0;
-        end else if (cache_l1_start) begin
-            ia_group_calc_done_r <= cache_l1_calc_done;
-        end else if (cache_l1_done) begin
-            ia_group_calc_done_r <= 1'b0;
-        end
-    end
-
-    assign ia_group_calc_done = cache_l1_start ? cache_l1_calc_done : ia_group_calc_done_r;
 
     // =======================================================================
     // DMA 接入：单模块测试保留内建 DMA，顶层集成复用共享 block_dma

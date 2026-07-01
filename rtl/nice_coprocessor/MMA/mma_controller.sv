@@ -79,7 +79,6 @@ module mma_controller #(
     output reg  send_ia_trigger,  // IA发送触发
     input  wire ia_sending_done,  // IA发送完成
     input  wire ia_data_valid,    // IA数据有效
-    input  wire ia_group_calc_done,  // 当前 IA 组会产生最终输出
 
     //==== Weight Loader Interface ====
     output reg  send_weight_trigger,  // 权重发送触发
@@ -127,35 +126,37 @@ module mma_controller #(
 	    wire      weight_safe_to_send;
 	    wire      issue_weight_now;
 	    wire      issue_ia_now;
-	    bit       ctrl_trace_en;
-	    bit       util_trace_en;
-	    logic     util_active;
-	    longint unsigned util_op_id;
-	    longint unsigned util_active_cycles;
-	    longint unsigned util_weight_start_cycles;
-	    longint unsigned util_weight_wait_cycles;
-	    longint unsigned util_ia_start_cycles;
-	    longint unsigned util_ia_wait_cycles;
-	    longint unsigned util_wait_wb_cycles;
-	    longint unsigned util_stall_weight_tail_cycles;
-	    longint unsigned util_stall_weight_data_cycles;
-	    longint unsigned util_stall_weight_done_cycles;
-	    longint unsigned util_stall_ia_data_cycles;
-	    longint unsigned util_stall_bias_cycles;
-	    longint unsigned util_stall_quant_cycles;
-	    longint unsigned util_stall_fifo_cycles;
-	    longint unsigned util_stall_ia_done_cycles;
-	    longint unsigned util_tail_pending_cycles;
-	    longint unsigned util_tail_done_count;
-	    longint unsigned util_weight_trigger_count;
-	    longint unsigned util_ia_trigger_count;
+`ifndef SYNTHESIS
+    bit       ctrl_trace_en;
+    bit       util_trace_en;
+    logic     util_active;
+    longint unsigned util_op_id;
+    longint unsigned util_active_cycles;
+    longint unsigned util_weight_start_cycles;
+    longint unsigned util_weight_wait_cycles;
+    longint unsigned util_ia_start_cycles;
+    longint unsigned util_ia_wait_cycles;
+    longint unsigned util_wait_wb_cycles;
+    longint unsigned util_stall_weight_tail_cycles;
+    longint unsigned util_stall_weight_data_cycles;
+    longint unsigned util_stall_weight_done_cycles;
+    longint unsigned util_stall_ia_data_cycles;
+    longint unsigned util_stall_bias_cycles;
+    longint unsigned util_stall_quant_cycles;
+    longint unsigned util_stall_fifo_cycles;
+    longint unsigned util_stall_ia_done_cycles;
+    longint unsigned util_tail_pending_cycles;
+    longint unsigned util_tail_done_count;
+    longint unsigned util_weight_trigger_count;
+    longint unsigned util_ia_trigger_count;
 
-	    initial begin
-	        ctrl_trace_en = 1'b0;
-	        util_trace_en = 1'b0;
-	        if ($test$plusargs("MMA_CTRL_TRACE")) ctrl_trace_en = 1'b1;
-	        if ($test$plusargs("MMA_UTIL_TRACE")) util_trace_en = 1'b1;
-	    end
+    initial begin
+        ctrl_trace_en = 1'b0;
+        util_trace_en = 1'b0;
+        if ($test$plusargs("MMA_CTRL_TRACE")) ctrl_trace_en = 1'b1;
+        if ($test$plusargs("MMA_UTIL_TRACE")) util_trace_en = 1'b1;
+    end
+`endif
 
 	    assign bias_ready_for_compute = bias_sleep || bias_valid;
 	    assign compute_tail_done = compute_tail_pending && partial_sum_calc_over;
@@ -171,8 +172,10 @@ module mma_controller #(
 	                          !fifo_full_flag &&
 	                          !ia_sending_done;
 
-	    wire util_start_event = (current_state == IDLE) && calc_start;
-	    wire util_finish_event = util_active && (current_state != IDLE) && (next_state == IDLE);
+`ifndef SYNTHESIS
+    wire util_start_event = (current_state == IDLE) && calc_start;
+    wire util_finish_event = util_active && (current_state != IDLE) && (next_state == IDLE);
+`endif
 
     // 参数校验函数
     function automatic logic check_config_valid();
@@ -229,50 +232,58 @@ module mma_controller #(
 	            compute_tail_pending <= 1'b0;
 	        end else begin
 	            current_state <= next_state;
-	            if (ctrl_trace_en && (current_state != next_state)) begin
-	                $display("[%0t] CTRL state %0d -> %0d wt_valid=%0d wt_done=%0d ia_valid=%0d ia_done=%0d bias_ok=%0d q_valid=%0d fifo_full=%0d tail=%0d tail_done=%0d oa_over=%0d",
-	                         $time, current_state, next_state,
-	                         weight_data_valid, weight_sending_done,
-	                         ia_data_valid, ia_sending_done,
-	                         bias_ready_for_compute, quant_params_valid,
-	                         fifo_full_flag, compute_tail_pending,
-	                         compute_tail_done, oa_calc_over);
-	            end
-	            if (current_state == IDLE && calc_start) begin
-	                cfg_16bits_ia_reg <= cfg_16bits_ia;
-                // 在收到 calc_start 时检查参数配置
-                config_error      <= check_config_valid();
-                error_type        <= get_error_type();
-                if (ctrl_trace_en) begin
-                    $display("Simulation time: %t", $time);
-                    $display("MMA Controller Start: lhs_base=%h, rhs_base=%h, dst_base=%h, bias_base=%h", lhs_base, rhs_base, dst_base, bias_base);
-                    $display("Dimensions: k=%d, n=%d, m=%d", k, n, m);
-                    $display("Strides: lhs_row_stride_b=%d, rhs_col_stride_b=%d, dst_row_stride_b=%d", lhs_row_stride_b, rhs_col_stride_b, dst_row_stride_b);
-                    $display("Quantization: q_mult_pt=%d, q_shift_pt=%d, use_per_channel=%b, cfg_16bits_ia=%b, cfg_dataflow_mode=%b", q_mult_pt, q_shift_pt, use_per_channel, cfg_16bits_ia, cfg_dataflow_mode);
-                end
-	            end
+`ifndef SYNTHESIS
+            if (ctrl_trace_en && (current_state != next_state)) begin
+		                $display("[%0t] CTRL state %0d -> %0d wt_valid=%0d wt_done=%0d ia_valid=%0d ia_done=%0d bias_ok=%0d q_valid=%0d fifo_full=%0d tail=%0d tail_done=%0d oa_over=%0d",
+		                         $time, current_state, next_state,
+		                         weight_data_valid, weight_sending_done,
+		                         ia_data_valid, ia_sending_done,
+		                         bias_ready_for_compute, quant_params_valid,
+		                         fifo_full_flag, compute_tail_pending,
+		                         compute_tail_done, oa_calc_over);
+		            end
+`endif
+		            if (current_state == IDLE && calc_start) begin
+		                cfg_16bits_ia_reg <= cfg_16bits_ia;
+	                // 在收到 calc_start 时检查参数配置
+	                config_error      <= check_config_valid();
+	                error_type        <= get_error_type();
+`ifndef SYNTHESIS
+	                if (ctrl_trace_en) begin
+	                    $display("Simulation time: %t", $time);
+	                    $display("MMA Controller Start: lhs_base=%h, rhs_base=%h, dst_base=%h, bias_base=%h", lhs_base, rhs_base, dst_base, bias_base);
+	                    $display("Dimensions: k=%d, n=%d, m=%d", k, n, m);
+	                    $display("Strides: lhs_row_stride_b=%d, rhs_col_stride_b=%d, dst_row_stride_b=%d", lhs_row_stride_b, rhs_col_stride_b, dst_row_stride_b);
+	                    $display("Quantization: q_mult_pt=%d, q_shift_pt=%d, use_per_channel=%b, cfg_16bits_ia=%b, cfg_dataflow_mode=%b", q_mult_pt, q_shift_pt, use_per_channel, cfg_16bits_ia, cfg_dataflow_mode);
+	                end
+`endif
+		            end
 
 	            if (current_state == INIT) begin
 	                compute_tail_pending <= 1'b0;
 	            end else begin
-	                if (send_ia_trigger) begin
-	                    compute_tail_pending <= 1'b1;
-	                    if (ctrl_trace_en) begin
-	                        $display("[%0t] CTRL send_ia ia_group_calc_done=%0d",
-	                                 $time, ia_group_calc_done);
-	                    end
-	                end else begin
-	                    if (compute_tail_done) begin
-	                        compute_tail_pending <= 1'b0;
-	                        if (ctrl_trace_en) begin
-	                            $display("[%0t] CTRL tail_done", $time);
-	                        end
-	                    end
-	                end
+		                if (send_ia_trigger) begin
+		                    compute_tail_pending <= 1'b1;
+`ifndef SYNTHESIS
+		                    if (ctrl_trace_en) begin
+		                        $display("[%0t] CTRL send_ia", $time);
+		                    end
+`endif
+		                end else begin
+		                    if (compute_tail_done) begin
+		                        compute_tail_pending <= 1'b0;
+`ifndef SYNTHESIS
+		                        if (ctrl_trace_en) begin
+		                            $display("[%0t] CTRL tail_done", $time);
+		                        end
+`endif
+		                    end
+		                end
 	            end
 	        end
 	    end
 
+`ifndef SYNTHESIS
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             util_active                   <= 1'b0;
@@ -400,10 +411,11 @@ module mma_controller #(
                 end
                 util_active <= 1'b0;
             end
-        end
-    end
+	        end
+	    end
+`endif
 
-    // 状态转换逻辑
+	    // 状态转换逻辑
     always_comb begin
         next_state = current_state;
         case (current_state)
@@ -430,9 +442,11 @@ module mma_controller #(
                     end else begin
                         next_state = WAIT_WB;
                     end
+`ifndef SYNTHESIS
                     if (ctrl_trace_en) begin
                         $display("MMA Controller: Calculation completed.");
                     end
+`endif
                 end else if (issue_weight_now) begin
 		                    next_state = WEIGHT_WAIT;
 		                end
@@ -447,9 +461,11 @@ module mma_controller #(
                     end else begin
                         next_state = WAIT_WB;
                     end
+`ifndef SYNTHESIS
                     if (ctrl_trace_en) begin
                         $display("MMA Controller: Calculation completed.");
                     end
+`endif
                 end else if (weight_sending_done) begin
                     next_state = issue_ia_now ? IA_WAIT : IA_START;
                 end
@@ -536,40 +552,48 @@ module mma_controller #(
 
 	                WEIGHT_START: begin
 	                    // 仅在 WEIGHT_START 一拍内发出发送触发，之后转到 WEIGHT_WAIT 等待完成 -> 保证单拍脉冲
-		                    if (issue_weight_now) begin
-		                        send_weight_trigger <= 1'b1;
-		                        if (ctrl_trace_en) begin
-		                            $display("[%0t] CTRL send_weight", $time);
-		                        end
-		                    end
+			                    if (issue_weight_now) begin
+			                        send_weight_trigger <= 1'b1;
+`ifndef SYNTHESIS
+			                        if (ctrl_trace_en) begin
+			                            $display("[%0t] CTRL send_weight", $time);
+			                        end
+`endif
+			                    end
 		                end
 
                 WEIGHT_WAIT: begin
-                    if (weight_sending_done && issue_ia_now) begin
-                        send_ia_trigger <= 1'b1;
-                        if (ctrl_trace_en) begin
-                            $display("[%0t] CTRL arm_ia_bypass", $time);
-                        end
-                    end
+	                    if (weight_sending_done && issue_ia_now) begin
+	                        send_ia_trigger <= 1'b1;
+`ifndef SYNTHESIS
+	                        if (ctrl_trace_en) begin
+	                            $display("[%0t] CTRL arm_ia_bypass", $time);
+	                        end
+`endif
+	                    end
                 end
 
                 IA_START: begin
                     // 仅在 IA_START 一拍内发出发送触发，之后转到 IA_WAIT 等待完成 -> 保证单拍脉冲
-		                    if (issue_ia_now) begin
-		                        send_ia_trigger <= 1'b1;
-		                        if (ctrl_trace_en) begin
-		                            $display("[%0t] CTRL arm_ia", $time);
-		                        end
-		                    end
+			                    if (issue_ia_now) begin
+			                        send_ia_trigger <= 1'b1;
+`ifndef SYNTHESIS
+			                        if (ctrl_trace_en) begin
+			                            $display("[%0t] CTRL arm_ia", $time);
+			                        end
+`endif
+			                    end
 		                end
 
                 IA_WAIT: begin
-                    if (ia_sending_done && issue_weight_now) begin
-                        send_weight_trigger <= 1'b1;
-                        if (ctrl_trace_en) begin
-                            $display("[%0t] CTRL send_weight_bypass", $time);
-                        end
-                    end
+	                    if (ia_sending_done && issue_weight_now) begin
+	                        send_weight_trigger <= 1'b1;
+`ifndef SYNTHESIS
+	                        if (ctrl_trace_en) begin
+	                            $display("[%0t] CTRL send_weight_bypass", $time);
+	                        end
+`endif
+	                    end
                 end
 
                 ERROR: begin

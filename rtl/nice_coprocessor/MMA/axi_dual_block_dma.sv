@@ -126,15 +126,13 @@ module axi_dual_block_dma #(
     wire wr_w_hs  = m_axi_wvalid && m_axi_wready;
     wire wr_b_hs  = m_axi_bvalid && m_axi_bready;
 
+`ifndef SYNTHESIS
     logic dma_trace_en;
     initial begin
         dma_trace_en = 1'b0;
         if ($test$plusargs("MMA_DMA_TRACE")) dma_trace_en = 1'b1;
     end
-
-    function automatic [REG_WIDTH-1:0] align_down(input [REG_WIDTH-1:0] addr);
-        align_down = {addr[REG_WIDTH-1:ADDR_LSB], {ADDR_LSB{1'b0}}};
-    endfunction
+`endif
 
     // ---------------------------------------------------------------------
     // Read engine configuration/state
@@ -150,7 +148,9 @@ module axi_dual_block_dma #(
     logic signed [REG_WIDTH-1:0] rd_cfg_zp;
 
     logic [REG_WIDTH-1:0] rd_cmd_row_cnt;
+    logic [REG_WIDTH-1:0] rd_cmd_row_addr;
     logic [REG_WIDTH-1:0] rd_rsp_row_cnt;
+    logic [REG_WIDTH-1:0] rd_rsp_row_addr_cur;
     logic [REG_WIDTH-1:0] rd_rsp_beat_cnt;
     logic [BUS_WIDTH-1:0] rd_rsp_prev_data;
     logic [BUS_WIDTH-1:0] rd_rsp_data_r;
@@ -163,11 +163,13 @@ module axi_dual_block_dma #(
     logic rd_done_r;
     logic rd_error_r;
     logic rd_pending_cmd_cross;
+`ifndef SYNTHESIS
     longint unsigned rd_trace_ar_count;
     longint unsigned rd_trace_unaligned_ar_count;
     longint unsigned rd_trace_cross_ar_count;
     longint unsigned rd_trace_r_count;
     logic [RD_OUTS_W-1:0] rd_trace_max_outs;
+`endif
 
     assign rd_busy = rd_active;
     assign rd_done = rd_done_r;
@@ -186,9 +188,7 @@ module axi_dual_block_dma #(
     wire rd_unaligned_mode = (rd_cfg_base_addr[ADDR_LSB-1:0] != '0)
                           || (rd_cfg_row_stride[ADDR_LSB-1:0] != '0);
 
-    wire [REG_WIDTH-1:0] rd_rsp_row_addr =
-        rd_cfg_base_addr + rd_rsp_row_cnt * rd_cfg_row_stride;
-    wire [ADDR_LSB-1:0] rd_rsp_offset = rd_rsp_row_addr[ADDR_LSB-1:0];
+    wire [ADDR_LSB-1:0] rd_rsp_offset = rd_rsp_row_addr_cur[ADDR_LSB-1:0];
     wire rd_rsp_cross = rd_unaligned_mode && (rd_rsp_offset != '0);
     wire [REG_WIDTH-1:0] rd_rsp_aligned_last_beat =
         rd_logical_burst_len_ext + (rd_rsp_cross ? REG_WIDTH'(1) : REG_WIDTH'(0));
@@ -244,6 +244,7 @@ module axi_dual_block_dma #(
             m_axi_araddr    <= '0;
             m_axi_arlen     <= '0;
             rd_cmd_row_cnt  <= '0;
+            rd_cmd_row_addr <= '0;
             rd_outstanding_cnt <= '0;
             rd_pending_cmd_cross <= 1'b0;
         end else if (rd_start && !rd_active) begin
@@ -251,6 +252,7 @@ module axi_dual_block_dma #(
             m_axi_araddr    <= rd_base_addr;
             m_axi_arlen     <= '0;
             rd_cmd_row_cnt  <= '0;
+            rd_cmd_row_addr <= rd_base_addr;
             rd_outstanding_cnt <= '0;
             rd_pending_cmd_cross <= 1'b0;
         end else if (rd_active) begin
@@ -267,16 +269,17 @@ module axi_dual_block_dma #(
                                 ? (rd_outstanding_cnt == '0)
                                 : (rd_outstanding_cnt < RD_OUTS_W'(RD_OUTS_MAX))) &&
                              (rd_cmd_row_cnt < rd_cfg_rows)) begin
-                    logic [REG_WIDTH-1:0] cmd_addr_cur;
                     logic [ADDR_LSB-1:0] cmd_offset_cur;
 
-                    cmd_addr_cur = rd_cfg_base_addr + rd_cmd_row_cnt * rd_cfg_row_stride;
-                    cmd_offset_cur = cmd_addr_cur[ADDR_LSB-1:0];
+                    cmd_offset_cur = rd_cmd_row_addr[ADDR_LSB-1:0];
                     m_axi_arvalid <= 1'b1;
-                    m_axi_araddr  <= rd_unaligned_mode ? align_down(cmd_addr_cur) : cmd_addr_cur;
+                    m_axi_araddr  <= rd_unaligned_mode
+                                   ? {rd_cmd_row_addr[REG_WIDTH-1:ADDR_LSB], {ADDR_LSB{1'b0}}}
+                                   : rd_cmd_row_addr;
                     m_axi_arlen   <= 8'(rd_cfg_linear_read ? 4'd0 : rd_cfg_burst_len_m1)
                                    + ((rd_unaligned_mode && (cmd_offset_cur != '0)) ? 8'd1 : 8'd0);
                     rd_cmd_row_cnt <= rd_cmd_row_cnt + 1'b1;
+                    rd_cmd_row_addr <= rd_cmd_row_addr + rd_cfg_row_stride;
                     rd_pending_cmd_cross <= rd_unaligned_mode && (cmd_offset_cur != '0);
                 end
 
@@ -285,15 +288,18 @@ module axi_dual_block_dma #(
                     2'b01: rd_outstanding_cnt <= rd_outstanding_cnt - 1'b1;
                     default: rd_outstanding_cnt <= rd_outstanding_cnt;
                 endcase
+
             end
         end else begin
             m_axi_arvalid   <= 1'b0;
             rd_cmd_row_cnt  <= '0;
+            rd_cmd_row_addr <= '0;
             rd_outstanding_cnt <= '0;
             rd_pending_cmd_cross <= 1'b0;
         end
     end
 
+`ifndef SYNTHESIS
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             rd_trace_ar_count          <= '0;
@@ -332,6 +338,7 @@ module axi_dual_block_dma #(
             end
         end
     end
+`endif
 
     logic [REG_WIDTH-1:0] rd_rsp_logical_beat_comb;
     logic [$clog2(SIZE)-1:0] rd_rsp_col_base_comb;
@@ -361,6 +368,7 @@ module axi_dual_block_dma #(
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             rd_rsp_row_cnt    <= '0;
+            rd_rsp_row_addr_cur <= '0;
             rd_rsp_beat_cnt   <= '0;
             rd_rsp_prev_data   <= '0;
             rd_rsp_valid_r    <= 1'b0;
@@ -369,6 +377,7 @@ module axi_dual_block_dma #(
             rd_rsp_col_base_r <= '0;
         end else if (rd_start && !rd_active) begin
             rd_rsp_row_cnt  <= '0;
+            rd_rsp_row_addr_cur <= rd_base_addr;
             rd_rsp_beat_cnt <= '0;
             rd_rsp_prev_data <= '0;
             rd_rsp_valid_r  <= 1'b0;
@@ -382,8 +391,13 @@ module axi_dual_block_dma #(
 
                 if (rd_rsp_done) begin
                     rd_rsp_beat_cnt <= '0;
-                    if (rd_rsp_row_cnt == rd_cfg_rows - 1) rd_rsp_row_cnt <= '0;
-                    else rd_rsp_row_cnt <= rd_rsp_row_cnt + 1'b1;
+                    if (rd_rsp_row_cnt == rd_cfg_rows - 1) begin
+                        rd_rsp_row_cnt <= '0;
+                        rd_rsp_row_addr_cur <= rd_cfg_base_addr;
+                    end else begin
+                        rd_rsp_row_cnt <= rd_rsp_row_cnt + 1'b1;
+                        rd_rsp_row_addr_cur <= rd_rsp_row_addr_cur + rd_cfg_row_stride;
+                    end
                 end else begin
                     rd_rsp_beat_cnt <= rd_rsp_beat_cnt + 1'b1;
                 end
@@ -392,6 +406,7 @@ module axi_dual_block_dma #(
             end
         end else begin
             rd_rsp_row_cnt  <= '0;
+            rd_rsp_row_addr_cur <= '0;
             rd_rsp_beat_cnt <= '0;
             rd_rsp_prev_data <= '0;
             rd_rsp_valid_r  <= 1'b0;
@@ -442,7 +457,9 @@ module axi_dual_block_dma #(
     logic [REG_WIDTH-1:0] wr_cfg_rows;
     logic [3:0] wr_cfg_burst_len_m1;
     logic [REG_WIDTH-1:0] wr_cmd_row_cnt;
+    logic [REG_WIDTH-1:0] wr_cmd_row_addr_cur;
     logic [REG_WIDTH-1:0] wr_data_row_cnt;
+    logic [REG_WIDTH-1:0] wr_data_row_addr_cur;
     logic [REG_WIDTH-1:0] wr_resp_row_cnt;
     logic [REG_WIDTH-1:0] wr_beat_cnt;
     logic [BUS_WIDTH-1:0] wr_tail_data;
@@ -453,21 +470,19 @@ module axi_dual_block_dma #(
     logic wr_done_r;
     logic wr_error_r;
     logic wr_pending_cmd_cross;
+`ifndef SYNTHESIS
     longint unsigned wr_trace_aw_count;
     longint unsigned wr_trace_cross_aw_count;
     longint unsigned wr_trace_w_count;
     logic [WR_OUTS_W-1:0] wr_trace_max_outs;
+`endif
 
     assign wr_busy  = wr_active;
     assign wr_done  = wr_done_r;
     assign wr_error = wr_error_r;
 
     wire [REG_WIDTH-1:0] wr_cfg_burst_len_ext = REG_WIDTH'(wr_cfg_burst_len_m1);
-    wire [REG_WIDTH-1:0] wr_cmd_row_addr_cur =
-        wr_cfg_base_addr + wr_cmd_row_cnt * wr_cfg_row_stride;
     wire [ADDR_LSB-1:0] wr_cmd_row_offset = wr_cmd_row_addr_cur[ADDR_LSB-1:0];
-    wire [REG_WIDTH-1:0] wr_data_row_addr_cur =
-        wr_cfg_base_addr + wr_data_row_cnt * wr_cfg_row_stride;
     wire [ADDR_LSB-1:0] wr_row_offset = wr_data_row_addr_cur[ADDR_LSB-1:0];
     wire wr_row_cross = (wr_row_offset != '0);
     wire [REG_WIDTH-1:0] wr_aligned_last_beat =
@@ -547,7 +562,9 @@ module axi_dual_block_dma #(
             m_axi_awaddr  <= '0;
             m_axi_awlen   <= '0;
             wr_cmd_row_cnt <= '0;
+            wr_cmd_row_addr_cur <= '0;
             wr_data_row_cnt <= '0;
+            wr_data_row_addr_cur <= '0;
             wr_resp_row_cnt <= '0;
             wr_beat_cnt   <= '0;
             wr_tail_data   <= '0;
@@ -560,7 +577,9 @@ module axi_dual_block_dma #(
             m_axi_awaddr  <= wr_base_addr;
             m_axi_awlen   <= 8'(wr_burst_len_m1);
             wr_cmd_row_cnt <= '0;
+            wr_cmd_row_addr_cur <= wr_base_addr;
             wr_data_row_cnt <= '0;
+            wr_data_row_addr_cur <= wr_base_addr;
             wr_resp_row_cnt <= '0;
             wr_beat_cnt   <= '0;
             wr_tail_data   <= '0;
@@ -578,10 +597,12 @@ module axi_dual_block_dma #(
                 if (wr_aw_hs) begin
                     m_axi_awvalid <= 1'b0;
                     wr_cmd_row_cnt <= wr_cmd_row_cnt + 1'b1;
+                    wr_cmd_row_addr_cur <= wr_cmd_row_addr_cur + wr_cfg_row_stride;
                     wr_pending_cmd_cross <= 1'b0;
                 end else if (!m_axi_awvalid && wr_can_issue_aw) begin
                     m_axi_awvalid <= 1'b1;
-                    m_axi_awaddr  <= align_down(wr_cmd_row_addr_cur);
+                    m_axi_awaddr  <= {wr_cmd_row_addr_cur[REG_WIDTH-1:ADDR_LSB],
+                                      {ADDR_LSB{1'b0}}};
                     m_axi_awlen   <= 8'(wr_cfg_burst_len_m1)
                                    + ((wr_cmd_row_offset != '0) ? 8'd1 : 8'd0);
                     wr_pending_cmd_cross <= (wr_cmd_row_offset != '0);
@@ -609,6 +630,7 @@ module axi_dual_block_dma #(
                         wr_beat_cnt   <= '0;
                         wr_data_active <= 1'b0;
                         wr_data_row_cnt <= wr_data_row_cnt + 1'b1;
+                        wr_data_row_addr_cur <= wr_data_row_addr_cur + wr_cfg_row_stride;
                         wr_tail_data   <= '0;
                         wr_tail_mask   <= '0;
                     end else begin
@@ -623,7 +645,9 @@ module axi_dual_block_dma #(
         end else begin
             m_axi_awvalid <= 1'b0;
             wr_cmd_row_cnt <= '0;
+            wr_cmd_row_addr_cur <= '0;
             wr_data_row_cnt <= '0;
+            wr_data_row_addr_cur <= '0;
             wr_resp_row_cnt <= '0;
             wr_beat_cnt   <= '0;
             wr_tail_data   <= '0;
@@ -634,6 +658,7 @@ module axi_dual_block_dma #(
         end
     end
 
+`ifndef SYNTHESIS
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             wr_trace_aw_count       <= '0;
@@ -667,5 +692,6 @@ module axi_dual_block_dma #(
             end
         end
     end
+`endif
 
 endmodule

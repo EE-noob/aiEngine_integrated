@@ -85,17 +85,18 @@ module kernel_loader #(
 	  localparam int BYTE_PER_BEAT = BUS_WIDTH / 8;
 	  localparam int ELEM_PER_BEAT_S8 = BYTE_PER_BEAT;
 	  localparam int ELEM_PER_BEAT_S16 = BYTE_PER_BEAT / 2;
-	  logic [REG_WIDTH-1:0] dma_elems_per_beat;
 	  logic [REG_WIDTH-1:0] dma_beats_per_row;
 	  logic [3:0]           dma_burst_len_m1;
 
 	  always_comb begin
-	    dma_elems_per_beat = cfg_use_16bits ? REG_WIDTH'(ELEM_PER_BEAT_S16) : REG_WIDTH'(ELEM_PER_BEAT_S8);
 	    if (dma_valid_cols == 0) begin
 	      dma_beats_per_row = REG_WIDTH'(1);
+	    end else if (cfg_use_16bits) begin
+	      dma_beats_per_row =
+	        (dma_valid_cols + REG_WIDTH'(ELEM_PER_BEAT_S16 - 1)) >> $clog2(ELEM_PER_BEAT_S16);
 	    end else begin
-	      dma_beats_per_row = (dma_valid_cols + dma_elems_per_beat - 1) / dma_elems_per_beat;
-	      if (dma_beats_per_row == 0) dma_beats_per_row = REG_WIDTH'(1);
+	      dma_beats_per_row =
+	        (dma_valid_cols + REG_WIDTH'(ELEM_PER_BEAT_S8 - 1)) >> $clog2(ELEM_PER_BEAT_S8);
 	    end
 	    dma_burst_len_m1 = 4'(dma_beats_per_row - 1);
 	  end
@@ -205,14 +206,17 @@ module kernel_loader #(
 	      logic ext_done_q;
 	      logic beat_valid;
 	      logic last_ext_beat;
+	      logic [REG_WIDTH-1:0] ext_dma_valid_cols_r;
 
 	      always_comb begin
 	        beat_valid = 1'b0;
 	        for (int i = 0; i < BYTE_PER_BEAT; i++) begin
 	          beat_valid |= ext_dma_wr_valid[i];
 	        end
-	        last_ext_beat = beat_valid &&
-	          ((REG_WIDTH'(ext_dma_wr_col_base) + dma_elems_per_beat) >= dma_valid_cols);
+		        last_ext_beat = beat_valid &&
+		          ((REG_WIDTH'(ext_dma_wr_col_base) +
+		            (cfg_use_16bits ? REG_WIDTH'(ELEM_PER_BEAT_S16) : REG_WIDTH'(ELEM_PER_BEAT_S8)))
+		           >= ext_dma_valid_cols_r);
 	        for (int c = 0; c < SIZE; c++) begin
 	          row_acc_n[c] = row_acc[c];
 	          row_emit_n[c] = row_acc[c];
@@ -227,7 +231,7 @@ module kernel_loader #(
 	          for (int i = 0; i < BYTE_PER_BEAT; i++) begin
 	            automatic int col;
 	            col = int'(ext_dma_wr_col_base) + i;
-	            if (ext_dma_wr_valid[i] && col < SIZE && REG_WIDTH'(col) < dma_valid_cols) begin
+	            if (ext_dma_wr_valid[i] && col < SIZE && REG_WIDTH'(col) < ext_dma_valid_cols_r) begin
 	              row_emit_n[col] = ext_dma_wr_data[i];
 	              if (!last_ext_beat) row_acc_n[col] = ext_dma_wr_data[i];
 	            end
@@ -249,6 +253,7 @@ module kernel_loader #(
 	          row_valid_pending <= 1'b0;
 	          row_idx_pending <= '0;
 	          ext_done_q <= 1'b0;
+	          ext_dma_valid_cols_r <= REG_WIDTH'(SIZE);
 	          for (int c = 0; c < SIZE; c++) begin
 	            row_acc[c] <= '0;
 	            row_emit[c] <= '0;
@@ -258,6 +263,9 @@ module kernel_loader #(
 	          dma_busy <= ext_dma_busy;
 	          ext_done_q <= ext_dma_done;
 	          dma_done <= ext_done_q;
+	          if (dma_start) begin
+	            ext_dma_valid_cols_r <= dma_valid_cols;
+	          end
 	          dma_row_valid <= row_valid_pending;
 	          if (row_valid_pending) begin
 	            dma_row_idx <= row_idx_pending;

@@ -50,17 +50,18 @@ module kernel_block_dma #(
   localparam int ELEM_PER_BEAT_S8 = BYTE_PER_BEAT;
   localparam int ELEM_PER_BEAT_S16 = BYTE_PER_BEAT / 2;
 
-  logic [REG_WIDTH-1:0] elems_per_beat;
   logic [REG_WIDTH-1:0] beats_per_row;
   logic [3:0]           beats_per_row_m1;
 
   always_comb begin
-    elems_per_beat = use_16bits_r ? REG_WIDTH'(ELEM_PER_BEAT_S16) : REG_WIDTH'(ELEM_PER_BEAT_S8);
     if (valid_cols_r == 0) begin
       beats_per_row = REG_WIDTH'(1);
+    end else if (use_16bits_r) begin
+      beats_per_row =
+        (valid_cols_r + REG_WIDTH'(ELEM_PER_BEAT_S16 - 1)) >> $clog2(ELEM_PER_BEAT_S16);
     end else begin
-      beats_per_row = (valid_cols_r + elems_per_beat - 1) / elems_per_beat;
-      if (beats_per_row == 0) beats_per_row = REG_WIDTH'(1);
+      beats_per_row =
+        (valid_cols_r + REG_WIDTH'(ELEM_PER_BEAT_S8 - 1)) >> $clog2(ELEM_PER_BEAT_S8);
     end
     beats_per_row_m1 = 4'(beats_per_row - 1);
   end

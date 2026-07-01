@@ -12,9 +12,10 @@ module pseudo_dual_port_ram #(
     output reg [DATA_WIDTH-1:0] dob    // 端口B数据输出
 );
 
-    // 定义 RAM 存储器
-    reg [DATA_WIDTH-1:0] ram [(1<<ADDR_WIDTH)-1:0];
+    // Synchronous-read block RAM friendly storage.
+    (* ram_style = "block" *) reg [DATA_WIDTH-1:0] ram [(1<<ADDR_WIDTH)-1:0];
 
+`ifndef SYNTHESIS
     // 初始化RAM（用于仿真）
     integer init_i;
     initial begin
@@ -22,6 +23,7 @@ module pseudo_dual_port_ram #(
             ram[init_i] = {DATA_WIDTH{1'b0}};
         end
     end
+`endif
 
     // 使用一个 always 块来处理两个端口的读写操作
     always @(posedge clk) begin

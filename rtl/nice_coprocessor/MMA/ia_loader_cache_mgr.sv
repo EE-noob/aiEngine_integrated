@@ -123,12 +123,13 @@ module ia_loader_cache_mgr #(
   //      tall stream，de-diagonalizer 在输出侧按 tile_start 标记切分。
   //
   localparam int SLOT_W = $clog2(CACHE_BLOCKS);
+  localparam int ROW_CNT_W = $clog2(SIZE + 1);
 
   logic l1_issue_active;                  // 仍有行需要在 col0 发射
   logic [SLOT_W-1:0] issue_slot_r;       // 当前正在发射的 slot
   logic [SLOT_W-1:0] l1_slot_end_r;
-  logic [REG_WIDTH-1:0] issue_row_idx_r; // 当前 slot 下一次发射的行号
-  logic [REG_WIDTH-1:0] issue_rows_r;    // 当前 slot 总有效行数
+  logic [ROW_CNT_W-1:0] issue_row_idx_r; // 当前 slot 下一次发射的行号
+  logic [ROW_CNT_W-1:0] issue_rows_r;    // 当前 slot 总有效行数
   logic send_is_init_r;
   logic send_calc_done_r;
   localparam int unsigned ISSUE_GAP_CYCLES = 0;
@@ -147,17 +148,24 @@ module ia_loader_cache_mgr #(
 
   logic              start_issue_now;
   logic [SLOT_W-1:0] issue_slot_now;
-  logic [REG_WIDTH-1:0] issue_row_idx_now;
-  logic [REG_WIDTH-1:0] issue_rows_now;
+  logic [ROW_CNT_W-1:0] issue_row_idx_now;
+  logic [ROW_CNT_W-1:0] issue_rows_now;
+  logic [ROW_CNT_W-1:0] issue_row_idx_inc_now;
+  logic [ROW_CNT_W-1:0] slot_rows_start_now;
+  logic [ROW_CNT_W-1:0] slot_rows_next_now;
   logic [SLOT_W-1:0]   l1_slot_end_now;
-  logic                 issue_slot_ready;
+  logic [SLOT_W-1:0]   next_issue_slot_now;
 
   always_comb begin
-    start_issue_now   = l1_start && !l1_issue_active && blk_valid_in[l1_slot_start];
+    start_issue_now   = l1_start && !l1_issue_active;
     issue_slot_now    = start_issue_now ? l1_slot_start : issue_slot_r;
     issue_row_idx_now = start_issue_now ? '0 : issue_row_idx_r;
-    issue_rows_now    = start_issue_now ? slot_rows[l1_slot_start] : issue_rows_r;
+    slot_rows_start_now = ROW_CNT_W'(slot_rows[l1_slot_start]);
     l1_slot_end_now   = start_issue_now ? l1_slot_end : l1_slot_end_r;
+    next_issue_slot_now = issue_slot_now + 1'b1;
+    slot_rows_next_now = ROW_CNT_W'(slot_rows[next_issue_slot_now]);
+    issue_rows_now    = start_issue_now ? slot_rows_start_now : issue_rows_r;
+    issue_row_idx_inc_now = issue_row_idx_now + ROW_CNT_W'(1);
 
     src_rd_en       = 1'b0;
     src_rd_addr     = '0;
@@ -165,10 +173,10 @@ module ia_loader_cache_mgr #(
     src_tile_first  = 1'b0;
     src_l1_last     = 1'b0;
 
-    if (start_issue_now || (l1_issue_active && issue_slot_ready && !issue_gap_active)) begin
+    if (start_issue_now || (l1_issue_active && !issue_gap_active)) begin
       src_rd_en     = 1'b1;
       src_rd_addr   = ADDR_W'({issue_slot_now, LOG2_SIZE'(issue_row_idx_now)});
-      src_tile_last = (issue_row_idx_now == issue_rows_now - 1);
+      src_tile_last = (issue_row_idx_inc_now == issue_rows_now);
       src_tile_first= (issue_row_idx_now == '0);
       src_l1_last   = src_tile_last && (issue_slot_now == l1_slot_end_now);
     end
@@ -180,9 +188,6 @@ module ia_loader_cache_mgr #(
   logic              tile_first_pipe [SIZE];
   logic              tile_last_pipe  [SIZE];
   logic              l1_last_pipe    [SIZE];
-
-  // 当前 slot ready
-  assign issue_slot_ready = blk_valid_in[issue_slot_r];
 
   // 下一 slot（自然回绕）
   logic [SLOT_W-1:0] next_issue_slot;
@@ -220,22 +225,22 @@ module ia_loader_cache_mgr #(
         l1_issue_active <= 1'b1;
         issue_slot_r    <= l1_slot_start;
         l1_slot_end_r   <= l1_slot_end;
-        issue_rows_r    <= slot_rows[l1_slot_start];
+        issue_rows_r    <= slot_rows_start_now;
         send_is_init_r  <= l1_is_init;
         send_calc_done_r<= l1_calc_done;
 
         if (start_issue_now) begin
-          if (slot_rows[l1_slot_start] == 1) begin
+          if (slot_rows_start_now == ROW_CNT_W'(1)) begin
             if (l1_slot_start == l1_slot_end) begin
               l1_issue_active <= 1'b0;
             end else begin
-              issue_slot_r    <= next_issue_slot;
+              issue_slot_r    <= next_issue_slot_now;
               issue_row_idx_r <= '0;
-              issue_rows_r    <= slot_rows[next_issue_slot];
+              issue_rows_r    <= slot_rows_next_now;
               issue_gap_cnt   <= GAP_CNT_W'(ISSUE_GAP_CYCLES);
             end
           end else begin
-            issue_row_idx_r <= 'd1;
+            issue_row_idx_r <= ROW_CNT_W'(1);
           end
         end else begin
           issue_row_idx_r <= '0;
@@ -243,8 +248,8 @@ module ia_loader_cache_mgr #(
       end
 
       // col0 发射调度
-      if (l1_issue_active && issue_slot_ready && !issue_gap_active) begin
-        if (issue_row_idx_r == issue_rows_r - 1) begin
+      if (l1_issue_active && !issue_gap_active) begin
+        if ((issue_row_idx_r + ROW_CNT_W'(1)) == issue_rows_r) begin
           // 当前 tile 最后一行在 col0 发射
           if (issue_slot_r == l1_slot_end_r) begin
             // L1 最后一个 tile 的最后一行
@@ -253,7 +258,7 @@ module ia_loader_cache_mgr #(
             // 切到下一个 tile（下一拍若 valid 则立刻发射）
             issue_slot_r    <= next_issue_slot;
             issue_row_idx_r <= '0;
-            issue_rows_r    <= slot_rows[next_issue_slot];
+            issue_rows_r    <= ROW_CNT_W'(slot_rows[next_issue_slot]);
             issue_gap_cnt   <= GAP_CNT_W'(ISSUE_GAP_CYCLES);
           end
         end else begin

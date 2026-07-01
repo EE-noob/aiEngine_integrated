@@ -25,7 +25,6 @@ module axi_block_dma_arbiter #(
     input  logic ia_req,
     output logic ia_granted,
     input  logic ia_start,
-    input  logic ia_is_write,
     input  logic ia_linear_read_mode,
     input  logic [REG_WIDTH-1:0] ia_base_addr,
     input  logic [REG_WIDTH-1:0] ia_row_stride,
@@ -46,7 +45,6 @@ module axi_block_dma_arbiter #(
     input  logic kernel_req,
     output logic kernel_granted,
     input  logic kernel_start,
-    input  logic kernel_is_write,
     input  logic kernel_linear_read_mode,
     input  logic [REG_WIDTH-1:0] kernel_base_addr,
     input  logic [REG_WIDTH-1:0] kernel_row_stride,
@@ -65,7 +63,6 @@ module axi_block_dma_arbiter #(
     input  logic bias_req,
     output logic bias_granted,
     input  logic bias_start,
-    input  logic bias_is_write,
     input  logic bias_linear_read_mode,
     input  logic [REG_WIDTH-1:0] bias_base_addr,
     input  logic [REG_WIDTH-1:0] bias_row_stride,
@@ -86,7 +83,6 @@ module axi_block_dma_arbiter #(
     input  logic quant_req,
     output logic quant_granted,
     input  logic quant_start,
-    input  logic quant_is_write,
     input  logic quant_linear_read_mode,
     input  logic [REG_WIDTH-1:0] quant_base_addr,
     input  logic [REG_WIDTH-1:0] quant_row_stride,
@@ -103,15 +99,10 @@ module axi_block_dma_arbiter #(
     input  logic oa_req,
     output logic oa_granted,
     input  logic oa_start,
-    input  logic oa_is_write,
-    input  logic oa_linear_read_mode,
     input  logic [REG_WIDTH-1:0] oa_base_addr,
     input  logic [REG_WIDTH-1:0] oa_row_stride,
     input  logic [REG_WIDTH-1:0] oa_rows_to_read,
     input  logic [3:0] oa_burst_len_m1,
-    input  logic oa_slot_id,
-    input  logic oa_use_16bits,
-    input  logic signed [REG_WIDTH-1:0] oa_lhs_zp,
     input  logic [BUS_WIDTH-1:0] oa_src_wdata,
     input  logic [BUS_WIDTH/8-1:0] oa_src_wmask,
     input  logic oa_src_wvalid,
@@ -163,7 +154,6 @@ module axi_block_dma_arbiter #(
     logic rd_dma_start;
     logic rd_dma_busy;
     logic rd_dma_done;
-    logic rd_error;
 
     logic rd_dma_linear_read_mode;
     logic [REG_WIDTH-1:0] rd_dma_base_addr;
@@ -182,31 +172,13 @@ module axi_block_dma_arbiter #(
     logic dma_wr_use_16bits;
     logic [BUS_WIDTH-1:0] dma_raw_data;
     logic dma_raw_valid;
-    logic [$clog2(DMA_SIZE)-1:0] dma_raw_row;
-    logic [$clog2(DMA_SIZE)-1:0] dma_raw_col_base;
 
     logic wr_active;
     logic wr_started;
     logic wr_dma_start;
     logic wr_dma_busy;
     logic wr_dma_done;
-    logic wr_error;
     logic wr_src_wready;
-
-    wire unused_ia_is_write = ia_is_write;
-    wire unused_kernel_is_write = kernel_is_write;
-    wire unused_bias_is_write = bias_is_write;
-    wire unused_quant_is_write = quant_is_write;
-    wire unused_oa_is_write = oa_is_write;
-    wire unused_oa_linear_read_mode = oa_linear_read_mode;
-    wire unused_oa_slot_id = oa_slot_id;
-    wire unused_oa_use_16bits = oa_use_16bits;
-    wire signed [REG_WIDTH-1:0] unused_oa_lhs_zp = oa_lhs_zp;
-    wire unused_rd_error = rd_error;
-    wire unused_wr_error = wr_error;
-    wire [BUS_WIDTH-1:0] unused_dma_raw = dma_raw_data;
-    wire [$clog2(DMA_SIZE)-1:0] unused_dma_raw_row = dma_raw_row;
-    wire [$clog2(DMA_SIZE)-1:0] unused_dma_raw_col_base = dma_raw_col_base;
 
     always_comb begin
         if (kernel_req) rd_next_client = C_KERNEL;
@@ -447,10 +419,10 @@ module axi_block_dma_arbiter #(
         .wr_use_16bits      (dma_wr_use_16bits),
         .rd_raw_data        (dma_raw_data),
         .rd_raw_valid       (dma_raw_valid),
-        .rd_raw_row         (dma_raw_row),
-        .rd_raw_col_base    (dma_raw_col_base),
-        .rd_error           (rd_error),
-        .wr_error           (wr_error)
+        .rd_raw_row         (),
+        .rd_raw_col_base    (),
+        .rd_error           (),
+        .wr_error           ()
     );
 
 endmodule

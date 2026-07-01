@@ -53,6 +53,10 @@ module vec_requant #(
   // ----------------------------
   localparam int BYTES_PER_WORD = REG_WIDTH / 8;  // 32位=4
   localparam int QBUF_DEPTH     = VLEN * MAX_IA_REUSE;
+  localparam int VLEN_SHIFT     = $clog2(VLEN);
+  localparam int TILE_CNT_W     = (REG_WIDTH < 16) ? REG_WIDTH : 16;
+
+  typedef logic [TILE_CNT_W-1:0] tile_idx_t;
 
   // ----------------------------
   // 状态机与游标
@@ -71,17 +75,17 @@ module vec_requant #(
   } phase_e;
   phase_e          load_phase;  // 当前子阶段（先 mul 后 shift）
 
-  logic     [31:0] tile_col;  // 当前列 tile 号
+  tile_idx_t       tile_col;  // 当前列 tile 号
   logic     [ 4:0] row_in_tile_cnt;  // 0..15：本 tile 已完成的行数
   logic     [31:0] lane_need_cur;  // 本 tile 需要的列数（尾块可能 < VLEN）
   logic     [31:0] quant_need_cur;  // 本 tile 需要加载的 per-channel 参数数
   logic     [31:0] quant_tile_idx_cur;
-  logic     [31:0] tile_row;  // 当前行 tile 号
+  tile_idx_t       tile_row;  // 当前行 tile 号
   logic     [31:0] rows_need_cur;  // 当前行 tile 需要的行数（最后一块为余数）
   logic     [31:0] lane_need_q;  // 锁存，用于计算/屏蔽无效 lane
   logic     [ 3:0] burst_len_cur;  // = lane_need_cur - 1
-  logic     [31:0] reuse_group_base_row;
-  logic     [31:0] row_offset_in_group;
+  tile_idx_t       reuse_group_base_row;
+  tile_idx_t       row_offset_in_group;
   logic     [31:0] group_rows_need_cur;
   logic     [31:0] load_offset;
   logic     [31:0] chunk_need_cur;
@@ -90,17 +94,33 @@ module vec_requant #(
   logic     [ 5:0] rd_beats_cnt;
   logic     [ 5:0] beats_expect;
   logic            cmd_busy;
+  logic            cmd_valid_r;
+  logic [REG_WIDTH-1:0] cmd_base_addr_r;
+  logic [3:0]     cmd_burst_len_m1_r;
+  logic [5:0]     cmd_beats_expect_r;
+  logic [REG_WIDTH-1:0] dma_base_addr_cur;
+  logic            load_meta_valid;
+  logic [31:0]     quant_need_load_r;
+  logic [31:0]     quant_tile_idx_load_r;
 
   // track number of tiles & finished flag
-  logic     [31:0] num_row_tiles;
-  logic     [31:0] num_col_tiles;
+  tile_idx_t       num_row_tiles;
+  tile_idx_t       num_col_tiles;
+  tile_idx_t       num_row_tiles_next;
+  tile_idx_t       num_col_tiles_next;
+  tile_idx_t       last_row_tile;
+  tile_idx_t       last_col_tile;
   logic            all_tiles_done;
+`ifndef SYNTHESIS
   bit              requant_trace_en;
 
   initial begin
     requant_trace_en = 1'b0;
     if ($test$plusargs("MMA_REQUANT_TRACE")) requant_trace_en = 1'b1;
   end
+`else
+  localparam bit requant_trace_en = 1'b0;
+`endif
 
   // ----------------------------
   // 配置寄存
@@ -109,6 +129,8 @@ module vec_requant #(
   logic signed [31:0] pt_multiplier_r, pt_shift_r;  // per-tensor 常量
   logic [31:0] k_r, m_r;  // 锁存的尺寸
   logic [31:0] ia_reuse_num_r;
+  logic [31:0] ia_reuse_mask_r;
+  tile_idx_t   ia_reuse_mask_tile_r;
   logic [31:0] mul_base_r, sh_base_r;  // per-channel 基地址
   logic        is_mode_r;
 
@@ -123,9 +145,15 @@ module vec_requant #(
       k_r              <= '0;
       m_r              <= '0;
       ia_reuse_num_r   <= 32'd1;
+      ia_reuse_mask_r  <= 32'd0;
+      ia_reuse_mask_tile_r <= '0;
       mul_base_r       <= '0;
       sh_base_r        <= '0;
       is_mode_r        <= 1'b0;
+      num_row_tiles    <= '0;
+      num_col_tiles    <= '0;
+      last_row_tile    <= '0;
+      last_col_tile    <= '0;
     end else if (init_cfg) begin
       activation_min_r <= activation_min_in;
       activation_max_r <= activation_max_in;
@@ -135,114 +163,110 @@ module vec_requant #(
       k_r              <= k;
       m_r              <= m;
       ia_reuse_num_r   <= (ia_reuse_num_in == 32'd0) ? 32'd1 : ia_reuse_num_in;
+      ia_reuse_mask_r  <= (ia_reuse_num_in <= 32'd1) ? 32'd0 : (ia_reuse_num_in - 32'd1);
+      ia_reuse_mask_tile_r <= (ia_reuse_num_in <= 32'd1) ? '0 : tile_idx_t'(ia_reuse_num_in - 32'd1);
       // per-channel 基地址（接口复用 multiplier_in/shift_in）
       mul_base_r       <= multiplier_in;
       sh_base_r        <= shift_in;
       is_mode_r        <= cfg_dataflow_mode;
+      num_row_tiles    <= num_row_tiles_next;
+      num_col_tiles    <= num_col_tiles_next;
+      last_row_tile    <= (num_row_tiles_next == '0) ? '0 : (num_row_tiles_next - tile_idx_t'(1));
+      last_col_tile    <= (num_col_tiles_next == '0) ? '0 : (num_col_tiles_next - tile_idx_t'(1));
     end
   end
 
-  // compute number of tiles (rows/cols)
-  always_comb begin
-    // safe ceil_div: (n + VLEN -1) / VLEN
-    num_row_tiles = (k_r == 0) ? 0 : ((k_r + VLEN - 1) / VLEN);
-    num_col_tiles = (m_r == 0) ? 0 : ((m_r + VLEN - 1) / VLEN);
-  end
+  // compute number of tiles once at configuration time
+  assign num_row_tiles_next = (k == 0) ? '0 : tile_idx_t'((k + VLEN - 1) >> VLEN_SHIFT);
+  assign num_col_tiles_next = (m == 0) ? '0 : tile_idx_t'((m + VLEN - 1) >> VLEN_SHIFT);
 
   // ----------------------------
   // tile 列需要多少 lane（尾块）
   // ----------------------------
-  function automatic [31:0] f_lane_need(input [31:0] cols, input [31:0] vlen, input [31:0] tcol);
-    reg [31:0] remain;
-    begin
-      remain = (cols > (tcol * vlen)) ? (cols - tcol * vlen) : 32'd0;
-      f_lane_need = (remain >= vlen) ? vlen : remain;
-    end
-  endfunction
-
-  function automatic [31:0] f_rows_need(input [31:0] rows, input [31:0] vlen, input [31:0] trow);
-    reg [31:0] remain;
-    begin
-      remain = (rows > (trow * vlen)) ? (rows - trow * vlen) : 32'd0;
-      f_rows_need = (remain >= vlen) ? vlen : remain;
-    end
-  endfunction
-
-  function automatic [31:0] f_group_rows_need(input [31:0] rows,
-                                              input [31:0] vlen,
-                                              input [31:0] group_base_row,
-                                              input [31:0] reuse_num_in);
-    reg [31:0] row_start;
-    reg [31:0] remain;
-    reg [31:0] capacity;
-    begin
-      row_start = group_base_row * vlen;
-      capacity  = ((reuse_num_in == 32'd0) ? 32'd1 : reuse_num_in) * vlen;
-      remain    = (rows > row_start) ? (rows - row_start) : 32'd0;
-      f_group_rows_need = (remain >= capacity) ? capacity : remain;
-    end
-  endfunction
-
-  task automatic calc_next_tile(
-      input  [31:0] cur_row,
-      input  [31:0] cur_col,
-      input  [31:0] row_tiles_total,
-      input  [31:0] col_tiles_total,
-      input  [31:0] reuse_num_in,
-      output [31:0] next_row,
-      output [31:0] next_col
-  );
-    reg [31:0] reuse_num;
-    reg [31:0] group_base;
-    reg [31:0] group_next_base;
-    begin
-      reuse_num = (reuse_num_in == 32'd0) ? 32'd1 : reuse_num_in;
-      group_base = (cur_row / reuse_num) * reuse_num;
-      group_next_base = group_base + reuse_num;
-
-      if (((cur_row + 1) < row_tiles_total) && ((cur_row + 1) < group_next_base)) begin
-        next_row = cur_row + 1;
-        next_col = cur_col;
-      end else if ((cur_col + 1) < col_tiles_total) begin
-        next_row = group_base;
-        next_col = cur_col + 1;
-      end else if (group_next_base < row_tiles_total) begin
-        next_row = group_next_base;
-        next_col = 32'd0;
-      end else begin
-        next_row = 32'd0;
-        next_col = 32'd0;
-      end
-    end
-  endtask
+  logic [31:0] lane_start_cur;
+  logic [31:0] row_start_cur;
+  logic [31:0] lane_remaining_cur;
+  logic [31:0] rows_remaining_cur;
+  logic [31:0] reuse_group_row_start;
+  logic [31:0] reuse_group_capacity;
+  logic [31:0] group_rows_remaining_cur;
+  tile_idx_t   tile_row_inc;
+  tile_idx_t   tile_col_inc;
+  tile_idx_t   next_tile_row_cur;
+  tile_idx_t   next_tile_col_cur;
+  logic        final_tile_cur;
+  logic        next_same_quant_group_cur;
+  logic        cur_last_row_tile;
+  logic        cur_last_col_tile;
+  logic        cur_last_row_in_group;
+  logic        step_row_in_group;
+  logic        step_col_in_group;
+  logic        step_next_group;
 
   // 每次进入 LOAD 前计算 lane_need\row_need
   always_comb begin
-    lane_need_cur = f_lane_need(m_r, VLEN, tile_col);
-  end
+    lane_start_cur = REG_WIDTH'(tile_col) << VLEN_SHIFT;
+    row_start_cur  = REG_WIDTH'(tile_row) << VLEN_SHIFT;
+    lane_remaining_cur = (m_r > lane_start_cur) ? (m_r - lane_start_cur) : 32'd0;
+    rows_remaining_cur = (k_r > row_start_cur) ? (k_r - row_start_cur) : 32'd0;
+    lane_need_cur = (lane_remaining_cur >= REG_WIDTH'(VLEN))
+                  ? REG_WIDTH'(VLEN)
+                  : lane_remaining_cur;
+    rows_need_cur = (rows_remaining_cur >= REG_WIDTH'(VLEN))
+                  ? REG_WIDTH'(VLEN)
+                  : rows_remaining_cur;
 
-  always_comb begin
-    rows_need_cur = f_rows_need(k_r, VLEN, tile_row);
-  end
-
-  always_comb begin
-    reuse_group_base_row = (ia_reuse_num_r == 32'd0)
-                         ? tile_row
-                         : ((tile_row / ia_reuse_num_r) * ia_reuse_num_r);
-    row_offset_in_group  = tile_row - reuse_group_base_row;
-    group_rows_need_cur  = f_group_rows_need(k_r, VLEN, reuse_group_base_row, ia_reuse_num_r);
+    reuse_group_base_row = tile_row & ~ia_reuse_mask_tile_r;
+    row_offset_in_group  = tile_row & ia_reuse_mask_tile_r;
+    reuse_group_row_start = REG_WIDTH'(reuse_group_base_row) << VLEN_SHIFT;
+    reuse_group_capacity  = ia_reuse_num_r << VLEN_SHIFT;
+    group_rows_remaining_cur = (k_r > reuse_group_row_start)
+                             ? (k_r - reuse_group_row_start)
+                             : 32'd0;
+    group_rows_need_cur  = (group_rows_remaining_cur >= reuse_group_capacity)
+                         ? reuse_group_capacity
+                         : group_rows_remaining_cur;
     quant_need_cur       = is_mode_r ? group_rows_need_cur : lane_need_cur;
-    quant_tile_idx_cur   = is_mode_r ? reuse_group_base_row : tile_col;
-    chunk_need_cur       = (quant_need_cur > load_offset)
-                         ? (((quant_need_cur - load_offset) > VLEN)
+    quant_tile_idx_cur   = is_mode_r ? REG_WIDTH'(reuse_group_base_row) : REG_WIDTH'(tile_col);
+    chunk_need_cur       = (quant_need_load_r > load_offset)
+                         ? (((quant_need_load_r - load_offset) > VLEN)
                               ? VLEN
-                              : (quant_need_cur - load_offset))
+                              : (quant_need_load_r - load_offset))
                          : 32'd0;
+
+    tile_row_inc = tile_row + tile_idx_t'(1);
+    tile_col_inc = tile_col + tile_idx_t'(1);
+    cur_last_row_tile = (tile_row == last_row_tile);
+    cur_last_col_tile = (tile_col == last_col_tile);
+    cur_last_row_in_group = cur_last_row_tile ||
+                            (row_offset_in_group == ia_reuse_mask_tile_r);
+    step_row_in_group = !cur_last_row_in_group;
+    step_col_in_group = cur_last_row_in_group && !cur_last_col_tile;
+    step_next_group   = cur_last_row_in_group && cur_last_col_tile && !cur_last_row_tile;
+
+    if (step_row_in_group) begin
+      next_tile_row_cur = tile_row_inc;
+      next_tile_col_cur = tile_col;
+    end else if (step_col_in_group) begin
+      next_tile_row_cur = reuse_group_base_row;
+      next_tile_col_cur = tile_col_inc;
+    end else if (step_next_group) begin
+      next_tile_row_cur = reuse_group_base_row + tile_idx_t'(ia_reuse_num_r);
+      next_tile_col_cur = '0;
+    end else begin
+      next_tile_row_cur = '0;
+      next_tile_col_cur = '0;
+    end
+    final_tile_cur = cur_last_col_tile && cur_last_row_tile;
+    next_same_quant_group_cur = step_row_in_group ||
+                                (step_col_in_group && is_mode_r);
   end
 
   // 参数就绪拍锁存（供计算屏蔽尾块）
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
+      lane_need_q <= '0;
+    end else if (init_cfg) begin
       lane_need_q <= '0;
     end else begin
       // per-tensor 模式也要跟随当前列 tile，避免尾列把无效 lane 写出。
@@ -264,19 +288,19 @@ module vec_requant #(
   // ----------------------------
   // Native DMA 命令/响应
   // ----------------------------
-  wire dma_start_hskd = (state == LOAD) && !cmd_busy && load_quant_granted &&
-                        (chunk_need_cur != 32'd0);
+  wire dma_start_hskd = (state == LOAD) && !cmd_busy && cmd_valid_r && load_quant_granted;
   wire rsp_hskd = dma_raw_valid && cmd_busy;
 
   assign dma_start = dma_start_hskd;
   assign dma_is_write = 1'b0;
   assign dma_linear_read_mode = 1'b0;
-  assign dma_base_addr = (load_phase == PH_MUL)
-                       ? (mul_base_r + (quant_tile_idx_cur * VLEN + load_offset) * BYTES_PER_WORD)
-                       : (sh_base_r  + (quant_tile_idx_cur * VLEN + load_offset) * BYTES_PER_WORD);
+  assign dma_base_addr_cur = (load_phase == PH_MUL)
+                           ? (mul_base_r + (quant_tile_idx_load_r * VLEN + load_offset) * BYTES_PER_WORD)
+                           : (sh_base_r  + (quant_tile_idx_load_r * VLEN + load_offset) * BYTES_PER_WORD);
+  assign dma_base_addr = cmd_base_addr_r;
   assign dma_row_stride = REG_WIDTH'(REG_WIDTH / 8);
   assign dma_rows_to_read = REG_WIDTH'(1);
-  assign dma_burst_len_m1 = burst_len_cur;
+  assign dma_burst_len_m1 = cmd_burst_len_m1_r;
   assign dma_slot_id = 1'b0;
   assign dma_use_16bits = 1'b0;
   assign dma_lhs_zp = '0;
@@ -297,14 +321,21 @@ module vec_requant #(
       // reset all sequential state
       state              <= IDLE;
       load_phase         <= PH_MUL;
-      quant_params_valid <= 1'b0;
-      row_in_tile_cnt    <= 5'd0;
-      rd_beats_cnt       <= 6'd0;
-      beats_expect       <= 6'd0;
-      cmd_busy           <= 1'b0;
-      load_quant_req     <= 1'b0;
-      tile_col           <= 32'd0;
-      tile_row           <= 32'd0;
+	      quant_params_valid <= 1'b0;
+	      row_in_tile_cnt    <= 5'd0;
+	      rd_beats_cnt       <= 6'd0;
+	      beats_expect       <= 6'd0;
+	      cmd_busy           <= 1'b0;
+	      cmd_valid_r        <= 1'b0;
+	      cmd_base_addr_r    <= '0;
+	      cmd_burst_len_m1_r <= '0;
+	      cmd_beats_expect_r <= 6'd0;
+	      load_meta_valid    <= 1'b0;
+	      quant_need_load_r  <= 32'd0;
+	      quant_tile_idx_load_r <= 32'd0;
+	      load_quant_req     <= 1'b0;
+      tile_col           <= '0;
+      tile_row           <= '0;
       load_offset        <= 32'd0;
       all_tiles_done     <= 1'b0;
     end else begin
@@ -316,11 +347,18 @@ module vec_requant #(
       if (init_cfg) begin
         state              <= IDLE;
         quant_params_valid <= (cfg_per_channel ? 1'b0 : 1'b1);
-        row_in_tile_cnt    <= 5'd0;
-        rd_beats_cnt       <= 6'd0;
-        cmd_busy           <= 1'b0;
-        tile_col           <= 32'd0;
-        tile_row           <= 32'd0;
+	        row_in_tile_cnt    <= 5'd0;
+	        rd_beats_cnt       <= 6'd0;
+	        cmd_busy           <= 1'b0;
+	        cmd_valid_r        <= 1'b0;
+	        cmd_base_addr_r    <= '0;
+	        cmd_burst_len_m1_r <= '0;
+	        cmd_beats_expect_r <= 6'd0;
+	        load_meta_valid    <= 1'b0;
+	        quant_need_load_r  <= 32'd0;
+	        quant_tile_idx_load_r <= 32'd0;
+	        tile_col           <= '0;
+        tile_row           <= '0;
         load_offset        <= 32'd0;
         all_tiles_done     <= 1'b0;  // clear done on re-config
         if (requant_trace_en) begin
@@ -332,10 +370,11 @@ module vec_requant #(
 
         case (state)
           // ----------------------
-          IDLE: begin
-            rd_beats_cnt    <= 6'd0;
-            cmd_busy        <= 1'b0;
-            row_in_tile_cnt <= 5'd0;
+	          IDLE: begin
+	            rd_beats_cnt    <= 6'd0;
+	            cmd_busy        <= 1'b0;
+	            cmd_valid_r     <= 1'b0;
+	            row_in_tile_cnt <= 5'd0;
 
             // 如果所有 tile 都做完了 -> stay IDLE 等待 init_cfg 清除
             if (all_tiles_done) begin
@@ -347,7 +386,7 @@ module vec_requant #(
                 load_quant_req <= 1'b1;
                 if (load_quant_granted) begin
                   load_phase     <= PH_MUL;
-                  load_offset    <= 32'd0;
+                  load_meta_valid <= 1'b0;
                   state          <= LOAD;
                   if (requant_trace_en) begin
                     $display("[%0t] REQ idle->load tile=(%0d,%0d) lanes=%0d rows=%0d qneed=%0d",
@@ -362,40 +401,28 @@ module vec_requant #(
               if (!cfg_per_channel || quant_params_valid) begin
                 if (in_valid) begin
                   if (in_tile_done) begin
-                    logic [31:0] next_tile_row;
-                    logic [31:0] next_tile_col;
-                    logic        final_tile_cur;
-
-                    calc_next_tile(tile_row, tile_col, num_row_tiles, num_col_tiles,
-                                   ia_reuse_num_r, next_tile_row, next_tile_col);
-                    final_tile_cur = (tile_col + 1 == num_col_tiles) &&
-                                     (tile_row + 1 == num_row_tiles);
-
                     row_in_tile_cnt <= 5'd0;
                     all_tiles_done  <= final_tile_cur;
 
                     if (final_tile_cur) begin
-                      tile_row <= 32'd0;
-                      tile_col <= 32'd0;
+                      tile_row <= '0;
+                      tile_col <= '0;
                       load_quant_req <= 1'b0;
                       quant_params_valid <= cfg_per_channel ? 1'b0 : 1'b1;
                       state <= IDLE;
                     end else begin
-                      tile_row <= next_tile_row;
-                      tile_col <= next_tile_col;
+                      tile_row <= next_tile_row_cur;
+                      tile_col <= next_tile_col_cur;
 
                       if (!cfg_per_channel) begin
                         state <= COMPUTE;
-                      end else if ((!is_mode_r && (next_tile_col == tile_col)) ||
-                                   ( is_mode_r &&
-                                     (((next_tile_row / ia_reuse_num_r) * ia_reuse_num_r) ==
-                                      ((tile_row      / ia_reuse_num_r) * ia_reuse_num_r)))) begin
+                      end else if (next_same_quant_group_cur) begin
                         load_quant_req <= 1'b0;
                         quant_params_valid <= 1'b1;
                         state <= COMPUTE;
                       end else begin
-                        load_quant_req <= 1'b1;
-                        load_offset <= 32'd0;
+                        load_quant_req <= 1'b0;
+                        load_meta_valid <= 1'b0;
                         quant_params_valid <= 1'b0;
                         state <= LOAD;
                       end
@@ -414,29 +441,54 @@ module vec_requant #(
           // ----------------------
           LOAD: begin
             row_in_tile_cnt <= 5'd0;
-            // 1) 若当前没有在途命令，则按 phase 发一条 DMA 读命令。
-            if (!cmd_busy) begin
-              load_quant_req <= 1'b1;
+	            // 1) 先锁存本 LOAD 的量化参数范围，避免命令寄存器直接吃尺寸组合路径。
+	            if (!load_meta_valid) begin
+	              load_meta_valid      <= 1'b1;
+	              quant_need_load_r    <= quant_need_cur;
+	              quant_tile_idx_load_r <= quant_tile_idx_cur;
+	              load_offset          <= 32'd0;
+	              load_quant_req       <= 1'b1;
+`ifndef SYNTHESIS
+	              if (quant_need_cur == 32'd0) begin
+	                $display("[%0t] ERROR: zero-length quant LOAD metadata", $time);
+	                $fatal;
+	              end
+`endif
+	            end else if (!cmd_busy) begin
+	              // 2) 若当前没有在途命令，则按 phase 发一条 DMA 读命令。
+	              if (!cmd_valid_r) begin
+`ifndef SYNTHESIS
+	                if (chunk_need_cur == 32'd0) begin
+	                  $display("[%0t] ERROR: zero-length quant DMA command", $time);
+	                  $fatal;
+	                end
+`endif
+	                cmd_valid_r        <= 1'b1;
+	                cmd_base_addr_r    <= dma_base_addr_cur;
+	                cmd_burst_len_m1_r <= burst_len_cur;
+	                cmd_beats_expect_r <= chunk_need_cur[5:0];
+	                load_quant_req     <= 1'b1;
+	              end else begin
+	                load_quant_req <= 1'b1;
+	              end
 
-              if (dma_start_hskd) begin
-                // 命令已被 DMA 接受，本次突发开始
-                cmd_busy            <= 1'b1;
-                load_quant_req      <= 1'b0;
-                rd_beats_cnt        <= 6'd0;
-                beats_expect        <= chunk_need_cur[5:0];  // 需要收的拍数
-                if (requant_trace_en) begin
-                  $display("[%0t] REQ cmd phase=%0d addr=%08x len=%0d tile=(%0d,%0d) qidx=%0d off=%0d qneed=%0d",
-                           $time, load_phase,
-                           (load_phase==PH_MUL)
-                             ? (mul_base_r + (quant_tile_idx_cur*VLEN + load_offset)*BYTES_PER_WORD)
-                             : (sh_base_r  + (quant_tile_idx_cur*VLEN + load_offset)*BYTES_PER_WORD),
-                           burst_len_cur, tile_row, tile_col, quant_tile_idx_cur,
-                           load_offset, quant_need_cur);
-                end
-              end
+	              if (dma_start_hskd) begin
+	                // 命令已被 DMA 接受，本次突发开始
+	                cmd_busy       <= 1'b1;
+	                cmd_valid_r    <= 1'b0;
+	                load_quant_req <= 1'b0;
+	                rd_beats_cnt   <= 6'd0;
+	                beats_expect   <= cmd_beats_expect_r;  // 需要收的拍数
+	                if (requant_trace_en) begin
+	                  $display("[%0t] REQ cmd phase=%0d addr=%08x len=%0d tile=(%0d,%0d) qidx=%0d off=%0d qneed=%0d",
+	                           $time, load_phase,
+	                           cmd_base_addr_r, cmd_burst_len_m1_r, tile_row, tile_col, quant_tile_idx_cur,
+	                           load_offset, quant_need_load_r);
+	                end
+	              end
             end
 
-            // 2) 接收响应拍：mul/shift 缓冲写入
+            // 3) 接收响应拍：mul/shift 缓冲写入
             if (rsp_hskd && cmd_busy) begin
               // 防护断言（仿真）
 `ifndef SYNTHESIS
@@ -464,7 +516,7 @@ module vec_requant #(
                            $time, load_phase, beats_expect, tile_row, tile_col, load_offset);
                 end
                 if (load_phase == PH_MUL) begin
-                  if ((load_offset + beats_expect) < quant_need_cur) begin
+                  if ((load_offset + beats_expect) < quant_need_load_r) begin
                     load_offset <= load_offset + beats_expect;
                   end else begin
                     // mul 收满 -> 切到 shift，下一拍会去发 shift 的命令
@@ -472,17 +524,18 @@ module vec_requant #(
                     load_offset <= 32'd0;
                   end
                 end else begin
-                  if ((load_offset + beats_expect) < quant_need_cur) begin
+                  if ((load_offset + beats_expect) < quant_need_load_r) begin
                     load_offset <= load_offset + beats_expect;
                   end else begin
                     // shift 也收满，参数就绪：同时锁存 lane_need，并根据当拍 in_valid 决定是否直接进 COMPUTE
                     quant_params_valid <= 1'b1;
                     load_offset        <= 32'd0;
+                    load_meta_valid    <= 1'b0;
                     //lane_need_q        <= lane_need_cur;   // <-- 把 lane_need 在参数就绪时锁存
                     if (requant_trace_en) begin
                       $display("[%0t] REQ params_valid tile=(%0d,%0d) lanes=%0d rows=%0d qneed=%0d",
                                $time, tile_row, tile_col, lane_need_cur, rows_need_cur,
-                               quant_need_cur);
+                               quant_need_load_r);
                     end
 
                     if (in_valid) begin
@@ -512,40 +565,28 @@ module vec_requant #(
               end
 
               if (in_tile_done) begin
-                logic [31:0] next_tile_row;
-                logic [31:0] next_tile_col;
-                logic        final_tile_cur;
-
-                calc_next_tile(tile_row, tile_col, num_row_tiles, num_col_tiles,
-                               ia_reuse_num_r, next_tile_row, next_tile_col);
-                final_tile_cur = (tile_col + 1 == num_col_tiles) &&
-                                 (tile_row + 1 == num_row_tiles);
-
                 row_in_tile_cnt <= 5'd0;
                 all_tiles_done  <= final_tile_cur;
 
                 if (final_tile_cur) begin
-                  tile_row <= 32'd0;
-                  tile_col <= 32'd0;
+                  tile_row <= '0;
+                  tile_col <= '0;
                   load_quant_req <= 1'b0;
                   quant_params_valid <= cfg_per_channel ? 1'b0 : 1'b1;
                   state <= IDLE;
                 end else begin
-                  tile_row <= next_tile_row;
-                  tile_col <= next_tile_col;
+                  tile_row <= next_tile_row_cur;
+                  tile_col <= next_tile_col_cur;
 
                   if (!cfg_per_channel) begin
                     state <= COMPUTE;
-                  end else if ((!is_mode_r && (next_tile_col == tile_col)) ||
-                               ( is_mode_r &&
-                                 (((next_tile_row / ia_reuse_num_r) * ia_reuse_num_r) ==
-                                  ((tile_row      / ia_reuse_num_r) * ia_reuse_num_r)))) begin
+                  end else if (next_same_quant_group_cur) begin
                     load_quant_req <= 1'b0;
                     quant_params_valid <= 1'b1;
                     state <= COMPUTE;
                   end else begin
-                    load_quant_req <= 1'b1;
-                    load_offset <= 32'd0;
+                    load_quant_req <= 1'b0;
+                    load_meta_valid <= 1'b0;
                     quant_params_valid <= 1'b0;
                     state <= LOAD;
                   end
@@ -569,75 +610,92 @@ module vec_requant #(
 
 
   // ----------------------------
-  // 数据通路（1 拍管线：in_valid -> out_valid）
+  // 数据通路（全吞吐流水：in_valid -> out_valid）
   // ----------------------------
-  logic out_valid_q;
-  logic out_tile_done_q;
+  logic accept_valid;
+  logic stage0_valid;
+  logic stage1_valid;
+  logic stage2_valid;
+  logic stage3_valid;
+  logic stage4_valid;
+  logic stage5_valid;
+  logic stage6_valid;
+  logic stage7_valid;
+  logic stage8_valid;
+  logic stage0_tile_done;
+  logic stage1_tile_done;
+  logic stage2_tile_done;
+  logic stage3_tile_done;
+  logic stage4_tile_done;
+  logic stage5_tile_done;
+  logic stage6_tile_done;
+  logic stage7_tile_done;
+  logic stage8_tile_done;
+
+  assign accept_valid = in_valid && ((!cfg_per_channel) || quant_params_valid);
+  assign out_valid = stage8_valid;
+  assign out_tile_done = stage8_tile_done;
+
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      out_valid_q <= 1'b0;
-      out_tile_done_q <= 1'b0;
+      stage0_valid     <= 1'b0;
+      stage1_valid     <= 1'b0;
+      stage2_valid     <= 1'b0;
+      stage3_valid     <= 1'b0;
+      stage4_valid     <= 1'b0;
+      stage5_valid     <= 1'b0;
+      stage6_valid     <= 1'b0;
+      stage7_valid     <= 1'b0;
+      stage8_valid     <= 1'b0;
+      stage0_tile_done <= 1'b0;
+      stage1_tile_done <= 1'b0;
+      stage2_tile_done <= 1'b0;
+      stage3_tile_done <= 1'b0;
+      stage4_tile_done <= 1'b0;
+      stage5_tile_done <= 1'b0;
+      stage6_tile_done <= 1'b0;
+      stage7_tile_done <= 1'b0;
+      stage8_tile_done <= 1'b0;
+    end else if (init_cfg) begin
+      stage0_valid     <= 1'b0;
+      stage1_valid     <= 1'b0;
+      stage2_valid     <= 1'b0;
+      stage3_valid     <= 1'b0;
+      stage4_valid     <= 1'b0;
+      stage5_valid     <= 1'b0;
+      stage6_valid     <= 1'b0;
+      stage7_valid     <= 1'b0;
+      stage8_valid     <= 1'b0;
+      stage0_tile_done <= 1'b0;
+      stage1_tile_done <= 1'b0;
+      stage2_tile_done <= 1'b0;
+      stage3_tile_done <= 1'b0;
+      stage4_tile_done <= 1'b0;
+      stage5_tile_done <= 1'b0;
+      stage6_tile_done <= 1'b0;
+      stage7_tile_done <= 1'b0;
+      stage8_tile_done <= 1'b0;
     end else begin
-      out_valid_q <= in_valid && ((!cfg_per_channel) || quant_params_valid);
-      out_tile_done_q <= in_valid && in_tile_done &&
-                         ((!cfg_per_channel) || quant_params_valid);
+      stage0_valid     <= accept_valid;
+      stage1_valid     <= stage0_valid;
+      stage2_valid     <= stage1_valid;
+      stage3_valid     <= stage2_valid;
+      stage4_valid     <= stage3_valid;
+      stage5_valid     <= stage4_valid;
+      stage6_valid     <= stage5_valid;
+      stage7_valid     <= stage6_valid;
+      stage8_valid     <= stage7_valid;
+      stage0_tile_done <= accept_valid && in_tile_done;
+      stage1_tile_done <= stage0_tile_done;
+      stage2_tile_done <= stage1_tile_done;
+      stage3_tile_done <= stage2_tile_done;
+      stage4_tile_done <= stage3_tile_done;
+      stage5_tile_done <= stage4_tile_done;
+      stage6_tile_done <= stage5_tile_done;
+      stage7_tile_done <= stage6_tile_done;
+      stage8_tile_done <= stage7_tile_done;
     end
   end
-
-  assign out_valid = out_valid_q;
-  assign out_tile_done = out_tile_done_q;
-
-  function automatic signed [31:0] round_divide_by_power_of_two(input signed [31:0] x,
-                                                                input integer rshift);
-    reg signed [31:0] shifted;
-    reg signed [31:0] mask;
-    reg signed [31:0] remainder;
-    reg signed [31:0] threshold;
-    begin
-      if (rshift == 0) begin
-        round_divide_by_power_of_two = x;
-      end else begin
-        shifted   = x >>> rshift;
-        mask      = (32'sd1 <<< rshift) - 1;
-        remainder = x & mask;
-        threshold = mask >>> 1;
-        if (x < 0) threshold = threshold + 1;
-
-        round_divide_by_power_of_two = shifted + (remainder > threshold);
-      end
-    end
-  endfunction
-
-
-  // CMSIS-NN 风格重量化函数
-  function automatic signed [31:0] cmsis_nn_requantize(input signed [31:0] acc,
-                                                       input signed [31:0] multiplier,  // Q31
-                                                       input signed [31:0] shift_s       // can be + or -
-);
-    reg signed [63:0] acc_ext;
-    reg signed [63:0] prod;
-    reg signed [63:0] round64;
-    reg signed [31:0] result;
-    integer lshift;
-    integer rshift;
-    begin
-      // -------- split shift --------
-      lshift = (shift_s > 0) ? shift_s : 0;
-      rshift = (shift_s < 0) ? -shift_s : 0;
-
-      // -------- LEFT_SHIFT --------
-      acc_ext = $signed(acc) <<< lshift;
-
-      // -------- Q31 multiply + rounding (doubling high mult) --------
-      prod    = acc_ext * $signed(multiplier);
-      round64 = prod + (64'sd1 <<< 30);
-      result  = round64 >>> 31;
-
-      // -------- RIGHT_SHIFT with rounding --------
-      if (rshift > 0) cmsis_nn_requantize = round_divide_by_power_of_two(result, rshift);
-      else cmsis_nn_requantize = result;
-    end
-  endfunction
 
   logic [4:0] input_row_idx_cur;
   logic [31:0] input_group_idx_cur;
@@ -646,47 +704,167 @@ module vec_requant #(
     input_group_idx_cur = (row_offset_in_group * VLEN) + input_row_idx_cur;
   end
 
-  // 做一行（16 lane），尾块屏蔽
+  // 做一行（16 lane），尾块屏蔽。该流水每拍都能接收一行，只增加固定延迟。
   genvar j;
   for (j = 0; j < VLEN; j++) begin : LANE
-    // 局部变量声明放最前
-    logic lane_en;
-    logic signed [31:0] cur_m, cur_s;
-    logic signed [31:0] rq_tmp;
+    logic signed [31:0] mult_sel;
+    logic signed [31:0] shift_sel;
+    logic signed [31:0] shift_abs_sel;
+    logic [5:0]         lshift_sel;
+    logic [5:0]         rshift_sel;
+
+    logic signed [31:0] acc_s0;
+    logic signed [31:0] mult_s0;
+    logic [5:0]         lshift_s0;
+    logic [5:0]         rshift_s0;
+    logic               lane_en_s0;
+
+    logic signed [31:0] acc_s1;
+    logic signed [31:0] mult_s1;
+    logic [5:0]         lshift_s1;
+    logic [5:0]         rshift_s1;
+    logic               lane_en_s1;
+
+    logic signed [63:0] prod_s2;
+    logic [5:0]         lshift_s2;
+    logic [5:0]         rshift_s2;
+    logic               lane_en_s2;
+
+    logic signed [63:0] prod_shifted_s3;
+    logic [5:0]         rshift_s3;
+    logic               lane_en_s3;
+
+    logic signed [31:0] high_s4;
+    logic [5:0]         rshift_s4;
+    logic               lane_en_s4;
+
+    logic signed [31:0] shifted_next_s4;
+    logic signed [31:0] remainder_next_s4;
+    logic signed [31:0] threshold_next_s4;
+    logic               has_rshift_next_s4;
+    logic signed [31:0] shifted_s4;
+    logic signed [31:0] remainder_s4;
+    logic signed [31:0] threshold_s4;
+    logic               has_rshift_s4;
+    logic signed [31:0] shifted_s5;
+    logic               round_up_s5;
+    logic               lane_en_s5;
+    logic signed [31:0] rounded_s6;
+    logic               lane_en_s6;
+    logic               lane_en_s7;
+
+    always_comb begin
+      if (cfg_per_channel) begin
+        mult_sel  = is_mode_r ? ch_multiplier_r[input_group_idx_cur] : ch_multiplier_r[j];
+        shift_sel = is_mode_r ? ch_shift_r[input_group_idx_cur] : ch_shift_r[j];
+      end else begin
+        mult_sel  = pt_multiplier_r;
+        shift_sel = pt_shift_r;
+      end
+      shift_abs_sel = -shift_sel;
+      lshift_sel = (shift_sel > 32'sd0) ? shift_sel[5:0] : 6'd0;
+      rshift_sel = (shift_sel < 32'sd0)
+                 ? ((shift_abs_sel > 32'sd63) ? 6'd63 : shift_abs_sel[5:0])
+                 : 6'd0;
+    end
+
+    always_comb begin
+      logic [4:0]         rshift_amt;
+      logic signed [31:0] mask;
+
+      if (rshift_s4 == 6'd0) begin
+        shifted_next_s4   = high_s4;
+        remainder_next_s4 = 32'sd0;
+        threshold_next_s4 = 32'sd0;
+        has_rshift_next_s4 = 1'b0;
+      end else begin
+        rshift_amt = (rshift_s4 > 6'd31) ? 5'd31 : rshift_s4[4:0];
+        mask       = (32'sd1 <<< rshift_amt) - 32'sd1;
+        shifted_next_s4   = high_s4 >>> rshift_amt;
+        remainder_next_s4 = high_s4 & mask;
+        threshold_next_s4 = (mask >>> 1) + (high_s4[31] ? 32'sd1 : 32'sd0);
+        has_rshift_next_s4 = 1'b1;
+      end
+    end
 
     always_ff @(posedge clk or negedge rst_n) begin
-
-      rq_tmp = '0;
-      cur_m  = '0;
-      cur_s  = '0;
-
       if (!rst_n) begin
+        lane_en_s0    <= 1'b0;
+        lane_en_s1    <= 1'b0;
+        lane_en_s2    <= 1'b0;
+        lane_en_s3    <= 1'b0;
+        lane_en_s4    <= 1'b0;
+        lane_en_s5    <= 1'b0;
+        lane_en_s6    <= 1'b0;
+        lane_en_s7    <= 1'b0;
         out_vec_s8[j] <= '0;
-      end else if (in_valid) begin
-        // 选择 per-channel 缓冲或 per-tensor 常量
-        if (cfg_per_channel) begin
-          cur_m = is_mode_r ? ch_multiplier_r[input_group_idx_cur] : ch_multiplier_r[j];
-          cur_s = is_mode_r ? ch_shift_r[input_group_idx_cur] : ch_shift_r[j];
-        end else begin
-          cur_m = pt_multiplier_r;
-          cur_s = pt_shift_r;
-        end
+      end else if (init_cfg) begin
+        lane_en_s0    <= 1'b0;
+        lane_en_s1    <= 1'b0;
+        lane_en_s2    <= 1'b0;
+        lane_en_s3    <= 1'b0;
+        lane_en_s4    <= 1'b0;
+        lane_en_s5    <= 1'b0;
+        lane_en_s6    <= 1'b0;
+        lane_en_s7    <= 1'b0;
+        out_vec_s8[j] <= '0;
+      end else begin
+        lane_en_s0 <= (j < (cfg_per_channel ? lane_need_q : lane_need_cur));
+        lane_en_s1 <= lane_en_s0;
+        lane_en_s2    <= lane_en_s1;
+        lane_en_s3 <= lane_en_s2;
+        lane_en_s4 <= lane_en_s3;
+        lane_en_s5 <= lane_en_s4;
+        lane_en_s6 <= lane_en_s5;
+        lane_en_s7 <= lane_en_s6;
 
-        rq_tmp = cmsis_nn_requantize(in_vec_s32[j], cur_m, cur_s);
-        rq_tmp = rq_tmp + dst_offset_r;
-
-        if (rq_tmp < activation_min_r) rq_tmp = activation_min_r;
-        if (rq_tmp > activation_max_r) rq_tmp = activation_max_r;
-
-        lane_en = (j < (cfg_per_channel ? lane_need_q : lane_need_cur));
-
-        if (lane_en) begin
-          if (rq_tmp > 32'sd127) out_vec_s8[j] <= 8'sd127;
-          else if (rq_tmp < -32'sd128) out_vec_s8[j] <= -32'sd128;
-          else out_vec_s8[j] <= rq_tmp[7:0];
-        end else begin
+        if (!lane_en_s7) begin
           out_vec_s8[j] <= 8'sd0;
+        end else if (rounded_s6 < activation_min_r) begin
+          out_vec_s8[j] <= activation_min_r[7:0];
+        end else if (rounded_s6 > activation_max_r) begin
+          out_vec_s8[j] <= activation_max_r[7:0];
+        end else if (rounded_s6 > 32'sd127) begin
+          out_vec_s8[j] <= 8'sd127;
+        end else if (rounded_s6 < -32'sd128) begin
+          out_vec_s8[j] <= -8'sd128;
+        end else begin
+          out_vec_s8[j] <= rounded_s6[7:0];
         end
+      end
+    end
+
+    always_ff @(posedge clk) begin
+      if (!init_cfg) begin
+        acc_s0     <= in_vec_s32[j];
+        mult_s0    <= mult_sel;
+        lshift_s0  <= lshift_sel;
+        rshift_s0  <= rshift_sel;
+
+        acc_s1     <= acc_s0;
+        mult_s1    <= mult_s0;
+        lshift_s1  <= lshift_s0;
+        rshift_s1  <= rshift_s0;
+
+        prod_s2   <= $signed(acc_s1) * $signed(mult_s1);
+        lshift_s2 <= lshift_s1;
+        rshift_s2 <= rshift_s1;
+
+        prod_shifted_s3 <= prod_s2 <<< lshift_s2;
+        rshift_s3 <= rshift_s2;
+
+        high_s4   <= (prod_shifted_s3 + (64'sd1 <<< 30)) >>> 31;
+        rshift_s4 <= rshift_s3;
+
+        shifted_s4    <= shifted_next_s4;
+        remainder_s4  <= remainder_next_s4;
+        threshold_s4  <= threshold_next_s4;
+        has_rshift_s4 <= has_rshift_next_s4;
+
+        shifted_s5 <= shifted_s4;
+        round_up_s5 <= has_rshift_s4 && (remainder_s4 > threshold_s4);
+
+        rounded_s6 <= shifted_s5 + dst_offset_r + (round_up_s5 ? 32'sd1 : 32'sd0);
       end
     end
   end

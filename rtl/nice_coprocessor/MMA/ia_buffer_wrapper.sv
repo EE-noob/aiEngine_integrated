@@ -29,19 +29,15 @@ module ia_buffer_wrapper #(
     output reg  [DATA_WIDTH-1:0]     rd_data
 );
 
-    // 内部存储阵列
-    reg [DATA_WIDTH-1:0] mem [DEPTH];
+    // 内部存储阵列：不做复位清零，便于 FPGA 推断同步读 BRAM。
+    (* ram_style = "block" *) reg [DATA_WIDTH-1:0] mem [DEPTH];
     
     // 读数据寄存器（模拟1周期延迟）
     reg [DATA_WIDTH-1:0] rd_data_reg;
     
     // 写操作（同步）
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            for (int i = 0; i < DEPTH; i++) begin
-                mem[i] <= '0;
-            end
-        end else if (wr_en) begin
+    always_ff @(posedge clk) begin
+        if (wr_en) begin
             for (int i = 0; i < DATA_WIDTH/8; i++) begin
                 if (wr_mask[i]) begin
                     mem[wr_addr][i*8 +: 8] <= wr_data[i*8 +: 8];

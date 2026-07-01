@@ -103,7 +103,6 @@ module mma_top #(
     wire ia_tile_start;
     wire ia_is_init_data;
     wire ia_calc_done;
-    wire ia_group_calc_done;
     wire partial_sum_calc_over;
     wire signed [DATA_WIDTH-1:0] ia_out[SIZE];
     wire ia_data_valid;
@@ -163,7 +162,7 @@ module mma_top #(
 	    wire oa_calc_over;
 
 	    // Shared block_dma client signals
-	    logic ia_dma_start, ia_dma_is_write, ia_dma_linear_read_mode;
+	    logic ia_dma_start, ia_dma_linear_read_mode;
 	    logic [REG_WIDTH-1:0] ia_dma_base_addr, ia_dma_row_stride, ia_dma_rows_to_read;
 	    logic [3:0] ia_dma_burst_len_m1;
 	    logic [$clog2(IA_CACHE_BLOCKS)-1:0] ia_dma_slot_id;
@@ -176,7 +175,7 @@ module mma_top #(
 	    logic ia_dma_wr_valid[BUS_WIDTH/8];
 	    logic ia_dma_wr_use_16bits;
 
-	    logic kernel_dma_start, kernel_dma_is_write, kernel_dma_linear_read_mode;
+	    logic kernel_dma_start, kernel_dma_linear_read_mode;
 	    logic [REG_WIDTH-1:0] kernel_dma_base_addr, kernel_dma_row_stride, kernel_dma_rows_to_read;
 	    logic [3:0] kernel_dma_burst_len_m1;
 	    logic kernel_dma_slot_id, kernel_dma_use_16bits;
@@ -186,7 +185,7 @@ module mma_top #(
 	    logic signed [WEIGHT_WIDTH-1:0] kernel_dma_wr_data[BUS_WIDTH/8];
 	    logic kernel_dma_wr_valid[BUS_WIDTH/8];
 
-	    logic bias_dma_start, bias_dma_is_write, bias_dma_linear_read_mode;
+	    logic bias_dma_start, bias_dma_linear_read_mode;
 	    logic [REG_WIDTH-1:0] bias_dma_base_addr, bias_dma_row_stride, bias_dma_rows_to_read;
 	    logic [3:0] bias_dma_burst_len_m1;
 	    logic bias_dma_slot_id, bias_dma_use_16bits;
@@ -196,7 +195,7 @@ module mma_top #(
 	    logic signed [7:0] bias_dma_wr_data[BUS_WIDTH/8];
 	    logic bias_dma_wr_valid[BUS_WIDTH/8];
 
-	    logic quant_dma_start, quant_dma_is_write, quant_dma_linear_read_mode;
+	    logic quant_dma_start, quant_dma_linear_read_mode;
 	    logic [REG_WIDTH-1:0] quant_dma_base_addr, quant_dma_row_stride, quant_dma_rows_to_read;
 	    logic [3:0] quant_dma_burst_len_m1;
 	    logic quant_dma_slot_id, quant_dma_use_16bits;
@@ -205,11 +204,9 @@ module mma_top #(
 	    logic [BUS_WIDTH-1:0] quant_dma_raw_data;
 	    logic quant_dma_raw_valid;
 
-	    logic oa_dma_start, oa_dma_is_write, oa_dma_linear_read_mode;
+	    logic oa_dma_start;
 	    logic [REG_WIDTH-1:0] oa_dma_base_addr, oa_dma_row_stride, oa_dma_rows_to_read;
 	    logic [3:0] oa_dma_burst_len_m1;
-	    logic oa_dma_slot_id, oa_dma_use_16bits;
-	    logic signed [REG_WIDTH-1:0] oa_dma_lhs_zp;
 	    logic [BUS_WIDTH-1:0] oa_dma_src_wdata;
 	    logic [BUS_WIDTH/8-1:0] oa_dma_src_wmask;
 	    logic oa_dma_src_wvalid, oa_dma_src_wready, oa_dma_busy, oa_dma_done;
@@ -223,58 +220,262 @@ module mma_top #(
     wire init_cfg_oa;
     wire use_16bits;  // 16位数据指示信号
     wire [REG_WIDTH-1:0] tile_count;  // 分块计数信号
-    wire is_mode = cfg_dataflow_mode;
-    wire [REG_WIDTH-1:0] stream_k = is_mode ? m : k;
-    wire [REG_WIDTH-1:0] stream_m = is_mode ? k : m;
-    wire [REG_WIDTH-1:0] ia_base_eff = is_mode ? rhs_base : lhs_base;
-    wire [REG_WIDTH-1:0] ia_stride_eff = is_mode ? rhs_col_stride_b : lhs_row_stride_b;
-    wire signed [REG_WIDTH-1:0] ia_zp_eff = is_mode ? rhs_zp : lhs_zp;
-    wire ia_use_16bits_eff = is_mode ? 1'b0 : use_16bits;
-    wire [REG_WIDTH-1:0] weight_base_eff = is_mode ? lhs_base : rhs_base;
-    wire [REG_WIDTH-1:0] weight_stride_eff = is_mode ? lhs_row_stride_b : rhs_col_stride_b;
-    wire signed [REG_WIDTH-1:0] weight_zp_eff = is_mode ? lhs_zp : rhs_zp;
-    wire weight_use_16bits_eff = is_mode ? use_16bits : 1'b0;
-    wire compute_bias_sleep = bias_sleep;
 	    localparam int unsigned IA_REUSE_NUM_MAX =
 	        (IA_CACHE_BLOCKS < 2) ? 1 : (IA_CACHE_BLOCKS / 2);
-		    localparam int unsigned IA_REUSE_NUM_DEFAULT = IA_REUSE_NUM_MAX;
+	    localparam int unsigned SIZE_SHIFT = $clog2(SIZE);
 	    localparam int unsigned W_REUSE_NUM_MAX =
 	        (PS_FRAME_COUNT < 1) ? 1 : PS_FRAME_COUNT;
+	    localparam int unsigned IA_REUSE_W =
+	        (IA_REUSE_NUM_MAX <= 1) ? 1 : ($clog2(IA_REUSE_NUM_MAX) + 1);
+	    localparam int unsigned W_REUSE_W =
+	        (W_REUSE_NUM_MAX <= 1) ? 1 : ($clog2(W_REUSE_NUM_MAX) + 1);
 	    localparam int unsigned OA_FIFO_BANKS = PS_FRAME_COUNT * IA_REUSE_NUM_MAX;
-		    localparam int unsigned IS_BIAS_ROWS = IA_REUSE_NUM_MAX * SIZE;
-		    localparam int unsigned IS_BIAS_ROW_W = (IS_BIAS_ROWS <= 1) ? 1 : $clog2(IS_BIAS_ROWS);
-		    wire signed [31:0] bias_group_data_out[IS_BIAS_ROWS];
+				    localparam int unsigned IS_BIAS_ROWS = IA_REUSE_NUM_MAX * SIZE;
+				    localparam int unsigned IS_BIAS_ROW_W = (IS_BIAS_ROWS <= 1) ? 1 : $clog2(IS_BIAS_ROWS);
+				    wire signed [31:0] bias_group_data_out[IS_BIAS_ROWS];
 
-	    wire [REG_WIDTH-1:0] output_col_tile_num = (stream_m + REG_WIDTH'(SIZE - 1)) >> $clog2(SIZE);
-	    wire [REG_WIDTH-1:0] w_reuse_capacity_limit =
-	      ((output_col_tile_num != '0) && (output_col_tile_num < REG_WIDTH'(W_REUSE_NUM_MAX)))
-	          ? output_col_tile_num
-	          : REG_WIDTH'(W_REUSE_NUM_MAX);
-    wire        [   REG_WIDTH-1:0] ia_reuse_num_raw =
-      (cfg_ia_reuse_num == '0) ? REG_WIDTH'(IA_REUSE_NUM_DEFAULT) : cfg_ia_reuse_num;
-    wire        [   REG_WIDTH-1:0] w_reuse_num_raw =
-      (cfg_w_reuse_num == '0) ? w_reuse_capacity_limit : cfg_w_reuse_num;
-    wire        [   REG_WIDTH-1:0] ia_reuse_num_eff_ws =
-      (ia_reuse_num_raw == '0) ? REG_WIDTH'(1) :
-      (ia_reuse_num_raw > REG_WIDTH'(IA_REUSE_NUM_MAX))
-          ? REG_WIDTH'(IA_REUSE_NUM_MAX)
-          : ia_reuse_num_raw;
-    wire [REG_WIDTH-1:0] ia_reuse_num_eff =
-      (is_mode && (ia_reuse_num_eff_ws > REG_WIDTH'(W_REUSE_NUM_MAX)))
-          ? REG_WIDTH'(W_REUSE_NUM_MAX)
-          : ia_reuse_num_eff_ws;
-	    wire [REG_WIDTH-1:0] w_reuse_num_clamped_max =
-	      (w_reuse_num_raw == '0) ? REG_WIDTH'(1) :
-	      ((output_col_tile_num != '0) && (w_reuse_num_raw > output_col_tile_num))
-	          ? output_col_tile_num
-	      : (w_reuse_num_raw > REG_WIDTH'(W_REUSE_NUM_MAX))
-	          ? REG_WIDTH'(W_REUSE_NUM_MAX)
-	          : w_reuse_num_raw;
-	    wire [REG_WIDTH-1:0] w_reuse_num_eff =
-	      (is_mode && (w_reuse_num_clamped_max < ia_reuse_num_eff) &&
-	       (output_col_tile_num >= ia_reuse_num_eff))
-	          ? ia_reuse_num_eff
-	          : w_reuse_num_clamped_max;
+	    function automatic logic [REG_WIDTH-1:0] floor_pow2_ia(input logic [IA_REUSE_W-1:0] value);
+	        logic [REG_WIDTH-1:0] out;
+	        begin
+	            out = REG_WIDTH'(1);
+	            for (int bit_i = 1; bit_i < IA_REUSE_W; bit_i++) begin
+	                if (value >= (IA_REUSE_W'(1) << bit_i)) begin
+	                    out = (REG_WIDTH'(1) << bit_i);
+	                end
+	            end
+	            floor_pow2_ia = out;
+	        end
+	    endfunction
+
+	    function automatic logic [REG_WIDTH-1:0] floor_pow2_w(input logic [W_REUSE_W-1:0] value);
+	        logic [REG_WIDTH-1:0] out;
+	        begin
+	            out = REG_WIDTH'(1);
+	            for (int bit_i = 1; bit_i < W_REUSE_W; bit_i++) begin
+	                if (value >= (W_REUSE_W'(1) << bit_i)) begin
+	                    out = (REG_WIDTH'(1) << bit_i);
+	                end
+	            end
+	            floor_pow2_w = out;
+	        end
+	    endfunction
+
+	    wire ctrl_sa_ready;
+	    logic cfg_stage0_valid;
+	    logic cfg_stage1_valid;
+	    logic cfg_stage2_valid;
+	    logic cfg_mode_s0;
+	    logic cfg_use16_s0;
+	    logic [REG_WIDTH-1:0] cfg_k_s0;
+	    logic [REG_WIDTH-1:0] cfg_m_s0;
+	    logic [REG_WIDTH-1:0] cfg_n_s0;
+	    logic [REG_WIDTH-1:0] cfg_stream_k_s0;
+	    logic [REG_WIDTH-1:0] cfg_stream_m_s0;
+	    logic [REG_WIDTH-1:0] cfg_ia_req_s0;
+	    logic [REG_WIDTH-1:0] cfg_w_req_s0;
+	    logic cfg_mode_s1;
+	    logic cfg_use16_s1;
+	    logic [REG_WIDTH-1:0] cfg_k_s1;
+	    logic [REG_WIDTH-1:0] cfg_m_s1;
+	    logic [REG_WIDTH-1:0] cfg_n_s1;
+	    logic [REG_WIDTH-1:0] cfg_stream_k_s1;
+	    logic [REG_WIDTH-1:0] cfg_stream_m_s1;
+	    logic [REG_WIDTH-1:0] cfg_ia_req_s1;
+	    logic [REG_WIDTH-1:0] cfg_w_req_s1;
+	    logic [REG_WIDTH-1:0] cfg_ia_cap_raw_s1;
+	    logic [REG_WIDTH-1:0] cfg_w_cap_raw_s1;
+	    logic cfg_mode_s2;
+	    logic cfg_use16_s2;
+	    logic [REG_WIDTH-1:0] cfg_k_s2;
+	    logic [REG_WIDTH-1:0] cfg_m_s2;
+	    logic [REG_WIDTH-1:0] cfg_n_s2;
+	    logic [REG_WIDTH-1:0] cfg_stream_k_s2;
+	    logic [REG_WIDTH-1:0] cfg_stream_m_s2;
+	    logic [REG_WIDTH-1:0] cfg_ia_reuse_eff_s2;
+	    logic [REG_WIDTH-1:0] cfg_w_reuse_eff_s2;
+	    logic [REG_WIDTH-1:0] cfg_bias_rows_target_s2;
+
+	    wire cfg_start_event = calc_start && sa_ready;
+	    wire cfg_stage2_fire = cfg_stage2_valid && ctrl_sa_ready;
+	    wire ctrl_calc_start = cfg_stage2_fire;
+	    assign sa_ready = ctrl_sa_ready && !cfg_stage0_valid && !cfg_stage1_valid && !cfg_stage2_valid;
+
+	    wire cfg_is_mode_pre = cfg_mode_s0;
+	    wire [REG_WIDTH-1:0] cfg_stream_k_pre = cfg_stream_k_s0;
+	    wire [REG_WIDTH-1:0] cfg_stream_m_pre = cfg_stream_m_s0;
+	    wire [REG_WIDTH-1:0] output_row_tile_num_pre =
+	        (cfg_stream_k_pre + REG_WIDTH'(SIZE - 1)) >> SIZE_SHIFT;
+	    wire [REG_WIDTH-1:0] output_col_tile_num_pre =
+	        (cfg_stream_m_pre + REG_WIDTH'(SIZE - 1)) >> SIZE_SHIFT;
+	    wire [REG_WIDTH-1:0] ia_reuse_capacity_limit_raw_pre =
+	        ((output_row_tile_num_pre != '0) &&
+	         (output_row_tile_num_pre < REG_WIDTH'(IA_REUSE_NUM_MAX)))
+	            ? output_row_tile_num_pre
+	            : REG_WIDTH'(IA_REUSE_NUM_MAX);
+	    wire [REG_WIDTH-1:0] w_reuse_capacity_limit_raw_pre =
+	        ((output_col_tile_num_pre != '0) &&
+	         (output_col_tile_num_pre < REG_WIDTH'(W_REUSE_NUM_MAX)))
+	            ? output_col_tile_num_pre
+	            : REG_WIDTH'(W_REUSE_NUM_MAX);
+	    wire [REG_WIDTH-1:0] ia_reuse_capacity_limit_s1 =
+	        floor_pow2_ia(cfg_ia_cap_raw_s1[IA_REUSE_W-1:0]);
+	    wire [REG_WIDTH-1:0] w_reuse_capacity_limit_s1 =
+	        floor_pow2_w(cfg_w_cap_raw_s1[W_REUSE_W-1:0]);
+	    wire [IA_REUSE_W-1:0] ia_reuse_cfg_small_s1 =
+	        (cfg_ia_req_s1 == '0) ? ia_reuse_capacity_limit_s1[IA_REUSE_W-1:0] :
+	        (cfg_ia_req_s1 >= ia_reuse_capacity_limit_s1)
+	            ? ia_reuse_capacity_limit_s1[IA_REUSE_W-1:0]
+	            : cfg_ia_req_s1[IA_REUSE_W-1:0];
+	    wire [W_REUSE_W-1:0] w_reuse_cfg_small_s1 =
+	        (cfg_w_req_s1 == '0) ? w_reuse_capacity_limit_s1[W_REUSE_W-1:0] :
+	        (cfg_w_req_s1 >= w_reuse_capacity_limit_s1)
+	            ? w_reuse_capacity_limit_s1[W_REUSE_W-1:0]
+	            : cfg_w_req_s1[W_REUSE_W-1:0];
+	    wire [REG_WIDTH-1:0] ia_reuse_num_eff_ws_s1 = floor_pow2_ia(ia_reuse_cfg_small_s1);
+	    wire [REG_WIDTH-1:0] w_reuse_num_clamped_max_s1 = floor_pow2_w(w_reuse_cfg_small_s1);
+	    wire [REG_WIDTH-1:0] ia_reuse_num_eff_s1 =
+	        (cfg_mode_s1 && (ia_reuse_num_eff_ws_s1 > w_reuse_capacity_limit_s1))
+	            ? w_reuse_capacity_limit_s1
+	            : ia_reuse_num_eff_ws_s1;
+	    wire [REG_WIDTH-1:0] w_reuse_num_eff_s1 =
+	        (cfg_mode_s1 && (w_reuse_num_clamped_max_s1 < ia_reuse_num_eff_s1) &&
+	         (cfg_w_cap_raw_s1 >= ia_reuse_num_eff_s1))
+	            ? ia_reuse_num_eff_s1
+	            : w_reuse_num_clamped_max_s1;
+
+	    always_ff @(posedge clk or negedge rst_n) begin
+	        if (!rst_n) begin
+		            cfg_stage0_valid <= 1'b0;
+		            cfg_stage1_valid <= 1'b0;
+		            cfg_stage2_valid <= 1'b0;
+		            cfg_mode_s0 <= 1'b0;
+		            cfg_use16_s0 <= 1'b0;
+		            cfg_k_s0 <= '0;
+		            cfg_m_s0 <= '0;
+		            cfg_n_s0 <= '0;
+		            cfg_stream_k_s0 <= '0;
+		            cfg_stream_m_s0 <= '0;
+		            cfg_ia_req_s0 <= '0;
+		            cfg_w_req_s0 <= '0;
+		            cfg_mode_s1 <= 1'b0;
+		            cfg_use16_s1 <= 1'b0;
+		            cfg_k_s1 <= '0;
+		            cfg_m_s1 <= '0;
+		            cfg_n_s1 <= '0;
+		            cfg_stream_k_s1 <= '0;
+		            cfg_stream_m_s1 <= '0;
+		            cfg_ia_req_s1 <= '0;
+		            cfg_w_req_s1 <= '0;
+		            cfg_ia_cap_raw_s1 <= REG_WIDTH'(1);
+		            cfg_w_cap_raw_s1 <= REG_WIDTH'(1);
+		            cfg_mode_s2 <= 1'b0;
+		            cfg_use16_s2 <= 1'b0;
+		            cfg_k_s2 <= '0;
+		            cfg_m_s2 <= '0;
+		            cfg_n_s2 <= '0;
+		            cfg_stream_k_s2 <= '0;
+		            cfg_stream_m_s2 <= '0;
+		            cfg_ia_reuse_eff_s2 <= REG_WIDTH'(1);
+		            cfg_w_reuse_eff_s2 <= REG_WIDTH'(1);
+		            cfg_bias_rows_target_s2 <= REG_WIDTH'(SIZE);
+		        end else begin
+		            if (cfg_stage2_fire) begin
+		                cfg_stage2_valid <= 1'b0;
+		            end
+
+		            if (cfg_stage1_valid && !cfg_stage2_valid) begin
+		                cfg_stage2_valid <= 1'b1;
+		                cfg_stage1_valid <= 1'b0;
+		                cfg_mode_s2 <= cfg_mode_s1;
+		                cfg_use16_s2 <= cfg_use16_s1;
+		                cfg_k_s2 <= cfg_k_s1;
+		                cfg_m_s2 <= cfg_m_s1;
+		                cfg_n_s2 <= cfg_n_s1;
+		                cfg_stream_k_s2 <= cfg_stream_k_s1;
+		                cfg_stream_m_s2 <= cfg_stream_m_s1;
+		                cfg_ia_reuse_eff_s2 <= ia_reuse_num_eff_s1;
+		                cfg_w_reuse_eff_s2 <= w_reuse_num_eff_s1;
+		                cfg_bias_rows_target_s2 <= ia_reuse_num_eff_s1 << SIZE_SHIFT;
+		            end
+
+		            if (cfg_stage0_valid && !cfg_stage1_valid) begin
+		                cfg_stage1_valid <= 1'b1;
+		                cfg_stage0_valid <= 1'b0;
+	                cfg_mode_s1 <= cfg_mode_s0;
+	                cfg_use16_s1 <= cfg_use16_s0;
+	                cfg_k_s1 <= cfg_k_s0;
+	                cfg_m_s1 <= cfg_m_s0;
+		                cfg_n_s1 <= cfg_n_s0;
+		                cfg_stream_k_s1 <= cfg_stream_k_s0;
+		                cfg_stream_m_s1 <= cfg_stream_m_s0;
+		                cfg_ia_req_s1 <= cfg_ia_req_s0;
+		                cfg_w_req_s1 <= cfg_w_req_s0;
+		                cfg_ia_cap_raw_s1 <= ia_reuse_capacity_limit_raw_pre;
+		                cfg_w_cap_raw_s1 <= w_reuse_capacity_limit_raw_pre;
+		            end
+
+		            if (cfg_start_event) begin
+		                cfg_stage0_valid <= 1'b1;
+	                cfg_mode_s0 <= cfg_dataflow_mode;
+	                cfg_use16_s0 <= cfg_16bits_ia;
+	                cfg_k_s0 <= k;
+	                cfg_m_s0 <= m;
+		                cfg_n_s0 <= n;
+		                cfg_stream_k_s0 <= cfg_dataflow_mode ? m : k;
+		                cfg_stream_m_s0 <= cfg_dataflow_mode ? k : m;
+		                cfg_ia_req_s0 <= cfg_ia_reuse_num;
+		                cfg_w_req_s0 <= cfg_w_reuse_num;
+		            end
+		        end
+		    end
+
+	    logic run_is_mode;
+	    logic run_use_16bits;
+	    logic [REG_WIDTH-1:0] run_k;
+	    logic [REG_WIDTH-1:0] run_m;
+	    logic [REG_WIDTH-1:0] run_n;
+	    logic [REG_WIDTH-1:0] stream_k;
+	    logic [REG_WIDTH-1:0] stream_m;
+	    logic [REG_WIDTH-1:0] ia_reuse_num_eff;
+	    logic [REG_WIDTH-1:0] w_reuse_num_eff;
+	    logic [REG_WIDTH-1:0] is_bias_group_rows_target;
+
+	    always_ff @(posedge clk or negedge rst_n) begin
+	        if (!rst_n) begin
+	            run_is_mode <= 1'b0;
+	            run_use_16bits <= 1'b0;
+	            run_k <= '0;
+	            run_m <= '0;
+	            run_n <= '0;
+	            stream_k <= '0;
+	            stream_m <= '0;
+	            ia_reuse_num_eff <= REG_WIDTH'(1);
+	            w_reuse_num_eff <= REG_WIDTH'(1);
+	            is_bias_group_rows_target <= REG_WIDTH'(SIZE);
+	        end else if (cfg_stage2_fire) begin
+	            run_is_mode <= cfg_mode_s2;
+	            run_use_16bits <= cfg_use16_s2;
+	            run_k <= cfg_k_s2;
+	            run_m <= cfg_m_s2;
+	            run_n <= cfg_n_s2;
+	            stream_k <= cfg_stream_k_s2;
+	            stream_m <= cfg_stream_m_s2;
+	            ia_reuse_num_eff <= cfg_ia_reuse_eff_s2;
+	            w_reuse_num_eff <= cfg_w_reuse_eff_s2;
+	            is_bias_group_rows_target <= cfg_bias_rows_target_s2;
+	        end
+	    end
+
+	    wire is_mode = run_is_mode;
+	    wire [REG_WIDTH-1:0] ia_base_eff = is_mode ? rhs_base : lhs_base;
+	    wire [REG_WIDTH-1:0] ia_stride_eff = is_mode ? rhs_col_stride_b : lhs_row_stride_b;
+	    wire signed [REG_WIDTH-1:0] ia_zp_eff = is_mode ? rhs_zp : lhs_zp;
+	    wire ia_use_16bits_eff = is_mode ? 1'b0 : run_use_16bits;
+	    wire [REG_WIDTH-1:0] weight_base_eff = is_mode ? lhs_base : rhs_base;
+	    wire [REG_WIDTH-1:0] weight_stride_eff = is_mode ? lhs_row_stride_b : rhs_col_stride_b;
+	    wire signed [REG_WIDTH-1:0] weight_zp_eff = is_mode ? lhs_zp : rhs_zp;
+	    wire weight_use_16bits_eff = is_mode ? run_use_16bits : 1'b0;
+	    wire compute_bias_sleep = bias_sleep;
 
 	    axi_block_dma_arbiter #(
 	        .DATA_WIDTH  (DATA_WIDTH),
@@ -289,11 +490,10 @@ module mma_top #(
 	    ) u_block_dma_arbiter (
 	        .clk                     (clk),
 	        .rst_n                   (rst_n),
-	        .ia_req                  (load_ia_req),
-	        .ia_granted              (load_ia_granted),
-	        .ia_start                (ia_dma_start),
-	        .ia_is_write             (ia_dma_is_write),
-	        .ia_linear_read_mode     (ia_dma_linear_read_mode),
+		        .ia_req                  (load_ia_req),
+		        .ia_granted              (load_ia_granted),
+		        .ia_start                (ia_dma_start),
+		        .ia_linear_read_mode     (ia_dma_linear_read_mode),
 	        .ia_base_addr            (ia_dma_base_addr),
 	        .ia_row_stride           (ia_dma_row_stride),
 	        .ia_rows_to_read         (ia_dma_rows_to_read),
@@ -309,11 +509,10 @@ module mma_top #(
 	        .ia_wr_data              (ia_dma_wr_data),
 	        .ia_wr_valid             (ia_dma_wr_valid),
 	        .ia_wr_use_16bits        (ia_dma_wr_use_16bits),
-	        .kernel_req              (load_weight_req),
-	        .kernel_granted          (load_weight_granted),
-	        .kernel_start            (kernel_dma_start),
-	        .kernel_is_write         (kernel_dma_is_write),
-	        .kernel_linear_read_mode (kernel_dma_linear_read_mode),
+		        .kernel_req              (load_weight_req),
+		        .kernel_granted          (load_weight_granted),
+		        .kernel_start            (kernel_dma_start),
+		        .kernel_linear_read_mode (kernel_dma_linear_read_mode),
 	        .kernel_base_addr        (kernel_dma_base_addr),
 	        .kernel_row_stride       (kernel_dma_row_stride),
 	        .kernel_rows_to_read     (kernel_dma_rows_to_read),
@@ -327,11 +526,10 @@ module mma_top #(
 	        .kernel_wr_col_base      (kernel_dma_wr_col_base),
 	        .kernel_wr_data          (kernel_dma_wr_data),
 	        .kernel_wr_valid         (kernel_dma_wr_valid),
-	        .bias_req                (load_bias_req),
-	        .bias_granted            (load_bias_granted),
-	        .bias_start              (bias_dma_start),
-	        .bias_is_write           (bias_dma_is_write),
-	        .bias_linear_read_mode   (bias_dma_linear_read_mode),
+		        .bias_req                (load_bias_req),
+		        .bias_granted            (load_bias_granted),
+		        .bias_start              (bias_dma_start),
+		        .bias_linear_read_mode   (bias_dma_linear_read_mode),
 	        .bias_base_addr          (bias_dma_base_addr),
 	        .bias_row_stride         (bias_dma_row_stride),
 	        .bias_rows_to_read       (bias_dma_rows_to_read),
@@ -347,11 +545,10 @@ module mma_top #(
 	        .bias_wr_data            (bias_dma_wr_data),
 	        .bias_wr_valid           (bias_dma_wr_valid),
 	        .bias_wr_use_16bits      (bias_dma_wr_use_16bits),
-	        .quant_req               (load_quant_req),
-	        .quant_granted           (load_quant_granted),
-	        .quant_start             (quant_dma_start),
-	        .quant_is_write          (quant_dma_is_write),
-	        .quant_linear_read_mode  (quant_dma_linear_read_mode),
+		        .quant_req               (load_quant_req),
+		        .quant_granted           (load_quant_granted),
+		        .quant_start             (quant_dma_start),
+		        .quant_linear_read_mode  (quant_dma_linear_read_mode),
 	        .quant_base_addr         (quant_dma_base_addr),
 	        .quant_row_stride        (quant_dma_row_stride),
 	        .quant_rows_to_read      (quant_dma_rows_to_read),
@@ -363,19 +560,14 @@ module mma_top #(
 	        .quant_done              (quant_dma_done),
 	        .quant_raw_data          (quant_dma_raw_data),
 	        .quant_raw_valid         (quant_dma_raw_valid),
-	        .oa_req                  (write_oa_req),
-	        .oa_granted              (write_oa_granted),
-	        .oa_start                (oa_dma_start),
-	        .oa_is_write             (oa_dma_is_write),
-	        .oa_linear_read_mode     (oa_dma_linear_read_mode),
-	        .oa_base_addr            (oa_dma_base_addr),
-	        .oa_row_stride           (oa_dma_row_stride),
-	        .oa_rows_to_read         (oa_dma_rows_to_read),
-	        .oa_burst_len_m1         (oa_dma_burst_len_m1),
-	        .oa_slot_id              (oa_dma_slot_id),
-	        .oa_use_16bits           (oa_dma_use_16bits),
-	        .oa_lhs_zp               (oa_dma_lhs_zp),
-	        .oa_src_wdata            (oa_dma_src_wdata),
+		        .oa_req                  (write_oa_req),
+		        .oa_granted              (write_oa_granted),
+		        .oa_start                (oa_dma_start),
+		        .oa_base_addr            (oa_dma_base_addr),
+		        .oa_row_stride           (oa_dma_row_stride),
+		        .oa_rows_to_read         (oa_dma_rows_to_read),
+		        .oa_burst_len_m1         (oa_dma_burst_len_m1),
+		        .oa_src_wdata            (oa_dma_src_wdata),
 	        .oa_src_wmask            (oa_dma_src_wmask),
 	        .oa_src_wvalid           (oa_dma_src_wvalid),
 	        .oa_src_wready           (oa_dma_src_wready),
@@ -422,10 +614,10 @@ module mma_top #(
     ) u_mma_controller (
         .clk              (clk),
         .rst_n            (rst_n),
-        .calc_start       (calc_start),
+        .calc_start       (ctrl_calc_start),
         .cfg_16bits_ia    (cfg_16bits_ia),
         .cfg_dataflow_mode(cfg_dataflow_mode),
-        .sa_ready         (sa_ready),
+        .sa_ready         (ctrl_sa_ready),
 
         .partial_sum_calc_over(partial_sum_calc_over),
         .tile_calc_over       (tile_calc_over),
@@ -451,10 +643,9 @@ module mma_top #(
         .rhs_col_stride_b     (rhs_col_stride_b),
 	        // IA Loader Interface
 	        .send_ia_trigger      (send_ia_trigger),
-        .ia_sending_done      (ia_sending_done),
-        .ia_data_valid        (ia_data_valid),
-        .ia_group_calc_done   (ia_group_calc_done),
-	        // Weight Loader Interface
+	        .ia_sending_done      (ia_sending_done),
+	        .ia_data_valid        (ia_data_valid),
+		        // Weight Loader Interface
 	        .send_weight_trigger  (send_weight_trigger),
         .weight_sending_done  (weight_sending_done),
         .weight_data_valid    (weight_data_valid),
@@ -486,10 +677,10 @@ module mma_top #(
         .init_cfg        (init_cfg_ia),
         .load_ia_req     (load_ia_req),
         .load_ia_granted (load_ia_granted),
-        .send_ia_trigger (send_ia_trigger),
-        .k               (stream_k),
-        .n               (n),
-        .m               (stream_m),
+	        .send_ia_trigger (send_ia_trigger),
+	        .k               (stream_k),
+	        .n               (run_n),
+	        .m               (stream_m),
         .lhs_zp          (ia_zp_eff),
         .lhs_row_stride_b(ia_stride_eff),
         .lhs_base        (ia_base_eff),
@@ -513,7 +704,7 @@ module mma_top #(
 	        .icb_rsp_rdata('0),
 	        .icb_rsp_err  (1'b0),
 	        .ext_dma_start(ia_dma_start),
-	        .ext_dma_is_write(ia_dma_is_write),
+	        .ext_dma_is_write(),
 	        .ext_dma_linear_read_mode(ia_dma_linear_read_mode),
 	        .ext_dma_base_addr(ia_dma_base_addr),
 	        .ext_dma_row_stride(ia_dma_row_stride),
@@ -536,11 +727,10 @@ module mma_top #(
         .ia_row_valid   (ia_row_valid),
         .ia_tile_start  (ia_tile_start),
         .ia_is_init_data(ia_is_init_data),
-        .ia_calc_done   (ia_calc_done),
-        .ia_out         (ia_out),
-        .ia_data_valid  (ia_data_valid),
-        .ia_group_calc_done(ia_group_calc_done),
-        .bias_sleep     (bias_sleep),
+	        .ia_calc_done   (ia_calc_done),
+	        .ia_out         (ia_out),
+	        .ia_data_valid  (ia_data_valid),
+	        .bias_sleep     (bias_sleep),
         .bias_switch    (bias_switch),
         .bias_last_loop (bias_last_loop),
         .ia_l1_switch   (ia_l1_switch)
@@ -558,10 +748,10 @@ module mma_top #(
         .init_cfg           (init_cfg_weight),
         .load_weight_req    (load_weight_req),
         .load_weight_granted(load_weight_granted),
-        .send_weight_trigger(send_weight_trigger),
-        .k                  (stream_k),
-        .n                  (n),
-        .m                  (stream_m),
+	        .send_weight_trigger(send_weight_trigger),
+	        .k                  (stream_k),
+	        .n                  (run_n),
+	        .m                  (stream_m),
         .rhs_zp             (weight_zp_eff),
         .rhs_base           (weight_base_eff),
         .rhs_row_stride_b   (weight_stride_eff),
@@ -583,7 +773,7 @@ module mma_top #(
 	        .icb_rsp_rdata('0),
 	        .icb_rsp_err  (1'b0),
 	        .ext_dma_start(kernel_dma_start),
-	        .ext_dma_is_write(kernel_dma_is_write),
+	        .ext_dma_is_write(),
 	        .ext_dma_linear_read_mode(kernel_dma_linear_read_mode),
 	        .ext_dma_base_addr(kernel_dma_base_addr),
 	        .ext_dma_row_stride(kernel_dma_row_stride),
@@ -620,11 +810,11 @@ module mma_top #(
         .rst_n            (rst_n),
         .init_cfg         (init_cfg_bias),
         .load_bias_req    (load_bias_req),
-        .load_bias_granted(load_bias_granted),
-        .bias_base        (bias_base),
-        .k                (k),
-        .m                (m),
-        .bias_step_blocks (is_mode ? ia_reuse_num_eff : REG_WIDTH'(1)),
+	        .load_bias_granted(load_bias_granted),
+	        .bias_base        (bias_base),
+	        .k                (run_k),
+	        .m                (run_m),
+	        .bias_step_blocks (is_mode ? ia_reuse_num_eff : REG_WIDTH'(1)),
         .bias_switch      (bias_switch),
         .bias_sleep       (bias_sleep),
         .bias_last_loop   (bias_last_loop),
@@ -644,8 +834,8 @@ module mma_top #(
 	        .icb_rsp_ready    (),
 	        .icb_rsp_rdata    ('0),
 	        .icb_rsp_err      (1'b0),
-	        .ext_dma_start    (bias_dma_start),
-	        .ext_dma_is_write (bias_dma_is_write),
+		        .ext_dma_start    (bias_dma_start),
+		        .ext_dma_is_write (),
 	        .ext_dma_linear_read_mode(bias_dma_linear_read_mode),
 	        .ext_dma_base_addr(bias_dma_base_addr),
 	        .ext_dma_row_stride(bias_dma_row_stride),
@@ -682,7 +872,7 @@ module mma_top #(
         compute_bias_latched[bi] <= '0;
       end
     end else begin
-      if (bias_valid) begin
+      if (bias_group_valid) begin
         for (int bi = 0; bi < SIZE; bi = bi + 1) begin
           bias_data_hold[bi] <= bias_data_out[bi];
         end
@@ -690,7 +880,7 @@ module mma_top #(
 
       if (capture_compute_bias) begin
         for (int bi = 0; bi < SIZE; bi = bi + 1) begin
-          compute_bias_latched[bi] <= bias_valid ? bias_data_out[bi] : bias_data_hold[bi];
+          compute_bias_latched[bi] <= bias_group_valid ? bias_data_out[bi] : bias_data_hold[bi];
         end
       end
     end
@@ -731,13 +921,12 @@ module mma_top #(
     );
 
     // Vec Requant
-    logic [IS_BIAS_ROW_W-1:0] is_bias_row_idx;
-    logic [REG_WIDTH-1:0] is_bias_group_base;
-    logic [REG_WIDTH-1:0] is_bias_rows_valid;
-    logic signed [31:0] is_bias_tile_data[IS_BIAS_ROWS];
-    wire [REG_WIDTH-1:0] is_bias_group_rows_target = ia_reuse_num_eff * REG_WIDTH'(SIZE);
-    wire [REG_WIDTH-1:0] is_bias_rows_remaining =
-      (m > is_bias_group_base) ? (m - is_bias_group_base) : REG_WIDTH'(0);
+	    logic [IS_BIAS_ROW_W-1:0] is_bias_row_idx;
+	    logic [REG_WIDTH-1:0] is_bias_group_base;
+	    logic [REG_WIDTH-1:0] is_bias_rows_valid;
+	    logic signed [31:0] is_bias_tile_data[IS_BIAS_ROWS];
+	    wire [REG_WIDTH-1:0] is_bias_rows_remaining =
+	      (run_m > is_bias_group_base) ? (run_m - is_bias_group_base) : REG_WIDTH'(0);
     wire [REG_WIDTH-1:0] is_bias_rows_valid_next =
       (is_bias_rows_remaining == '0) ? REG_WIDTH'(1) :
       (is_bias_rows_remaining > is_bias_group_rows_target)
@@ -747,51 +936,55 @@ module mma_top #(
       (is_mode && (bias_base != '0)) ? is_bias_tile_data[is_bias_row_idx] : 32'sd0;
     wire signed [31:0] requant_in_vec[SIZE];
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            is_bias_row_idx <= '0;
-            is_bias_group_base <= '0;
-            is_bias_rows_valid <= REG_WIDTH'(1);
-            for (int bi = 0; bi < IS_BIAS_ROWS; bi = bi + 1) begin
-                is_bias_tile_data[bi] <= '0;
-            end
-        end else if (init_cfg_ia) begin
-            is_bias_row_idx <= '0;
-            is_bias_group_base <= '0;
-            is_bias_rows_valid <= REG_WIDTH'(1);
-            for (int bi = 0; bi < IS_BIAS_ROWS; bi = bi + 1) begin
-                is_bias_tile_data[bi] <= '0;
-            end
-        end else if (is_mode && acc_data_valid) begin
-            if (is_bias_rows_valid <= REG_WIDTH'(1)) begin
-                is_bias_row_idx <= '0;
-            end else if ((REG_WIDTH'(is_bias_row_idx) + REG_WIDTH'(1)) >= is_bias_rows_valid) begin
-                is_bias_row_idx <= '0;
-            end else begin
-                is_bias_row_idx <= is_bias_row_idx + 1'b1;
-            end
-        end
+	    always_ff @(posedge clk or negedge rst_n) begin
+	        if (!rst_n) begin
+	            is_bias_row_idx <= '0;
+	            is_bias_group_base <= '0;
+	            is_bias_rows_valid <= REG_WIDTH'(1);
+	            for (int bi = 0; bi < IS_BIAS_ROWS; bi = bi + 1) begin
+	                is_bias_tile_data[bi] <= '0;
+	            end
+	        end else begin
+	            if (init_cfg_ia) begin
+	                is_bias_row_idx <= '0;
+	                is_bias_group_base <= '0;
+	                is_bias_rows_valid <= REG_WIDTH'(1);
+	                for (int bi = 0; bi < IS_BIAS_ROWS; bi = bi + 1) begin
+	                    is_bias_tile_data[bi] <= '0;
+	                end
+	            end else begin
+	                if (is_mode && acc_data_valid) begin
+	                    if (is_bias_rows_valid <= REG_WIDTH'(1)) begin
+	                        is_bias_row_idx <= '0;
+	                    end else if ((REG_WIDTH'(is_bias_row_idx) + REG_WIDTH'(1)) >= is_bias_rows_valid) begin
+	                        is_bias_row_idx <= '0;
+	                    end else begin
+	                        is_bias_row_idx <= is_bias_row_idx + 1'b1;
+	                    end
+	                end
 
-        if (rst_n && is_mode && bias_switch) begin
-            if ((is_bias_group_base + is_bias_rows_valid) >= m) begin
-                is_bias_group_base <= '0;
-            end else begin
-                is_bias_group_base <= is_bias_group_base + is_bias_rows_valid;
-            end
-        end
+	                if (is_mode && bias_switch) begin
+		                    if ((is_bias_group_base + is_bias_rows_valid) >= run_m) begin
+	                        is_bias_group_base <= '0;
+	                    end else begin
+	                        is_bias_group_base <= is_bias_group_base + is_bias_rows_valid;
+	                    end
+	                end
 
-	        if (rst_n && is_mode && send_ia_trigger && !bias_sleep) begin
-            is_bias_row_idx <= '0;
-            is_bias_rows_valid <= is_bias_rows_valid_next;
-            for (int bi = 0; bi < IS_BIAS_ROWS; bi = bi + 1) begin
-                if (REG_WIDTH'(bi) < is_bias_rows_valid_next) begin
-                    is_bias_tile_data[bi] <= bias_group_valid ? bias_group_data_out[bi] : 32'sd0;
-                end else begin
-                    is_bias_tile_data[bi] <= 32'sd0;
-                end
-            end
-        end
-    end
+	                if (is_mode && send_ia_trigger && !bias_sleep) begin
+	                    is_bias_row_idx <= '0;
+	                    is_bias_rows_valid <= is_bias_rows_valid_next;
+	                    for (int bi = 0; bi < IS_BIAS_ROWS; bi = bi + 1) begin
+	                        if (REG_WIDTH'(bi) < is_bias_rows_valid_next) begin
+	                            is_bias_tile_data[bi] <= bias_group_valid ? bias_group_data_out[bi] : 32'sd0;
+	                        end else begin
+	                            is_bias_tile_data[bi] <= 32'sd0;
+	                        end
+	                    end
+	                end
+	            end
+	        end
+	    end
 
     genvar rq_i;
     generate
@@ -823,7 +1016,7 @@ module mma_top #(
 	        .m                 (stream_m),
 	        .ia_reuse_num_in   (ia_reuse_num_eff),
 	        .dma_start         (quant_dma_start),
-	        .dma_is_write      (quant_dma_is_write),
+	        .dma_is_write      (),
 	        .dma_linear_read_mode(quant_dma_linear_read_mode),
 	        .dma_base_addr     (quant_dma_base_addr),
 	        .dma_row_stride    (quant_dma_row_stride),
@@ -893,10 +1086,10 @@ module mma_top #(
         //.write_oa_trigger(),
         .write_oa_req     (write_oa_req),
         .write_oa_granted (write_oa_granted),
-        .dst_base         (dst_base),
-        .dst_row_stride_b (dst_row_stride_b),
-        .k                (k),
-        .m                (m),
+	        .dst_base         (dst_base),
+	        .dst_row_stride_b (dst_row_stride_b),
+	        .k                (run_k),
+	        .m                (run_m),
         .ia_reuse_num     (ia_reuse_num_eff),
         .is_mode          (is_mode),
         .output_valid     (fifo_output_valid),
@@ -905,15 +1098,15 @@ module mma_top #(
 	        .output_mask      (fifo_output_mask),
 	        .output_data      (fifo_output_data),
 	        .dma_start        (oa_dma_start),
-	        .dma_is_write     (oa_dma_is_write),
-	        .dma_linear_read_mode(oa_dma_linear_read_mode),
+	        .dma_is_write     (),
+	        .dma_linear_read_mode(),
 	        .dma_base_addr    (oa_dma_base_addr),
 	        .dma_row_stride   (oa_dma_row_stride),
 	        .dma_rows_to_read (oa_dma_rows_to_read),
 	        .dma_burst_len_m1 (oa_dma_burst_len_m1),
-	        .dma_slot_id      (oa_dma_slot_id),
-	        .dma_use_16bits   (oa_dma_use_16bits),
-	        .dma_lhs_zp       (oa_dma_lhs_zp),
+	        .dma_slot_id      (),
+	        .dma_use_16bits   (),
+	        .dma_lhs_zp       (),
 	        .dma_src_wdata    (oa_dma_src_wdata),
 	        .dma_src_wmask    (oa_dma_src_wmask),
 	        .dma_src_wvalid   (oa_dma_src_wvalid),
@@ -924,6 +1117,7 @@ module mma_top #(
 	        .oa_calc_over     (oa_calc_over)
 	    );
 
+`ifndef SYNTHESIS
     function automatic longint unsigned util_bp(
         input longint unsigned numerator,
         input longint unsigned denominator
@@ -1127,6 +1321,7 @@ module mma_top #(
             end
         end
     end
+`endif
 
     //assign calc_done = oa_calc_over;
 endmodule

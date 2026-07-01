@@ -21,7 +21,7 @@ module vec_s8_to_fifo #(
 
   localparam integer PTR_WIDTH   = (VLEN <= 1) ? 1 : $clog2(VLEN);
   localparam integer COUNT_WIDTH = $clog2(VLEN + 1);
-  localparam integer ROW_BEATS   = (VLEN + 3) / 4;
+  localparam integer ROW_BEATS   = (VLEN + 3) >> 2;
   localparam integer BEAT_WIDTH  = (ROW_BEATS <= 1) ? 1 : $clog2(ROW_BEATS);
   localparam integer BANK_WIDTH  = (BANKS <= 1) ? 1 : $clog2(BANKS);
 
@@ -39,7 +39,11 @@ module vec_s8_to_fifo #(
   reg [$clog2(VLEN)-1:0] vec_valid_num_row_tmp;
   reg                   transpose_mode_tmp;
   reg                   in_valid_q;
+`ifndef SYNTHESIS
   bit                   oa_trace_en;
+`else
+  localparam bit        oa_trace_en = 1'b0;
+`endif
 
   wire in_valid_fall = in_valid_q & ~in_valid;
   wire write_bank_blocked = bank_ready[write_bank];
@@ -58,7 +62,7 @@ module vec_s8_to_fifo #(
                          : (COUNT_WIDTH'(vec_valid_num_col_tmp) + COUNT_WIDTH'(1));
   wire read_bank_ready = bank_ready[read_bank] && (bank_count[read_bank] != '0);
   wire [COUNT_WIDTH-1:0] last_beat_idx_cur =
-      (output_col_count == '0) ? '0 : ((output_col_count - COUNT_WIDTH'(1)) / COUNT_WIDTH'(4));
+      (output_col_count == '0) ? '0 : ((output_col_count - COUNT_WIDTH'(1)) >> 2);
   wire last_beat_in_row = output_ready && stream_active &&
                           (COUNT_WIDTH'(beat_idx) == last_beat_idx_cur);
   wire last_row_in_bank = last_beat_in_row &&
@@ -75,10 +79,12 @@ module vec_s8_to_fifo #(
   assign output_valid = stream_active;
   assign output_row_switch = last_beat_in_row;
 
+`ifndef SYNTHESIS
   initial begin
     oa_trace_en = 1'b0;
     if ($test$plusargs("MMA_OA_TRACE")) oa_trace_en = 1'b1;
   end
+`endif
 
   function automatic [BANK_WIDTH-1:0] next_bank(input [BANK_WIDTH-1:0] bank);
     begin

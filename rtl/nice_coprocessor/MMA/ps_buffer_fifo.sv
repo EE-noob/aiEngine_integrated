@@ -19,8 +19,9 @@ module ps_buffer_fifo #(
 );
     localparam int unsigned ADDR_W = (DEPTH <= 1) ? 1 : $clog2(DEPTH);
     localparam int unsigned CNT_W  = (DEPTH <= 1) ? 1 : $clog2(DEPTH + 1);
-    localparam int unsigned FRAME_IDX_W = (FRAME_COUNT <= 1) ? 1 : $clog2(FRAME_COUNT);
-    localparam int unsigned FRAME_CNT_W = (FRAME_COUNT < 1) ? 1 : $clog2(FRAME_COUNT + 1);
+	    localparam int unsigned FRAME_IDX_W = (FRAME_COUNT <= 1) ? 1 : $clog2(FRAME_COUNT);
+	    localparam int unsigned FRAME_CNT_W = (FRAME_COUNT < 1) ? 1 : $clog2(FRAME_COUNT + 1);
+    localparam int unsigned EXT_W = CNT_W + 1;
 
     localparam logic [ADDR_W-1:0] DEPTH_LAST_ADDR = DEPTH - 1;
     localparam logic [CNT_W-1:0]  DEPTH_COUNT     = DEPTH;
@@ -43,24 +44,54 @@ module ps_buffer_fifo #(
     logic                         ram_read_en;
     logic [ADDR_W-1:0]             ram_write_addr;
     logic [ADDR_W-1:0]             ram_read_addr;
-    logic [CNT_W-1:0]              write_ptr_ext;
-    logic [CNT_W-1:0]              frame_len_next;
-    logic signed [DATA_WIDTH-1:0] ram_read_data;
-    logic                         replay_data_valid;
+	    logic [CNT_W-1:0]              write_ptr_ext;
+	    logic [CNT_W-1:0]              frame_len_next;
+	    logic signed [DATA_WIDTH-1:0] ram_read_data;
+	    logic                         replay_data_valid;
+    logic [CNT_W:0]                  ram_write_addr_ext;
+    logic [CNT_W:0]                  write_base_next_ext;
+    logic [CNT_W:0]                  read_base_next_ext;
+    logic [ADDR_W-1:0]               write_base_next;
+    logic [ADDR_W-1:0]               read_base_next;
+    logic [ADDR_W-1:0]               read_ptr_inc;
+    logic [FRAME_IDX_W-1:0]          frame_wr_ptr_inc;
+    logic [FRAME_IDX_W-1:0]          frame_rd_ptr_inc;
+`ifndef SYNTHESIS
     bit                           ps_trace_en;
 
     initial begin
         ps_trace_en = 1'b0;
         if ($test$plusargs("MMA_PS_TRACE")) ps_trace_en = 1'b1;
     end
+`else
+    localparam bit ps_trace_en = 1'b0;
+`endif
 
-    assign ram_write_en   = input_valid_i;
-    assign ram_read_en    = (replay_count != '0);
-    assign ram_write_addr = add_mod_depth(write_base, write_ptr);
-    assign ram_read_addr  = read_ptr;
-    assign write_ptr_ext  = write_ptr;
-    assign frame_len_next = input_valid_i ? (write_ptr_ext + 1'b1) : write_ptr_ext;
-    assign frame_len      = (frame_count != '0) ? frame_len_fifo[frame_rd_ptr] : '0;
+	    assign ram_write_en   = input_valid_i;
+	    assign ram_read_en    = (replay_count != '0);
+	    assign ram_read_addr  = read_ptr;
+	    assign write_ptr_ext  = write_ptr;
+	    assign frame_len_next = input_valid_i ? (write_ptr_ext + 1'b1) : write_ptr_ext;
+	    assign frame_len      = (frame_count != '0) ? frame_len_fifo[frame_rd_ptr] : '0;
+    assign ram_write_addr_ext = EXT_W'(write_base) + EXT_W'(write_ptr);
+    assign write_base_next_ext = EXT_W'(write_base) + EXT_W'(frame_len_next);
+    assign read_base_next_ext = EXT_W'(read_base) + EXT_W'(frame_len);
+    assign ram_write_addr = (ram_write_addr_ext >= EXT_W'(DEPTH_COUNT)) ?
+                            ADDR_W'(ram_write_addr_ext - EXT_W'(DEPTH_COUNT)) :
+                            ADDR_W'(ram_write_addr_ext);
+    assign write_base_next = (write_base_next_ext >= EXT_W'(DEPTH_COUNT)) ?
+                             ADDR_W'(write_base_next_ext - EXT_W'(DEPTH_COUNT)) :
+                             ADDR_W'(write_base_next_ext);
+    assign read_base_next = (read_base_next_ext >= EXT_W'(DEPTH_COUNT)) ?
+                            ADDR_W'(read_base_next_ext - EXT_W'(DEPTH_COUNT)) :
+                            ADDR_W'(read_base_next_ext);
+    assign read_ptr_inc = (read_ptr == DEPTH_LAST_ADDR) ? '0 : (read_ptr + 1'b1);
+    assign frame_wr_ptr_inc = (FRAME_COUNT <= 1) ? '0 :
+                              ((frame_wr_ptr == FRAME_IDX_W'(FRAME_COUNT - 1)) ?
+                               '0 : (frame_wr_ptr + 1'b1));
+    assign frame_rd_ptr_inc = (FRAME_COUNT <= 1) ? '0 :
+                              ((frame_rd_ptr == FRAME_IDX_W'(FRAME_COUNT - 1)) ?
+                               '0 : (frame_rd_ptr + 1'b1));
 
     // RAM read data is valid in the same externally-observed cycle as
     // replay_data_valid because both are registered on the same clock edge.
@@ -80,39 +111,7 @@ module ps_buffer_fifo #(
         .dob   (ram_read_data)
     );
 
-    function automatic logic [ADDR_W-1:0] add_mod_depth(
-        input logic [ADDR_W-1:0] base,
-        input logic [CNT_W-1:0]  offset
-    );
-        logic [CNT_W:0] next_ext;
-        begin
-            next_ext = CNT_W'(base) + offset;
-            if (next_ext >= DEPTH_COUNT) begin
-                next_ext = next_ext - DEPTH_COUNT;
-            end
-            add_mod_depth = next_ext[ADDR_W-1:0];
-        end
-    endfunction
-
-    function automatic logic [ADDR_W-1:0] inc_mod_depth(input logic [ADDR_W-1:0] addr);
-        begin
-            inc_mod_depth = (addr == DEPTH_LAST_ADDR) ? '0 : (addr + 1'b1);
-        end
-    endfunction
-
-    function automatic logic [FRAME_IDX_W-1:0] inc_frame_ptr(input logic [FRAME_IDX_W-1:0] ptr);
-        begin
-            if (FRAME_COUNT <= 1) begin
-                inc_frame_ptr = '0;
-            end else if (ptr == FRAME_IDX_W'(FRAME_COUNT - 1)) begin
-                inc_frame_ptr = '0;
-            end else begin
-                inc_frame_ptr = ptr + 1'b1;
-            end
-        end
-    endfunction
-
-    always_ff @(posedge clk or negedge rst_n) begin
+	    always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             write_ptr           <= '0;
             read_ptr            <= '0;
@@ -158,8 +157,8 @@ module ps_buffer_fifo #(
             if (ia_l1_switch_i && !ia_l1_switch_i_d) begin
                 if (frame_len_next != '0) begin
                     frame_len_fifo[frame_wr_ptr] <= frame_len_next;
-                    frame_wr_ptr <= inc_frame_ptr(frame_wr_ptr);
-                    write_base <= add_mod_depth(write_base, frame_len_next);
+	                    frame_wr_ptr <= frame_wr_ptr_inc;
+	                    write_base <= write_base_next;
                     if (ps_trace_en) begin
                         $display("[PS_TRACE] time=%0t push frame_len=%0d frame_count=%0d write_base=%0d",
                                  $time, frame_len_next, frame_count, write_base);
@@ -172,9 +171,9 @@ module ps_buffer_fifo #(
             if (send_ia_trigger_i && !send_ia_trigger_i_d) begin
                 if (pop_frame) begin
                     read_ptr     <= read_base;
-                    read_base    <= add_mod_depth(read_base, frame_len);
-                    replay_count <= frame_len;
-                    frame_rd_ptr <= inc_frame_ptr(frame_rd_ptr);
+	                    read_base    <= read_base_next;
+	                    replay_count <= frame_len;
+	                    frame_rd_ptr <= frame_rd_ptr_inc;
                     if (ps_trace_en) begin
                         $display("[PS_TRACE] time=%0t pop frame_len=%0d frame_count=%0d read_base=%0d",
                                  $time, frame_len, frame_count, read_base);
@@ -194,7 +193,7 @@ module ps_buffer_fifo #(
                     replay_count <= '0;
                 end else begin
                     replay_count <= replay_count - 1'b1;
-                    read_ptr     <= inc_mod_depth(read_ptr);
+	                    read_ptr     <= read_ptr_inc;
                 end
             end
 
