@@ -15,6 +15,7 @@ module soc_top #(
     parameter CPU_MEM_DP      = 524288,
     parameter CPU_MEM_PATH    = "../tb/axi_soc_case/cpu.mem",
     parameter CPU_MEM_INIT_EN = 1,
+    parameter BYPASS_RAM_PINGPONG = 1,
     parameter [31:0] CPU_RAM_BASE   = 32'h0000_0000,
     parameter [31:0] MMA_AXIL_BASE  = 32'h1000_0000,
     parameter [31:0] UART_BASE      = 32'h0200_0000,
@@ -629,75 +630,112 @@ module soc_top #(
         .mma_busy(mma_busy)
     );
 
-    soc_axi_pingpong_buffer #(
-        .ADDR_WIDTH(REG_WIDTH),
-        .DATA_WIDTH(BUS_WIDTH)
-    ) u_ram_axi_pingpong (
-        .clk(clk),
-        .rst_n(rst_n),
-        .s_axi_arvalid(ram_axi_arvalid),
-        .s_axi_arready(ram_axi_arready),
-        .s_axi_araddr(ram_axi_araddr),
-        .s_axi_arcache(ram_axi_arcache),
-        .s_axi_arprot(ram_axi_arprot),
-        .s_axi_arlock(ram_axi_arlock),
-        .s_axi_arburst(ram_axi_arburst),
-        .s_axi_arlen(ram_axi_arlen),
-        .s_axi_arsize(ram_axi_arsize),
-        .s_axi_rvalid(ram_axi_rvalid),
-        .s_axi_rready(ram_axi_rready),
-        .s_axi_rdata(ram_axi_rdata),
-        .s_axi_rresp(ram_axi_rresp),
-        .s_axi_rlast(ram_axi_rlast),
-        .s_axi_awvalid(ram_axi_awvalid),
-        .s_axi_awready(ram_axi_awready),
-        .s_axi_awaddr(ram_axi_awaddr),
-        .s_axi_awcache(ram_axi_awcache),
-        .s_axi_awprot(ram_axi_awprot),
-        .s_axi_awlock(ram_axi_awlock),
-        .s_axi_awburst(ram_axi_awburst),
-        .s_axi_awlen(ram_axi_awlen),
-        .s_axi_awsize(ram_axi_awsize),
-        .s_axi_wvalid(ram_axi_wvalid),
-        .s_axi_wready(ram_axi_wready),
-        .s_axi_wdata(ram_axi_wdata),
-        .s_axi_wstrb(ram_axi_wstrb),
-        .s_axi_wlast(ram_axi_wlast),
-        .s_axi_bvalid(ram_axi_bvalid),
-        .s_axi_bready(ram_axi_bready),
-        .s_axi_bresp(ram_axi_bresp),
-        .m_axi_arvalid(ram_buf_axi_arvalid),
-        .m_axi_arready(ram_buf_axi_arready),
-        .m_axi_araddr(ram_buf_axi_araddr),
-        .m_axi_arcache(ram_buf_axi_arcache),
-        .m_axi_arprot(ram_buf_axi_arprot),
-        .m_axi_arlock(ram_buf_axi_arlock),
-        .m_axi_arburst(ram_buf_axi_arburst),
-        .m_axi_arlen(ram_buf_axi_arlen),
-        .m_axi_arsize(ram_buf_axi_arsize),
-        .m_axi_rvalid(ram_buf_axi_rvalid),
-        .m_axi_rready(ram_buf_axi_rready),
-        .m_axi_rdata(ram_buf_axi_rdata),
-        .m_axi_rresp(ram_buf_axi_rresp),
-        .m_axi_rlast(ram_buf_axi_rlast),
-        .m_axi_awvalid(ram_buf_axi_awvalid),
-        .m_axi_awready(ram_buf_axi_awready),
-        .m_axi_awaddr(ram_buf_axi_awaddr),
-        .m_axi_awcache(ram_buf_axi_awcache),
-        .m_axi_awprot(ram_buf_axi_awprot),
-        .m_axi_awlock(ram_buf_axi_awlock),
-        .m_axi_awburst(ram_buf_axi_awburst),
-        .m_axi_awlen(ram_buf_axi_awlen),
-        .m_axi_awsize(ram_buf_axi_awsize),
-        .m_axi_wvalid(ram_buf_axi_wvalid),
-        .m_axi_wready(ram_buf_axi_wready),
-        .m_axi_wdata(ram_buf_axi_wdata),
-        .m_axi_wstrb(ram_buf_axi_wstrb),
-        .m_axi_wlast(ram_buf_axi_wlast),
-        .m_axi_bvalid(ram_buf_axi_bvalid),
-        .m_axi_bready(ram_buf_axi_bready),
-        .m_axi_bresp(ram_buf_axi_bresp)
-    );
+    generate
+        if (BYPASS_RAM_PINGPONG) begin : g_bypass_ram_pingpong
+            assign ram_buf_axi_arvalid = ram_axi_arvalid;
+            assign ram_axi_arready     = ram_buf_axi_arready;
+            assign ram_buf_axi_araddr  = ram_axi_araddr;
+            assign ram_buf_axi_arcache = ram_axi_arcache;
+            assign ram_buf_axi_arprot  = ram_axi_arprot;
+            assign ram_buf_axi_arlock  = ram_axi_arlock;
+            assign ram_buf_axi_arburst = ram_axi_arburst;
+            assign ram_buf_axi_arlen   = ram_axi_arlen;
+            assign ram_buf_axi_arsize  = ram_axi_arsize;
+            assign ram_axi_rvalid      = ram_buf_axi_rvalid;
+            assign ram_buf_axi_rready  = ram_axi_rready;
+            assign ram_axi_rdata       = ram_buf_axi_rdata;
+            assign ram_axi_rresp       = ram_buf_axi_rresp;
+            assign ram_axi_rlast       = ram_buf_axi_rlast;
+
+            assign ram_buf_axi_awvalid = ram_axi_awvalid;
+            assign ram_axi_awready     = ram_buf_axi_awready;
+            assign ram_buf_axi_awaddr  = ram_axi_awaddr;
+            assign ram_buf_axi_awcache = ram_axi_awcache;
+            assign ram_buf_axi_awprot  = ram_axi_awprot;
+            assign ram_buf_axi_awlock  = ram_axi_awlock;
+            assign ram_buf_axi_awburst = ram_axi_awburst;
+            assign ram_buf_axi_awlen   = ram_axi_awlen;
+            assign ram_buf_axi_awsize  = ram_axi_awsize;
+            assign ram_buf_axi_wvalid  = ram_axi_wvalid;
+            assign ram_axi_wready      = ram_buf_axi_wready;
+            assign ram_buf_axi_wdata   = ram_axi_wdata;
+            assign ram_buf_axi_wstrb   = ram_axi_wstrb;
+            assign ram_buf_axi_wlast   = ram_axi_wlast;
+            assign ram_axi_bvalid      = ram_buf_axi_bvalid;
+            assign ram_buf_axi_bready  = ram_axi_bready;
+            assign ram_axi_bresp       = ram_buf_axi_bresp;
+        end else begin : g_ram_pingpong
+            soc_axi_pingpong_buffer #(
+                .ADDR_WIDTH(REG_WIDTH),
+                .DATA_WIDTH(BUS_WIDTH)
+            ) u_ram_axi_pingpong (
+                .clk(clk),
+                .rst_n(rst_n),
+                .s_axi_arvalid(ram_axi_arvalid),
+                .s_axi_arready(ram_axi_arready),
+                .s_axi_araddr(ram_axi_araddr),
+                .s_axi_arcache(ram_axi_arcache),
+                .s_axi_arprot(ram_axi_arprot),
+                .s_axi_arlock(ram_axi_arlock),
+                .s_axi_arburst(ram_axi_arburst),
+                .s_axi_arlen(ram_axi_arlen),
+                .s_axi_arsize(ram_axi_arsize),
+                .s_axi_rvalid(ram_axi_rvalid),
+                .s_axi_rready(ram_axi_rready),
+                .s_axi_rdata(ram_axi_rdata),
+                .s_axi_rresp(ram_axi_rresp),
+                .s_axi_rlast(ram_axi_rlast),
+                .s_axi_awvalid(ram_axi_awvalid),
+                .s_axi_awready(ram_axi_awready),
+                .s_axi_awaddr(ram_axi_awaddr),
+                .s_axi_awcache(ram_axi_awcache),
+                .s_axi_awprot(ram_axi_awprot),
+                .s_axi_awlock(ram_axi_awlock),
+                .s_axi_awburst(ram_axi_awburst),
+                .s_axi_awlen(ram_axi_awlen),
+                .s_axi_awsize(ram_axi_awsize),
+                .s_axi_wvalid(ram_axi_wvalid),
+                .s_axi_wready(ram_axi_wready),
+                .s_axi_wdata(ram_axi_wdata),
+                .s_axi_wstrb(ram_axi_wstrb),
+                .s_axi_wlast(ram_axi_wlast),
+                .s_axi_bvalid(ram_axi_bvalid),
+                .s_axi_bready(ram_axi_bready),
+                .s_axi_bresp(ram_axi_bresp),
+                .m_axi_arvalid(ram_buf_axi_arvalid),
+                .m_axi_arready(ram_buf_axi_arready),
+                .m_axi_araddr(ram_buf_axi_araddr),
+                .m_axi_arcache(ram_buf_axi_arcache),
+                .m_axi_arprot(ram_buf_axi_arprot),
+                .m_axi_arlock(ram_buf_axi_arlock),
+                .m_axi_arburst(ram_buf_axi_arburst),
+                .m_axi_arlen(ram_buf_axi_arlen),
+                .m_axi_arsize(ram_buf_axi_arsize),
+                .m_axi_rvalid(ram_buf_axi_rvalid),
+                .m_axi_rready(ram_buf_axi_rready),
+                .m_axi_rdata(ram_buf_axi_rdata),
+                .m_axi_rresp(ram_buf_axi_rresp),
+                .m_axi_rlast(ram_buf_axi_rlast),
+                .m_axi_awvalid(ram_buf_axi_awvalid),
+                .m_axi_awready(ram_buf_axi_awready),
+                .m_axi_awaddr(ram_buf_axi_awaddr),
+                .m_axi_awcache(ram_buf_axi_awcache),
+                .m_axi_awprot(ram_buf_axi_awprot),
+                .m_axi_awlock(ram_buf_axi_awlock),
+                .m_axi_awburst(ram_buf_axi_awburst),
+                .m_axi_awlen(ram_buf_axi_awlen),
+                .m_axi_awsize(ram_buf_axi_awsize),
+                .m_axi_wvalid(ram_buf_axi_wvalid),
+                .m_axi_wready(ram_buf_axi_wready),
+                .m_axi_wdata(ram_buf_axi_wdata),
+                .m_axi_wstrb(ram_buf_axi_wstrb),
+                .m_axi_wlast(ram_buf_axi_wlast),
+                .m_axi_bvalid(ram_buf_axi_bvalid),
+                .m_axi_bready(ram_buf_axi_bready),
+                .m_axi_bresp(ram_buf_axi_bresp)
+            );
+        end
+    endgenerate
 
     soc_axi_ram #(
         .DP(CPU_MEM_DP),

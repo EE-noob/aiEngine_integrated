@@ -51,6 +51,7 @@ SOC_DST_SHIFT ?=
 SOC_CPU_MEM_DP ?= 524288
 SOC_AXI_READ_OUTSTANDING ?= 4
 SOC_AXI_WRITE_OUTSTANDING ?= $(SOC_AXI_READ_OUTSTANDING)
+SOC_BYPASS_RAM_PINGPONG ?= 1
 SOC_TIMEOUT_CYCLES ?=
 SOC_C_SRC ?= ../soc_csrc/soc_main.c
 SOC_RUNTIME_C_SRC ?= ../soc_csrc/soc_runtime_main.c
@@ -267,9 +268,10 @@ VCS_OPTS = -cpp $(VCS_CXX) -cc $(VCS_CC) -LDFLAGS -Wl,--no-as-needed \
 MMA_PARAM_OPTS = -pvalue+tb_top.DUT_SIZE=$(MMA_SIZE) \
                  -pvalue+tb_top.DUT_IA_CACHE_BLOCKS=$(MMA_IA_CACHE_BLOCKS) \
                  -pvalue+tb_top.DUT_PS_FRAME_COUNT=$(MMA_PS_FRAME_COUNT) \
-                 -pvalue+tb_top.DUT_CPU_MEM_DP=$(SOC_CPU_MEM_DP) \
-                 -pvalue+tb_top.DUT_AXI_READ_OUTSTANDING=$(SOC_AXI_READ_OUTSTANDING) \
-                 -pvalue+tb_top.DUT_AXI_WRITE_OUTSTANDING=$(SOC_AXI_WRITE_OUTSTANDING)
+	                 -pvalue+tb_top.DUT_CPU_MEM_DP=$(SOC_CPU_MEM_DP) \
+	                 -pvalue+tb_top.DUT_AXI_READ_OUTSTANDING=$(SOC_AXI_READ_OUTSTANDING) \
+	                 -pvalue+tb_top.DUT_AXI_WRITE_OUTSTANDING=$(SOC_AXI_WRITE_OUTSTANDING) \
+	                 -pvalue+tb_top.DUT_BYPASS_RAM_PINGPONG=$(SOC_BYPASS_RAM_PINGPONG)
 
 SIM_OPTS   ?=
 VERDI_OPTS ?=

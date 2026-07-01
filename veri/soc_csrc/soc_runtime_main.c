@@ -12,6 +12,13 @@
 
 #define SOC_RUNTIME_MAGIC 0x4d4d4152u
 
+static uint32_t soc_read_cycle(void)
+{
+    uint32_t value;
+    __asm__ volatile("rdcycle %0" : "=r"(value));
+    return value;
+}
+
 typedef struct {
     uint32_t magic;
     uint32_t version;
@@ -264,7 +271,10 @@ static uint32_t test_runtime_case(const soc_runtime_case_t *c)
     load_runtime_config(c, &config);
     clear_runtime_output(c);
 
+    uint32_t exec_start = soc_read_cycle();
     status = dsa_matmul_execute(&config);
+    uint32_t exec_cycles = soc_read_cycle() - exec_start;
+    printf("[soc_rt_perf] dsa_execute_cycles=%u\n", exec_cycles);
     if (status != DSA_SUCCESS) {
         return SOC_TEST_FAIL_DRIVER | (status & 0x00ffffffu);
     }
