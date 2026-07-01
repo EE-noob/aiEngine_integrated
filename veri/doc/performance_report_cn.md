@@ -820,3 +820,62 @@ W 布局修正后的利用率锚点如下，均为 `SIZE=16,CACHE=8,PS_FRAME=16,
 - `mma_top` 中对应的旧中间 wire 删除；loader/oa_writer 自身的通用 DMA 输出暂时保留为未连接，因为旧 `block_dma_arbiter`/非 AXI 路径仍复用这些模块接口。
 
 这次接口瘦身不改变性能曲线，但让 AXI 主路径语义更清楚：IA/kernel/bias/quant 是只读客户端，OA 是只写客户端，读写并行由 `axi_dual_block_dma` 的独立 AR/R 与 AW/W/B 通道承担。
+
+### 2026-07-01 补充：时序 buffer 后的 SoC 性能劣化复核
+
+本轮复核用户指出的“时序优化后 SoC 性能反而劣化”问题。结论是：MMA 计算吞吐没有劣化，旧报告中的大幅总周期劣化来自两个混在一起的因素：
+
+1. RAM 侧 `soc_axi_pingpong_buffer` 是普通 2-entry register FIFO，burst 填满后可每拍吞吐，但空 FIFO 不能首拍旁路。对 DMA burst 影响较小，对 PicoRV32 这种单 outstanding 取指/访存会把每次请求的首拍延迟放大。
+2. current 回归使用了 `--unaligned-layout`，实际 runtime header 中 `output_addr=0x0009eba3`，输出地址非 4 字节对齐，`clear_runtime_output()` 和 `compare_runtime_output()` 都走 byte loop；旧版基准没有这个参数，不能直接拿总 `soc_finish` cycles 对比。
+
+RTL/仿真改动：
+
+- `soc_top` 新增 `BYPASS_RAM_PINGPONG`，默认旁路 RAM 侧 pingpong buffer；Makefile 暴露 `SOC_BYPASS_RAM_PINGPONG`，需要复现实验时可设为 0。
+- `pico_native_to_axi` 新增小型指令行缓存，只缓存 `mem_instr` 读；miss 通过 AXI burst 填 4 word line，hit 直接响应 Pico。这样仍保持 Pico 通过 AXI 访问统一内存模型，但热循环不再每条取指都打到 interconnect。
+- `pico_native_to_axi` 增加 `+SOC_CPU_AXI_STATS` 仿真统计，输出 Pico read/write 请求、取指/数据请求、等待周期和 I-cache hit/miss/fill beat。
+- `ia_loader_ctrl` 的预取进入条件从“避开所有 `cache_tile_done` 拍”收窄为“只避开真正 L1 退休拍”，避免非退休 tile 完成拍过度保守；该修改对主 SoC 总周期影响小，但语义更准确。
+
+主对比 case：`seed=87500,K=256,N=256,M=224,SIZE=16,IA_CACHE_BLOCKS=32,PS_FRAME=16,WS,s8,per-channel,DDR_RAND_LAT=1`。
+
+| 版本/配置 | layout | RAM pingpong | SoC cycles | DSA execute | 非 DSA cycles | 说明 |
+|---|---|---|---:|---:|---:|---|
+| 旧版 `0da2dcc` | aligned | 旧直连 memory | 1,234,413 | 420,084 | 814,329 | 旧报告基准 |
+| current 时序 buffer 版 | unaligned | enabled | 8,303,708 | 352,838 | 7,950,870 | 旧“劣化”观测点，混入非对齐 byte loop 和 RAM FIFO 首拍延迟 |
+| current + RAM 旁路 | unaligned | bypass | 5,968,481 | 318,875 | 5,649,606 | 旁路 RAM FIFO 后总周期下降约 28% |
+| current + RAM 旁路 + I-cache | unaligned | bypass | 4,103,122 | 288,796 | 3,814,326 | 非对齐验证仍会显著放大 CPU clear/compare |
+| current + RAM 旁路 + I-cache | aligned | bypass | 1,003,980 | 258,104 | 745,876 | 与旧版公平对齐布局对比，总周期快约 18.7%，DSA 执行快约 38.6% |
+
+对齐布局 current 的 AXI 统计：
+
+```text
+[SOC_AXI_STATS] cpu_ar_wait=87 mma_ar_wait=1712 cpu_aw_wait=0 mma_aw_wait=599 rd_yield=130 wr_yield=0
+[SOC_CPU_AXI_STATS] read_req=283471 write_req=14726 instr_req=243117 data_req=55080 read_wait=66781 write_wait=79544 ic_hit=242871 ic_miss=246 ic_fill_beats=984
+```
+
+分析：
+
+- 对齐布局下 current 总周期和 DSA 执行周期都优于旧版，因此时序优化没有降低 MMA 吞吐。
+- `--unaligned-layout` 是功能边界测试，不能和 aligned 性能基准直接混比。非对齐输出会让 clear/compare 从 word loop 退化到 byte loop，非 DSA cycles 从 745,876 放大到 3,814,326。
+- RAM 侧 pingpong buffer 是满吞吐 FIFO，但对 Pico 单请求路径不是“无代价流水线”。默认旁路后，MMA DMA 的 outstanding 仍由 `axi_dual_block_dma`、`soc_axi_interconnect` 和 `soc_axi_ram` 支持。
+- I-cache 后对齐布局只有 246 次取指 miss，242,871 次 hit；CPU 取指不再对 interconnect 形成持续压力，`cpu_ar_wait` 降到 87 cycles。
+
+边界验证：
+
+| 验证项 | 配置 | 结果 |
+|---|---|---|
+| 对齐小矩阵边界 | `SIZE=16,CACHE={8,32},DF={WS,IS},lhs={s8,s16},quant={per-tensor,per-channel},MIN_DIM=1,MAX_DIM=33,seed=88000..88001` | PASS 32/32 |
+| 非对齐小矩阵边界 | 同上，`--unaligned-layout,seed=88100..88101` | PASS 32/32 |
+| RAM pingpong 分支烟测 | `SOC_BYPASS_RAM_PINGPONG=0,SIZE=16,CACHE=8,WS,s8,per-tensor,seed=88210` | PASS |
+
+日志目录：
+
+- `runs/current_c32_seed87500_q1_randlat_icache_aligned_stats_v2`
+- `runs/current_c32_seed87500_q1_randlat_icache_cpu_stats`
+- `runs/current_boundary_icache_aligned_rerun`
+- `runs/current_boundary_icache_unaligned`
+
+后续注意事项：
+
+- 性能报告默认使用 aligned layout；非对齐 layout 只用于功能/边界验证，除非明确分析非对齐软件开销。
+- 不能把“满吞吐 FIFO”直接等同为“对单请求 CPU 无性能影响”。Pico 单 outstanding 路径需要低首拍延迟、lookahead 或 I-cache。
+- 继续做时序切断时，优先在真正超时的 DMA 地址递推、quant 控制、loader 控制路径内部插入流水或重写算术结构，不要用 RAM 口额外延迟掩盖内部路径。

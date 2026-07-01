@@ -297,3 +297,38 @@ reset valid，不 reset 无效 payload；
 RAM 延迟必须真实，不能为了性能伪造组合返回；
 性能优化必须看 stall metrics；
 最终以 full implementation 或 post-route 结果验收。
+
+---
+
+## 8. 2026-07-01 复盘：时序 buffer 不能只看流式吞吐
+
+本轮 SoC 复核发现，RAM 侧 `soc_axi_pingpong_buffer` 是一个正确的 2-entry ready/valid FIFO：对 DMA burst 来说，填满后可以每拍传输，流式吞吐没有问题；但对 PicoRV32 这种单 outstanding master，空 FIFO 的首拍寄存会出现在几乎每次取指/访存上，表现为 SoC 总周期显著变慢。
+
+因此评估 timing buffer 时必须区分两类路径：
+
+| 路径类型 | 评价重点 | 可接受 buffer |
+|---|---|---|
+| DMA burst / stream | 稳态 beat/cycle、outstanding 深度、backpressure | 普通 register slice / pingpong FIFO，只要满吞吐 |
+| CPU 单请求 / MMIO poll | 首拍 latency、请求-响应往返、poll loop cycles | 低首拍路径、lookahead、I-cache、可旁路 skid buffer |
+
+本轮数据锚点：
+
+| 配置 | layout | SoC cycles | DSA execute | 结论 |
+|---|---|---:|---:|---|
+| 旧版 `0da2dcc` | aligned | 1,234,413 | 420,084 | 旧基准 |
+| current + RAM pingpong | unaligned | 8,303,708 | 352,838 | 不能作为公平性能比较；混入非对齐 byte loop 和单请求首拍延迟 |
+| current + RAM 旁路 + I-cache | aligned | 1,003,980 | 258,104 | 公平布局下总周期和 DSA execute 都优于旧版 |
+
+经验规则：
+
+1. 时序优化前先固定性能口径。`--unaligned-layout` 是边界功能验证，不应和 aligned 性能基准直接混比。
+2. 如果 buffer 插在共享 RAM 口，必须同时测 CPU 和 DMA：DMA 可能不慢，Pico 取指却会明显变慢。
+3. 对 CPU native-to-AXI 路径，优先用 I-cache 或 lookahead 隐藏 AXI 往返；不要靠 RAM 口增加固定延迟来换 timing。
+4. 对真实 worst path，应回到结构根因处理。例如 DMA 地址路径要用地址递推寄存器替代 row_count * stride，quant/load 控制路径要拆 late compare 和高扇出控制。
+5. 每次加 buffer 后必须记录 `soc_finish`、计算窗口 cycle、AXI wait/stall、功能边界回归。如果计算窗口变快但总周期变慢，要拆分 CPU 软件循环、UART、clear/compare、MMIO poll，而不是直接认定 MMA 吞吐下降。
+
+本轮保留的工程处理：
+
+- `soc_top.BYPASS_RAM_PINGPONG=1` 作为默认性能路径，`SOC_BYPASS_RAM_PINGPONG=0` 可复现 RAM FIFO 分支。
+- `pico_native_to_axi` 增加小型指令行缓存和 `+SOC_CPU_AXI_STATS`，用于保护 Pico 单请求路径。
+- 对齐/非对齐小矩阵边界回归均 PASS 32/32；RAM pingpong 分支单独烟测 PASS。
