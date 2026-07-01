@@ -168,14 +168,23 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
     output_dims.c = output_depth;
 
     nmsis_nn_dw_conv_params dw_conv_params;
+    dw_conv_params.input_offset = -input->params.zero_point;
+    dw_conv_params.output_offset = output->params.zero_point;
+    dw_conv_params.ch_mult = params.depth_multiplier;
+    dw_conv_params.stride.h = params.stride_height;
+    dw_conv_params.stride.w = params.stride_width;
     dw_conv_params.padding.h = data->reference_op_data.padding.height;
     dw_conv_params.padding.w = data->reference_op_data.padding.width;
     dw_conv_params.dilation.h = params.dilation_height_factor;
     dw_conv_params.dilation.w = params.dilation_width_factor;
+    dw_conv_params.activation.min =
+        data->reference_op_data.output_activation_min;
+    dw_conv_params.activation.max =
+        data->reference_op_data.output_activation_max;
 
     int32_t buf_size = 0;
     if (filter->type == kTfLiteInt8) {
-      buf_size = riscv_depthwise_conv_wrapper_s8_get_buffer_size(
+      buf_size = riscv_depthwise_conv_wrapper_s8_get_buffer_size_acc(
           &dw_conv_params, &input_dims, &filter_dims, &output_dims);
     } else if (filter->type == kTfLiteInt4) {
       buf_size = riscv_depthwise_conv_wrapper_s4_get_buffer_size(
@@ -290,9 +299,8 @@ void EvalQuantizedPerChannel(TfLiteContext* context, TfLiteNode* node,
     ctx.buf = context->GetScratchBuffer(context, data.buffer_idx);
   }
 
-  MicroPrintf(">>> Using NMSIS DWConv INT8");
   TFLITE_DCHECK_EQ(
-      riscv_depthwise_conv_wrapper_s8(
+      riscv_depthwise_conv_wrapper_s8_acc(
           &ctx, &dw_conv_params, &quant_params, &input_dims,
           tflite::micro::GetTensorData<int8_t>(input), &filter_dims,
           tflite::micro::GetTensorData<int8_t>(filter), &bias_dims,

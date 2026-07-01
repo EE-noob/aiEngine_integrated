@@ -8,6 +8,10 @@ MAKEFILE_DIR := $(TENSORFLOW_ROOT)$(RELATIVE_MAKEFILE_DIR)
 
 # 下载目录：存放下载的第三方库
 DOWNLOADS_DIR := $(MAKEFILE_DIR)/downloads
+USE_NMSIS_NN ?= 1
+NMSIS_NN_ROOT := $(DOWNLOADS_DIR)/nuclei_sdk/NMSIS/NN
+NMSIS_CORE_ROOT := $(DOWNLOADS_DIR)/nuclei_sdk/NMSIS/Core
+NMSIS_NN_SOURCE_DIR := $(NMSIS_NN_ROOT)/Source
 
 # 构建目录：存放所有构建产物
 BUILD_DIR := build
@@ -33,6 +37,7 @@ INCLUDES := \
   -I$(DOWNLOADS_DIR)/flatbuffers/include \
   -I$(DOWNLOADS_DIR)/kissfft \
   -I$(DOWNLOADS_DIR)/ruy \
+  $(if $(filter 1 yes true TRUE,$(USE_NMSIS_NN)),-I$(NMSIS_NN_ROOT)/Include -I$(NMSIS_CORE_ROOT)/Include,) \
   $(PUBLIC_INCLUDES)
 
 # 编译警告相关选项
@@ -69,6 +74,10 @@ COMMON_FLAGS := \
   -fmessage-length=0 \
   -DTF_LITE_DISABLE_X86_NEON
 
+ifneq ($(filter 1 yes true TRUE,$(USE_NMSIS_NN)),)
+COMMON_FLAGS += -DNMSIS_NN
+endif
+
 # C++ 编译选项
 CXXFLAGS := \
   -std=c++17 \
@@ -87,6 +96,11 @@ CCFLAGS := \
   $(COMMON_FLAGS) \
   $(CC_WARNINGS) \
   $(INCLUDES)
+
+NMSIS_CCFLAGS := \
+  $(filter-out -Werror,$(CCFLAGS)) \
+  -Wno-unused-variable \
+  -Wno-unused-function
 
 # Release构建添加优化选项
 ifeq ($(BUILD_TYPE),Release)
@@ -300,6 +314,20 @@ MICROLITE_CC_SRCS := $(filter-out $(MICROLITE_TEST_SRCS), $(MICROLITE_CC_BASE_SR
 MICROLITE_CC_SRCS := $(filter-out $(MICROLITE_BENCHMARK_SRCS), $(MICROLITE_CC_SRCS))
 
 # 添加信号处理内核源文件
+ifneq ($(filter 1 yes true TRUE,$(USE_NMSIS_NN)),)
+MICROLITE_CC_KERNEL_SRCS := $(filter-out \
+  $(TENSORFLOW_ROOT)tensorflow/lite/micro/kernels/conv.cc \
+  $(TENSORFLOW_ROOT)tensorflow/lite/micro/kernels/depthwise_conv.cc \
+  $(TENSORFLOW_ROOT)tensorflow/lite/micro/kernels/fully_connected.cc, \
+  $(MICROLITE_CC_KERNEL_SRCS))
+MICROLITE_CC_KERNEL_SRCS += \
+  $(TENSORFLOW_ROOT)tensorflow/lite/micro/kernels/nmsis_nn/conv.cc \
+  $(TENSORFLOW_ROOT)tensorflow/lite/micro/kernels/nmsis_nn/depthwise_conv.cc \
+  $(TENSORFLOW_ROOT)tensorflow/lite/micro/kernels/nmsis_nn/fully_connected.cc
+
+NMSIS_NN_C_SRCS := $(wildcard $(NMSIS_NN_SOURCE_DIR)/*/*.c)
+endif
+
 MICROLITE_CC_KERNEL_SRCS += $(MICROLITE_CC_SIGNAL_KERNEL_SRCS)
 
 # TFLM 库文件名
@@ -309,6 +337,7 @@ MICROLITE_LIB_NAME := $(BUILD_DIR)/libtflite-micro.a
 MICROLITE_OBJS := $(patsubst %.cc,$(BUILD_DIR)/%.o,$(MICROLITE_CC_SRCS))
 MICROLITE_OBJS += $(patsubst %.c,$(BUILD_DIR)/%.o,$(filter %.c,$(MICROLITE_CC_SRCS)))
 MICROLITE_KERNEL_OBJS := $(patsubst %.cc,$(BUILD_DIR)/%.o,$(MICROLITE_CC_KERNEL_SRCS))
+MICROLITE_NMSIS_OBJS := $(patsubst %.c,$(BUILD_DIR)/%.o,$(NMSIS_NN_C_SRCS))
 
 # 默认目标
 all: $(MICROLITE_LIB_NAME) keyword_benchmark person_detection_benchmark
@@ -329,13 +358,19 @@ $(BUILD_DIR)/%.o: %.cc | $(BUILD_DIR)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+# NMSIS-NN is third-party code and the CMake flow does not promote its
+# warnings to errors. Keep project code strict while allowing fallback kernels.
+$(BUILD_DIR)/$(NMSIS_NN_SOURCE_DIR)/%.o: $(NMSIS_NN_SOURCE_DIR)/%.c | $(BUILD_DIR)
+	@mkdir -p $(dir $@)
+	$(CC) $(NMSIS_CCFLAGS) -c $< -o $@
+
 # 编译C源文件到build目录
 $(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
 	@mkdir -p $(dir $@)
 	$(CC) $(CCFLAGS) -c $< -o $@
 
 # 创建TFLM静态库
-$(MICROLITE_LIB_NAME): $(MICROLITE_OBJS) $(MICROLITE_KERNEL_OBJS) | $(BUILD_DIR)
+$(MICROLITE_LIB_NAME): $(MICROLITE_OBJS) $(MICROLITE_KERNEL_OBJS) $(MICROLITE_NMSIS_OBJS) | $(BUILD_DIR)
 	$(AR) rcs $@ $^
 
 # 数据生成函数

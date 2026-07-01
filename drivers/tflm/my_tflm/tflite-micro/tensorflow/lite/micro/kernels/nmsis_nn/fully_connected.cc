@@ -280,8 +280,6 @@ TfLiteStatus EvalQuantizedInt8(TfLiteContext* context, TfLiteNode* node,
   nmsis_nn_dims output_dims;
   nmsis_nn_context ctx;
 
-  MicroPrintf(">>> Using NMSIS FC INT8");
-
   PopulateCommonParams(context, &per_tensor_quant_params, &input_dims,
                        &filter_dims, &bias_dims, &output_dims, &ctx, data);
 

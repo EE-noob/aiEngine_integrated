@@ -356,8 +356,6 @@ TfLiteStatus EvalInt8(TfLiteContext* context, TfLiteNode* node) {
   TfLiteEvalTensor* output =
       tflite::micro::GetEvalOutput(context, node, kConvOutputTensor);
 
-  MicroPrintf(">>> Using NMSIS Conv INT8");
-
   TFLITE_DCHECK(node->builtin_data != nullptr);
   const auto& params =
       *(reinterpret_cast<TfLiteConvParams*>(node->builtin_data));
