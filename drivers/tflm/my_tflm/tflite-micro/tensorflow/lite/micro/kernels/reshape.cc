@@ -29,16 +29,7 @@ limitations under the License.
 namespace tflite {
 namespace {
 
-#if defined(TFLM_SOC_PROGRESS)
-void SocProgress(uint32_t value) {
-  *reinterpret_cast<volatile uint32_t*>(0x2000000cu) = value;
-}
-#else
-void SocProgress(uint32_t value) { (void)value; }
-#endif
-
 TfLiteStatus EvalReshapeReference(TfLiteContext* context, TfLiteNode* node) {
-  SocProgress(0x5b300001u);
   const TfLiteEvalTensor* input =
       tflite::micro::GetEvalInput(context, node, kReshapeInputTensor);
   TfLiteEvalTensor* output =
@@ -55,7 +46,6 @@ TfLiteStatus EvalReshapeReference(TfLiteContext* context, TfLiteNode* node) {
     // Otherwise perform reshape with copy.
     memcpy(output->data.raw, input->data.raw, input_bytes);
   }
-  SocProgress(0x5b3000ffu);
   return kTfLiteOk;
 }
 
