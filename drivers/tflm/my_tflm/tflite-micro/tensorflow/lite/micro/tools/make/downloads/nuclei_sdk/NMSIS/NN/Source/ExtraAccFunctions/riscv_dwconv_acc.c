@@ -6,6 +6,10 @@
 #include "riscv_nnfunctions.h"
 #include "riscv_nnsupportfunctions.h"
 
+#ifndef DSA_CONV_IM2COL_BATCH_ROWS
+#define DSA_CONV_IM2COL_BATCH_ROWS 32
+#endif
+
 /*
  * Accelerated s8 depthwise convolution function.
  *
@@ -67,7 +71,7 @@ riscv_depthwise_conv_s8_acc(const nmsis_nn_context *ctx,
     const int32_t aligned_rhs_cols = remainder != 0 ? rhs_cols + 4 - remainder : rhs_cols;
 
     // 批处理行数
-    const int32_t batch_rows = 16;
+    const int32_t batch_rows = DSA_CONV_IM2COL_BATCH_ROWS;
 
     int8_t *im2col_buf_base = buffer_a;
     int8_t *kernel_pack_base = im2col_buf_base + batch_rows * aligned_rhs_cols;
@@ -223,7 +227,8 @@ int32_t riscv_depthwise_conv_wrapper_s8_get_buffer_size_acc(
 
     const int32_t depth_multiplier = dw_conv_params->ch_mult;
     const int32_t im2col_size =
-        16 * aligned_rhs_cols * (int32_t)sizeof(int8_t);
+        DSA_CONV_IM2COL_BATCH_ROWS * aligned_rhs_cols *
+        (int32_t)sizeof(int8_t);
     const int32_t kernel_pack_size =
         depth_multiplier * rhs_cols * (int32_t)sizeof(int8_t);
     const int32_t buffer_size = im2col_size + kernel_pack_size;

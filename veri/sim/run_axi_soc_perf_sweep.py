@@ -12,8 +12,10 @@ from pathlib import Path
 
 PASS_RE = re.compile(r"\[TEST_RESULT\]\s+TEST PASS")
 CYCLES_RE = re.compile(r"soc_finish asserted after\s+(\d+)\s+cycles")
-UTIL_LINE_RE = re.compile(r"\[(MMA_UTIL|MMA_CTRL_UTIL)\]\s+(.*)")
+UTIL_LINE_RE = re.compile(r"\[(MMA_UTIL|MMA_CTRL_UTIL|MMA_UTIL_SUMMARY|MMA_CTRL_UTIL_SUMMARY)\]\s+(.*)")
 UTIL_KV_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)=(-?\d+)")
+SOC_AXI_RE = re.compile(r"\[SOC_AXI_STATS\]\s+(.*)")
+SOC_CPU_AXI_RE = re.compile(r"\[SOC_CPU_AXI_STATS\]\s+(.*)")
 
 UTIL_FIELDNAMES = [
     "ctrl_util_ops",
@@ -63,6 +65,27 @@ UTIL_FIELDNAMES = [
     "mma_axi_b",
 ]
 
+SOC_AXI_FIELDNAMES = [
+    "soc_cpu_ar_wait",
+    "soc_mma_ar_wait",
+    "soc_cpu_aw_wait",
+    "soc_mma_aw_wait",
+    "soc_rd_yield",
+    "soc_wr_yield",
+]
+
+SOC_CPU_AXI_FIELDNAMES = [
+    "cpu_read_req",
+    "cpu_write_req",
+    "cpu_instr_req",
+    "cpu_data_req",
+    "cpu_read_wait",
+    "cpu_write_wait",
+    "cpu_ic_hit",
+    "cpu_ic_miss",
+    "cpu_ic_fill_beats",
+]
+
 
 def parse_int_list(text):
     if text is None:
@@ -84,6 +107,18 @@ def parse_dims(text):
             raise ValueError(f"invalid dim tuple '{item}', expected KxNxM")
         dims.append(tuple(int(part, 0) for part in parts))
     return dims
+
+
+def parse_size_cache_pairs(text):
+    pairs = []
+    for item in re.split(r"[,\s]+", str(text).strip()):
+        if not item:
+            continue
+        parts = re.split(r"[:xX/]", item)
+        if len(parts) != 2:
+            raise ValueError(f"invalid SIZE:CACHE pair '{item}'")
+        pairs.append((int(parts[0], 0), int(parts[1], 0)))
+    return pairs
 
 
 def powers_of_two_upto(limit):
@@ -238,6 +273,26 @@ def parse_util_trace(output):
     for match in UTIL_LINE_RE.finditer(output):
         kind, payload = match.groups()
         values = {key: int(value) for key, value in UTIL_KV_RE.findall(payload)}
+        if kind == "MMA_CTRL_UTIL_SUMMARY":
+            ctrl_ops = values.get("ops", ctrl_ops)
+            prefix = "ctrl_"
+            for key, value in values.items():
+                if key == "ops":
+                    continue
+                field = f"{prefix}{key}"
+                if field in parsed:
+                    sums[field] = value
+            continue
+        if kind == "MMA_UTIL_SUMMARY":
+            mma_ops = values.get("ops", mma_ops)
+            prefix = "mma_"
+            for key, value in values.items():
+                if key == "ops":
+                    continue
+                field = f"{prefix}{key}"
+                if field in parsed:
+                    sums[field] = value
+            continue
         if kind == "MMA_CTRL_UTIL":
             ctrl_ops += 1
             prefix = "ctrl_"
@@ -257,6 +312,30 @@ def parse_util_trace(output):
     if mma_active:
         parsed["mma_ia_row_util_bp"] = (parsed.get("mma_ia_row", 0) * 10000) // mma_active
         parsed["mma_acc_util_bp"] = (parsed.get("mma_acc_valid", 0) * 10000) // mma_active
+    return parsed
+
+
+def parse_soc_axi_stats(output):
+    parsed = {name: "" for name in SOC_AXI_FIELDNAMES + SOC_CPU_AXI_FIELDNAMES}
+    for match in SOC_AXI_RE.finditer(output):
+        values = {key: int(value) for key, value in UTIL_KV_RE.findall(match.group(1))}
+        parsed["soc_cpu_ar_wait"] = values.get("cpu_ar_wait", "")
+        parsed["soc_mma_ar_wait"] = values.get("mma_ar_wait", "")
+        parsed["soc_cpu_aw_wait"] = values.get("cpu_aw_wait", "")
+        parsed["soc_mma_aw_wait"] = values.get("mma_aw_wait", "")
+        parsed["soc_rd_yield"] = values.get("rd_yield", "")
+        parsed["soc_wr_yield"] = values.get("wr_yield", "")
+    for match in SOC_CPU_AXI_RE.finditer(output):
+        values = {key: int(value) for key, value in UTIL_KV_RE.findall(match.group(1))}
+        parsed["cpu_read_req"] = values.get("read_req", "")
+        parsed["cpu_write_req"] = values.get("write_req", "")
+        parsed["cpu_instr_req"] = values.get("instr_req", "")
+        parsed["cpu_data_req"] = values.get("data_req", "")
+        parsed["cpu_read_wait"] = values.get("read_wait", "")
+        parsed["cpu_write_wait"] = values.get("write_wait", "")
+        parsed["cpu_ic_hit"] = values.get("ic_hit", "")
+        parsed["cpu_ic_miss"] = values.get("ic_miss", "")
+        parsed["cpu_ic_fill_beats"] = values.get("ic_fill_beats", "")
     return parsed
 
 
@@ -319,6 +398,7 @@ def run_perf_job(job, sim_dir, log_root, exception_root, timeout):
         "log": str(log_path),
     }
     row.update(parse_util_trace(output))
+    row.update(parse_soc_axi_stats(output))
     if result != "pass":
         case_path = (sim_dir / case_dir).resolve()
         dst = exception_root / label
@@ -341,6 +421,8 @@ def main():
     parser.add_argument("--seed", type=int, default=80000)
     parser.add_argument("--sizes", default="16")
     parser.add_argument("--cache-blocks", default="4")
+    parser.add_argument("--size-cache-pairs", default="",
+                        help="space/comma separated SIZE:CACHE pairs; overrides --sizes x --cache-blocks product")
     parser.add_argument("--ps-frame-counts", default="")
     parser.add_argument("--dataflow-modes", default="0 1")
     parser.add_argument("--lhs-dtypes", default="1")
@@ -374,6 +456,7 @@ def main():
 
     sizes = parse_int_list(args.sizes)
     cache_blocks_list = parse_int_list(args.cache_blocks)
+    size_cache_pairs = parse_size_cache_pairs(args.size_cache_pairs)
     ps_frame_counts = parse_int_list(args.ps_frame_counts)
     dataflow_modes = parse_int_list(args.dataflow_modes)
     lhs_dtypes = parse_int_list(args.lhs_dtypes)
@@ -394,12 +477,16 @@ def main():
         "ia_reuse", "w_reuse", "ia_reuse_eff", "w_reuse_eff", "seed", "log",
     ]
     fieldnames.extend(UTIL_FIELDNAMES)
+    fieldnames.extend(SOC_AXI_FIELDNAMES)
+    fieldnames.extend(SOC_CPU_AXI_FIELDNAMES)
     with csv_path.open("w", newline="", encoding="utf-8") as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
         writer.writeheader()
 
-        for size, cache_blocks, dataflow, lhs_dtype, quant_mode, dims in itertools.product(
-                sizes, cache_blocks_list, dataflow_modes, lhs_dtypes, quant_modes, dims_list):
+        size_cache_iter = size_cache_pairs if size_cache_pairs else list(
+            itertools.product(sizes, cache_blocks_list))
+        for (size, cache_blocks), dataflow, lhs_dtype, quant_mode, dims in itertools.product(
+                size_cache_iter, dataflow_modes, lhs_dtypes, quant_modes, dims_list):
             ps_values = ps_frame_counts if ps_frame_counts else [size]
             for ps_frame_count in ps_values:
                 compile_key = (size, cache_blocks, ps_frame_count)

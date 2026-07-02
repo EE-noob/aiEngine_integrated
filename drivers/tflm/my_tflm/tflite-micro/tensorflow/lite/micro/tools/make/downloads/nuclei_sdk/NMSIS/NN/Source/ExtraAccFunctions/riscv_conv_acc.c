@@ -6,9 +6,13 @@
 #include "riscv_nnfunctions.h"
 #include "riscv_nnsupportfunctions.h"
 
+#ifndef DSA_CONV_IM2COL_BATCH_ROWS
+#define DSA_CONV_IM2COL_BATCH_ROWS 32
+#endif
+
 /*
  * Basic s8 convolution function with acceleration support, processing im2col in
- * batches of 16 rows.
+ * batches of DSA_CONV_IM2COL_BATCH_ROWS rows.
  *
  * Refer header file for details. Optimal use case for the DSP implementation is
  * when input and output channels are multiples of 4 or atleast greater than 4.
@@ -81,7 +85,7 @@ riscv_nmsis_nn_status riscv_convolve_s8_acc(
         remainder != 0 ? rhs_cols + 4 - remainder : rhs_cols;
 
     // 批处理行数
-    const int32_t batch_rows = 16;
+    const int32_t batch_rows = DSA_CONV_IM2COL_BATCH_ROWS;
 
     // im2col 缓冲区: batch_rows 行，每行 rhs_cols 个 s8 元素
 
@@ -339,9 +343,10 @@ int32_t riscv_convolve_s8_get_buffer_size_acc(const nmsis_nn_dims *input_dims,
     const int32_t aligned_rhs_cols =
         remainder != 0 ? rhs_cols + 4 - remainder : rhs_cols;
 
-    // s8 缓冲区: 16 行 × aligned_rhs_cols 个 int8_t（保持对齐）
+    // s8 缓冲区: DSA_CONV_IM2COL_BATCH_ROWS 行 x aligned_rhs_cols 个 int8_t
     const int32_t s8_buffer_size =
-        (16 * aligned_rhs_cols) * (int32_t)sizeof(int8_t);
+        (DSA_CONV_IM2COL_BATCH_ROWS * aligned_rhs_cols) *
+        (int32_t)sizeof(int8_t);
 
     return s8_buffer_size;
 }

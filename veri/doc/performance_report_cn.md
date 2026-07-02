@@ -16,6 +16,29 @@
 - TFLM 端到端结果和裸 MMA 不完全一致：端到端包含算子调度、转置/打包、CPU 侧循环和模型结构，旧版部分大模型此前会 timeout；本报告使用加大 timeout 后的重跑日志更新该结论。
 - 修改 `MMA_IA_CACHE_BLOCKS` 和 `MMA_PS_FRAME_COUNT` 时，驱动公式会同步改变：Makefile 把它们编译成 `-DDSA_IA_CACHE_BLOCKS=$(MMA_IA_CACHE_BLOCKS)` 和 `-DDSA_PS_FRAME_COUNT=$(MMA_PS_FRAME_COUNT)`。普通 SoC runtime 使用这两个宏选择并限制 reuse 参数；TFLM kernel 的直接 MMA 路径以 `SIZE` 列为一组提交，当前配置下 `W_REUSE=1`，主要受 `DSA_IA_CACHE_BLOCKS` 控制。
 
+## 2026-07-01 补充：时序优化吞吐保持验证
+
+本节只验证“时序优化是否引入吞吐气泡”，不再拿最早的非 cache 架构做对比。old 基线定义为 IA timing 优化前的 cached dataflow 稳定组合：
+
+- old：`/home/etc/FPGA/tflm_ai_dsa` commit `7e81ae4` 的 MMA submodules，加上 integrated repo commit `5f607cd` 的 pre-timing `mma_top.sv`。
+- new：`/home/etc/FPGA/tflm_ai_dsa` 当前同步后的 MMA RTL。
+- testbench：两边使用同一份修正后的 `test/mma_top` harness。修正点是 WS 下 RHS/W 按列展平写入，匹配硬件 W 侧“每个输出列连续读取 N 个元素”的 DMA 语义。
+- 配置：`SIZE=16`，`IA_CACHE_BLOCKS=4`，`lhs=s8`，`dataflow=WS`，`IA_REUSE_NUM=2`，`W_REUSE_NUM=4`，DDR 随机延迟关闭。`K=N=M=16/32/64/128/256` 使用 `PS_FRAME_COUNT=16`；`384` 点使用 `PS_FRAME_COUNT=32`。
+- cycle 统计：直接 MMA testbench 中 `calc_start` 到 `sa_ready` done 的计算段，不包含 SoC/TFLM 初始化。
+
+所有 case 均 PASS，且 old/new cycles 完全一致：
+
+| K=N=M | old cycles | new cycles | 差异 | ops/cycle | 200MHz 等效 GOPS | 阵列利用率 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 16 | 560 | 560 | 0.00% | 14.629 | 2.926 | 2.86% |
+| 32 | 1,926 | 1,926 | 0.00% | 34.027 | 6.805 | 6.65% |
+| 64 | 8,355 | 8,355 | 0.00% | 62.751 | 12.550 | 12.26% |
+| 128 | 59,643 | 59,643 | 0.00% | 70.323 | 14.065 | 13.74% |
+| 256 | 466,395 | 466,395 | 0.00% | 71.944 | 14.389 | 14.05% |
+| 384 | 1,566,715 | 1,566,715 | 0.00% | 72.283 | 14.457 | 14.12% |
+
+结论：IA timing 相关修改没有降低 direct MMA 吞吐。`ia_loader`/`ia_loader_ctrl` 的时序优化在这些方阵测试中表现为时序语义保持的流水修正，没有额外插入可观察的计算气泡。当前 direct MMA 的主要瓶颈仍不是该 timing patch，而是 DMA/控制流固定开销和阵列供数效率；矩阵变大后 ops/cycle 收敛在约 72 ops/cycle，对 16x16 int8 MAC 阵列理论 `512 ops/cycle` 峰值约为 14% 利用率。
+
 ## 图 1：新版 cache 大小对周期的影响
 
 ![新版 cache cycles dataflow=0](perf_plots/cache_cycles_by_dim_df0.png)
@@ -75,7 +98,7 @@
 
 ### 3. 大矩阵更能体现 cache 复用价值
 
-矩阵变大后，IA 分块在 L1/cache 中连续复用的次数增加，kernel 侧窗口也随输出列 tile 增大。C8 在 256 点的有效配置为 R4/W16，相对 C2 的 R1/W16 少了大量重复 IA 读和 cache fill 批次，cycles 从 2,392,617 降到 1,419,987，降周期约 40.65%。
+矩阵变大后，IA 分块在 IA cache 中连续复用的次数增加，kernel 侧窗口也随输出列 tile 增大。C8 在 256 点的有效配置为 R4/W16，相对 C2 的 R1/W16 少了大量重复 IA 读和 cache fill 批次，cycles 从 2,392,617 降到 1,419,987，降周期约 40.65%。
 
 ### 4. C8 在最终 WS sweep 中稳定优于 C4/C2
 
@@ -141,7 +164,7 @@
 
 - `compute_core.sv`
   - 删除未使用的 `ia_row_valid_d`。
-  - partial-sum 完成使用 de-diagonalizer 的 stream 结束信号，而不是普通 tile done，避免连续 IA L1 stream 中早释放。
+  - partial-sum 完成使用 de-diagonalizer 的 stream 结束信号，而不是普通 tile done，避免连续 IA cache stream 中早释放。
 
 ### de-diagonalizer 连续输出结论
 
@@ -204,7 +227,7 @@ DDR 随机延迟打开，`DDR_CMD_MAX_LAT=3`，`DDR_W_MAX_LAT=2`，`DDR_RSP_MAX_
 | 17x31x33 | 79,319 | 73,201 | 73,201 | 1.08x |
 | 33x47x29 | 127,676 | 119,441 | 111,205 | 1.15x |
 
-小矩阵中 C2/C4/C8 基本重合，是因为 CPU 配置、DMA 启动、quant/bias 装载、写回收尾等固定成本占主导；cache 容量提升无法抵消这些固定开销。矩阵变大后，IA L1 group 可连续复用更多行 tile，C8 的优势逐渐显现。随机 DDR 延迟下 C8 仍然优于 C2，说明当前优化并不依赖理想零延迟内存模型。
+小矩阵中 C2/C4/C8 基本重合，是因为 CPU 配置、DMA 启动、quant/bias 装载、写回收尾等固定成本占主导；cache 容量提升无法抵消这些固定开销。矩阵变大后，IA cache group 可连续复用更多行 tile，C8 的优势逐渐显现。随机 DDR 延迟下 C8 仍然优于 C2，说明当前优化并不依赖理想零延迟内存模型。
 
 ### 目标仓库同步验证补充
 
@@ -833,7 +856,7 @@ RTL/仿真改动：
 - `soc_top` 新增 `BYPASS_RAM_PINGPONG`，默认旁路 RAM 侧 pingpong buffer；Makefile 暴露 `SOC_BYPASS_RAM_PINGPONG`，需要复现实验时可设为 0。
 - `pico_native_to_axi` 新增小型指令行缓存，只缓存 `mem_instr` 读；miss 通过 AXI burst 填 4 word line，hit 直接响应 Pico。这样仍保持 Pico 通过 AXI 访问统一内存模型，但热循环不再每条取指都打到 interconnect。
 - `pico_native_to_axi` 增加 `+SOC_CPU_AXI_STATS` 仿真统计，输出 Pico read/write 请求、取指/数据请求、等待周期和 I-cache hit/miss/fill beat。
-- `ia_loader_ctrl` 的预取进入条件从“避开所有 `cache_tile_done` 拍”收窄为“只避开真正 L1 退休拍”，避免非退休 tile 完成拍过度保守；该修改对主 SoC 总周期影响小，但语义更准确。
+- `ia_loader_ctrl` 的预取进入条件从“避开所有 `cache_tile_done` 拍”收窄为“只避开真正 IA cache 组退休拍”，避免非退休 tile 完成拍过度保守；该修改对主 SoC 总周期影响小，但语义更准确。
 
 主对比 case：`seed=87500,K=256,N=256,M=224,SIZE=16,IA_CACHE_BLOCKS=32,PS_FRAME=16,WS,s8,per-channel,DDR_RAND_LAT=1`。
 
@@ -879,3 +902,329 @@ RTL/仿真改动：
 - 性能报告默认使用 aligned layout；非对齐 layout 只用于功能/边界验证，除非明确分析非对齐软件开销。
 - 不能把“满吞吐 FIFO”直接等同为“对单请求 CPU 无性能影响”。Pico 单 outstanding 路径需要低首拍延迟、lookahead 或 I-cache。
 - 继续做时序切断时，优先在真正超时的 DMA 地址递推、quant 控制、loader 控制路径内部插入流水或重写算术结构，不要用 RAM 口额外延迟掩盖内部路径。
+
+### 2026-07-01 补充：MNIST MLP TFLM SoC 大模型压测
+
+前一版 MNIST MLP 只有 `784 -> 64 -> 10`，单样本约 50,816 MAC，固定调度和 MMIO 开销占比较高，不适合作为 SoC 层硬件/软件性能压测。本轮将模型放大为：
+
+- 结构：`784 -> Dense(512, relu) -> Dense(256, relu) -> Dense(128, relu) -> Dense(10, softmax)`。
+- TFLite ops：`FULLY_CONNECTED` x4 + `SOFTMAX`。
+- 量化：全 int8，输入 scale=0.0039215689、zero point=-128；输出 scale=0.00390625、zero point=-128。
+- 模型大小：594,768 bytes；tensor arena 实测硬件路径 9,732 bytes、纯软件路径 9,604 bytes。
+- 单样本计算量：566,528 MAC，按 multiply+add 计为 1,133,056 int8 ops，是小模型的 11.15 倍。
+- 训练配置：MNIST 训练集前 30,000 张，4 epochs，float test accuracy=96.93%。
+- SoC 测试样本：3 张正确分类样本，标签序列 `7,2,1`。
+
+![MNIST MLP big model HW/SW cycles](perf_plots/mnist_mlp_big_hw_sw_cycles.png)
+
+复现命令：
+
+```bash
+cd /media/proj_tmp/aiEngine_integrated
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate tf_2_18
+python drivers/tflm/my_tflm/tflite-micro/mnist_mlp/generate_mnist_mlp.py \
+  --out_dir drivers/tflm/my_tflm/tflite-micro/mnist_mlp \
+  --hidden_units 512,256,128 \
+  --train_samples 30000 \
+  --epochs 4 \
+  --representative_samples 1024 \
+  --sample_count 3
+
+cd veri/sim
+make tflm_mnist_mlp_run \
+  MMA_SIZE=16 MMA_IA_CACHE_BLOCKS=4 MMA_PS_FRAME_COUNT=16 \
+  TFLM_SOC_MMA_ENABLE=1 \
+  SOC_CPU_MEM_DP=524288 SOC_CPU_ENABLE_ICACHE=0 \
+  SOC_BYPASS_RAM_PINGPONG=1 SOC_RAM_WRITE_TIMING_BUFFER=1 \
+  DUMPOPTS=0 \
+  SIM_ARGS='+MMA_UTIL_TRACE +MMA_CTRL_UTIL +SOC_AXI_STATS +SOC_CPU_AXI_STATS'
+
+make tflm_mnist_mlp_run \
+  MMA_SIZE=16 MMA_IA_CACHE_BLOCKS=4 MMA_PS_FRAME_COUNT=16 \
+  TFLM_SOC_MMA_ENABLE=0 \
+  SOC_CPU_MEM_DP=524288 SOC_CPU_ENABLE_ICACHE=0 \
+  SOC_BYPASS_RAM_PINGPONG=1 SOC_RAM_WRITE_TIMING_BUFFER=1 \
+  DUMPOPTS=0 \
+  SIM_ARGS='+SOC_AXI_STATS +SOC_CPU_AXI_STATS'
+```
+
+测试口径：
+
+- C/C++ 与 TFLM 库使用 `-O3`、`BUILD_TYPE=Release`。
+- `TFLM_SOC_MMA_ENABLE=1` 时打开 `NMSIS_NN` 和 `TFLM_SOC_MMA`，走魔改 NMSIS NN 调用加速器。
+- `TFLM_SOC_MMA_ENABLE=0` 时同步关闭 `NMSIS_NN`，走 TFLM 参考软件内核；未修改 TFLM 主体代码。
+- DDR 随机延迟关闭，RAM 读保持 1 拍同步延迟；RAM 侧 pingpong 旁路，只保留写侧 timing buffer。
+- `invoke_cycles` 只包住 `interpreter.Invoke()`；输入 `memcpy`、`AllocateTensors()`、结果打印和 SoC 启动不计入该列。
+
+逐样本结果如下，硬件和纯软件均 3/3 预测正确：
+
+| sample | MNIST index | label | pred | HW Invoke cycles | SW Invoke cycles | speedup |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 0 | 7 | 7 | 452,109 | 44,126,624 | 97.6x |
+| 1 | 1 | 2 | 2 | 421,758 | 44,114,750 | 104.6x |
+| 2 | 2 | 1 | 1 | 457,843 | 44,138,433 | 96.4x |
+
+汇总：
+
+| 指标 | 硬件加速 | 纯软件 | 对比 |
+|---|---:|---:|---:|
+| total Invoke cycles | 1,331,710 | 132,379,807 | 99.4x |
+| avg Invoke cycles | 443,903 | 44,126,602 | 99.4x |
+| min Invoke cycles | 421,758 | 44,114,750 | 104.6x |
+| max Invoke cycles | 457,843 | 44,138,433 | 96.4x |
+| 200MHz 平均 Invoke 时间 | 2.220 ms | 220.633 ms | 99.4x |
+| 完整 SoC case cycles | 8,455,926 | 139,511,687 | 16.5x |
+| 200MHz 完整 SoC case 时间 | 42.280 ms | 697.558 ms | 16.5x |
+| Invoke 等效吞吐 | 0.510 GOPS | 0.005 GOPS | 99.4x |
+
+与小模型的参考对比：
+
+| 模型 | MAC/sample | 样本数 | HW avg Invoke | SW avg Invoke | speedup |
+|---|---:|---:|---:|---:|---:|
+| `784 -> 64 -> 10` | 50,816 | 10 | 106,138 | 4,016,016 | 37.8x |
+| `784 -> 512 -> 256 -> 128 -> 10` | 566,528 | 3 | 443,903 | 44,126,602 | 99.4x |
+
+分析：
+
+- 模型放大后，纯软件 Invoke 周期基本按 MAC 数线性增长，小模型到大模型约 10.99 倍；硬件 Invoke 只增长约 4.18 倍，因此 speedup 从 37.8x 提升到 99.4x。
+- 硬件路径 3 个样本的 MMA active 周期约 1,112,607 cycles，Invoke 总周期 1,331,710 cycles，说明大模型下 TFLM 调度、MMIO 和 Softmax 固定开销占比已经下降到约 16.5%。
+- 该模型仍是 batch=1 的 vector-matrix FC，脉动阵列计算维度很薄，16x16 array 的理论峰值无法被充分填满；当前更主要暴露的是权重流和 AXI 读带宽压力，而不是满阵列 GEMM 利用率。
+- 硬件日志中 `dma_busy_kernel` 占 MMA active 的主要部分，SoC AXI 统计为 `mma_ar_wait=705,726`、`rd_yield=792,114`；CPU I-cache 关闭时取指也会与 DMA 共享读通道，后续若分析模型端到端性能，应同时给出 I-cache enabled 配置。
+- 如果目标是最大化脉动阵列利用率，MNIST 单张 FC 不是最优压测形态；应增加 batch 或使用更大的矩阵乘 case，使 M/N/K 三个维度都足够填充 16x16 阵列。
+
+日志和生成文件：
+
+- 硬件日志：`veri/sim/runs/mnist_mlp_hw_sw/mnist_mlp_big_hw_s16_c4_p16.log`
+- 纯软件日志：`veri/sim/runs/mnist_mlp_hw_sw/mnist_mlp_big_sw_s16_c4_p16.log`
+- 模型生成脚本：`drivers/tflm/my_tflm/tflite-micro/mnist_mlp/generate_mnist_mlp.py`
+- 模型 metadata：`drivers/tflm/my_tflm/tflite-micro/mnist_mlp/metadata.json`
+- SoC 程序：`veri/soc_csrc/tflm_mnist_mlp_soc_main.cc`
+
+### 2026-07-01 补充：Conv im2col batch 从 16 行调整为 32 行
+
+本轮将 NMSIS NN 加速路径里的普通 Conv 和 DepthwiseConv im2col 提交粒度从每 16 行一次改为默认每 32 行一次：
+
+- 普通 Conv：`riscv_convolve_s8_acc()` 的 `batch_rows` 改为 `DSA_CONV_IM2COL_BATCH_ROWS`，默认 32。
+- DepthwiseConv：`riscv_depthwise_conv_s8_acc()` 同步使用同一宏，避免卷积加速路径提交节奏不一致。
+- buffer size 计算同步改为 `DSA_CONV_IM2COL_BATCH_ROWS * aligned_rhs_cols`，保证 tensor arena 申请大小和实际 im2col 写入行数一致。
+
+![MNIST CNN im2col batch32 cycles](perf_plots/mnist_cnn_im2col_batch32_cycles.png)
+
+复现命令：
+
+```bash
+cd /media/proj_tmp/aiEngine_integrated/veri/sim
+make tflm_mnist_cnn_run \
+  MMA_SIZE=16 MMA_IA_CACHE_BLOCKS=4 MMA_PS_FRAME_COUNT=16 \
+  TFLM_SOC_MMA_ENABLE=1 \
+  SOC_CPU_MEM_DP=524288 SOC_CPU_ENABLE_ICACHE=0 \
+  SOC_BYPASS_RAM_PINGPONG=1 SOC_RAM_WRITE_TIMING_BUFFER=1 \
+  DUMPOPTS=0 \
+  SIM_ARGS='+MMA_UTIL_SUMMARY +SOC_AXI_STATS +SOC_CPU_AXI_STATS'
+```
+
+对比结果：
+
+| 配置 | 样本 | 预测 | total Invoke cycles | avg Invoke cycles | MMA ops | MMA active cycles |
+|---|---:|---|---:|---:|---:|---:|
+| im2col batch16 | 3 | PASS 3/3 | 12,903,248 | 4,301,082 | 192 | 230,886 |
+| im2col batch32 | 3 | PASS 3/3 | 12,601,271 | 4,200,423 | 102 | 197,064 |
+
+变化：
+
+- MMA 提交次数减少 90 次，下降 46.9%；这说明两个 Conv 层的空间位置行被更大 batch 合并后，硬件启动和 tail 开销明显减少。
+- 平均 Invoke 周期减少 100,659 cycles，下降 2.34%；端到端收益小于 op 数下降，原因是 MNIST CNN 的 `MaxPool/Reshape/Softmax`、CPU 侧 im2col 填充、TFLM 调度、UART 结果打印外的 SoC 收尾，以及 AXI 读等待仍占据大量周期。
+- `MMA active cycles` 下降 14.65%，比端到端 Invoke 更敏感，说明该优化主要减少硬件调用固定开销和权重/IA 触发开销；要继续放大收益，需要降低 CPU im2col 数据搬运，或进一步将 Conv 的 im2col 生成流水化/硬件化。
+
+日志：
+
+- batch16 硬件日志：`veri/sim/runs/mnist_cnn_hw_sw/mnist_cnn_hw_s16_c4_p16_summary.log`
+- batch32 硬件日志：`veri/sim/runs/mnist_cnn_hw_sw/mnist_cnn_hw_s16_c4_p16_batch32_summary.log`
+
+### 2026-07-01 补充：MNIST CNN 纯软件与硬件加速对比
+
+上节只给出了 CNN 硬件路径和 im2col batch 调整效果。本节补充同一个 MNIST CNN 模型在 SoC 上的纯软件 baseline。为避免 pure-reference CNN 在 3 张样本下占用过长仿真时间，本轮硬件和软件都编译 `-DTFLM_MNIST_CNN_SAMPLE_LIMIT=1`，只跑第 0 张 MNIST 样本，统计口径仍然只包 `interpreter.Invoke()`。
+
+![MNIST CNN HW/SW sample1 cycles](perf_plots/mnist_cnn_hw_sw_sample1_cycles.png)
+
+复现命令：
+
+```bash
+cd /media/proj_tmp/aiEngine_integrated/veri/sim
+make tflm_mnist_cnn_run \
+  MMA_SIZE=16 MMA_IA_CACHE_BLOCKS=4 MMA_PS_FRAME_COUNT=16 \
+  TFLM_SOC_MMA_ENABLE=1 \
+  TFLM_EXTRA_DEFINES='-DTFLM_MNIST_CNN_SAMPLE_LIMIT=1' \
+  SOC_CPU_MEM_DP=524288 SOC_CPU_ENABLE_ICACHE=0 \
+  SOC_BYPASS_RAM_PINGPONG=1 SOC_RAM_WRITE_TIMING_BUFFER=1 \
+  DUMPOPTS=0 \
+  SIM_ARGS='+MMA_UTIL_SUMMARY +SOC_AXI_STATS +SOC_CPU_AXI_STATS'
+
+make tflm_mnist_cnn_run \
+  MMA_SIZE=16 MMA_IA_CACHE_BLOCKS=4 MMA_PS_FRAME_COUNT=16 \
+  TFLM_SOC_MMA_ENABLE=0 \
+  TFLM_EXTRA_DEFINES='-DTFLM_MNIST_CNN_SAMPLE_LIMIT=1' \
+  SOC_CPU_MEM_DP=524288 SOC_CPU_ENABLE_ICACHE=0 \
+  SOC_BYPASS_RAM_PINGPONG=1 SOC_RAM_WRITE_TIMING_BUFFER=1 \
+  DUMPOPTS=0 \
+  SIM_ARGS='+SOC_AXI_STATS +SOC_CPU_AXI_STATS'
+```
+
+结果：
+
+| 路径 | sample | label/pred | Invoke cycles | 完整 SoC cycles | 200MHz Invoke 时间 | Invoke 等效吞吐 |
+|---|---:|---|---:|---:|---:|---:|
+| 硬件加速，NMSIS NN + MMA | 0 | 7/7 | 4,198,745 | 6,696,944 | 20.994 ms | 0.0317 GOPS |
+| 纯软件，TFLM reference kernel | 0 | 7/7 | 60,410,324 | 62,899,923 | 302.052 ms | 0.00221 GOPS |
+
+同口径加速比：
+
+- `Invoke()`：`60,410,324 / 4,198,745 = 14.39x`。
+- 完整 SoC case：`62,899,923 / 6,696,944 = 9.39x`。
+
+硬件摘要统计：
+
+| 指标 | 数值 | 说明 |
+|---|---:|---|
+| MMA ops | 34 | batch32 后单张 CNN 的硬件提交次数 |
+| MMA active cycles | 65,688 | 硬件 active 只占 Invoke 的 1.56%，端到端仍主要在 CPU/TFLM/im2col/pooling/softmax |
+| IA 行利用率 | 2.98% | `ia_row_util_bp=298` |
+| ACC 利用率 | 1.49% | `acc_util_bp=149` |
+| active 内等效吞吐 | 2.03 GOPS | 按 metadata 中单样本 666,112 int8 ops 计算 |
+| AXI 读 beat | 22,688 | `axi_r`，主要来自 IA/kernel/bias/quant 读取 |
+| AXI 写 beat | 2,371 | `axi_w`，来自 OA 写回 |
+
+CPU/总线侧对比：
+
+| 路径 | CPU read req | CPU write req | instr req | data req | read wait | write wait |
+|---|---:|---:|---:|---:|---:|---:|
+| 硬件加速 | 1,209,962 | 117,255 | 1,099,290 | 227,927 | 40,937 | 369,687 |
+| 纯软件 | 10,712,183 | 651,402 | 8,328,183 | 3,035,402 | 0 | 1,972,453 |
+
+分析：
+
+- CNN 纯软件路径的 CPU 指令请求约为硬件路径的 7.6 倍，数据请求约为 13.3 倍，说明 reference Conv/FC 在 Pico 上消耗了大量标量循环和内存访问。
+- 硬件路径虽然端到端加速 14.39x，但脉动阵列 active 只占 Invoke 的 1.56%。当前小型 MNIST CNN 的主要瓶颈不是阵列峰值算力，而是 CPU 侧 im2col 生成、TFLM 调度、pooling/softmax reference op、MMIO 启动和 AXI 读等待。
+- active 内 2.03 GOPS 与 16x16 int8 阵列 200MHz 理论峰值约 102.4 GOPS 相比仍很低；继续提升 CNN 端到端性能，应优先减少 Conv im2col 软件搬运、提高单次提交的 K/M/N 填充度，而不是单纯增大阵列。
+
+日志：
+
+- 硬件 1-sample 日志：`veri/sim/runs/mnist_cnn_hw_sw/mnist_cnn_hw_s16_c4_p16_batch32_sample1_summary.log`
+- 纯软件 1-sample 日志：`veri/sim/runs/mnist_cnn_hw_sw/mnist_cnn_sw_s16_c4_p16_sample1.log`
+
+### 2026-07-01 补充：固定 IA cache 容量下 SIZE/CACHE_BLOCKS sweep 修复与重跑
+
+前一版固定容量 sweep 中 `SIZE=32, IA_CACHE_BLOCKS=4` 在 `128^3/256^3/512^3` 都出现数值错误。错误第一个点位于 `row=0, col=16`，和 32-lane 输出中后 16 lane 的 bias/quant 读取缺失完全吻合。排查后确认 AXI DMA 客户端的 `burst_len_m1` 仍是 4bit，`SIZE=32` 时 `SIZE-1=31` 被截断为 15，导致 bias loader 和 per-channel quant loader 只读 16 个 32-bit beat。
+
+本轮已将 AXI DMA 通路的 `burst_len_m1` 从 4bit 扩到 8bit，覆盖 `axi_dual_block_dma`、`axi_block_dma_arbiter`、`mma_top` 内部连线、`bias_loader_ctrl`、`vec_requant`、`ia_loader_ctrl`、`kernel_loader` 和 `oa_writer`。旧 ICB DMA 路径仍保留 4bit 端口并在本地做低 4bit 连接；SoC/AXI 路径现在支持 `SIZE=32` 的 32-beat bias/quant burst。
+
+复现命令：
+
+```bash
+cd /media/proj_tmp/aiEngine_integrated/veri/sim
+SOC_CPU_ENABLE_ICACHE=1 python3 ./run_axi_soc_perf_sweep.py \
+  --log-root runs/fixed_capacity_size_cache_sweep_burst8_fix \
+  --size-cache-pairs '4:256 8:64 16:16 32:4' \
+  --ps-frame-counts '16' \
+  --dims '128x128x128 256x256x256 512x512x512' \
+  --dataflow-modes '0' --lhs-dtypes '1' --quant-modes '0' \
+  --ia-reuse-list '0' --w-reuse-list '0' \
+  --jobs 6 --timeout 1200 --soc-timeout-cycles 80000000 \
+  --sim-args '+MMA_UTIL_SUMMARY +MMA_CTRL_UTIL +SOC_AXI_STATS +SOC_CPU_AXI_STATS'
+```
+
+全部结果：`12/12 PASS`。
+
+![固定 IA cache 容量 SIZE/cache 周期曲线](perf_plots/fixed_capacity_size_cache_cycles.png)
+
+![固定 IA cache 容量 SIZE/cache 吞吐曲线](perf_plots/fixed_capacity_size_cache_gops.png)
+
+周期与 200MHz 等效吞吐：
+
+| SIZE/CACHE_BLOCKS | 128^3 cycles | 256^3 cycles | 512^3 cycles | 128^3 GOPS | 256^3 GOPS | 512^3 GOPS |
+|---|---:|---:|---:|---:|---:|---:|
+| S4/C256 | 371,505 | 1,913,516 | 11,734,391 | 2.26 | 3.51 | 4.58 |
+| S8/C64 | 262,978 | 1,088,379 | 5,391,466 | 3.19 | 6.17 | 9.96 |
+| S16/C16 | 237,804 | 900,096 | 3,923,125 | 3.53 | 7.46 | 13.68 |
+| S32/C4 | 241,670 | 950,115 | 4,247,601 | 3.47 | 7.06 | 12.64 |
+
+MMA active 口径下的阵列吞吐：
+
+| SIZE/CACHE_BLOCKS | 128^3 active cycles | 256^3 active cycles | 512^3 active cycles | 128^3 active GOPS | 256^3 active GOPS | 512^3 active GOPS |
+|---|---:|---:|---:|---:|---:|---:|
+| S4/C256 | 156,006 | 1,132,548 | 8,692,416 | 5.38 | 5.93 | 6.18 |
+| S8/C64 | 47,714 | 307,623 | 2,349,509 | 17.58 | 21.82 | 22.85 |
+| S16/C16 | 22,573 | 119,374 | 881,398 | 37.16 | 56.22 | 60.91 |
+| S32/C4 | 26,448 | 169,420 | 1,205,700 | 31.72 | 39.61 | 44.53 |
+
+分析：
+
+- 固定总 IA cache 容量近似不变时，`S4/C256` 的 cache 深度最大，但单个 tile 太小，控制器触发、tile 切换和权重/IA 行调度次数急剧增加；512^3 下只有 4.58 GOPS。
+- `S8/C64` 明显降低了 tile 数，吞吐提升到 9.96 GOPS，但阵列仍未充分摊薄 DMA 和调度开销。
+- `S16/C16` 是当前 SoC 配置下的甜点点位：tile 足够大，cache 深度也还能覆盖合理的 IA/W 复用窗口；512^3 达到 13.68 GOPS，MMA active 内达到 60.91 GOPS。
+- `S32/C4` 修复后功能正确，而且 128^3 与 256^3 接近 `S16/C16`，但大矩阵下 cache 只有 4 个 block，IA 复用深度被压到 `R2`，kernel DMA busy 和调度等待明显增加；512^3 退到 12.64 GOPS。
+- 因此“更大的 SIZE”并不单调更好。若保持 IA cache 总容量固定，`SIZE=32` 的理论阵列规模收益会被 cache block 数下降抵消；目前更稳妥的默认点仍是 `SIZE=16, IA_CACHE_BLOCKS=16`。
+
+日志与数据：
+
+- CSV：`veri/sim/runs/fixed_capacity_size_cache_sweep_burst8_fix/perf.csv`
+- summary：`veri/sim/runs/fixed_capacity_size_cache_sweep_burst8_fix/summary.txt`
+- `SIZE=32` 最小修复探针：`veri/sim/runs/s32_burst8_fix_probe/perf.csv`
+
+### 2026-07-02 补充：SIZE=64 参数化风险与边界验证
+
+只把 AXI DMA 的 burst length 扩到 8bit 只能解决 `SIZE=32` 首先暴露出来的 bias/quant 截断问题；如果直接设置 `SIZE=64`，仍可能踩到内部计数器的隐含宽度假设。本轮继续清理了这些参数化问题：
+
+- `vec_requant` 中 `row_in_tile_cnt`、`rd_beats_cnt`、`beats_expect`、`cmd_beats_expect_r` 从固定 5/6bit 改为 `VLEN_CNT_W = clog2(VLEN+1)`，支持 64-lane tile 和 64-beat per-channel quant 参数读取。
+- `ia_loader_ctrl` 的 `load_burst_len_m1` 不再使用 `rsp_beats_per_row_*[3:0] - 1`，改为对完整 beat 数做 8bit cast。否则 `SIZE=64 + s16 IA` 的 32-beat 行读取会被错误截断。
+- `vec_requant` 的 per-channel 参数装载 phase 在进入新 `LOAD` 前显式复位为 `PH_MUL`，同时清零 `load_offset`。旧逻辑依赖多行 tile 经过 `COMPUTE` 状态顺手复位 phase；当 `SIZE=64,K=129,M=65` 时最后一个 row tile/col tile 都只有 1 个有效元素，状态机会从 `IDLE` 直接进入下一个 `LOAD`，导致只加载 shift、不重新加载 multiplier，最终右下角输出错误。
+- AXI 主路径的 `burst_len_m1` 保持 8bit，对应 AXI `ARLEN/AWLEN` 的协议宽度；这已经覆盖 `SIZE=64` 的 64-beat bias/quant 读取。旧 ICB/native `block_dma` 路径仍是 4bit 命令长度，不作为 `SIZE=64` 的支持路径。
+- `test/mma_top/Makefile` 新增 `TRACE=0` 开关，并将 build 目录区分为 `_trace/_notrace`，避免大 SIZE 回归被波形 C++ 编译严重拖慢。
+- `test/mma_top/gen_mem.py` 修正 IS 模式 case 布局：外部 LHS 仍保持 K 行主序、RHS 保持列展平；IS 的角色交换和输出转置由 RTL 完成。旧 TB 生成器把 LHS 预转置成 `N x K`，会造成纯 MMA IS 回归从第 0 行开始大面积误报。
+
+边界验证：
+
+| 仓库 | 配置 | case | 结果 |
+|---|---|---|---|
+| `/home/etc/FPGA/tflm_ai_dsa` | `SIZE=32, IA_CACHE_BLOCKS=4, PS_FRAME_COUNT=16` | seed 32002，`K=25 N=38 M=17`，s16 IA，`R=2/W=1` | PASS |
+| `/home/etc/FPGA/tflm_ai_dsa` | `SIZE=64, IA_CACHE_BLOCKS=4, PS_FRAME_COUNT=16` | seed 64000，`K=63 N=70 M=65`，s16 IA，per-channel quant，`R=2/W=1` | PASS |
+| `/home/etc/FPGA/tflm_ai_dsa` | `TRACE=0` smoke build | `SIZE=4, IA_CACHE_BLOCKS=4` | PASS |
+| `/media/proj_tmp/aiEngine_integrated` | `SIZE=64, IA_CACHE_BLOCKS=4, PS_FRAME_COUNT=16` | `K=129 N=70 M=65`，WS，s16 IA，per-channel，`R=1/W=1` | PASS |
+| `/media/proj_tmp/aiEngine_integrated` | `SIZE=64, IA_CACHE_BLOCKS=4, PS_FRAME_COUNT=16` | `K=129 N=70 M=65`，WS，s16 IA，per-channel，`R=2/W=1` | PASS |
+| `/media/proj_tmp/aiEngine_integrated` | `SIZE=64, IA_CACHE_BLOCKS=4, PS_FRAME_COUNT=16` | `K=129 N=70 M=65`，IS，s16 LHS/kernel 侧 16bit，per-channel，`R=1/W=1` | PASS |
+| `/home/etc/FPGA/tflm_ai_dsa` | `SIZE={8,16,32,64}, IA_CACHE_BLOCKS=4, PS_FRAME_COUNT=16` | `K=129 N=70 M=65`，WS，s16 IA，per-channel + random quant，随机 DDR 延迟 | PASS 4/4 |
+| `/home/etc/FPGA/tflm_ai_dsa` | `SIZE=64, IA_CACHE_BLOCKS=4, PS_FRAME_COUNT=16` | `K=129 N=70 M=65`，IS，s16 LHS/kernel 侧 16bit，per-channel，随机 DDR 延迟 | PASS |
+
+复现命令：
+
+```bash
+cd /home/etc/FPGA/tflm_ai_dsa
+
+make -C test/mma_top run_random \
+  SIZE=32 IA_CACHE_BLOCKS=4 PS_FRAME_COUNT=16 COUNT=1 SEED=32002 \
+  BUILD_ROOT=/tmp/tflm_ai_dsa_mma_obj_param \
+  OUT_DIR=/tmp/tflm_ai_dsa_mma_s32_seed32002_param \
+  RANDOM_GEN_ARGS='--random --random_quant --lhs_dtype 0 --min_dim 16 --max_dim 64 --ps_frame_count 16' \
+  SIM_ARGS='+DDR_RAND_LAT=1 +DDR_CMD_MAX_LAT=3 +DDR_W_MAX_LAT=2 +DDR_RSP_MAX_LAT=8'
+
+make -C test/mma_top run_random \
+  SIZE=64 IA_CACHE_BLOCKS=4 PS_FRAME_COUNT=16 COUNT=1 SEED=64000 \
+  BUILD_ROOT=/tmp/tflm_ai_dsa_mma_obj_s64 \
+  OUT_DIR=/tmp/tflm_ai_dsa_mma_s64_out \
+  RANDOM_GEN_ARGS='--random --per_channel --lhs_dtype 2 --K 63 --N 70 --M 65 --ia_reuse_num 2 --w_reuse_num 1 --dataflow_mode 0 --ps_frame_count 16' \
+  SIM_ARGS='+DDR_RAND_LAT=1 +DDR_CMD_MAX_LAT=3 +DDR_W_MAX_LAT=2 +DDR_RSP_MAX_LAT=8'
+
+make -C test/mma_top build_only \
+  SIZE=4 IA_CACHE_BLOCKS=4 PS_FRAME_COUNT=8 TRACE=0 \
+  BUILD_ROOT=/tmp/tflm_ai_dsa_mma_notrace_smoke \
+  OUT_DIR=/tmp/tflm_ai_dsa_mma_notrace_smoke_out
+```
+
+结论：
+
+- `SIZE=64` 在 AXI/SoC 主路径上已完成第一轮参数化修复，并通过 s16 IA、per-channel quant、尾块和随机 DDR 延迟组合验证。
+- `SIZE=64` 的关键风险点不是单一 burst 宽度，而是所有“每 tile 行数/beat 数/valid lane 数”的状态和计数都必须由 `SIZE/VLEN` 派生；本轮已覆盖 `row/col tail=1` 的最危险组合。
+- IS 模式的外部 case 生成不需要额外预转置 LHS；当前约定是 LHS 行主序、RHS 列展平，硬件内部完成角色交换和写回转置。
+- 后续若要把 `SIZE=64` 作为常用配置，应默认使用 `TRACE=0` 做随机回归，只在失败 seed 上打开 `TRACE=1` 复现波形。
+- 若仍需要支持旧 ICB 路径，则还要单独扩展 ICB 命令长度协议；当前工作重点仍是 AXI DMA 主路径。

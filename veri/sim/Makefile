@@ -51,7 +51,9 @@ SOC_DST_SHIFT ?=
 SOC_CPU_MEM_DP ?= 524288
 SOC_AXI_READ_OUTSTANDING ?= 4
 SOC_AXI_WRITE_OUTSTANDING ?= $(SOC_AXI_READ_OUTSTANDING)
+SOC_CPU_ENABLE_ICACHE ?= 0
 SOC_BYPASS_RAM_PINGPONG ?= 1
+SOC_RAM_WRITE_TIMING_BUFFER ?= 1
 SOC_TIMEOUT_CYCLES ?=
 SOC_C_SRC ?= ../soc_csrc/soc_main.c
 SOC_RUNTIME_C_SRC ?= ../soc_csrc/soc_runtime_main.c
@@ -118,14 +120,23 @@ SOC_RUNTIME_BUILD_DIR ?= ../tb/axi_soc_runtime_build_S$(MMA_SIZE)_C$(MMA_IA_CACH
 SOC_RUNTIME_CPU_MEM ?= $(SOC_RUNTIME_BUILD_DIR)/cpu.mem
 TFLM_DIR ?= ../../drivers/tflm/my_tflm
 TFLM_ROOT ?= $(TFLM_DIR)/tflite-micro
-TFLM_BUILD_DIR ?= build-$(SOC_ARCH_TAG)-S$(MMA_SIZE)-C$(MMA_IA_CACHE_BLOCKS)-P$(MMA_PS_FRAME_COUNT)
+TFLM_SOC_MMA_ENABLE ?= 1
+TFLM_NMSIS_NN_ENABLE ?= $(TFLM_SOC_MMA_ENABLE)
+TFLM_NMSIS_NN_DEFINE := $(if $(filter 1 yes true TRUE,$(TFLM_NMSIS_NN_ENABLE)),-DNMSIS_NN,)
+TFLM_SOC_MMA_DEFINE := $(if $(filter 1 yes true TRUE,$(TFLM_NMSIS_NN_ENABLE)),$(if $(filter 1 yes true TRUE,$(TFLM_SOC_MMA_ENABLE)),-DTFLM_SOC_MMA,),)
+TFLM_ACCEL_TAG := $(if $(filter 1 yes true TRUE,$(TFLM_NMSIS_NN_ENABLE)),$(if $(filter 1 yes true TRUE,$(TFLM_SOC_MMA_ENABLE)),hw,nmsis),sw)
+TFLM_BUILD_DIR ?= build-$(SOC_ARCH_TAG)-$(TFLM_ACCEL_TAG)-S$(MMA_SIZE)-C$(MMA_IA_CACHE_BLOCKS)-P$(MMA_PS_FRAME_COUNT)
 TFLM_LIB ?= $(TFLM_DIR)/$(TFLM_BUILD_DIR)/libtflite-micro.a
 TFLM_GENFILES ?= $(TFLM_ROOT)/gen/linux_x86_64_default/genfiles
 TFLM_HOST_BUILD_DIR ?= build-host
 TFLM_HOST_LIB ?= $(TFLM_DIR)/$(TFLM_HOST_BUILD_DIR)/libtflite-micro.a
+TFLM_MNIST_MLP_SOC_CASE ?= axi_soc_tflm_mnist_mlp_$(TFLM_ACCEL_TAG)
+TFLM_MNIST_CNN_SOC_CASE ?= axi_soc_tflm_mnist_cnn_$(TFLM_ACCEL_TAG)
 TFLM_MICRO_SPEECH_FEATURES_CC ?= ../soc_csrc/tflm_micro_speech_features.cc
 TFLM_MICRO_SPEECH_FEATURE_DUMP ?= $(TFLM_DIR)/$(TFLM_HOST_BUILD_DIR)/dump_micro_speech_features
 TFLM_MY_MODEL_TIMEOUT_CYCLES ?= 120000000
+TFLM_MNIST_MLP_TIMEOUT_CYCLES ?= 320000000
+TFLM_MNIST_CNN_TIMEOUT_CYCLES ?= 320000000
 TFLM_MICRO_SPEECH_TIMEOUT_CYCLES ?= 50000000
 TFLM_HELLO_WORLD_TIMEOUT_CYCLES ?= 5000000
 TFLM_PERSON_DETECTION_TIMEOUT_CYCLES ?= 320000000
@@ -159,7 +170,7 @@ TFLM_CXXFLAGS = $(SOC_ARCH_FLAGS) $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) $(TFLM_EXTR
                 -fno-unwind-tables -ffunction-sections -fdata-sections \
                 -fmessage-length=0 -DNDEBUG -DTF_LITE_STRIP_ERROR_STRINGS \
                 -DTF_LITE_DISABLE_X86_NEON -DPICOSOC_UART_CLKDIV=$(SOC_UART_CLKDIV) \
-                -DTFLM_SOC_PROGRESS -DTFLM_SOC_MMA $(TFLM_INCLUDES)
+                -DTFLM_SOC_PROGRESS $(TFLM_NMSIS_NN_DEFINE) $(TFLM_SOC_MMA_DEFINE) $(TFLM_INCLUDES)
 TFLM_APP_SRCS = ../soc_csrc/start.S \
                 ../soc_csrc/tflm_soc_runtime.cc \
                 ../soc_csrc/tflm_soc_main.cc \
@@ -192,6 +203,18 @@ TFLM_PERSON_DETECTION_APP_SRCS = ../soc_csrc/start.S \
                                  $(TFLM_ROOT)/tensorflow/lite/micro/examples/person_detection/model_settings.cc \
                                  $(TFLM_PERSON_DETECTION_MODEL_DATA_CC) \
                                  $(TFLM_PERSON_DETECTION_TESTDATA_SRCS)
+TFLM_MNIST_MLP_MODEL_DIR = $(TFLM_ROOT)/mnist_mlp
+TFLM_MNIST_MLP_APP_SRCS = ../soc_csrc/start.S \
+                          ../soc_csrc/tflm_soc_runtime.cc \
+                          ../soc_csrc/tflm_mnist_mlp_soc_main.cc \
+                          $(TFLM_MNIST_MLP_MODEL_DIR)/mnist_mlp_model_data.cc \
+                          $(TFLM_MNIST_MLP_MODEL_DIR)/mnist_mlp_test_data.cc
+TFLM_MNIST_CNN_MODEL_DIR = $(TFLM_ROOT)/mnist_cnn
+TFLM_MNIST_CNN_APP_SRCS = ../soc_csrc/start.S \
+                          ../soc_csrc/tflm_soc_runtime.cc \
+                          ../soc_csrc/tflm_mnist_cnn_soc_main.cc \
+                          $(TFLM_MNIST_CNN_MODEL_DIR)/mnist_cnn_model_data.cc \
+                          $(TFLM_MNIST_CNN_MODEL_DIR)/mnist_cnn_test_data.cc
 
 SOC_GEN_ARGS = --seed $(SOC_SEED) \
                $(if $(filter 1 yes true TRUE,$(SOC_FIX_MODE)),--fix_mode,) \
@@ -239,6 +262,10 @@ else ifeq ($(SOC_APP),tflm_hello_world)
 RUN_DEPS += tflm_hello_world_soc_c
 else ifeq ($(SOC_APP),tflm_person_detection)
 RUN_DEPS += tflm_person_detection_soc_c
+else ifeq ($(SOC_APP),tflm_mnist_mlp)
+RUN_DEPS += tflm_mnist_mlp_soc_c
+else ifeq ($(SOC_APP),tflm_mnist_cnn)
+RUN_DEPS += tflm_mnist_cnn_soc_c
 else ifeq ($(SOC_APP),runtime)
 RUN_DEPS += soc_case soc_runtime_c
 else
@@ -271,7 +298,9 @@ MMA_PARAM_OPTS = -pvalue+tb_top.DUT_SIZE=$(MMA_SIZE) \
 	                 -pvalue+tb_top.DUT_CPU_MEM_DP=$(SOC_CPU_MEM_DP) \
 	                 -pvalue+tb_top.DUT_AXI_READ_OUTSTANDING=$(SOC_AXI_READ_OUTSTANDING) \
 	                 -pvalue+tb_top.DUT_AXI_WRITE_OUTSTANDING=$(SOC_AXI_WRITE_OUTSTANDING) \
-	                 -pvalue+tb_top.DUT_BYPASS_RAM_PINGPONG=$(SOC_BYPASS_RAM_PINGPONG)
+	                 -pvalue+tb_top.DUT_CPU_ENABLE_ICACHE=$(SOC_CPU_ENABLE_ICACHE) \
+	                 -pvalue+tb_top.DUT_BYPASS_RAM_PINGPONG=$(SOC_BYPASS_RAM_PINGPONG) \
+	                 -pvalue+tb_top.DUT_RAM_WRITE_TIMING_BUFFER=$(SOC_RAM_WRITE_TIMING_BUFFER)
 
 SIM_OPTS   ?=
 VERDI_OPTS ?=
@@ -305,7 +334,7 @@ $(SOC_RUNTIME_CPU_MEM): $(SOC_RUNTIME_C_SRC) ../soc_csrc/start.S ../soc_csrc/pic
 soc_runtime_c: $(SOC_RUNTIME_CPU_MEM)
 
 $(TFLM_LIB): $(TFLM_RV32_REBUILD_DEPS)
-> $(MAKE) -C $(TFLM_DIR) BUILD_DIR=$(TFLM_BUILD_DIR) CC=$(SOC_GCC) CXX=$(SOC_GXX) AR=$(SOC_AR) TARGET_FLAGS="$(SOC_ARCH_FLAGS) $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) $(TFLM_EXTRA_DEFINES) -DTFLM_SOC_PROGRESS -DTFLM_SOC_MMA" BUILD_TYPE=Release $(TFLM_BUILD_DIR)/libtflite-micro.a
+> $(MAKE) -C $(TFLM_DIR) BUILD_DIR=$(TFLM_BUILD_DIR) USE_NMSIS_NN=$(TFLM_NMSIS_NN_ENABLE) CC=$(SOC_GCC) CXX=$(SOC_GXX) AR=$(SOC_AR) TARGET_FLAGS="$(SOC_ARCH_FLAGS) $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) $(TFLM_EXTRA_DEFINES) -DTFLM_SOC_PROGRESS $(TFLM_SOC_MMA_DEFINE)" BUILD_TYPE=Release $(TFLM_BUILD_DIR)/libtflite-micro.a
 
 $(TFLM_HOST_LIB):
 > $(MAKE) -C $(TFLM_DIR) BUILD_DIR=$(TFLM_HOST_BUILD_DIR) TARGET_FLAGS="$(HOST_OPT_LEVEL)" BUILD_TYPE=Release $(TFLM_HOST_BUILD_DIR)/libtflite-micro.a
@@ -344,6 +373,20 @@ tflm_person_detection_soc_c: $(TFLM_LIB)
 > $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
 > python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
+tflm_mnist_mlp_soc_c: $(TFLM_LIB) $(TFLM_MNIST_MLP_APP_SRCS)
+> @mkdir -p $(SOC_CASE_DIR)
+> @echo "[TFLM_SOC_C] mnist_mlp -> $(SOC_CASE_DIR)/cpu.mem"
+> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles -T ../soc_csrc/link.ld $(TFLM_MNIST_MLP_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+
+tflm_mnist_cnn_soc_c: $(TFLM_LIB) $(TFLM_MNIST_CNN_APP_SRCS)
+> @mkdir -p $(SOC_CASE_DIR)
+> @echo "[TFLM_SOC_C] mnist_cnn -> $(SOC_CASE_DIR)/cpu.mem"
+> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles -T ../soc_csrc/link.ld $(TFLM_MNIST_CNN_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+
 $(SIMV): $(VCS_FILELISTS) $(VCS_SRC_DEPS) Makefile
 > @mkdir -p $(OUT_DIR)
 > @echo "[COMPILE] VCS -> $(SIMV) (DUT_MODE=$(DUT_MODE), case=$(case), seed=$(seed))"
@@ -379,6 +422,14 @@ tflm_person_detection_run: DUMPOPTS = 0
 tflm_person_detection_run:
 > $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_person_detection SOC_CASE=axi_soc_tflm_person_detection case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_PERSON_DETECTION_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
 
+tflm_mnist_mlp_run: DUMPOPTS = 0
+tflm_mnist_mlp_run:
+> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_mnist_mlp SOC_CASE=$(TFLM_MNIST_MLP_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MNIST_MLP_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
+
+tflm_mnist_cnn_run: DUMPOPTS = 0
+tflm_mnist_cnn_run:
+> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_mnist_cnn SOC_CASE=$(TFLM_MNIST_CNN_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MNIST_CNN_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
+
 tflm_run: tflm_hello_world_run
 
 vd:
@@ -405,6 +456,8 @@ help:
 > @echo "  make tflm_hello_world_run"
 > @echo "  make tflm_micro_speech_run"
 > @echo "  make tflm_person_detection_run"
+> @echo "  make tflm_mnist_mlp_run"
+> @echo "  make tflm_mnist_cnn_run"
 > @echo "  make tflm_my_model_run"
 > @echo "  make vd    [DUT_MODE=nice|axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
 > @echo "  make clean"
@@ -436,7 +489,9 @@ help:
 > @echo "  make tflm_hello_world_run"
 > @echo "  make tflm_micro_speech_run"
 > @echo "  make tflm_person_detection_run"
+> @echo "  make tflm_mnist_mlp_run"
+> @echo "  make tflm_mnist_cnn_run"
 > @echo "  make tflm_my_model_run"
 > @echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test VCS_CC=gcc-4.8 VCS_CXX=g++-4.8"
 > @echo "  make vd DUT_MODE=axil case=ai_mem_gen_smoke_test seed=20260413"
-.PHONY: run soc_case soc_c soc_runtime_c tflm_soc_c tflm_micro_speech_soc_c tflm_hello_world_soc_c tflm_person_detection_soc_c tflm_run tflm_micro_speech_run tflm_hello_world_run tflm_person_detection_run tflm_my_model_run com force_com sim soc_regress vd clean help
+.PHONY: run soc_case soc_c soc_runtime_c tflm_soc_c tflm_micro_speech_soc_c tflm_hello_world_soc_c tflm_person_detection_soc_c tflm_mnist_mlp_soc_c tflm_mnist_cnn_soc_c tflm_run tflm_micro_speech_run tflm_hello_world_run tflm_person_detection_run tflm_mnist_mlp_run tflm_mnist_cnn_run tflm_my_model_run com force_com sim soc_regress vd clean help
