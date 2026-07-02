@@ -15,6 +15,7 @@ veri/work/*
 e203_soc/
 
 # Generated AXI SoC C regression cases
+veri/tb/axi_soc_case/
 veri/tb/axi_soc_case/soc_case.c
 veri/tb/axi_soc_c_regress_*/
 veri/tb/__pycache__/
