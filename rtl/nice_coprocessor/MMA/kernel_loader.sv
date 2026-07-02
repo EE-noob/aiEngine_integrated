@@ -36,7 +36,7 @@ module kernel_loader #(
 	    output logic [REG_WIDTH-1:0]        ext_dma_base_addr,
 	    output logic [REG_WIDTH-1:0]        ext_dma_row_stride,
 	    output logic [REG_WIDTH-1:0]        ext_dma_rows_to_read,
-	    output logic [3:0]                  ext_dma_burst_len_m1,
+	    output logic [7:0]                  ext_dma_burst_len_m1,
 	    output logic                        ext_dma_slot_id,
 	    output logic                        ext_dma_use_16bits,
 	    output logic signed [REG_WIDTH-1:0] ext_dma_lhs_zp,
@@ -86,7 +86,7 @@ module kernel_loader #(
 	  localparam int ELEM_PER_BEAT_S8 = BYTE_PER_BEAT;
 	  localparam int ELEM_PER_BEAT_S16 = BYTE_PER_BEAT / 2;
 	  logic [REG_WIDTH-1:0] dma_beats_per_row;
-	  logic [3:0]           dma_burst_len_m1;
+	  logic [7:0]           dma_burst_len_m1;
 
 	  always_comb begin
 	    if (dma_valid_cols == 0) begin
@@ -98,7 +98,7 @@ module kernel_loader #(
 	      dma_beats_per_row =
 	        (dma_valid_cols + REG_WIDTH'(ELEM_PER_BEAT_S8 - 1)) >> $clog2(ELEM_PER_BEAT_S8);
 	    end
-	    dma_burst_len_m1 = 4'(dma_beats_per_row - 1);
+	    dma_burst_len_m1 = 8'(dma_beats_per_row - 1);
 	  end
 
 	  assign ext_dma_start            = dma_start;
@@ -148,13 +148,17 @@ module kernel_loader #(
           top_state           <= TOP_RUN;
         end
 
-        TOP_RUN: begin
-          if (ctrl_all_done) begin
-            cfg_valid  <= 1'b0;
-            top_state  <= TOP_IDLE;
-          end
-        end
-      endcase
+	        TOP_RUN: begin
+	          if (ctrl_all_done) begin
+	            cfg_valid  <= 1'b0;
+	            top_state  <= TOP_IDLE;
+	          end
+	        end
+	        default: begin
+	          cfg_valid <= 1'b0;
+	          top_state <= TOP_IDLE;
+	        end
+	      endcase
     end
   end
 

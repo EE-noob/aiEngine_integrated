@@ -85,7 +85,7 @@ module soc_axi_ram #(
     logic [7:0] w_ready_delay_q;
 
     logic [1:0] wr_b_resp_q  [0:WR_DEPTH-1];
-    logic [7:0] wr_b_delay_q [0:WR_DEPTH-1];
+    (* ram_style = "registers" *) logic [7:0] wr_b_delay_q [0:WR_DEPTH-1];
     logic [WR_PTR_W-1:0] wr_b_wr_ptr_q;
     logic [WR_PTR_W-1:0] wr_b_rd_ptr_q;
     logic [WR_CNT_W-1:0] wr_b_count_q;
@@ -403,7 +403,7 @@ module soc_axi_ram #(
     end
 `else
     initial begin
-        if (INIT_EN && MEM_PATH != "") begin
+        if ((INIT_EN != 0) && (MEM_PATH != "")) begin
             $readmemh(MEM_PATH, mem_r);
         end
     end

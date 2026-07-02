@@ -37,7 +37,7 @@ module kernel_loader_ctrl #(
 
   localparam int unsigned SIZE_SHIFT = $clog2(SIZE);
 
-  typedef enum logic [1:0] {S_IDLE, S_RUN, S_DONE} state_t;
+  typedef enum logic [1:0] {S_IDLE, S_INIT, S_RUN, S_DONE} state_t;
 
   state_t state;
 
@@ -60,7 +60,6 @@ module kernel_loader_ctrl #(
   logic [REG_WIDTH-1:0] last_m_cols;
   logic [REG_WIDTH-1:0] cfg_last_n_rows;
   logic [REG_WIDTH-1:0] cfg_last_m_cols;
-  logic [REG_WIDTH-1:0] cfg_first_group_width;
   logic [REG_WIDTH-1:0] first_group_width;
 
   logic [REG_WIDTH-1:0] load_tile_row;
@@ -135,13 +134,6 @@ module kernel_loader_ctrl #(
     cfg_last_m_cols = cfg_m & REG_WIDTH'(SIZE - 1);
     if (cfg_last_n_rows == 0) cfg_last_n_rows = REG_WIDTH'(SIZE);
     if (cfg_last_m_cols == 0) cfg_last_m_cols = REG_WIDTH'(SIZE);
-
-    if (cfg_tile_cols_total < w_reuse_norm) begin
-      cfg_first_group_width = cfg_tile_cols_total;
-    end else begin
-      cfg_first_group_width = w_reuse_norm;
-    end
-    if (cfg_first_group_width == 0) cfg_first_group_width = REG_WIDTH'(1);
 
     if (tile_cols_total < w_reuse_total) begin
       first_group_width = tile_cols_total;
@@ -260,7 +252,7 @@ module kernel_loader_ctrl #(
             repeat_total        <= cfg_repeat_total;
             last_n_rows         <= cfg_last_n_rows;
             last_m_cols         <= cfg_last_m_cols;
-            current_group_width <= cfg_first_group_width;
+            current_group_width <= REG_WIDTH'(1);
             w_reuse_total       <= w_reuse_norm;
             base_addr_reg       <= cfg_rhs_base;
             col_addr_step       <= cfg_col_addr_step;
@@ -270,8 +262,14 @@ module kernel_loader_ctrl #(
             group_base_addr     <= cfg_rhs_base;
             row_addr_offset     <= '0;
             col_addr_offset     <= '0;
-            state               <= S_RUN;
+            state               <= S_INIT;
           end
+        end
+
+        S_INIT: begin
+          current_group_width <= first_group_width;
+          group_base_addr     <= base_addr_reg;
+          state               <= S_RUN;
         end
 
         S_RUN: begin

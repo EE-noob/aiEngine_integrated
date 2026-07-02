@@ -72,7 +72,10 @@ module axil_reg_if_wr #
     input  wire                   reg_wr_ack
 );
 
-parameter TIMEOUT_WIDTH = $clog2(TIMEOUT);
+localparam TIMEOUT_WIDTH = $clog2(TIMEOUT);
+localparam [31:0] TIMEOUT_COUNT_INIT_W = TIMEOUT-1;
+localparam [TIMEOUT_WIDTH-1:0] TIMEOUT_COUNT_INIT =
+    TIMEOUT_COUNT_INIT_W[TIMEOUT_WIDTH-1:0];
 
 reg [TIMEOUT_WIDTH-1:0] timeout_count_reg = 0, timeout_count_next;
 
@@ -114,7 +117,7 @@ always @* begin
     if (!s_axil_awvalid_reg) begin
         s_axil_awaddr_next = s_axil_awaddr;
         s_axil_awvalid_next = s_axil_awvalid;
-        timeout_count_next = TIMEOUT-1;
+        timeout_count_next = TIMEOUT_COUNT_INIT;
     end
 
     if (!s_axil_wvalid_reg) begin

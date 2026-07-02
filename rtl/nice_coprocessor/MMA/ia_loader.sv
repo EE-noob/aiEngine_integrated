@@ -75,7 +75,7 @@ module ia_loader #(
     output logic        [           REG_WIDTH-1:0] ext_dma_base_addr,
     output logic        [           REG_WIDTH-1:0] ext_dma_row_stride,
     output logic        [           REG_WIDTH-1:0] ext_dma_rows_to_read,
-    output logic        [                     3:0] ext_dma_burst_len_m1,
+    output logic        [                     7:0] ext_dma_burst_len_m1,
     output logic        [$clog2(CACHE_BLOCKS)-1:0] ext_dma_slot_id,
     output logic                                   ext_dma_use_16bits,
     output logic signed [           REG_WIDTH-1:0] ext_dma_lhs_zp,
@@ -301,7 +301,7 @@ module ia_loader #(
     logic        [           REG_WIDTH-1:0] tl_row_stride;
     logic        [           REG_WIDTH-1:0] tl_rows_to_read;
     logic        [           REG_WIDTH-1:0] tl_valid_cols;
-    logic        [                     3:0] tl_burst_len_m1;
+    logic        [                     7:0] tl_burst_len_m1;
     logic        [$clog2(CACHE_BLOCKS)-1:0] tl_slot_id;
     logic                                   tl_use_16bits;
     logic signed [           REG_WIDTH-1:0] tl_lhs_zp;
@@ -467,7 +467,7 @@ module ia_loader #(
                 .row_stride      (tl_row_stride),
                 .rows_to_read    (tl_rows_to_read),
                 .valid_cols      (tl_valid_cols),
-                .burst_len_m1    (tl_burst_len_m1),
+                .burst_len_m1    (tl_burst_len_m1[3:0]),
                 .slot_id         (tl_slot_id),
                 .use_16bits      (tl_use_16bits),
                 .lhs_zp          (tl_lhs_zp),

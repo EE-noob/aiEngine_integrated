@@ -8,9 +8,10 @@ module mma_top #(
     parameter int unsigned ADDR_WIDTH = 19,  // 地址宽度
     parameter int unsigned ICB_LEN_W = 4,  // Legacy wrapper parameter; native AXI datapath does not use it
     parameter int unsigned IA_CACHE_BLOCKS = 4,  // IA loader cache slots；默认 IA reuse = IA_CACHE_BLOCKS/2
-	    parameter int unsigned PS_FRAME_COUNT = SIZE,  // PS buffer 可保留的输出列 tile 数
-	    parameter int unsigned AXI_READ_OUTSTANDING = 4,  // AXI 读通道最多提前排队的 burst 数
-	    parameter int unsigned AXI_WRITE_OUTSTANDING = AXI_READ_OUTSTANDING  // AXI 写通道最多提前排队的 burst 数
+    parameter int unsigned PS_FRAME_COUNT = SIZE,  // PS buffer 可保留的输出列 tile 数
+    parameter int unsigned AXI_READ_OUTSTANDING = 4,  // AXI 读通道最多提前排队的 burst 数
+    parameter int unsigned AXI_WRITE_OUTSTANDING = AXI_READ_OUTSTANDING,  // AXI 写通道最多提前排队的 burst 数
+    parameter int unsigned OA_FIFO_BANKS_MAX = 4  // 写回 FIFO 最大 tile bank 数；满时反压计算以控制面积
 ) (
     //==== 时钟与复位 ====
     input wire clk,   // 系统时钟
@@ -125,11 +126,9 @@ module mma_top #(
     wire load_bias_req;
     wire load_bias_granted;
     wire bias_valid;
-    wire next_bias_valid;
     wire bias_group_valid;
     wire load_bias_done;
     wire signed [31:0] bias_data_out[SIZE];
-    wire signed [31:0] next_bias_data_out[SIZE];
 
     // Accumulator Array 输出（来自封装模块）
     wire acc_data_valid;
@@ -164,7 +163,7 @@ module mma_top #(
 	    // Shared block_dma client signals
 	    logic ia_dma_start, ia_dma_linear_read_mode;
 	    logic [REG_WIDTH-1:0] ia_dma_base_addr, ia_dma_row_stride, ia_dma_rows_to_read;
-	    logic [3:0] ia_dma_burst_len_m1;
+	    logic [7:0] ia_dma_burst_len_m1;
 	    logic [$clog2(IA_CACHE_BLOCKS)-1:0] ia_dma_slot_id;
 	    logic ia_dma_use_16bits;
 	    logic signed [REG_WIDTH-1:0] ia_dma_lhs_zp;
@@ -177,7 +176,7 @@ module mma_top #(
 
 	    logic kernel_dma_start, kernel_dma_linear_read_mode;
 	    logic [REG_WIDTH-1:0] kernel_dma_base_addr, kernel_dma_row_stride, kernel_dma_rows_to_read;
-	    logic [3:0] kernel_dma_burst_len_m1;
+	    logic [7:0] kernel_dma_burst_len_m1;
 	    logic kernel_dma_slot_id, kernel_dma_use_16bits;
 	    logic signed [REG_WIDTH-1:0] kernel_dma_lhs_zp;
 	    logic kernel_dma_busy, kernel_dma_done;
@@ -187,7 +186,7 @@ module mma_top #(
 
 	    logic bias_dma_start, bias_dma_linear_read_mode;
 	    logic [REG_WIDTH-1:0] bias_dma_base_addr, bias_dma_row_stride, bias_dma_rows_to_read;
-	    logic [3:0] bias_dma_burst_len_m1;
+	    logic [7:0] bias_dma_burst_len_m1;
 	    logic bias_dma_slot_id, bias_dma_use_16bits;
 	    logic signed [REG_WIDTH-1:0] bias_dma_lhs_zp;
 	    logic bias_dma_busy, bias_dma_done, bias_dma_wr_slot, bias_dma_wr_use_16bits;
@@ -197,7 +196,7 @@ module mma_top #(
 
 	    logic quant_dma_start, quant_dma_linear_read_mode;
 	    logic [REG_WIDTH-1:0] quant_dma_base_addr, quant_dma_row_stride, quant_dma_rows_to_read;
-	    logic [3:0] quant_dma_burst_len_m1;
+	    logic [7:0] quant_dma_burst_len_m1;
 	    logic quant_dma_slot_id, quant_dma_use_16bits;
 	    logic signed [REG_WIDTH-1:0] quant_dma_lhs_zp;
 	    logic quant_dma_busy, quant_dma_done;
@@ -206,7 +205,7 @@ module mma_top #(
 
 	    logic oa_dma_start;
 	    logic [REG_WIDTH-1:0] oa_dma_base_addr, oa_dma_row_stride, oa_dma_rows_to_read;
-	    logic [3:0] oa_dma_burst_len_m1;
+	    logic [7:0] oa_dma_burst_len_m1;
 	    logic [BUS_WIDTH-1:0] oa_dma_src_wdata;
 	    logic [BUS_WIDTH/8-1:0] oa_dma_src_wmask;
 	    logic oa_dma_src_wvalid, oa_dma_src_wready, oa_dma_busy, oa_dma_done;
@@ -229,9 +228,13 @@ module mma_top #(
 	        (IA_REUSE_NUM_MAX <= 1) ? 1 : ($clog2(IA_REUSE_NUM_MAX) + 1);
 	    localparam int unsigned W_REUSE_W =
 	        (W_REUSE_NUM_MAX <= 1) ? 1 : ($clog2(W_REUSE_NUM_MAX) + 1);
-	    localparam int unsigned OA_FIFO_BANKS = PS_FRAME_COUNT * IA_REUSE_NUM_MAX;
+		    localparam int unsigned OA_FIFO_BANKS_RAW = PS_FRAME_COUNT * IA_REUSE_NUM_MAX;
+		    localparam int unsigned OA_FIFO_BANKS =
+		        (OA_FIFO_BANKS_RAW <= OA_FIFO_BANKS_MAX) ? OA_FIFO_BANKS_RAW : OA_FIFO_BANKS_MAX;
 				    localparam int unsigned IS_BIAS_ROWS = IA_REUSE_NUM_MAX * SIZE;
 				    localparam int unsigned IS_BIAS_ROW_W = (IS_BIAS_ROWS <= 1) ? 1 : $clog2(IS_BIAS_ROWS);
+				    localparam int unsigned IS_BIAS_VALID_W =
+				        (IS_BIAS_ROWS <= 1) ? 1 : ($clog2(IS_BIAS_ROWS) + 1);
 				    wire signed [31:0] bias_group_data_out[IS_BIAS_ROWS];
 
 	    function automatic logic [REG_WIDTH-1:0] floor_pow2_ia(input logic [IA_REUSE_W-1:0] value);
@@ -293,7 +296,7 @@ module mma_top #(
 	    logic [REG_WIDTH-1:0] cfg_stream_m_s2;
 	    logic [REG_WIDTH-1:0] cfg_ia_reuse_eff_s2;
 	    logic [REG_WIDTH-1:0] cfg_w_reuse_eff_s2;
-	    logic [REG_WIDTH-1:0] cfg_bias_rows_target_s2;
+	    logic [IS_BIAS_VALID_W-1:0] cfg_bias_rows_target_s2;
 
 	    wire cfg_start_event = calc_start && sa_ready;
 	    wire cfg_stage2_fire = cfg_stage2_valid && ctrl_sa_ready;
@@ -377,7 +380,7 @@ module mma_top #(
 		            cfg_stream_m_s2 <= '0;
 		            cfg_ia_reuse_eff_s2 <= REG_WIDTH'(1);
 		            cfg_w_reuse_eff_s2 <= REG_WIDTH'(1);
-		            cfg_bias_rows_target_s2 <= REG_WIDTH'(SIZE);
+		            cfg_bias_rows_target_s2 <= IS_BIAS_VALID_W'(SIZE);
 		        end else begin
 		            if (cfg_stage2_fire) begin
 		                cfg_stage2_valid <= 1'b0;
@@ -395,7 +398,7 @@ module mma_top #(
 		                cfg_stream_m_s2 <= cfg_stream_m_s1;
 		                cfg_ia_reuse_eff_s2 <= ia_reuse_num_eff_s1;
 		                cfg_w_reuse_eff_s2 <= w_reuse_num_eff_s1;
-		                cfg_bias_rows_target_s2 <= ia_reuse_num_eff_s1 << SIZE_SHIFT;
+		                cfg_bias_rows_target_s2 <= IS_BIAS_VALID_W'(ia_reuse_num_eff_s1 << SIZE_SHIFT);
 		            end
 
 		            if (cfg_stage0_valid && !cfg_stage1_valid) begin
@@ -438,7 +441,7 @@ module mma_top #(
 	    logic [REG_WIDTH-1:0] stream_m;
 	    logic [REG_WIDTH-1:0] ia_reuse_num_eff;
 	    logic [REG_WIDTH-1:0] w_reuse_num_eff;
-	    logic [REG_WIDTH-1:0] is_bias_group_rows_target;
+	    logic [IS_BIAS_VALID_W-1:0] is_bias_group_rows_target;
 
 	    always_ff @(posedge clk or negedge rst_n) begin
 	        if (!rst_n) begin
@@ -451,7 +454,7 @@ module mma_top #(
 	            stream_m <= '0;
 	            ia_reuse_num_eff <= REG_WIDTH'(1);
 	            w_reuse_num_eff <= REG_WIDTH'(1);
-	            is_bias_group_rows_target <= REG_WIDTH'(SIZE);
+	            is_bias_group_rows_target <= IS_BIAS_VALID_W'(SIZE);
 	        end else if (cfg_stage2_fire) begin
 	            run_is_mode <= cfg_mode_s2;
 	            run_use_16bits <= cfg_use16_s2;
@@ -820,11 +823,9 @@ module mma_top #(
         .bias_sleep       (bias_sleep),
         .bias_last_loop   (bias_last_loop),
         .bias_valid       (bias_valid),
-        .next_bias_valid  (next_bias_valid),
         .bias_group_valid (bias_group_valid),
         .load_bias_done   (load_bias_done),
         .data_out         (bias_data_out),
-        .next_data_out    (next_bias_data_out),
         .group_data_out   (bias_group_data_out),
 	        .icb_cmd_valid    (),
 	        .icb_cmd_ready    (1'b0),
@@ -924,15 +925,42 @@ module mma_top #(
     // Vec Requant
 	    logic [IS_BIAS_ROW_W-1:0] is_bias_row_idx;
 	    logic [REG_WIDTH-1:0] is_bias_group_base;
-	    logic [REG_WIDTH-1:0] is_bias_rows_valid;
+	    logic [REG_WIDTH-1:0] is_bias_last_group_base;
+	    logic [IS_BIAS_VALID_W-1:0] is_bias_last_rows;
+	    logic [IS_BIAS_VALID_W-1:0] is_bias_rows_valid;
+	    logic [IS_BIAS_VALID_W-1:0] is_bias_rows_valid_pending;
 	    logic signed [31:0] is_bias_tile_data[IS_BIAS_ROWS];
-	    wire [REG_WIDTH-1:0] is_bias_rows_remaining =
-	      (run_m > is_bias_group_base) ? (run_m - is_bias_group_base) : REG_WIDTH'(0);
-    wire [REG_WIDTH-1:0] is_bias_rows_valid_next =
-      (is_bias_rows_remaining == '0) ? REG_WIDTH'(1) :
-      (is_bias_rows_remaining > is_bias_group_rows_target)
-          ? is_bias_group_rows_target
-          : is_bias_rows_remaining;
+	    wire [REG_WIDTH-1:0] is_bias_group_rows_target_ext =
+	      REG_WIDTH'(is_bias_group_rows_target);
+	    wire [REG_WIDTH-1:0] is_bias_target_mask_ext =
+	      is_bias_group_rows_target_ext - REG_WIDTH'(1);
+	    wire [REG_WIDTH-1:0] is_bias_tail_rows_raw =
+	      run_m & is_bias_target_mask_ext;
+	    wire [IS_BIAS_VALID_W-1:0] is_bias_tail_rows_calc =
+	      (is_bias_tail_rows_raw == '0)
+	          ? is_bias_group_rows_target
+	          : is_bias_tail_rows_raw[IS_BIAS_VALID_W-1:0];
+	    wire [REG_WIDTH-1:0] is_bias_tail_rows_ext =
+	      REG_WIDTH'(is_bias_tail_rows_calc);
+	    wire [REG_WIDTH-1:0] is_bias_last_group_base_calc =
+	      (run_m <= is_bias_group_rows_target_ext)
+	          ? REG_WIDTH'(0)
+	          : (run_m - is_bias_tail_rows_ext);
+	    wire [IS_BIAS_VALID_W-1:0] is_bias_first_rows_valid =
+	      (run_m == '0) ? IS_BIAS_VALID_W'(1) :
+	      (run_m > is_bias_group_rows_target_ext)
+	          ? is_bias_group_rows_target
+	          : run_m[IS_BIAS_VALID_W-1:0];
+	    wire [REG_WIDTH-1:0] is_bias_group_base_plus =
+	      is_bias_group_base + REG_WIDTH'(is_bias_rows_valid);
+	    wire is_bias_group_wrap_step =
+	      (is_bias_group_base >= is_bias_last_group_base);
+	    wire [REG_WIDTH-1:0] is_bias_group_base_step =
+	      is_bias_group_wrap_step ? REG_WIDTH'(0) : is_bias_group_base_plus;
+	    wire is_bias_group_step_is_last =
+	      (is_bias_group_base_step >= is_bias_last_group_base);
+	    wire [IS_BIAS_VALID_W-1:0] is_bias_rows_valid_step =
+	      is_bias_group_step_is_last ? is_bias_last_rows : is_bias_group_rows_target;
     wire signed [31:0] is_bias_scalar =
       (is_mode && (bias_base != '0)) ? is_bias_tile_data[is_bias_row_idx] : 32'sd0;
     wire signed [31:0] requant_in_vec[SIZE];
@@ -941,7 +969,10 @@ module mma_top #(
 	        if (!rst_n) begin
 	            is_bias_row_idx <= '0;
 	            is_bias_group_base <= '0;
-	            is_bias_rows_valid <= REG_WIDTH'(1);
+	            is_bias_last_group_base <= '0;
+	            is_bias_last_rows <= IS_BIAS_VALID_W'(1);
+	            is_bias_rows_valid <= IS_BIAS_VALID_W'(1);
+	            is_bias_rows_valid_pending <= IS_BIAS_VALID_W'(1);
 	            for (int bi = 0; bi < IS_BIAS_ROWS; bi = bi + 1) begin
 	                is_bias_tile_data[bi] <= '0;
 	            end
@@ -949,15 +980,19 @@ module mma_top #(
 	            if (init_cfg_ia) begin
 	                is_bias_row_idx <= '0;
 	                is_bias_group_base <= '0;
-	                is_bias_rows_valid <= REG_WIDTH'(1);
+	                is_bias_last_group_base <= is_bias_last_group_base_calc;
+	                is_bias_last_rows <= is_bias_tail_rows_calc;
+	                is_bias_rows_valid <= IS_BIAS_VALID_W'(1);
+	                is_bias_rows_valid_pending <= is_bias_first_rows_valid;
 	                for (int bi = 0; bi < IS_BIAS_ROWS; bi = bi + 1) begin
 	                    is_bias_tile_data[bi] <= '0;
 	                end
 	            end else begin
 	                if (is_mode && acc_data_valid) begin
-	                    if (is_bias_rows_valid <= REG_WIDTH'(1)) begin
+	                    if (is_bias_rows_valid <= IS_BIAS_VALID_W'(1)) begin
 	                        is_bias_row_idx <= '0;
-	                    end else if ((REG_WIDTH'(is_bias_row_idx) + REG_WIDTH'(1)) >= is_bias_rows_valid) begin
+	                    end else if ((IS_BIAS_VALID_W'(is_bias_row_idx) +
+	                                  IS_BIAS_VALID_W'(1)) >= is_bias_rows_valid) begin
 	                        is_bias_row_idx <= '0;
 	                    end else begin
 	                        is_bias_row_idx <= is_bias_row_idx + 1'b1;
@@ -965,22 +1000,15 @@ module mma_top #(
 	                end
 
 	                if (is_mode && bias_switch) begin
-		                    if ((is_bias_group_base + is_bias_rows_valid) >= run_m) begin
-	                        is_bias_group_base <= '0;
-	                    end else begin
-	                        is_bias_group_base <= is_bias_group_base + is_bias_rows_valid;
-	                    end
+	                    is_bias_group_base <= is_bias_group_base_step;
+	                    is_bias_rows_valid_pending <= is_bias_rows_valid_step;
 	                end
 
 	                if (is_mode && send_ia_trigger && !bias_sleep) begin
 	                    is_bias_row_idx <= '0;
-	                    is_bias_rows_valid <= is_bias_rows_valid_next;
+	                    is_bias_rows_valid <= is_bias_rows_valid_pending;
 	                    for (int bi = 0; bi < IS_BIAS_ROWS; bi = bi + 1) begin
-	                        if (REG_WIDTH'(bi) < is_bias_rows_valid_next) begin
-	                            is_bias_tile_data[bi] <= bias_group_valid ? bias_group_data_out[bi] : 32'sd0;
-	                        end else begin
-	                            is_bias_tile_data[bi] <= 32'sd0;
-	                        end
+	                        is_bias_tile_data[bi] <= bias_group_valid ? bias_group_data_out[bi] : 32'sd0;
 	                    end
 	                end
 	            end

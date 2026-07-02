@@ -23,8 +23,8 @@ module ps_buffer_fifo #(
 	    localparam int unsigned FRAME_CNT_W = (FRAME_COUNT < 1) ? 1 : $clog2(FRAME_COUNT + 1);
     localparam int unsigned EXT_W = CNT_W + 1;
 
-    localparam logic [ADDR_W-1:0] DEPTH_LAST_ADDR = DEPTH - 1;
-    localparam logic [CNT_W-1:0]  DEPTH_COUNT     = DEPTH;
+    localparam logic [ADDR_W-1:0] DEPTH_LAST_ADDR = ADDR_W'(DEPTH - 1);
+    localparam logic [CNT_W-1:0]  DEPTH_COUNT     = CNT_W'(DEPTH);
     localparam logic [FRAME_CNT_W-1:0] FRAME_COUNT_C = FRAME_CNT_W'(FRAME_COUNT);
 
     logic [ADDR_W-1:0]             write_ptr;

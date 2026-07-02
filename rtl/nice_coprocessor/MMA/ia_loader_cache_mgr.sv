@@ -185,7 +185,6 @@ module ia_loader_cache_mgr #(
   // 各列移位管线
   logic              rd_en_pipe      [SIZE];
   logic [ADDR_W-1:0] rd_addr_pipe    [SIZE];
-  logic              tile_first_pipe [SIZE];
   logic              tile_last_pipe  [SIZE];
   logic              l1_last_pipe    [SIZE];
 
@@ -208,7 +207,6 @@ module ia_loader_cache_mgr #(
       for (int j = 0; j < SIZE; j++) begin
         rd_en_pipe[j]     <= 1'b0;
         rd_addr_pipe[j]   <= '0;
-        tile_first_pipe[j]<= 1'b0;
         tile_last_pipe[j] <= 1'b0;
         l1_last_pipe[j]   <= 1'b0;
       end
@@ -269,13 +267,11 @@ module ia_loader_cache_mgr #(
       // 移位管线更新
       rd_en_pipe[0]     <= src_rd_en;
       rd_addr_pipe[0]   <= src_rd_addr;
-      tile_first_pipe[0]<= src_tile_first;
       tile_last_pipe[0] <= src_tile_last;
       l1_last_pipe[0]   <= src_l1_last;
       for (int j = 1; j < SIZE; j++) begin
         rd_en_pipe[j]     <= rd_en_pipe[j-1];
         rd_addr_pipe[j]   <= rd_addr_pipe[j-1];
-        tile_first_pipe[j]<= tile_first_pipe[j-1];
         tile_last_pipe[j] <= tile_last_pipe[j-1];
         l1_last_pipe[j]   <= l1_last_pipe[j-1];
       end
@@ -302,19 +298,13 @@ module ia_loader_cache_mgr #(
   // 输出数据：RAM 读出数据直接作为 ia_out（RAM 寄存器输出，延迟 1 拍）
   // =====================================================================
   logic ram_rd_en_d1 [SIZE];
-  logic tile_first_out_d1;
-  logic src_rd_en_d1;
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       for (int j = 0; j < SIZE; j++)
         ram_rd_en_d1[j] <= 1'b0;
-	      tile_first_out_d1 <= 1'b0;
-	      src_rd_en_d1      <= 1'b0;
 	    end else begin
 	      for (int j = 0; j < SIZE; j++)
 	        ram_rd_en_d1[j] <= ram_rd_en[j];
-	      tile_first_out_d1 <= rd_en_pipe[SIZE-1] && tile_first_pipe[SIZE-1];
-	      src_rd_en_d1      <= src_rd_en;
 	    end
 	  end
 

@@ -13,7 +13,9 @@ module tb_top #(
     parameter int unsigned DUT_CPU_MEM_DP      = 524288,
     parameter int unsigned DUT_AXI_READ_OUTSTANDING  = 4,
     parameter int unsigned DUT_AXI_WRITE_OUTSTANDING = DUT_AXI_READ_OUTSTANDING,
-    parameter bit          DUT_BYPASS_RAM_PINGPONG = 1'b1
+    parameter bit          DUT_CPU_ENABLE_ICACHE = 1'b0,
+    parameter bit          DUT_BYPASS_RAM_PINGPONG = 1'b1,
+    parameter bit          DUT_RAM_WRITE_TIMING_BUFFER = 1'b1
 );
 
     logic nice_clk;
@@ -82,7 +84,9 @@ module tb_top #(
         .AXI_READ_OUTSTANDING(DUT_AXI_READ_OUTSTANDING),
         .AXI_WRITE_OUTSTANDING(DUT_AXI_WRITE_OUTSTANDING),
         .CPU_MEM_DP(AXI_SOC_CPU_MEM_DP),
+        .CPU_ENABLE_ICACHE(DUT_CPU_ENABLE_ICACHE),
         .BYPASS_RAM_PINGPONG(DUT_BYPASS_RAM_PINGPONG),
+        .RAM_WRITE_TIMING_BUFFER(DUT_RAM_WRITE_TIMING_BUFFER),
         .CPU_MEM_PATH("../tb/axi_soc_case/cpu.mem")
     ) u_soc_top (
         .clk            (nice_clk),

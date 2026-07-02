@@ -201,13 +201,24 @@ module soc_axi_interconnect #(
     logic cpu_wr_active_q;
     logic err_rvalid_q;
     logic err_bvalid_q;
+    logic [ADDR_WIDTH-1:0] cpu_arq_addr_q [2];
+    logic [3:0]            cpu_arq_cache_q [2];
+    logic [2:0]            cpu_arq_prot_q [2];
+    logic [1:0]            cpu_arq_lock_q [2];
+    logic [1:0]            cpu_arq_burst_q [2];
+    logic [7:0]            cpu_arq_len_q [2];
+    logic [2:0]            cpu_arq_size_q [2];
+    dest_e                 cpu_arq_dest_q [2];
+    logic                  cpu_arq_rd_sel_q;
+    logic                  cpu_arq_wr_sel_q;
+    logic [1:0]            cpu_arq_count_q;
 
     function automatic dest_e decode_cpu_addr(input logic [ADDR_WIDTH-1:0] addr);
         logic [31:0] offset;
         begin
             offset = addr[31:0] - CPU_RAM_BASE;
-            if ((addr[31:0] >= CPU_RAM_BASE) &&
-                (offset[31:CPU_ADDR_LSB] < CPU_MEM_DP)) begin
+            if (((CPU_RAM_BASE == 32'h0) || (addr[31:0] >= CPU_RAM_BASE)) &&
+                (32'(offset[31:CPU_ADDR_LSB]) < 32'(CPU_MEM_DP))) begin
                 decode_cpu_addr = D_RAM;
             end else if (addr[31:28] == MMA_AXIL_BASE[31:28]) begin
                 decode_cpu_addr = D_MMA;
@@ -221,7 +232,6 @@ module soc_axi_interconnect #(
         end
     endfunction
 
-    wire [31:0] s0_araddr32 = s0_axi_araddr[31:0];
     wire [31:0] s0_awaddr32 = s0_axi_awaddr[31:0];
     dest_e cpu_ar_dest;
     dest_e cpu_aw_dest;
@@ -233,7 +243,36 @@ module soc_axi_interconnect #(
         cpu_w_dest  = cpu_wr_active_q ? cpu_wr_dest_q : cpu_aw_dest;
     end
 
-    wire cpu_ram_ar_req = s0_axi_arvalid && (cpu_ar_dest == D_RAM);
+    wire cpu_arq_full  = cpu_arq_count_q == 2'd2;
+    wire cpu_arq_valid = cpu_arq_count_q != 2'd0;
+    wire cpu_arq_push  = s0_axi_arvalid && s0_axi_arready;
+    wire [ADDR_WIDTH-1:0] cpu_arq_addr = cpu_arq_rd_sel_q ? cpu_arq_addr_q[1] :
+                                                             cpu_arq_addr_q[0];
+    wire [3:0] cpu_arq_cache = cpu_arq_rd_sel_q ? cpu_arq_cache_q[1] :
+                                                   cpu_arq_cache_q[0];
+    wire [2:0] cpu_arq_prot = cpu_arq_rd_sel_q ? cpu_arq_prot_q[1] :
+                                                  cpu_arq_prot_q[0];
+    wire [1:0] cpu_arq_lock = cpu_arq_rd_sel_q ? cpu_arq_lock_q[1] :
+                                                  cpu_arq_lock_q[0];
+    wire [1:0] cpu_arq_burst = cpu_arq_rd_sel_q ? cpu_arq_burst_q[1] :
+                                                   cpu_arq_burst_q[0];
+    wire [7:0] cpu_arq_len = cpu_arq_rd_sel_q ? cpu_arq_len_q[1] :
+                                                cpu_arq_len_q[0];
+    wire [2:0] cpu_arq_size = cpu_arq_rd_sel_q ? cpu_arq_size_q[1] :
+                                                  cpu_arq_size_q[0];
+    dest_e cpu_arq_dest;
+    assign cpu_arq_dest = cpu_arq_rd_sel_q ? cpu_arq_dest_q[1] :
+                                             cpu_arq_dest_q[0];
+    wire [31:0] cpu_arq_addr32 = cpu_arq_addr[31:0];
+
+    wire cpu_r_last_hs = s0_axi_rvalid && s0_axi_rready && s0_axi_rlast;
+    wire cpu_rd_issue_avail = !cpu_rd_active_q || cpu_r_last_hs;
+    wire cpu_ram_ar_req = cpu_arq_valid && cpu_rd_issue_avail && (cpu_arq_dest == D_RAM);
+    wire cpu_mma_ar_req = cpu_arq_valid && cpu_rd_issue_avail && (cpu_arq_dest == D_MMA);
+    wire cpu_uart_ar_req = cpu_arq_valid && cpu_rd_issue_avail && (cpu_arq_dest == D_UART);
+    wire cpu_ctrl_ar_req = cpu_arq_valid && cpu_rd_issue_avail && (cpu_arq_dest == D_CTRL);
+    wire cpu_err_ar_req = cpu_arq_valid && cpu_rd_issue_avail && (cpu_arq_dest == D_ERR) &&
+                          !err_rvalid_q;
     wire mma_ram_ar_req = s1_axi_arvalid;
     wire cpu_ram_aw_req = s0_axi_awvalid && (cpu_aw_dest == D_RAM);
     wire mma_ram_aw_req = s1_axi_awvalid;
@@ -274,8 +313,14 @@ module soc_axi_interconnect #(
     wire ram_b_hs = m_ram_bvalid && m_ram_bready;
     wire ram_rd_slot_avail = (ram_rd_outs_q != RD_OUTS_W'(RD_OUTS_DEPTH)) || ram_r_last_hs;
     wire ram_wr_slot_avail = (ram_wr_outs_q != WR_OUTS_W'(WR_OUTS_DEPTH)) || ram_b_hs;
-    wire cpu_ar_hs = s0_axi_arvalid && s0_axi_arready;
-    wire cpu_r_last_hs = s0_axi_rvalid && s0_axi_rready && s0_axi_rlast;
+    wire cpu_ram_ar_hs = ram_ar_hs && ram_ar_from_cpu;
+    wire cpu_mma_ar_hs = cpu_mma_ar_req && m_mma_arready;
+    wire cpu_uart_ar_hs = cpu_uart_ar_req && m_uart_arready;
+    wire cpu_ctrl_ar_hs = cpu_ctrl_ar_req && m_ctrl_arready;
+    wire cpu_err_ar_hs = cpu_err_ar_req;
+    wire cpu_ar_hs = cpu_ram_ar_hs || cpu_mma_ar_hs || cpu_uart_ar_hs ||
+                     cpu_ctrl_ar_hs || cpu_err_ar_hs;
+    wire cpu_arq_pop = cpu_ar_hs;
     wire cpu_aw_hs = s0_axi_awvalid && s0_axi_awready;
     wire cpu_w_hs = s0_axi_wvalid && s0_axi_wready;
     wire cpu_b_hs = s0_axi_bvalid && s0_axi_bready;
@@ -283,7 +328,7 @@ module soc_axi_interconnect #(
                             cpu_w_hs && (cpu_w_dest == D_ERR);
 
     always_comb begin
-        s0_axi_arready = 1'b0;
+        s0_axi_arready = !cpu_arq_full;
         s1_axi_arready = 1'b0;
         s0_axi_rvalid  = 1'b0;
         s0_axi_rdata   = '0;
@@ -315,14 +360,13 @@ module soc_axi_interconnect #(
             s1_axi_arready = m_ram_arready && ram_rd_slot_avail && !ram_rd_yield;
         end else if (ram_ar_from_cpu) begin
             m_ram_arvalid = cpu_ram_ar_req && ram_rd_slot_avail && !ram_rd_yield;
-            m_ram_araddr  = s0_axi_araddr;
-            m_ram_arcache = s0_axi_arcache;
-            m_ram_arprot  = s0_axi_arprot;
-            m_ram_arlock  = s0_axi_arlock;
-            m_ram_arburst = s0_axi_arburst;
-            m_ram_arlen   = s0_axi_arlen;
-            m_ram_arsize  = s0_axi_arsize;
-            s0_axi_arready = m_ram_arready && ram_rd_slot_avail && !ram_rd_yield;
+            m_ram_araddr  = cpu_arq_addr;
+            m_ram_arcache = cpu_arq_cache;
+            m_ram_arprot  = cpu_arq_prot;
+            m_ram_arlock  = cpu_arq_lock;
+            m_ram_arburst = cpu_arq_burst;
+            m_ram_arlen   = cpu_arq_len;
+            m_ram_arsize  = cpu_arq_size;
         end
 
         if (ram_rd_active_q && (ram_rd_owner_q == OWNER_MMA)) begin
@@ -339,11 +383,6 @@ module soc_axi_interconnect #(
             s0_axi_rlast  = m_ram_rlast;
             m_ram_rready  = s0_axi_rready;
         end
-
-        if (cpu_ar_dest == D_MMA) s0_axi_arready = m_mma_arready;
-        else if (cpu_ar_dest == D_UART) s0_axi_arready = m_uart_arready;
-        else if (cpu_ar_dest == D_CTRL) s0_axi_arready = m_ctrl_arready;
-        else if (cpu_ar_dest == D_ERR) s0_axi_arready = !err_rvalid_q;
 
         if (cpu_rd_active_q) begin
             unique case (cpu_rd_dest_q)
@@ -492,9 +531,9 @@ module soc_axi_interconnect #(
     assign m_mma_wstrb   = s0_axi_wstrb[3:0];
     assign m_mma_wvalid  = s0_axi_wvalid && (cpu_w_dest == D_MMA);
     assign m_mma_bready  = s0_axi_bready && cpu_wr_active_q && (cpu_wr_dest_q == D_MMA);
-    assign m_mma_araddr  = s0_araddr32[15:0];
-    assign m_mma_arprot  = s0_axi_arprot;
-    assign m_mma_arvalid = s0_axi_arvalid && (cpu_ar_dest == D_MMA);
+    assign m_mma_araddr  = cpu_arq_addr32[15:0];
+    assign m_mma_arprot  = cpu_arq_prot;
+    assign m_mma_arvalid = cpu_mma_ar_req;
     assign m_mma_rready  = s0_axi_rready && cpu_rd_active_q && (cpu_rd_dest_q == D_MMA);
 
     assign m_uart_awaddr  = s0_awaddr32;
@@ -504,9 +543,9 @@ module soc_axi_interconnect #(
     assign m_uart_wstrb   = s0_axi_wstrb[3:0];
     assign m_uart_wvalid  = s0_axi_wvalid && (cpu_w_dest == D_UART);
     assign m_uart_bready  = s0_axi_bready && cpu_wr_active_q && (cpu_wr_dest_q == D_UART);
-    assign m_uart_araddr  = s0_araddr32;
-    assign m_uart_arprot  = s0_axi_arprot;
-    assign m_uart_arvalid = s0_axi_arvalid && (cpu_ar_dest == D_UART);
+    assign m_uart_araddr  = cpu_arq_addr32;
+    assign m_uart_arprot  = cpu_arq_prot;
+    assign m_uart_arvalid = cpu_uart_ar_req;
     assign m_uart_rready  = s0_axi_rready && cpu_rd_active_q && (cpu_rd_dest_q == D_UART);
 
     assign m_ctrl_awaddr  = s0_awaddr32;
@@ -516,9 +555,9 @@ module soc_axi_interconnect #(
     assign m_ctrl_wstrb   = s0_axi_wstrb[3:0];
     assign m_ctrl_wvalid  = s0_axi_wvalid && (cpu_w_dest == D_CTRL);
     assign m_ctrl_bready  = s0_axi_bready && cpu_wr_active_q && (cpu_wr_dest_q == D_CTRL);
-    assign m_ctrl_araddr  = s0_araddr32;
-    assign m_ctrl_arprot  = s0_axi_arprot;
-    assign m_ctrl_arvalid = s0_axi_arvalid && (cpu_ar_dest == D_CTRL);
+    assign m_ctrl_araddr  = cpu_arq_addr32;
+    assign m_ctrl_arprot  = cpu_arq_prot;
+    assign m_ctrl_arvalid = cpu_ctrl_ar_req;
     assign m_ctrl_rready  = s0_axi_rready && cpu_rd_active_q && (cpu_rd_dest_q == D_CTRL);
 
 `ifndef SYNTHESIS
@@ -543,7 +582,7 @@ module soc_axi_interconnect #(
             rd_yield_cycles        <= 0;
             wr_yield_cycles        <= 0;
         end else if (axi_stats_en) begin
-            if (cpu_ram_ar_req && !s0_axi_arready) begin
+            if (cpu_ram_ar_req && !cpu_ram_ar_hs) begin
                 cpu_ram_ar_wait_cycles <= cpu_ram_ar_wait_cycles + 1;
             end
             if (mma_ram_ar_req && !s1_axi_arready) begin
@@ -588,7 +627,40 @@ module soc_axi_interconnect #(
             cpu_wr_active_q <= 1'b0;
             err_rvalid_q    <= 1'b0;
             err_bvalid_q    <= 1'b0;
+            cpu_arq_rd_sel_q <= 1'b0;
+            cpu_arq_wr_sel_q <= 1'b0;
+            cpu_arq_count_q  <= 2'd0;
+            for (int i = 0; i < 2; i++) begin
+                cpu_arq_addr_q[i]  <= '0;
+                cpu_arq_cache_q[i] <= '0;
+                cpu_arq_prot_q[i]  <= '0;
+                cpu_arq_lock_q[i]  <= '0;
+                cpu_arq_burst_q[i] <= '0;
+                cpu_arq_len_q[i]   <= '0;
+                cpu_arq_size_q[i]  <= '0;
+                cpu_arq_dest_q[i]  <= D_ERR;
+            end
         end else begin
+            if (cpu_arq_push) begin
+                cpu_arq_addr_q[cpu_arq_wr_sel_q]  <= s0_axi_araddr;
+                cpu_arq_cache_q[cpu_arq_wr_sel_q] <= s0_axi_arcache;
+                cpu_arq_prot_q[cpu_arq_wr_sel_q]  <= s0_axi_arprot;
+                cpu_arq_lock_q[cpu_arq_wr_sel_q]  <= s0_axi_arlock;
+                cpu_arq_burst_q[cpu_arq_wr_sel_q] <= s0_axi_arburst;
+                cpu_arq_len_q[cpu_arq_wr_sel_q]   <= s0_axi_arlen;
+                cpu_arq_size_q[cpu_arq_wr_sel_q]  <= s0_axi_arsize;
+                cpu_arq_dest_q[cpu_arq_wr_sel_q]  <= cpu_ar_dest;
+                cpu_arq_wr_sel_q <= ~cpu_arq_wr_sel_q;
+            end
+            if (cpu_arq_pop) begin
+                cpu_arq_rd_sel_q <= ~cpu_arq_rd_sel_q;
+            end
+            unique case ({cpu_arq_push, cpu_arq_pop})
+                2'b10: cpu_arq_count_q <= cpu_arq_count_q + 2'd1;
+                2'b01: cpu_arq_count_q <= cpu_arq_count_q - 2'd1;
+                default: cpu_arq_count_q <= cpu_arq_count_q;
+            endcase
+
             if (!ram_rd_active_q) begin
                 if (ram_ar_hs) begin
                     ram_rd_active_q <= 1'b1;
@@ -627,8 +699,8 @@ module soc_axi_interconnect #(
                 err_rvalid_q <= 1'b0;
             end
             if (cpu_ar_hs) begin
-                cpu_rd_dest_q <= cpu_ar_dest;
-                if (cpu_ar_dest == D_ERR) err_rvalid_q <= 1'b1;
+                cpu_rd_dest_q <= cpu_arq_dest;
+                if (cpu_arq_dest == D_ERR) err_rvalid_q <= 1'b1;
             end
 
             unique case ({cpu_ar_hs, cpu_r_last_hs})

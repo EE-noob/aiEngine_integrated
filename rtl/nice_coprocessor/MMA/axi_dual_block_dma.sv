@@ -31,7 +31,7 @@ module axi_dual_block_dma #(
     input  logic        [           REG_WIDTH-1:0] rd_row_stride,
     input  logic        [           REG_WIDTH-1:0] rd_rows_to_read,
     input  logic        [           REG_WIDTH-1:0] rd_valid_cols,
-    input  logic        [                     3:0] rd_burst_len_m1,
+    input  logic        [                     7:0] rd_burst_len_m1,
     input  logic        [$clog2(CACHE_BLOCKS)-1:0] rd_slot_id,
     input  logic                                   rd_use_16bits,
     input  logic signed [           REG_WIDTH-1:0] rd_lhs_zp,
@@ -43,7 +43,7 @@ module axi_dual_block_dma #(
     input  logic [           REG_WIDTH-1:0] wr_base_addr,
     input  logic [           REG_WIDTH-1:0] wr_row_stride,
     input  logic [           REG_WIDTH-1:0] wr_rows_to_write,
-    input  logic [                     3:0] wr_burst_len_m1,
+    input  logic [                     7:0] wr_burst_len_m1,
     output logic                            wr_busy,
     output logic                            wr_done,
 
@@ -141,7 +141,7 @@ module axi_dual_block_dma #(
     logic [REG_WIDTH-1:0] rd_cfg_row_stride;
     logic [REG_WIDTH-1:0] rd_cfg_rows;
     logic [REG_WIDTH-1:0] rd_cfg_valid_cols;
-    logic [3:0] rd_cfg_burst_len_m1;
+    logic [7:0] rd_cfg_burst_len_m1;
     logic [$clog2(CACHE_BLOCKS)-1:0] rd_cfg_slot;
     logic rd_cfg_linear_read;
     logic rd_cfg_use_16bits;
@@ -276,7 +276,7 @@ module axi_dual_block_dma #(
                     m_axi_araddr  <= rd_unaligned_mode
                                    ? {rd_cmd_row_addr[REG_WIDTH-1:ADDR_LSB], {ADDR_LSB{1'b0}}}
                                    : rd_cmd_row_addr;
-                    m_axi_arlen   <= 8'(rd_cfg_linear_read ? 4'd0 : rd_cfg_burst_len_m1)
+                    m_axi_arlen   <= (rd_cfg_linear_read ? 8'd0 : rd_cfg_burst_len_m1)
                                    + ((rd_unaligned_mode && (cmd_offset_cur != '0)) ? 8'd1 : 8'd0);
                     rd_cmd_row_cnt <= rd_cmd_row_cnt + 1'b1;
                     rd_cmd_row_addr <= rd_cmd_row_addr + rd_cfg_row_stride;
@@ -429,7 +429,7 @@ module axi_dual_block_dma #(
         if (rd_rsp_valid_r) begin
             if (rd_cfg_use_16bits) begin
                 for (int i = 0; i < ELEM_PER_BEAT_S16; i++) begin
-                    if (rd_rsp_col_base_r + i < SIZE) begin
+                    if ((REG_WIDTH'(rd_rsp_col_base_r) + REG_WIDTH'(i)) < REG_WIDTH'(SIZE)) begin
                         if (REG_WIDTH'(rd_rsp_col_base_r + i) < rd_cfg_valid_cols) begin
                             wr_data[i] = DATA_WIDTH'($signed(rd_rsp_data_r[i*16+:16]) + rd_cfg_zp[15:0]);
                         end
@@ -438,7 +438,7 @@ module axi_dual_block_dma #(
                 end
             end else begin
                 for (int i = 0; i < ELEM_PER_BEAT_S8; i++) begin
-                    if (rd_rsp_col_base_r + i < SIZE) begin
+                    if ((REG_WIDTH'(rd_rsp_col_base_r) + REG_WIDTH'(i)) < REG_WIDTH'(SIZE)) begin
                         if (REG_WIDTH'(rd_rsp_col_base_r + i) < rd_cfg_valid_cols) begin
                             wr_data[i] = DATA_WIDTH'($signed({{8{rd_rsp_data_r[i*8+7]}}, rd_rsp_data_r[i*8+:8]}) + rd_cfg_zp[15:0]);
                         end
@@ -455,7 +455,7 @@ module axi_dual_block_dma #(
     logic [REG_WIDTH-1:0] wr_cfg_base_addr;
     logic [REG_WIDTH-1:0] wr_cfg_row_stride;
     logic [REG_WIDTH-1:0] wr_cfg_rows;
-    logic [3:0] wr_cfg_burst_len_m1;
+    logic [7:0] wr_cfg_burst_len_m1;
     logic [REG_WIDTH-1:0] wr_cmd_row_cnt;
     logic [REG_WIDTH-1:0] wr_cmd_row_addr_cur;
     logic [REG_WIDTH-1:0] wr_data_row_cnt;
@@ -575,7 +575,7 @@ module axi_dual_block_dma #(
         end else if (wr_start && !wr_active) begin
             m_axi_awvalid <= 1'b0;
             m_axi_awaddr  <= wr_base_addr;
-            m_axi_awlen   <= 8'(wr_burst_len_m1);
+            m_axi_awlen   <= wr_burst_len_m1;
             wr_cmd_row_cnt <= '0;
             wr_cmd_row_addr_cur <= wr_base_addr;
             wr_data_row_cnt <= '0;
@@ -603,7 +603,7 @@ module axi_dual_block_dma #(
                     m_axi_awvalid <= 1'b1;
                     m_axi_awaddr  <= {wr_cmd_row_addr_cur[REG_WIDTH-1:ADDR_LSB],
                                       {ADDR_LSB{1'b0}}};
-                    m_axi_awlen   <= 8'(wr_cfg_burst_len_m1)
+                    m_axi_awlen   <= wr_cfg_burst_len_m1
                                    + ((wr_cmd_row_offset != '0) ? 8'd1 : 8'd0);
                     wr_pending_cmd_cross <= (wr_cmd_row_offset != '0);
                 end

@@ -129,6 +129,7 @@ module mma_controller #(
 `ifndef SYNTHESIS
     bit       ctrl_trace_en;
     bit       util_trace_en;
+    bit       util_summary_en;
     logic     util_active;
     longint unsigned util_op_id;
     longint unsigned util_active_cycles;
@@ -149,12 +150,32 @@ module mma_controller #(
     longint unsigned util_tail_done_count;
     longint unsigned util_weight_trigger_count;
     longint unsigned util_ia_trigger_count;
+    longint unsigned util_sum_active_cycles;
+    longint unsigned util_sum_weight_start_cycles;
+    longint unsigned util_sum_weight_wait_cycles;
+    longint unsigned util_sum_ia_start_cycles;
+    longint unsigned util_sum_ia_wait_cycles;
+    longint unsigned util_sum_wait_wb_cycles;
+    longint unsigned util_sum_stall_weight_tail_cycles;
+    longint unsigned util_sum_stall_weight_data_cycles;
+    longint unsigned util_sum_stall_weight_done_cycles;
+    longint unsigned util_sum_stall_ia_data_cycles;
+    longint unsigned util_sum_stall_bias_cycles;
+    longint unsigned util_sum_stall_quant_cycles;
+    longint unsigned util_sum_stall_fifo_cycles;
+    longint unsigned util_sum_stall_ia_done_cycles;
+    longint unsigned util_sum_tail_pending_cycles;
+    longint unsigned util_sum_tail_done_count;
+    longint unsigned util_sum_weight_trigger_count;
+    longint unsigned util_sum_ia_trigger_count;
 
     initial begin
         ctrl_trace_en = 1'b0;
         util_trace_en = 1'b0;
+        util_summary_en = 1'b0;
         if ($test$plusargs("MMA_CTRL_TRACE")) ctrl_trace_en = 1'b1;
         if ($test$plusargs("MMA_UTIL_TRACE")) util_trace_en = 1'b1;
+        if ($test$plusargs("MMA_UTIL_SUMMARY")) util_summary_en = 1'b1;
     end
 `endif
 
@@ -306,6 +327,24 @@ module mma_controller #(
             util_tail_done_count          <= '0;
             util_weight_trigger_count     <= '0;
             util_ia_trigger_count         <= '0;
+            util_sum_active_cycles            <= '0;
+            util_sum_weight_start_cycles      <= '0;
+            util_sum_weight_wait_cycles       <= '0;
+            util_sum_ia_start_cycles          <= '0;
+            util_sum_ia_wait_cycles           <= '0;
+            util_sum_wait_wb_cycles           <= '0;
+            util_sum_stall_weight_tail_cycles <= '0;
+            util_sum_stall_weight_data_cycles <= '0;
+            util_sum_stall_weight_done_cycles <= '0;
+            util_sum_stall_ia_data_cycles     <= '0;
+            util_sum_stall_bias_cycles        <= '0;
+            util_sum_stall_quant_cycles       <= '0;
+            util_sum_stall_fifo_cycles        <= '0;
+            util_sum_stall_ia_done_cycles     <= '0;
+            util_sum_tail_pending_cycles      <= '0;
+            util_sum_tail_done_count          <= '0;
+            util_sum_weight_trigger_count     <= '0;
+            util_sum_ia_trigger_count         <= '0;
         end else begin
             if (util_start_event) begin
                 util_active                   <= 1'b1;
@@ -387,6 +426,24 @@ module mma_controller #(
             end
 
             if (util_finish_event) begin
+                util_sum_active_cycles            <= util_sum_active_cycles + util_active_cycles;
+                util_sum_weight_start_cycles      <= util_sum_weight_start_cycles + util_weight_start_cycles;
+                util_sum_weight_wait_cycles       <= util_sum_weight_wait_cycles + util_weight_wait_cycles;
+                util_sum_ia_start_cycles          <= util_sum_ia_start_cycles + util_ia_start_cycles;
+                util_sum_ia_wait_cycles           <= util_sum_ia_wait_cycles + util_ia_wait_cycles;
+                util_sum_wait_wb_cycles           <= util_sum_wait_wb_cycles + util_wait_wb_cycles;
+                util_sum_stall_weight_tail_cycles <= util_sum_stall_weight_tail_cycles + util_stall_weight_tail_cycles;
+                util_sum_stall_weight_data_cycles <= util_sum_stall_weight_data_cycles + util_stall_weight_data_cycles;
+                util_sum_stall_weight_done_cycles <= util_sum_stall_weight_done_cycles + util_stall_weight_done_cycles;
+                util_sum_stall_ia_data_cycles     <= util_sum_stall_ia_data_cycles + util_stall_ia_data_cycles;
+                util_sum_stall_bias_cycles        <= util_sum_stall_bias_cycles + util_stall_bias_cycles;
+                util_sum_stall_quant_cycles       <= util_sum_stall_quant_cycles + util_stall_quant_cycles;
+                util_sum_stall_fifo_cycles        <= util_sum_stall_fifo_cycles + util_stall_fifo_cycles;
+                util_sum_stall_ia_done_cycles     <= util_sum_stall_ia_done_cycles + util_stall_ia_done_cycles;
+                util_sum_tail_pending_cycles      <= util_sum_tail_pending_cycles + util_tail_pending_cycles;
+                util_sum_tail_done_count          <= util_sum_tail_done_count + util_tail_done_count;
+                util_sum_weight_trigger_count     <= util_sum_weight_trigger_count + util_weight_trigger_count;
+                util_sum_ia_trigger_count         <= util_sum_ia_trigger_count + util_ia_trigger_count;
                 if (util_trace_en) begin
                     $display("[MMA_CTRL_UTIL] op=%0d active=%0d weight_start=%0d weight_wait=%0d ia_start=%0d ia_wait=%0d wait_wb=%0d weight_tail_stall=%0d weight_data_stall=%0d weight_done_wait=%0d ia_data_stall=%0d bias_stall=%0d quant_stall=%0d fifo_stall=%0d ia_done_wait=%0d tail_pending=%0d tail_done=%0d weight_trig=%0d ia_trig=%0d",
                              util_op_id,
@@ -413,6 +470,31 @@ module mma_controller #(
             end
 	        end
 	    end
+
+    final begin
+        if (util_summary_en) begin
+            $display("[MMA_CTRL_UTIL_SUMMARY] ops=%0d active=%0d weight_start=%0d weight_wait=%0d ia_start=%0d ia_wait=%0d wait_wb=%0d weight_tail_stall=%0d weight_data_stall=%0d weight_done_wait=%0d ia_data_stall=%0d bias_stall=%0d quant_stall=%0d fifo_stall=%0d ia_done_wait=%0d tail_pending=%0d tail_done=%0d weight_trig=%0d ia_trig=%0d",
+                     util_op_id,
+                     util_sum_active_cycles,
+                     util_sum_weight_start_cycles,
+                     util_sum_weight_wait_cycles,
+                     util_sum_ia_start_cycles,
+                     util_sum_ia_wait_cycles,
+                     util_sum_wait_wb_cycles,
+                     util_sum_stall_weight_tail_cycles,
+                     util_sum_stall_weight_data_cycles,
+                     util_sum_stall_weight_done_cycles,
+                     util_sum_stall_ia_data_cycles,
+                     util_sum_stall_bias_cycles,
+                     util_sum_stall_quant_cycles,
+                     util_sum_stall_fifo_cycles,
+                     util_sum_stall_ia_done_cycles,
+                     util_sum_tail_pending_cycles,
+                     util_sum_tail_done_count,
+                     util_sum_weight_trigger_count,
+                     util_sum_ia_trigger_count);
+        end
+    end
 `endif
 
 	    // 状态转换逻辑

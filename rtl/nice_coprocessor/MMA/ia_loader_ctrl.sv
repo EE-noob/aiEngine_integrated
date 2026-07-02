@@ -74,7 +74,7 @@ module ia_loader_ctrl #(
     output logic [REG_WIDTH-1:0]        tl_row_stride,
     output logic [REG_WIDTH-1:0]        tl_rows_to_read,
     output logic [REG_WIDTH-1:0]        tl_valid_cols,
-    output logic [3:0]                  tl_burst_len_m1,
+    output logic [7:0]                  tl_burst_len_m1,
     output logic [$clog2(CACHE_BLOCKS)-1:0] tl_slot_id,
     output logic                        tl_use_16bits,
     output logic signed [REG_WIDTH-1:0] tl_lhs_zp,
@@ -365,10 +365,10 @@ module ia_loader_ctrl #(
   assign load_cols_cur = load_is_last_col_tile ? last_col_valid_cols : REG_WIDTH'(SIZE);
 
   // burst 长度
-  logic [3:0] load_burst_len_m1;
+  logic [7:0] load_burst_len_m1;
   assign load_burst_len_m1 = load_is_last_col_tile ? 
-                             rsp_beats_per_row_last[3:0] - 4'd1 : 
-                             rsp_beats_per_row_normal[3:0] - 4'd1;
+                             8'(rsp_beats_per_row_last - REG_WIDTH'(1)) :
+                             8'(rsp_beats_per_row_normal - REG_WIDTH'(1));
 
   // 当前读 slot = rd_slot_base + ia_idx
   logic [SLOT_W-1:0] current_rd_slot;
@@ -642,7 +642,7 @@ module ia_loader_ctrl #(
   logic [REG_WIDTH-1:0] tl_row_stride_r;
   logic [REG_WIDTH-1:0] tl_rows_to_read_r;
   logic [REG_WIDTH-1:0] tl_valid_cols_r;
-  logic [3:0]           tl_burst_len_m1_r;
+  logic [7:0]           tl_burst_len_m1_r;
   logic [SLOT_W-1:0]    tl_slot_id_r;
   logic                 tl_use_16bits_r;
   logic signed [REG_WIDTH-1:0] tl_lhs_zp_r;

@@ -29,11 +29,9 @@ module bias_loader #(
     input  logic load_bias_granted,
 
     output logic                         bias_valid,
-    output logic                         next_bias_valid,
     output logic                         bias_group_valid,
     output logic                         load_bias_done,
     output logic signed [DATA_WIDTH-1:0] data_out  [SIZE],
-    output logic signed [DATA_WIDTH-1:0] next_data_out [SIZE],
     output logic signed [DATA_WIDTH-1:0] group_data_out [GROUP_BLOCKS_MAX * SIZE],
 
     output logic                 icb_cmd_valid,
@@ -53,7 +51,7 @@ module bias_loader #(
 	    output logic [REG_WIDTH-1:0] ext_dma_base_addr,
 	    output logic [REG_WIDTH-1:0] ext_dma_row_stride,
 	    output logic [REG_WIDTH-1:0] ext_dma_rows_to_read,
-	    output logic [3:0]           ext_dma_burst_len_m1,
+	    output logic [7:0]           ext_dma_burst_len_m1,
 	    output logic                 ext_dma_slot_id,
 	    output logic                 ext_dma_use_16bits,
 	    output logic signed [REG_WIDTH-1:0] ext_dma_lhs_zp,
@@ -72,11 +70,10 @@ module bias_loader #(
     logic                               ctrl_dma_start;
     logic        [       REG_WIDTH-1:0] ctrl_dma_base_addr;
     logic        [       REG_WIDTH-1:0] ctrl_dma_rows_to_read;
-    logic        [                     3:0] ctrl_dma_burst_len_m1;
+    logic        [                     7:0] ctrl_dma_burst_len_m1;
     logic                               ctrl_load_bank;
     logic        [       REG_WIDTH-1:0] ctrl_current_block_idx;
     logic        [       REG_WIDTH-1:0] ctrl_load_block_idx;
-    logic        [       REG_WIDTH-1:0] ctrl_next_block_idx;
     logic        [       REG_WIDTH-1:0] ctrl_group_blocks_needed;
     logic                               ctrl_active_bank;
     logic                               ctrl_switch_pending;
@@ -130,7 +127,6 @@ module bias_loader #(
         .load_bank        (ctrl_load_bank),
         .current_block_idx(ctrl_current_block_idx),
         .load_block_idx   (ctrl_load_block_idx),
-        .next_block_idx   (ctrl_next_block_idx),
         .group_blocks_needed(ctrl_group_blocks_needed),
         .active_bank      (ctrl_active_bank),
         .switch_pending   (ctrl_switch_pending)
@@ -170,7 +166,7 @@ module bias_loader #(
 	                .row_stride      (REG_WIDTH'(SIZE * (DATA_WIDTH / 8))),
 	                .rows_to_read    (ctrl_dma_rows_to_read),
 	                .valid_cols      (REG_WIDTH'(DMA_SIZE)),
-	                .burst_len_m1    (ctrl_dma_burst_len_m1),
+	                .burst_len_m1    (ctrl_dma_burst_len_m1[3:0]),
 	                .slot_id         (ctrl_load_bank),
 	                .use_16bits      (1'b0),
 	                .lhs_zp          ('0),
@@ -227,12 +223,9 @@ module bias_loader #(
         .load_done         (dma_done),
         .active_bank       (ctrl_active_bank),
         .current_block_idx (ctrl_current_block_idx),
-        .next_block_idx    (ctrl_next_block_idx),
         .bias_valid        (bias_valid),
         .load_block_valid  (ctrl_load_block_valid),
-        .next_bias_valid   (next_bias_valid),
         .data_out          (data_out),
-        .next_data_out     (next_data_out),
         .group_data_out    (group_data_out)
     );
 

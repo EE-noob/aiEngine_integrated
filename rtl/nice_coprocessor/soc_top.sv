@@ -15,7 +15,12 @@ module soc_top #(
     parameter CPU_MEM_DP      = 524288,
     parameter CPU_MEM_PATH    = "../tb/axi_soc_case/cpu.mem",
     parameter CPU_MEM_INIT_EN = 1,
+    parameter CPU_ENABLE_ICACHE = 0,
+    parameter CPU_AXI_READ_TIMING_BUFFER = 1,
+    parameter MMA_AXI_TIMING_BUFFER = 1,
+    parameter CPU_AXI_WRITE_TIMING_BUFFER = 1,
     parameter BYPASS_RAM_PINGPONG = 1,
+    parameter RAM_WRITE_TIMING_BUFFER = 1,
     parameter [31:0] CPU_RAM_BASE   = 32'h0000_0000,
     parameter [31:0] MMA_AXIL_BASE  = 32'h1000_0000,
     parameter [31:0] UART_BASE      = 32'h0200_0000,
@@ -74,6 +79,38 @@ module soc_top #(
     wire        cpu_axi_bready;
     wire [1:0]  cpu_axi_bresp;
 
+    wire        cpu_bus_axi_arvalid;
+    wire        cpu_bus_axi_arready;
+    wire [REG_WIDTH-1:0] cpu_bus_axi_araddr;
+    wire [3:0]  cpu_bus_axi_arcache;
+    wire [2:0]  cpu_bus_axi_arprot;
+    wire [1:0]  cpu_bus_axi_arlock;
+    wire [1:0]  cpu_bus_axi_arburst;
+    wire [7:0]  cpu_bus_axi_arlen;
+    wire [2:0]  cpu_bus_axi_arsize;
+    wire        cpu_bus_axi_rvalid;
+    wire        cpu_bus_axi_rready;
+    wire [BUS_WIDTH-1:0] cpu_bus_axi_rdata;
+    wire [1:0]  cpu_bus_axi_rresp;
+    wire        cpu_bus_axi_rlast;
+    wire        cpu_bus_axi_awvalid;
+    wire        cpu_bus_axi_awready;
+    wire [REG_WIDTH-1:0] cpu_bus_axi_awaddr;
+    wire [3:0]  cpu_bus_axi_awcache;
+    wire [2:0]  cpu_bus_axi_awprot;
+    wire [1:0]  cpu_bus_axi_awlock;
+    wire [1:0]  cpu_bus_axi_awburst;
+    wire [7:0]  cpu_bus_axi_awlen;
+    wire [2:0]  cpu_bus_axi_awsize;
+    wire        cpu_bus_axi_wvalid;
+    wire        cpu_bus_axi_wready;
+    wire [BUS_WIDTH-1:0] cpu_bus_axi_wdata;
+    wire [BUS_WIDTH/8-1:0] cpu_bus_axi_wstrb;
+    wire        cpu_bus_axi_wlast;
+    wire        cpu_bus_axi_bvalid;
+    wire        cpu_bus_axi_bready;
+    wire [1:0]  cpu_bus_axi_bresp;
+
     wire        mma_axi_arvalid;
     wire        mma_axi_arready;
     wire [ICB_ADDR_WIDTH-1:0] mma_axi_araddr;
@@ -105,6 +142,38 @@ module soc_top #(
     wire        mma_axi_bvalid;
     wire        mma_axi_bready;
     wire [1:0]  mma_axi_bresp;
+
+    wire        mma_core_axi_arvalid;
+    wire        mma_core_axi_arready;
+    wire [ICB_ADDR_WIDTH-1:0] mma_core_axi_araddr;
+    wire [3:0]  mma_core_axi_arcache;
+    wire [2:0]  mma_core_axi_arprot;
+    wire [1:0]  mma_core_axi_arlock;
+    wire [1:0]  mma_core_axi_arburst;
+    wire [7:0]  mma_core_axi_arlen;
+    wire [2:0]  mma_core_axi_arsize;
+    wire        mma_core_axi_rvalid;
+    wire        mma_core_axi_rready;
+    wire [BUS_WIDTH-1:0] mma_core_axi_rdata;
+    wire [1:0]  mma_core_axi_rresp;
+    wire        mma_core_axi_rlast;
+    wire        mma_core_axi_awvalid;
+    wire        mma_core_axi_awready;
+    wire [ICB_ADDR_WIDTH-1:0] mma_core_axi_awaddr;
+    wire [3:0]  mma_core_axi_awcache;
+    wire [2:0]  mma_core_axi_awprot;
+    wire [1:0]  mma_core_axi_awlock;
+    wire [1:0]  mma_core_axi_awburst;
+    wire [7:0]  mma_core_axi_awlen;
+    wire [2:0]  mma_core_axi_awsize;
+    wire        mma_core_axi_wvalid;
+    wire        mma_core_axi_wready;
+    wire [BUS_WIDTH-1:0] mma_core_axi_wdata;
+    wire [BUS_WIDTH/8-1:0] mma_core_axi_wstrb;
+    wire        mma_core_axi_wlast;
+    wire        mma_core_axi_bvalid;
+    wire        mma_core_axi_bready;
+    wire [1:0]  mma_core_axi_bresp;
 
     wire        ram_axi_arvalid;
     wire        ram_axi_arready;
@@ -230,6 +299,25 @@ module soc_top #(
     wire        uart_axil_rvalid;
     wire        uart_axil_rready;
     wire [31:0] uart_cfg_divider;
+    wire [31:0] uart_core_axil_awaddr;
+    wire [2:0]  uart_core_axil_awprot;
+    wire        uart_core_axil_awvalid;
+    wire        uart_core_axil_awready;
+    wire [31:0] uart_core_axil_wdata;
+    wire [3:0]  uart_core_axil_wstrb;
+    wire        uart_core_axil_wvalid;
+    wire        uart_core_axil_wready;
+    wire [1:0]  uart_core_axil_bresp;
+    wire        uart_core_axil_bvalid;
+    wire        uart_core_axil_bready;
+    wire [31:0] uart_core_axil_araddr;
+    wire [2:0]  uart_core_axil_arprot;
+    wire        uart_core_axil_arvalid;
+    wire        uart_core_axil_arready;
+    wire [31:0] uart_core_axil_rdata;
+    wire [1:0]  uart_core_axil_rresp;
+    wire        uart_core_axil_rvalid;
+    wire        uart_core_axil_rready;
 
     wire [31:0] ctrl_axil_awaddr;
     wire [2:0]  ctrl_axil_awprot;
@@ -303,7 +391,8 @@ module soc_top #(
 
     pico_native_to_axi #(
         .ADDR_WIDTH(REG_WIDTH),
-        .DATA_WIDTH(BUS_WIDTH)
+        .DATA_WIDTH(BUS_WIDTH),
+        .ENABLE_ICACHE(CPU_ENABLE_ICACHE)
     ) u_pico_axi_bridge (
         .clk(clk),
         .rst_n(rst_n),
@@ -347,6 +436,125 @@ module soc_top #(
         .m_axi_bresp(cpu_axi_bresp)
     );
 
+    generate
+        if (CPU_AXI_READ_TIMING_BUFFER) begin : g_cpu_axi_read_timing_buffer
+            soc_axi_read_pingpong_buffer #(
+                .ADDR_WIDTH(REG_WIDTH),
+                .DATA_WIDTH(BUS_WIDTH)
+            ) u_cpu_axi_read_pingpong (
+                .clk(clk),
+                .rst_n(rst_n),
+                .s_axi_arvalid(cpu_axi_arvalid),
+                .s_axi_arready(cpu_axi_arready),
+                .s_axi_araddr(cpu_axi_araddr),
+                .s_axi_arcache(cpu_axi_arcache),
+                .s_axi_arprot(cpu_axi_arprot),
+                .s_axi_arlock(cpu_axi_arlock),
+                .s_axi_arburst(cpu_axi_arburst),
+                .s_axi_arlen(cpu_axi_arlen),
+                .s_axi_arsize(cpu_axi_arsize),
+                .s_axi_rvalid(cpu_axi_rvalid),
+                .s_axi_rready(cpu_axi_rready),
+                .s_axi_rdata(cpu_axi_rdata),
+                .s_axi_rresp(cpu_axi_rresp),
+                .s_axi_rlast(cpu_axi_rlast),
+                .m_axi_arvalid(cpu_bus_axi_arvalid),
+                .m_axi_arready(cpu_bus_axi_arready),
+                .m_axi_araddr(cpu_bus_axi_araddr),
+                .m_axi_arcache(cpu_bus_axi_arcache),
+                .m_axi_arprot(cpu_bus_axi_arprot),
+                .m_axi_arlock(cpu_bus_axi_arlock),
+                .m_axi_arburst(cpu_bus_axi_arburst),
+                .m_axi_arlen(cpu_bus_axi_arlen),
+                .m_axi_arsize(cpu_bus_axi_arsize),
+                .m_axi_rvalid(cpu_bus_axi_rvalid),
+                .m_axi_rready(cpu_bus_axi_rready),
+                .m_axi_rdata(cpu_bus_axi_rdata),
+                .m_axi_rresp(cpu_bus_axi_rresp),
+                .m_axi_rlast(cpu_bus_axi_rlast)
+            );
+        end else begin : g_bypass_cpu_axi_read_timing_buffer
+            assign cpu_bus_axi_arvalid = cpu_axi_arvalid;
+            assign cpu_axi_arready     = cpu_bus_axi_arready;
+            assign cpu_bus_axi_araddr  = cpu_axi_araddr;
+            assign cpu_bus_axi_arcache = cpu_axi_arcache;
+            assign cpu_bus_axi_arprot  = cpu_axi_arprot;
+            assign cpu_bus_axi_arlock  = cpu_axi_arlock;
+            assign cpu_bus_axi_arburst = cpu_axi_arburst;
+            assign cpu_bus_axi_arlen   = cpu_axi_arlen;
+            assign cpu_bus_axi_arsize  = cpu_axi_arsize;
+            assign cpu_axi_rvalid      = cpu_bus_axi_rvalid;
+            assign cpu_bus_axi_rready  = cpu_axi_rready;
+            assign cpu_axi_rdata       = cpu_bus_axi_rdata;
+            assign cpu_axi_rresp       = cpu_bus_axi_rresp;
+            assign cpu_axi_rlast       = cpu_bus_axi_rlast;
+        end
+    endgenerate
+
+    generate
+        if (CPU_AXI_WRITE_TIMING_BUFFER) begin : g_cpu_axi_write_timing_buffer
+            soc_axi_write_pingpong_buffer #(
+                .ADDR_WIDTH(REG_WIDTH),
+                .DATA_WIDTH(BUS_WIDTH)
+            ) u_cpu_axi_write_pingpong (
+                .clk(clk),
+                .rst_n(rst_n),
+                .s_axi_awvalid(cpu_axi_awvalid),
+                .s_axi_awready(cpu_axi_awready),
+                .s_axi_awaddr(cpu_axi_awaddr),
+                .s_axi_awcache(cpu_axi_awcache),
+                .s_axi_awprot(cpu_axi_awprot),
+                .s_axi_awlock(cpu_axi_awlock),
+                .s_axi_awburst(cpu_axi_awburst),
+                .s_axi_awlen(cpu_axi_awlen),
+                .s_axi_awsize(cpu_axi_awsize),
+                .s_axi_wvalid(cpu_axi_wvalid),
+                .s_axi_wready(cpu_axi_wready),
+                .s_axi_wdata(cpu_axi_wdata),
+                .s_axi_wstrb(cpu_axi_wstrb),
+                .s_axi_wlast(cpu_axi_wlast),
+                .s_axi_bvalid(cpu_axi_bvalid),
+                .s_axi_bready(cpu_axi_bready),
+                .s_axi_bresp(cpu_axi_bresp),
+                .m_axi_awvalid(cpu_bus_axi_awvalid),
+                .m_axi_awready(cpu_bus_axi_awready),
+                .m_axi_awaddr(cpu_bus_axi_awaddr),
+                .m_axi_awcache(cpu_bus_axi_awcache),
+                .m_axi_awprot(cpu_bus_axi_awprot),
+                .m_axi_awlock(cpu_bus_axi_awlock),
+                .m_axi_awburst(cpu_bus_axi_awburst),
+                .m_axi_awlen(cpu_bus_axi_awlen),
+                .m_axi_awsize(cpu_bus_axi_awsize),
+                .m_axi_wvalid(cpu_bus_axi_wvalid),
+                .m_axi_wready(cpu_bus_axi_wready),
+                .m_axi_wdata(cpu_bus_axi_wdata),
+                .m_axi_wstrb(cpu_bus_axi_wstrb),
+                .m_axi_wlast(cpu_bus_axi_wlast),
+                .m_axi_bvalid(cpu_bus_axi_bvalid),
+                .m_axi_bready(cpu_bus_axi_bready),
+                .m_axi_bresp(cpu_bus_axi_bresp)
+            );
+        end else begin : g_bypass_cpu_axi_write_timing_buffer
+            assign cpu_bus_axi_awvalid = cpu_axi_awvalid;
+            assign cpu_axi_awready     = cpu_bus_axi_awready;
+            assign cpu_bus_axi_awaddr  = cpu_axi_awaddr;
+            assign cpu_bus_axi_awcache = cpu_axi_awcache;
+            assign cpu_bus_axi_awprot  = cpu_axi_awprot;
+            assign cpu_bus_axi_awlock  = cpu_axi_awlock;
+            assign cpu_bus_axi_awburst = cpu_axi_awburst;
+            assign cpu_bus_axi_awlen   = cpu_axi_awlen;
+            assign cpu_bus_axi_awsize  = cpu_axi_awsize;
+            assign cpu_bus_axi_wvalid  = cpu_axi_wvalid;
+            assign cpu_axi_wready      = cpu_bus_axi_wready;
+            assign cpu_bus_axi_wdata   = cpu_axi_wdata;
+            assign cpu_bus_axi_wstrb   = cpu_axi_wstrb;
+            assign cpu_bus_axi_wlast   = cpu_axi_wlast;
+            assign cpu_axi_bvalid      = cpu_bus_axi_bvalid;
+            assign cpu_bus_axi_bready  = cpu_axi_bready;
+            assign cpu_axi_bresp       = cpu_bus_axi_bresp;
+        end
+    endgenerate
+
     soc_axi_interconnect #(
         .ADDR_WIDTH(REG_WIDTH),
         .DATA_WIDTH(BUS_WIDTH),
@@ -360,37 +568,37 @@ module soc_top #(
     ) u_axi_interconnect (
         .clk(clk),
         .rst_n(rst_n),
-        .s0_axi_arvalid(cpu_axi_arvalid),
-        .s0_axi_arready(cpu_axi_arready),
-        .s0_axi_araddr(cpu_axi_araddr),
-        .s0_axi_arcache(cpu_axi_arcache),
-        .s0_axi_arprot(cpu_axi_arprot),
-        .s0_axi_arlock(cpu_axi_arlock),
-        .s0_axi_arburst(cpu_axi_arburst),
-        .s0_axi_arlen(cpu_axi_arlen),
-        .s0_axi_arsize(cpu_axi_arsize),
-        .s0_axi_rvalid(cpu_axi_rvalid),
-        .s0_axi_rready(cpu_axi_rready),
-        .s0_axi_rdata(cpu_axi_rdata),
-        .s0_axi_rresp(cpu_axi_rresp),
-        .s0_axi_rlast(cpu_axi_rlast),
-        .s0_axi_awvalid(cpu_axi_awvalid),
-        .s0_axi_awready(cpu_axi_awready),
-        .s0_axi_awaddr(cpu_axi_awaddr),
-        .s0_axi_awcache(cpu_axi_awcache),
-        .s0_axi_awprot(cpu_axi_awprot),
-        .s0_axi_awlock(cpu_axi_awlock),
-        .s0_axi_awburst(cpu_axi_awburst),
-        .s0_axi_awlen(cpu_axi_awlen),
-        .s0_axi_awsize(cpu_axi_awsize),
-        .s0_axi_wvalid(cpu_axi_wvalid),
-        .s0_axi_wready(cpu_axi_wready),
-        .s0_axi_wdata(cpu_axi_wdata),
-        .s0_axi_wstrb(cpu_axi_wstrb),
-        .s0_axi_wlast(cpu_axi_wlast),
-        .s0_axi_bvalid(cpu_axi_bvalid),
-        .s0_axi_bready(cpu_axi_bready),
-        .s0_axi_bresp(cpu_axi_bresp),
+        .s0_axi_arvalid(cpu_bus_axi_arvalid),
+        .s0_axi_arready(cpu_bus_axi_arready),
+        .s0_axi_araddr(cpu_bus_axi_araddr),
+        .s0_axi_arcache(cpu_bus_axi_arcache),
+        .s0_axi_arprot(cpu_bus_axi_arprot),
+        .s0_axi_arlock(cpu_bus_axi_arlock),
+        .s0_axi_arburst(cpu_bus_axi_arburst),
+        .s0_axi_arlen(cpu_bus_axi_arlen),
+        .s0_axi_arsize(cpu_bus_axi_arsize),
+        .s0_axi_rvalid(cpu_bus_axi_rvalid),
+        .s0_axi_rready(cpu_bus_axi_rready),
+        .s0_axi_rdata(cpu_bus_axi_rdata),
+        .s0_axi_rresp(cpu_bus_axi_rresp),
+        .s0_axi_rlast(cpu_bus_axi_rlast),
+        .s0_axi_awvalid(cpu_bus_axi_awvalid),
+        .s0_axi_awready(cpu_bus_axi_awready),
+        .s0_axi_awaddr(cpu_bus_axi_awaddr),
+        .s0_axi_awcache(cpu_bus_axi_awcache),
+        .s0_axi_awprot(cpu_bus_axi_awprot),
+        .s0_axi_awlock(cpu_bus_axi_awlock),
+        .s0_axi_awburst(cpu_bus_axi_awburst),
+        .s0_axi_awlen(cpu_bus_axi_awlen),
+        .s0_axi_awsize(cpu_bus_axi_awsize),
+        .s0_axi_wvalid(cpu_bus_axi_wvalid),
+        .s0_axi_wready(cpu_bus_axi_wready),
+        .s0_axi_wdata(cpu_bus_axi_wdata),
+        .s0_axi_wstrb(cpu_bus_axi_wstrb),
+        .s0_axi_wlast(cpu_bus_axi_wlast),
+        .s0_axi_bvalid(cpu_bus_axi_bvalid),
+        .s0_axi_bready(cpu_bus_axi_bready),
+        .s0_axi_bresp(cpu_bus_axi_bresp),
         .s1_axi_arvalid(mma_axi_arvalid),
         .s1_axi_arready(mma_axi_arready),
         .s1_axi_araddr(mma_axi_araddr),
@@ -594,41 +802,148 @@ module soc_top #(
         .s_axil_rresp(mma_core_axil_rresp),
         .s_axil_rvalid(mma_core_axil_rvalid),
         .s_axil_rready(mma_core_axil_rready),
-        .m_axi_arvalid(mma_axi_arvalid),
-        .m_axi_arready(mma_axi_arready),
-        .m_axi_araddr(mma_axi_araddr),
-        .m_axi_arcache(mma_axi_arcache),
-        .m_axi_arprot(mma_axi_arprot),
-        .m_axi_arlock(mma_axi_arlock),
-        .m_axi_arburst(mma_axi_arburst),
-        .m_axi_arlen(mma_axi_arlen),
-        .m_axi_arsize(mma_axi_arsize),
-        .m_axi_awvalid(mma_axi_awvalid),
-        .m_axi_awready(mma_axi_awready),
-        .m_axi_awaddr(mma_axi_awaddr),
-        .m_axi_awcache(mma_axi_awcache),
-        .m_axi_awprot(mma_axi_awprot),
-        .m_axi_awlock(mma_axi_awlock),
-        .m_axi_awburst(mma_axi_awburst),
-        .m_axi_awlen(mma_axi_awlen),
-        .m_axi_awsize(mma_axi_awsize),
-        .m_axi_rvalid(mma_axi_rvalid),
-        .m_axi_rready(mma_axi_rready),
-        .m_axi_rdata(mma_axi_rdata),
-        .m_axi_rresp(mma_axi_rresp),
-        .m_axi_rlast(mma_axi_rlast),
-        .m_axi_wvalid(mma_axi_wvalid),
-        .m_axi_wready(mma_axi_wready),
-        .m_axi_wdata(mma_axi_wdata),
-        .m_axi_wstrb(mma_axi_wstrb),
-        .m_axi_wlast(mma_axi_wlast),
-        .m_axi_bvalid(mma_axi_bvalid),
-        .m_axi_bready(mma_axi_bready),
-        .m_axi_bresp(mma_axi_bresp),
+        .m_axi_arvalid(mma_core_axi_arvalid),
+        .m_axi_arready(mma_core_axi_arready),
+        .m_axi_araddr(mma_core_axi_araddr),
+        .m_axi_arcache(mma_core_axi_arcache),
+        .m_axi_arprot(mma_core_axi_arprot),
+        .m_axi_arlock(mma_core_axi_arlock),
+        .m_axi_arburst(mma_core_axi_arburst),
+        .m_axi_arlen(mma_core_axi_arlen),
+        .m_axi_arsize(mma_core_axi_arsize),
+        .m_axi_awvalid(mma_core_axi_awvalid),
+        .m_axi_awready(mma_core_axi_awready),
+        .m_axi_awaddr(mma_core_axi_awaddr),
+        .m_axi_awcache(mma_core_axi_awcache),
+        .m_axi_awprot(mma_core_axi_awprot),
+        .m_axi_awlock(mma_core_axi_awlock),
+        .m_axi_awburst(mma_core_axi_awburst),
+        .m_axi_awlen(mma_core_axi_awlen),
+        .m_axi_awsize(mma_core_axi_awsize),
+        .m_axi_rvalid(mma_core_axi_rvalid),
+        .m_axi_rready(mma_core_axi_rready),
+        .m_axi_rdata(mma_core_axi_rdata),
+        .m_axi_rresp(mma_core_axi_rresp),
+        .m_axi_rlast(mma_core_axi_rlast),
+        .m_axi_wvalid(mma_core_axi_wvalid),
+        .m_axi_wready(mma_core_axi_wready),
+        .m_axi_wdata(mma_core_axi_wdata),
+        .m_axi_wstrb(mma_core_axi_wstrb),
+        .m_axi_wlast(mma_core_axi_wlast),
+        .m_axi_bvalid(mma_core_axi_bvalid),
+        .m_axi_bready(mma_core_axi_bready),
+        .m_axi_bresp(mma_core_axi_bresp),
         .irq(mma_irq),
         .eoi(mma_eoi),
         .mma_busy(mma_busy)
     );
+
+    generate
+        if (MMA_AXI_TIMING_BUFFER) begin : g_mma_axi_timing_buffer
+            soc_axi_pingpong_buffer #(
+                .ADDR_WIDTH(ICB_ADDR_WIDTH),
+                .DATA_WIDTH(BUS_WIDTH)
+            ) u_mma_axi_pingpong (
+                .clk(clk),
+                .rst_n(rst_n),
+                .s_axi_arvalid(mma_core_axi_arvalid),
+                .s_axi_arready(mma_core_axi_arready),
+                .s_axi_araddr(mma_core_axi_araddr),
+                .s_axi_arcache(mma_core_axi_arcache),
+                .s_axi_arprot(mma_core_axi_arprot),
+                .s_axi_arlock(mma_core_axi_arlock),
+                .s_axi_arburst(mma_core_axi_arburst),
+                .s_axi_arlen(mma_core_axi_arlen),
+                .s_axi_arsize(mma_core_axi_arsize),
+                .s_axi_rvalid(mma_core_axi_rvalid),
+                .s_axi_rready(mma_core_axi_rready),
+                .s_axi_rdata(mma_core_axi_rdata),
+                .s_axi_rresp(mma_core_axi_rresp),
+                .s_axi_rlast(mma_core_axi_rlast),
+                .s_axi_awvalid(mma_core_axi_awvalid),
+                .s_axi_awready(mma_core_axi_awready),
+                .s_axi_awaddr(mma_core_axi_awaddr),
+                .s_axi_awcache(mma_core_axi_awcache),
+                .s_axi_awprot(mma_core_axi_awprot),
+                .s_axi_awlock(mma_core_axi_awlock),
+                .s_axi_awburst(mma_core_axi_awburst),
+                .s_axi_awlen(mma_core_axi_awlen),
+                .s_axi_awsize(mma_core_axi_awsize),
+                .s_axi_wvalid(mma_core_axi_wvalid),
+                .s_axi_wready(mma_core_axi_wready),
+                .s_axi_wdata(mma_core_axi_wdata),
+                .s_axi_wstrb(mma_core_axi_wstrb),
+                .s_axi_wlast(mma_core_axi_wlast),
+                .s_axi_bvalid(mma_core_axi_bvalid),
+                .s_axi_bready(mma_core_axi_bready),
+                .s_axi_bresp(mma_core_axi_bresp),
+                .m_axi_arvalid(mma_axi_arvalid),
+                .m_axi_arready(mma_axi_arready),
+                .m_axi_araddr(mma_axi_araddr),
+                .m_axi_arcache(mma_axi_arcache),
+                .m_axi_arprot(mma_axi_arprot),
+                .m_axi_arlock(mma_axi_arlock),
+                .m_axi_arburst(mma_axi_arburst),
+                .m_axi_arlen(mma_axi_arlen),
+                .m_axi_arsize(mma_axi_arsize),
+                .m_axi_rvalid(mma_axi_rvalid),
+                .m_axi_rready(mma_axi_rready),
+                .m_axi_rdata(mma_axi_rdata),
+                .m_axi_rresp(mma_axi_rresp),
+                .m_axi_rlast(mma_axi_rlast),
+                .m_axi_awvalid(mma_axi_awvalid),
+                .m_axi_awready(mma_axi_awready),
+                .m_axi_awaddr(mma_axi_awaddr),
+                .m_axi_awcache(mma_axi_awcache),
+                .m_axi_awprot(mma_axi_awprot),
+                .m_axi_awlock(mma_axi_awlock),
+                .m_axi_awburst(mma_axi_awburst),
+                .m_axi_awlen(mma_axi_awlen),
+                .m_axi_awsize(mma_axi_awsize),
+                .m_axi_wvalid(mma_axi_wvalid),
+                .m_axi_wready(mma_axi_wready),
+                .m_axi_wdata(mma_axi_wdata),
+                .m_axi_wstrb(mma_axi_wstrb),
+                .m_axi_wlast(mma_axi_wlast),
+                .m_axi_bvalid(mma_axi_bvalid),
+                .m_axi_bready(mma_axi_bready),
+                .m_axi_bresp(mma_axi_bresp)
+            );
+        end else begin : g_bypass_mma_axi_timing_buffer
+            assign mma_axi_arvalid      = mma_core_axi_arvalid;
+            assign mma_core_axi_arready = mma_axi_arready;
+            assign mma_axi_araddr       = mma_core_axi_araddr;
+            assign mma_axi_arcache      = mma_core_axi_arcache;
+            assign mma_axi_arprot       = mma_core_axi_arprot;
+            assign mma_axi_arlock       = mma_core_axi_arlock;
+            assign mma_axi_arburst      = mma_core_axi_arburst;
+            assign mma_axi_arlen        = mma_core_axi_arlen;
+            assign mma_axi_arsize       = mma_core_axi_arsize;
+            assign mma_core_axi_rvalid  = mma_axi_rvalid;
+            assign mma_axi_rready       = mma_core_axi_rready;
+            assign mma_core_axi_rdata   = mma_axi_rdata;
+            assign mma_core_axi_rresp   = mma_axi_rresp;
+            assign mma_core_axi_rlast   = mma_axi_rlast;
+
+            assign mma_axi_awvalid      = mma_core_axi_awvalid;
+            assign mma_core_axi_awready = mma_axi_awready;
+            assign mma_axi_awaddr       = mma_core_axi_awaddr;
+            assign mma_axi_awcache      = mma_core_axi_awcache;
+            assign mma_axi_awprot       = mma_core_axi_awprot;
+            assign mma_axi_awlock       = mma_core_axi_awlock;
+            assign mma_axi_awburst      = mma_core_axi_awburst;
+            assign mma_axi_awlen        = mma_core_axi_awlen;
+            assign mma_axi_awsize       = mma_core_axi_awsize;
+            assign mma_axi_wvalid       = mma_core_axi_wvalid;
+            assign mma_core_axi_wready  = mma_axi_wready;
+            assign mma_axi_wdata        = mma_core_axi_wdata;
+            assign mma_axi_wstrb        = mma_core_axi_wstrb;
+            assign mma_axi_wlast        = mma_core_axi_wlast;
+            assign mma_core_axi_bvalid  = mma_axi_bvalid;
+            assign mma_axi_bready       = mma_core_axi_bready;
+            assign mma_core_axi_bresp   = mma_axi_bresp;
+        end
+    endgenerate
 
     generate
         if (BYPASS_RAM_PINGPONG) begin : g_bypass_ram_pingpong
@@ -647,23 +962,67 @@ module soc_top #(
             assign ram_axi_rresp       = ram_buf_axi_rresp;
             assign ram_axi_rlast       = ram_buf_axi_rlast;
 
-            assign ram_buf_axi_awvalid = ram_axi_awvalid;
-            assign ram_axi_awready     = ram_buf_axi_awready;
-            assign ram_buf_axi_awaddr  = ram_axi_awaddr;
-            assign ram_buf_axi_awcache = ram_axi_awcache;
-            assign ram_buf_axi_awprot  = ram_axi_awprot;
-            assign ram_buf_axi_awlock  = ram_axi_awlock;
-            assign ram_buf_axi_awburst = ram_axi_awburst;
-            assign ram_buf_axi_awlen   = ram_axi_awlen;
-            assign ram_buf_axi_awsize  = ram_axi_awsize;
-            assign ram_buf_axi_wvalid  = ram_axi_wvalid;
-            assign ram_axi_wready      = ram_buf_axi_wready;
-            assign ram_buf_axi_wdata   = ram_axi_wdata;
-            assign ram_buf_axi_wstrb   = ram_axi_wstrb;
-            assign ram_buf_axi_wlast   = ram_axi_wlast;
-            assign ram_axi_bvalid      = ram_buf_axi_bvalid;
-            assign ram_buf_axi_bready  = ram_axi_bready;
-            assign ram_axi_bresp       = ram_buf_axi_bresp;
+            if (RAM_WRITE_TIMING_BUFFER) begin : g_ram_write_timing_buffer
+                soc_axi_write_pingpong_buffer #(
+                    .ADDR_WIDTH(REG_WIDTH),
+                    .DATA_WIDTH(BUS_WIDTH)
+                ) u_ram_axi_write_pingpong (
+                    .clk(clk),
+                    .rst_n(rst_n),
+                    .s_axi_awvalid(ram_axi_awvalid),
+                    .s_axi_awready(ram_axi_awready),
+                    .s_axi_awaddr(ram_axi_awaddr),
+                    .s_axi_awcache(ram_axi_awcache),
+                    .s_axi_awprot(ram_axi_awprot),
+                    .s_axi_awlock(ram_axi_awlock),
+                    .s_axi_awburst(ram_axi_awburst),
+                    .s_axi_awlen(ram_axi_awlen),
+                    .s_axi_awsize(ram_axi_awsize),
+                    .s_axi_wvalid(ram_axi_wvalid),
+                    .s_axi_wready(ram_axi_wready),
+                    .s_axi_wdata(ram_axi_wdata),
+                    .s_axi_wstrb(ram_axi_wstrb),
+                    .s_axi_wlast(ram_axi_wlast),
+                    .s_axi_bvalid(ram_axi_bvalid),
+                    .s_axi_bready(ram_axi_bready),
+                    .s_axi_bresp(ram_axi_bresp),
+                    .m_axi_awvalid(ram_buf_axi_awvalid),
+                    .m_axi_awready(ram_buf_axi_awready),
+                    .m_axi_awaddr(ram_buf_axi_awaddr),
+                    .m_axi_awcache(ram_buf_axi_awcache),
+                    .m_axi_awprot(ram_buf_axi_awprot),
+                    .m_axi_awlock(ram_buf_axi_awlock),
+                    .m_axi_awburst(ram_buf_axi_awburst),
+                    .m_axi_awlen(ram_buf_axi_awlen),
+                    .m_axi_awsize(ram_buf_axi_awsize),
+                    .m_axi_wvalid(ram_buf_axi_wvalid),
+                    .m_axi_wready(ram_buf_axi_wready),
+                    .m_axi_wdata(ram_buf_axi_wdata),
+                    .m_axi_wstrb(ram_buf_axi_wstrb),
+                    .m_axi_wlast(ram_buf_axi_wlast),
+                    .m_axi_bvalid(ram_buf_axi_bvalid),
+                    .m_axi_bready(ram_buf_axi_bready),
+                    .m_axi_bresp(ram_buf_axi_bresp)
+                );
+            end else begin : g_bypass_ram_write
+                assign ram_buf_axi_awvalid = ram_axi_awvalid;
+                assign ram_axi_awready     = ram_buf_axi_awready;
+                assign ram_buf_axi_awaddr  = ram_axi_awaddr;
+                assign ram_buf_axi_awcache = ram_axi_awcache;
+                assign ram_buf_axi_awprot  = ram_axi_awprot;
+                assign ram_buf_axi_awlock  = ram_axi_awlock;
+                assign ram_buf_axi_awburst = ram_axi_awburst;
+                assign ram_buf_axi_awlen   = ram_axi_awlen;
+                assign ram_buf_axi_awsize  = ram_axi_awsize;
+                assign ram_buf_axi_wvalid  = ram_axi_wvalid;
+                assign ram_axi_wready      = ram_buf_axi_wready;
+                assign ram_buf_axi_wdata   = ram_axi_wdata;
+                assign ram_buf_axi_wstrb   = ram_axi_wstrb;
+                assign ram_buf_axi_wlast   = ram_axi_wlast;
+                assign ram_axi_bvalid      = ram_buf_axi_bvalid;
+                assign ram_buf_axi_bready  = ram_axi_bready;
+                assign ram_axi_bresp       = ram_buf_axi_bresp;
+            end
         end else begin : g_ram_pingpong
             soc_axi_pingpong_buffer #(
                 .ADDR_WIDTH(REG_WIDTH),
@@ -782,10 +1141,10 @@ module soc_top #(
         .mem_reload_req(mem_reload_req)
     );
 
-    soc_axil_simpleuart #(
-        .AXIL_ADDR_WIDTH(REG_WIDTH),
-        .AXIL_DATA_WIDTH(BUS_WIDTH)
-    ) u_soc_uart (
+    soc_axil_pingpong_buffer #(
+        .ADDR_WIDTH(REG_WIDTH),
+        .DATA_WIDTH(BUS_WIDTH)
+    ) u_uart_axil_pingpong (
         .clk(clk),
         .rst_n(rst_n),
         .s_axil_awaddr(uart_axil_awaddr),
@@ -807,6 +1166,52 @@ module soc_top #(
         .s_axil_rresp(uart_axil_rresp),
         .s_axil_rvalid(uart_axil_rvalid),
         .s_axil_rready(uart_axil_rready),
+        .m_axil_awaddr(uart_core_axil_awaddr),
+        .m_axil_awprot(uart_core_axil_awprot),
+        .m_axil_awvalid(uart_core_axil_awvalid),
+        .m_axil_awready(uart_core_axil_awready),
+        .m_axil_wdata(uart_core_axil_wdata),
+        .m_axil_wstrb(uart_core_axil_wstrb),
+        .m_axil_wvalid(uart_core_axil_wvalid),
+        .m_axil_wready(uart_core_axil_wready),
+        .m_axil_bresp(uart_core_axil_bresp),
+        .m_axil_bvalid(uart_core_axil_bvalid),
+        .m_axil_bready(uart_core_axil_bready),
+        .m_axil_araddr(uart_core_axil_araddr),
+        .m_axil_arprot(uart_core_axil_arprot),
+        .m_axil_arvalid(uart_core_axil_arvalid),
+        .m_axil_arready(uart_core_axil_arready),
+        .m_axil_rdata(uart_core_axil_rdata),
+        .m_axil_rresp(uart_core_axil_rresp),
+        .m_axil_rvalid(uart_core_axil_rvalid),
+        .m_axil_rready(uart_core_axil_rready)
+    );
+
+    soc_axil_simpleuart #(
+        .AXIL_ADDR_WIDTH(REG_WIDTH),
+        .AXIL_DATA_WIDTH(BUS_WIDTH)
+    ) u_soc_uart (
+        .clk(clk),
+        .rst_n(rst_n),
+        .s_axil_awaddr(uart_core_axil_awaddr),
+        .s_axil_awprot(uart_core_axil_awprot),
+        .s_axil_awvalid(uart_core_axil_awvalid),
+        .s_axil_awready(uart_core_axil_awready),
+        .s_axil_wdata(uart_core_axil_wdata),
+        .s_axil_wstrb(uart_core_axil_wstrb),
+        .s_axil_wvalid(uart_core_axil_wvalid),
+        .s_axil_wready(uart_core_axil_wready),
+        .s_axil_bresp(uart_core_axil_bresp),
+        .s_axil_bvalid(uart_core_axil_bvalid),
+        .s_axil_bready(uart_core_axil_bready),
+        .s_axil_araddr(uart_core_axil_araddr),
+        .s_axil_arprot(uart_core_axil_arprot),
+        .s_axil_arvalid(uart_core_axil_arvalid),
+        .s_axil_arready(uart_core_axil_arready),
+        .s_axil_rdata(uart_core_axil_rdata),
+        .s_axil_rresp(uart_core_axil_rresp),
+        .s_axil_rvalid(uart_core_axil_rvalid),
+        .s_axil_rready(uart_core_axil_rready),
         .uart_tx(uart_tx),
         .uart_rx(uart_rx),
         .cfg_divider(uart_cfg_divider)

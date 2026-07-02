@@ -128,8 +128,7 @@ module pico_native_to_axi #(
     wire [DATA_WIDTH-1:0] ic_fill_rsp_data =
         ic_fill_req_current ? m_axi_rdata : ic_fill_req_data_q;
 
-    assign m_axi_arvalid = (new_read_req && !icache_hit) ||
-                           (read_busy_q && ar_pending_q);
+    assign m_axi_arvalid = (new_read_req && !icache_hit) || ar_pending_q;
     assign m_axi_araddr  = (new_read_req && !icache_hit) ? new_read_axi_addr :
                                                               addr_q;
     assign m_axi_arprot  = (new_read_req ? mem_instr : instr_q) ? 3'b100 : 3'b000;
@@ -180,7 +179,7 @@ module pico_native_to_axi #(
                 instr_q      <= mem_instr;
                 arlen_q      <= new_read_axi_len;
                 read_busy_q  <= !read_done_fire;
-                ar_pending_q <= !ar_fire;
+                ar_pending_q <= !m_axi_arready;
                 ic_fill_q    <= icache_miss;
                 ic_fill_index_q <= mem_ic_index;
                 ic_fill_tag_q   <= mem_ic_tag;
@@ -188,7 +187,7 @@ module pico_native_to_axi #(
                 ic_fill_req_word_q <= mem_ic_word;
                 ic_fill_req_data_q <= '0;
             end else if (read_busy_q) begin
-                if (ar_fire) begin
+                if (ar_pending_q && m_axi_arready) begin
                     ar_pending_q <= 1'b0;
                 end
                 if (r_fire && ic_fill_q) begin

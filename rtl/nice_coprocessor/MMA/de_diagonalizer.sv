@@ -40,10 +40,6 @@ module de_diagonalizer #(
     logic                  in_burst;
     logic                  row_valid_next;
     logic                  tile_over_next;
-    logic                  clear_delay_lines;
-
-    assign clear_delay_lines = burst_start_i && !in_burst;
-
     always_comb begin
         row_valid_next = input_valid_i && (step_cnt >= MAX_DELAY_C);
         tile_over_next = row_valid_next && ((row_cnt == LAST_ROW_C) || burst_last_i);
@@ -69,7 +65,7 @@ module de_diagonalizer #(
                     row_cnt <= tile_over_next ? '0 : (row_cnt + 1'b1);
                 end
 
-                if (!in_burst || clear_delay_lines) begin
+                if (!in_burst) begin
                     step_cnt <= 'd1;
                 end else if (step_cnt <= LAST_STEP_C) begin
                     step_cnt <= step_cnt + 1'b1;
@@ -87,23 +83,13 @@ module de_diagonalizer #(
         for (lane = 0; lane < SIZE; lane++) begin : gen_de_diagonalizer_delay
             localparam int unsigned DELAY = SIZE - 1 - lane;
 
+            (* shreg_extract = "yes" *)
             logic signed [DATA_WIDTH-1:0] delay_line [0:DELAY];
 
-            always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) begin
-                    for (int stage = 0; stage <= DELAY; stage++) begin
-                        delay_line[stage] <= '0;
-                    end
-                end else if (clear_delay_lines) begin
-                    delay_line[0] <= input_valid_i ? data_in[lane] : '0;
-                    for (int stage = 1; stage <= DELAY; stage++) begin
-                        delay_line[stage] <= '0;
-                    end
-                end else begin
-                    delay_line[0] <= input_valid_i ? data_in[lane] : '0;
-                    for (int stage = 1; stage <= DELAY; stage++) begin
-                        delay_line[stage] <= delay_line[stage-1];
-                    end
+            always_ff @(posedge clk) begin
+                delay_line[0] <= input_valid_i ? data_in[lane] : '0;
+                for (int stage = 1; stage <= DELAY; stage++) begin
+                    delay_line[stage] <= delay_line[stage-1];
                 end
             end
 

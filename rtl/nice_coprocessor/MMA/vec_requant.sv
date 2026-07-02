@@ -32,7 +32,7 @@ module vec_requant #(
     output logic [REG_WIDTH-1:0]        dma_base_addr,
     output logic [REG_WIDTH-1:0]        dma_row_stride,
     output logic [REG_WIDTH-1:0]        dma_rows_to_read,
-    output logic [3:0]                  dma_burst_len_m1,
+    output logic [7:0]                  dma_burst_len_m1,
     output logic                        dma_slot_id,
     output logic                        dma_use_16bits,
     output logic signed [REG_WIDTH-1:0] dma_lhs_zp,
@@ -53,7 +53,9 @@ module vec_requant #(
   // ----------------------------
   localparam int BYTES_PER_WORD = REG_WIDTH / 8;  // 32位=4
   localparam int QBUF_DEPTH     = VLEN * MAX_IA_REUSE;
+  localparam int QBUF_IDX_W     = (QBUF_DEPTH <= 1) ? 1 : $clog2(QBUF_DEPTH);
   localparam int VLEN_SHIFT     = $clog2(VLEN);
+  localparam int VLEN_CNT_W     = (VLEN <= 1) ? 1 : $clog2(VLEN + 1);
   localparam int TILE_CNT_W     = (REG_WIDTH < 16) ? REG_WIDTH : 16;
 
   typedef logic [TILE_CNT_W-1:0] tile_idx_t;
@@ -76,14 +78,14 @@ module vec_requant #(
   phase_e          load_phase;  // 当前子阶段（先 mul 后 shift）
 
   tile_idx_t       tile_col;  // 当前列 tile 号
-  logic     [ 4:0] row_in_tile_cnt;  // 0..15：本 tile 已完成的行数
+  logic [VLEN_CNT_W-1:0] row_in_tile_cnt;  // 本 tile 已完成的行数
   logic     [31:0] lane_need_cur;  // 本 tile 需要的列数（尾块可能 < VLEN）
   logic     [31:0] quant_need_cur;  // 本 tile 需要加载的 per-channel 参数数
   logic     [31:0] quant_tile_idx_cur;
   tile_idx_t       tile_row;  // 当前行 tile 号
   logic     [31:0] rows_need_cur;  // 当前行 tile 需要的行数（最后一块为余数）
   logic     [31:0] lane_need_q;  // 锁存，用于计算/屏蔽无效 lane
-  logic     [ 3:0] burst_len_cur;  // = lane_need_cur - 1
+  logic     [ 7:0] burst_len_cur;  // = lane_need_cur - 1
   tile_idx_t       reuse_group_base_row;
   tile_idx_t       row_offset_in_group;
   logic     [31:0] group_rows_need_cur;
@@ -91,21 +93,19 @@ module vec_requant #(
   logic     [31:0] chunk_need_cur;
 
   // per-channel：mul/shift 两次突发的采样计数
-  logic     [ 5:0] rd_beats_cnt;
-  logic     [ 5:0] beats_expect;
+  logic [VLEN_CNT_W-1:0] rd_beats_cnt;
+  logic [VLEN_CNT_W-1:0] beats_expect;
   logic            cmd_busy;
   logic            cmd_valid_r;
   logic [REG_WIDTH-1:0] cmd_base_addr_r;
-  logic [3:0]     cmd_burst_len_m1_r;
-  logic [5:0]     cmd_beats_expect_r;
+  logic [7:0]     cmd_burst_len_m1_r;
+  logic [VLEN_CNT_W-1:0] cmd_beats_expect_r;
   logic [REG_WIDTH-1:0] dma_base_addr_cur;
   logic            load_meta_valid;
   logic [31:0]     quant_need_load_r;
   logic [31:0]     quant_tile_idx_load_r;
 
   // track number of tiles & finished flag
-  tile_idx_t       num_row_tiles;
-  tile_idx_t       num_col_tiles;
   tile_idx_t       num_row_tiles_next;
   tile_idx_t       num_col_tiles_next;
   tile_idx_t       last_row_tile;
@@ -126,14 +126,28 @@ module vec_requant #(
   // 配置寄存
   // ----------------------------
   logic signed [31:0] activation_min_r, activation_max_r, dst_offset_r;
-  logic signed [31:0] pt_multiplier_r, pt_shift_r;  // per-tensor 常量
+  logic signed [31:0] pt_multiplier_r;  // per-tensor 常量
+  logic [5:0]         pt_lshift_r, pt_rshift_r;
   logic [31:0] k_r, m_r;  // 锁存的尺寸
   logic [31:0] ia_reuse_num_r;
-  logic [31:0] ia_reuse_mask_r;
+  logic        has_tiles_r;
   tile_idx_t   ia_reuse_mask_tile_r;
   logic [31:0] mul_base_r, sh_base_r;  // per-channel 基地址
   logic        is_mode_r;
 
+  logic signed [31:0] pt_shift_abs_next;
+  logic [5:0]         pt_lshift_next, pt_rshift_next;
+
+  always_comb begin
+    pt_shift_abs_next = -shift_in;
+    pt_lshift_next = 6'd0;
+    pt_rshift_next = 6'd0;
+    if (shift_in > 32'sd0) begin
+      pt_lshift_next = shift_in[5:0];
+    end else if (shift_in < 32'sd0) begin
+      pt_rshift_next = (pt_shift_abs_next > 32'sd63) ? 6'd63 : pt_shift_abs_next[5:0];
+    end
+  end
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -141,17 +155,16 @@ module vec_requant #(
       activation_max_r <= '0;
       dst_offset_r     <= '0;
       pt_multiplier_r  <= '0;
-      pt_shift_r       <= '0;
+      pt_lshift_r      <= 6'd0;
+      pt_rshift_r      <= 6'd0;
       k_r              <= '0;
       m_r              <= '0;
       ia_reuse_num_r   <= 32'd1;
-      ia_reuse_mask_r  <= 32'd0;
+      has_tiles_r      <= 1'b0;
       ia_reuse_mask_tile_r <= '0;
       mul_base_r       <= '0;
       sh_base_r        <= '0;
       is_mode_r        <= 1'b0;
-      num_row_tiles    <= '0;
-      num_col_tiles    <= '0;
       last_row_tile    <= '0;
       last_col_tile    <= '0;
     end else if (init_cfg) begin
@@ -159,18 +172,17 @@ module vec_requant #(
       activation_max_r <= activation_max_in;
       dst_offset_r     <= dst_offset_in;
       pt_multiplier_r  <= multiplier_in;
-      pt_shift_r       <= shift_in;
+      pt_lshift_r      <= pt_lshift_next;
+      pt_rshift_r      <= pt_rshift_next;
       k_r              <= k;
       m_r              <= m;
       ia_reuse_num_r   <= (ia_reuse_num_in == 32'd0) ? 32'd1 : ia_reuse_num_in;
-      ia_reuse_mask_r  <= (ia_reuse_num_in <= 32'd1) ? 32'd0 : (ia_reuse_num_in - 32'd1);
+      has_tiles_r      <= (k != 32'd0) && (m != 32'd0);
       ia_reuse_mask_tile_r <= (ia_reuse_num_in <= 32'd1) ? '0 : tile_idx_t'(ia_reuse_num_in - 32'd1);
       // per-channel 基地址（接口复用 multiplier_in/shift_in）
       mul_base_r       <= multiplier_in;
       sh_base_r        <= shift_in;
       is_mode_r        <= cfg_dataflow_mode;
-      num_row_tiles    <= num_row_tiles_next;
-      num_col_tiles    <= num_col_tiles_next;
       last_row_tile    <= (num_row_tiles_next == '0) ? '0 : (num_row_tiles_next - tile_idx_t'(1));
       last_col_tile    <= (num_col_tiles_next == '0) ? '0 : (num_col_tiles_next - tile_idx_t'(1));
     end
@@ -282,7 +294,7 @@ module vec_requant #(
 
   // DMA len = 需要拍数-1（0 表示 1 拍）
   always_comb begin
-    burst_len_cur = 4'((chunk_need_cur > 0) ? (chunk_need_cur - 1) : 0);
+    burst_len_cur = 8'((chunk_need_cur > 0) ? (chunk_need_cur - 1) : 0);
   end
 
   // ----------------------------
@@ -290,6 +302,11 @@ module vec_requant #(
   // ----------------------------
   wire dma_start_hskd = (state == LOAD) && !cmd_busy && cmd_valid_r && load_quant_granted;
   wire rsp_hskd = dma_raw_valid && cmd_busy;
+  logic [QBUF_IDX_W-1:0] quant_rsp_idx;
+
+  always_comb begin
+    quant_rsp_idx = QBUF_IDX_W'(load_offset + REG_WIDTH'(rd_beats_cnt));
+  end
 
   assign dma_start = dma_start_hskd;
   assign dma_is_write = 1'b0;
@@ -310,7 +327,35 @@ module vec_requant #(
   // per-channel 参数缓冲
   // ----------------------------
   logic signed [31:0] ch_multiplier_r[QBUF_DEPTH];
-  logic signed [31:0] ch_shift_r     [QBUF_DEPTH];
+  logic [5:0]         ch_lshift_r    [QBUF_DEPTH];
+  logic [5:0]         ch_rshift_r    [QBUF_DEPTH];
+  logic signed [31:0] quant_rsp_shift_signed;
+  logic signed [31:0] quant_rsp_shift_abs;
+  logic [5:0]         quant_rsp_lshift;
+  logic [5:0]         quant_rsp_rshift;
+
+  always_comb begin
+    quant_rsp_shift_signed = $signed(dma_raw_data);
+    quant_rsp_shift_abs = -quant_rsp_shift_signed;
+    quant_rsp_lshift = 6'd0;
+    quant_rsp_rshift = 6'd0;
+    if (quant_rsp_shift_signed > 32'sd0) begin
+      quant_rsp_lshift = quant_rsp_shift_signed[5:0];
+    end else if (quant_rsp_shift_signed < 32'sd0) begin
+      quant_rsp_rshift = (quant_rsp_shift_abs > 32'sd63) ? 6'd63 : quant_rsp_shift_abs[5:0];
+    end
+  end
+
+  always_ff @(posedge clk) begin
+    if (rsp_hskd) begin
+      if (load_phase == PH_MUL) begin
+        ch_multiplier_r[quant_rsp_idx] <= dma_raw_data;
+      end else begin
+        ch_lshift_r[quant_rsp_idx] <= quant_rsp_lshift;
+        ch_rshift_r[quant_rsp_idx] <= quant_rsp_rshift;
+      end
+    end
+  end
 
 
   // ----------------------------
@@ -322,14 +367,14 @@ module vec_requant #(
       state              <= IDLE;
       load_phase         <= PH_MUL;
 	      quant_params_valid <= 1'b0;
-	      row_in_tile_cnt    <= 5'd0;
-	      rd_beats_cnt       <= 6'd0;
-	      beats_expect       <= 6'd0;
+	      row_in_tile_cnt    <= '0;
+	      rd_beats_cnt       <= '0;
+	      beats_expect       <= '0;
 	      cmd_busy           <= 1'b0;
 	      cmd_valid_r        <= 1'b0;
 	      cmd_base_addr_r    <= '0;
 	      cmd_burst_len_m1_r <= '0;
-	      cmd_beats_expect_r <= 6'd0;
+	      cmd_beats_expect_r <= '0;
 	      load_meta_valid    <= 1'b0;
 	      quant_need_load_r  <= 32'd0;
 	      quant_tile_idx_load_r <= 32'd0;
@@ -347,13 +392,13 @@ module vec_requant #(
       if (init_cfg) begin
         state              <= IDLE;
         quant_params_valid <= (cfg_per_channel ? 1'b0 : 1'b1);
-	        row_in_tile_cnt    <= 5'd0;
-	        rd_beats_cnt       <= 6'd0;
+	        row_in_tile_cnt    <= '0;
+	        rd_beats_cnt       <= '0;
 	        cmd_busy           <= 1'b0;
 	        cmd_valid_r        <= 1'b0;
 	        cmd_base_addr_r    <= '0;
 	        cmd_burst_len_m1_r <= '0;
-	        cmd_beats_expect_r <= 6'd0;
+	        cmd_beats_expect_r <= '0;
 	        load_meta_valid    <= 1'b0;
 	        quant_need_load_r  <= 32'd0;
 	        quant_tile_idx_load_r <= 32'd0;
@@ -371,10 +416,10 @@ module vec_requant #(
         case (state)
           // ----------------------
 	          IDLE: begin
-	            rd_beats_cnt    <= 6'd0;
+	            rd_beats_cnt    <= '0;
 	            cmd_busy        <= 1'b0;
 	            cmd_valid_r     <= 1'b0;
-	            row_in_tile_cnt <= 5'd0;
+	            row_in_tile_cnt <= '0;
 
             // 如果所有 tile 都做完了 -> stay IDLE 等待 init_cfg 清除
             if (all_tiles_done) begin
@@ -382,10 +427,11 @@ module vec_requant #(
               // remain idle
             end else begin
               // 保持请求直到 grant（避免单拍丢失）
-              if (cfg_per_channel && !quant_params_valid && (lane_need_cur != 0)) begin
+              if (cfg_per_channel && has_tiles_r && !quant_params_valid) begin
                 load_quant_req <= 1'b1;
                 if (load_quant_granted) begin
                   load_phase     <= PH_MUL;
+                  load_offset    <= 32'd0;
                   load_meta_valid <= 1'b0;
                   state          <= LOAD;
                   if (requant_trace_en) begin
@@ -401,7 +447,7 @@ module vec_requant #(
               if (!cfg_per_channel || quant_params_valid) begin
                 if (in_valid) begin
                   if (in_tile_done) begin
-                    row_in_tile_cnt <= 5'd0;
+                    row_in_tile_cnt <= '0;
                     all_tiles_done  <= final_tile_cur;
 
                     if (final_tile_cur) begin
@@ -423,6 +469,8 @@ module vec_requant #(
                       end else begin
                         load_quant_req <= 1'b0;
                         load_meta_valid <= 1'b0;
+                        load_phase <= PH_MUL;
+                        load_offset <= 32'd0;
                         quant_params_valid <= 1'b0;
                         state <= LOAD;
                       end
@@ -430,7 +478,7 @@ module vec_requant #(
                   end else begin
                     // IDLE 中接住的第一拍 in_valid 已经被数据通路消费，
                     // 行计数也必须同步推进，避免下一拍把 tile_done 提前一行。
-                    row_in_tile_cnt <= 5'd1;
+                    row_in_tile_cnt <= VLEN_CNT_W'(1);
                     state <= COMPUTE;
                   end
                 end
@@ -440,7 +488,7 @@ module vec_requant #(
 
           // ----------------------
           LOAD: begin
-            row_in_tile_cnt <= 5'd0;
+            row_in_tile_cnt <= '0;
 	            // 1) 先锁存本 LOAD 的量化参数范围，避免命令寄存器直接吃尺寸组合路径。
 	            if (!load_meta_valid) begin
 	              load_meta_valid      <= 1'b1;
@@ -466,7 +514,7 @@ module vec_requant #(
 	                cmd_valid_r        <= 1'b1;
 	                cmd_base_addr_r    <= dma_base_addr_cur;
 	                cmd_burst_len_m1_r <= burst_len_cur;
-	                cmd_beats_expect_r <= chunk_need_cur[5:0];
+	                cmd_beats_expect_r <= VLEN_CNT_W'(chunk_need_cur);
 	                load_quant_req     <= 1'b1;
 	              end else begin
 	                load_quant_req <= 1'b1;
@@ -477,7 +525,7 @@ module vec_requant #(
 	                cmd_busy       <= 1'b1;
 	                cmd_valid_r    <= 1'b0;
 	                load_quant_req <= 1'b0;
-	                rd_beats_cnt   <= 6'd0;
+	                rd_beats_cnt   <= '0;
 	                beats_expect   <= cmd_beats_expect_r;  // 需要收的拍数
 	                if (requant_trace_en) begin
 	                  $display("[%0t] REQ cmd phase=%0d addr=%08x len=%0d tile=(%0d,%0d) qidx=%0d off=%0d qneed=%0d",
@@ -503,29 +551,26 @@ module vec_requant #(
               end
 `endif
 
-              if (load_phase == PH_MUL) ch_multiplier_r[load_offset + rd_beats_cnt] <= dma_raw_data;
-              else ch_shift_r[load_offset + rd_beats_cnt] <= dma_raw_data;
-
-              rd_beats_cnt <= rd_beats_cnt + 1;
+              rd_beats_cnt <= rd_beats_cnt + VLEN_CNT_W'(1);
 
               // 3) 本次突发收满：决定是切 phase 还是完成 LOAD
-              if ((rd_beats_cnt + 1) == beats_expect) begin
+              if ((rd_beats_cnt + VLEN_CNT_W'(1)) == beats_expect) begin
                 cmd_busy <= 1'b0;  // 本突发结束
                 if (requant_trace_en) begin
                   $display("[%0t] REQ rsp_done phase=%0d beats=%0d tile=(%0d,%0d) off=%0d",
                            $time, load_phase, beats_expect, tile_row, tile_col, load_offset);
                 end
                 if (load_phase == PH_MUL) begin
-                  if ((load_offset + beats_expect) < quant_need_load_r) begin
-                    load_offset <= load_offset + beats_expect;
+                  if ((load_offset + REG_WIDTH'(beats_expect)) < quant_need_load_r) begin
+                    load_offset <= load_offset + REG_WIDTH'(beats_expect);
                   end else begin
                     // mul 收满 -> 切到 shift，下一拍会去发 shift 的命令
                     load_phase  <= PH_SHIFT;
                     load_offset <= 32'd0;
                   end
                 end else begin
-                  if ((load_offset + beats_expect) < quant_need_load_r) begin
-                    load_offset <= load_offset + beats_expect;
+                  if ((load_offset + REG_WIDTH'(beats_expect)) < quant_need_load_r) begin
+                    load_offset <= load_offset + REG_WIDTH'(beats_expect);
                   end else begin
                     // shift 也收满，参数就绪：同时锁存 lane_need，并根据当拍 in_valid 决定是否直接进 COMPUTE
                     quant_params_valid <= 1'b1;
@@ -565,7 +610,7 @@ module vec_requant #(
               end
 
               if (in_tile_done) begin
-                row_in_tile_cnt <= 5'd0;
+                row_in_tile_cnt <= '0;
                 all_tiles_done  <= final_tile_cur;
 
                 if (final_tile_cur) begin
@@ -587,6 +632,8 @@ module vec_requant #(
                   end else begin
                     load_quant_req <= 1'b0;
                     load_meta_valid <= 1'b0;
+                    load_phase <= PH_MUL;
+                    load_offset <= 32'd0;
                     quant_params_valid <= 1'b0;
                     state <= LOAD;
                   end
@@ -622,6 +669,9 @@ module vec_requant #(
   logic stage6_valid;
   logic stage7_valid;
   logic stage8_valid;
+  logic stage9_valid;
+  logic stage10_valid;
+  logic stage11_valid;
   logic stage0_tile_done;
   logic stage1_tile_done;
   logic stage2_tile_done;
@@ -631,10 +681,13 @@ module vec_requant #(
   logic stage6_tile_done;
   logic stage7_tile_done;
   logic stage8_tile_done;
+  logic stage9_tile_done;
+  logic stage10_tile_done;
+  logic stage11_tile_done;
 
   assign accept_valid = in_valid && ((!cfg_per_channel) || quant_params_valid);
-  assign out_valid = stage8_valid;
-  assign out_tile_done = stage8_tile_done;
+  assign out_valid = stage11_valid;
+  assign out_tile_done = stage11_tile_done;
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -647,6 +700,9 @@ module vec_requant #(
       stage6_valid     <= 1'b0;
       stage7_valid     <= 1'b0;
       stage8_valid     <= 1'b0;
+      stage9_valid     <= 1'b0;
+      stage10_valid    <= 1'b0;
+      stage11_valid    <= 1'b0;
       stage0_tile_done <= 1'b0;
       stage1_tile_done <= 1'b0;
       stage2_tile_done <= 1'b0;
@@ -656,6 +712,9 @@ module vec_requant #(
       stage6_tile_done <= 1'b0;
       stage7_tile_done <= 1'b0;
       stage8_tile_done <= 1'b0;
+      stage9_tile_done <= 1'b0;
+      stage10_tile_done <= 1'b0;
+      stage11_tile_done <= 1'b0;
     end else if (init_cfg) begin
       stage0_valid     <= 1'b0;
       stage1_valid     <= 1'b0;
@@ -666,6 +725,9 @@ module vec_requant #(
       stage6_valid     <= 1'b0;
       stage7_valid     <= 1'b0;
       stage8_valid     <= 1'b0;
+      stage9_valid     <= 1'b0;
+      stage10_valid    <= 1'b0;
+      stage11_valid    <= 1'b0;
       stage0_tile_done <= 1'b0;
       stage1_tile_done <= 1'b0;
       stage2_tile_done <= 1'b0;
@@ -675,6 +737,9 @@ module vec_requant #(
       stage6_tile_done <= 1'b0;
       stage7_tile_done <= 1'b0;
       stage8_tile_done <= 1'b0;
+      stage9_tile_done <= 1'b0;
+      stage10_tile_done <= 1'b0;
+      stage11_tile_done <= 1'b0;
     end else begin
       stage0_valid     <= accept_valid;
       stage1_valid     <= stage0_valid;
@@ -685,6 +750,9 @@ module vec_requant #(
       stage6_valid     <= stage5_valid;
       stage7_valid     <= stage6_valid;
       stage8_valid     <= stage7_valid;
+      stage9_valid     <= stage8_valid;
+      stage10_valid    <= stage9_valid;
+      stage11_valid    <= stage10_valid;
       stage0_tile_done <= accept_valid && in_tile_done;
       stage1_tile_done <= stage0_tile_done;
       stage2_tile_done <= stage1_tile_done;
@@ -694,22 +762,24 @@ module vec_requant #(
       stage6_tile_done <= stage5_tile_done;
       stage7_tile_done <= stage6_tile_done;
       stage8_tile_done <= stage7_tile_done;
+      stage9_tile_done <= stage8_tile_done;
+      stage10_tile_done <= stage9_tile_done;
+      stage11_tile_done <= stage10_tile_done;
     end
   end
 
-  logic [4:0] input_row_idx_cur;
-  logic [31:0] input_group_idx_cur;
+  logic [VLEN_CNT_W-1:0] input_row_idx_cur;
+  logic [QBUF_IDX_W-1:0] input_group_idx_cur;
   always_comb begin
     input_row_idx_cur = row_in_tile_cnt;
-    input_group_idx_cur = (row_offset_in_group * VLEN) + input_row_idx_cur;
+    input_group_idx_cur = QBUF_IDX_W'((REG_WIDTH'(row_offset_in_group) << VLEN_SHIFT) +
+                                      REG_WIDTH'(input_row_idx_cur));
   end
 
-  // 做一行（16 lane），尾块屏蔽。该流水每拍都能接收一行，只增加固定延迟。
+  // 做一行（VLEN lane），尾块屏蔽。该流水每拍都能接收一行，只增加固定延迟。
   genvar j;
   for (j = 0; j < VLEN; j++) begin : LANE
     logic signed [31:0] mult_sel;
-    logic signed [31:0] shift_sel;
-    logic signed [31:0] shift_abs_sel;
     logic [5:0]         lshift_sel;
     logic [5:0]         rshift_sel;
 
@@ -725,65 +795,87 @@ module vec_requant #(
     logic [5:0]         rshift_s1;
     logic               lane_en_s1;
 
-    logic signed [63:0] prod_s2;
+    (* use_dsp = "yes" *) logic signed [31:0] pp_hh_s2;
+    (* use_dsp = "yes" *) logic signed [32:0] pp_hl_s2;
+    (* use_dsp = "yes" *) logic signed [32:0] pp_lh_s2;
+    (* use_dsp = "yes" *) logic [31:0] pp_ll_s2;
     logic [5:0]         lshift_s2;
     logic [5:0]         rshift_s2;
     logic               lane_en_s2;
 
-    logic signed [63:0] prod_shifted_s3;
+    logic signed [31:0] pp_hh_s3;
+    logic signed [33:0] pp_mid_s3;
+    logic [31:0]        pp_ll_s3;
+    logic [5:0]         lshift_s3;
     logic [5:0]         rshift_s3;
     logic               lane_en_s3;
 
-    logic signed [31:0] high_s4;
+    logic signed [63:0] prod_hi_mid_s4;
+    logic [31:0]        pp_ll_s4;
+    logic [5:0]         lshift_s4;
     logic [5:0]         rshift_s4;
     logic               lane_en_s4;
 
-    logic signed [31:0] shifted_next_s4;
-    logic signed [31:0] remainder_next_s4;
-    logic signed [31:0] threshold_next_s4;
-    logic               has_rshift_next_s4;
-    logic signed [31:0] shifted_s4;
-    logic signed [31:0] remainder_s4;
-    logic signed [31:0] threshold_s4;
-    logic               has_rshift_s4;
-    logic signed [31:0] shifted_s5;
-    logic               round_up_s5;
+    logic signed [63:0] prod_s5;
+    logic [5:0]         lshift_s5;
+    logic [5:0]         rshift_s5;
     logic               lane_en_s5;
-    logic signed [31:0] rounded_s6;
+
+    logic signed [63:0] prod_shifted_s6;
+    logic [5:0]         rshift_s6;
     logic               lane_en_s6;
+
+    logic signed [31:0] high_s7;
+    logic [5:0]         rshift_s7;
     logic               lane_en_s7;
+
+    logic signed [31:0] shifted_next_s7;
+    logic signed [31:0] remainder_next_s7;
+    logic signed [31:0] threshold_next_s7;
+    logic               has_rshift_next_s7;
+    logic signed [31:0] shifted_s8;
+    logic signed [31:0] remainder_s8;
+    logic signed [31:0] threshold_s8;
+    logic               has_rshift_s8;
+    logic               lane_en_s8;
+
+    logic signed [31:0] shifted_s9;
+    logic               round_up_s9;
+    logic               lane_en_s9;
+
+    logic signed [31:0] rounded_s10;
+    logic               lane_en_s10;
 
     always_comb begin
       if (cfg_per_channel) begin
-        mult_sel  = is_mode_r ? ch_multiplier_r[input_group_idx_cur] : ch_multiplier_r[j];
-        shift_sel = is_mode_r ? ch_shift_r[input_group_idx_cur] : ch_shift_r[j];
+        mult_sel   = is_mode_r ? ch_multiplier_r[input_group_idx_cur] : ch_multiplier_r[j];
+        lshift_sel = is_mode_r ? ch_lshift_r[input_group_idx_cur] : ch_lshift_r[j];
+        rshift_sel = is_mode_r ? ch_rshift_r[input_group_idx_cur] : ch_rshift_r[j];
       end else begin
-        mult_sel  = pt_multiplier_r;
-        shift_sel = pt_shift_r;
+        mult_sel   = pt_multiplier_r;
+        lshift_sel = pt_lshift_r;
+        rshift_sel = pt_rshift_r;
       end
-      shift_abs_sel = -shift_sel;
-      lshift_sel = (shift_sel > 32'sd0) ? shift_sel[5:0] : 6'd0;
-      rshift_sel = (shift_sel < 32'sd0)
-                 ? ((shift_abs_sel > 32'sd63) ? 6'd63 : shift_abs_sel[5:0])
-                 : 6'd0;
     end
 
     always_comb begin
       logic [4:0]         rshift_amt;
       logic signed [31:0] mask;
 
-      if (rshift_s4 == 6'd0) begin
-        shifted_next_s4   = high_s4;
-        remainder_next_s4 = 32'sd0;
-        threshold_next_s4 = 32'sd0;
-        has_rshift_next_s4 = 1'b0;
+      rshift_amt = 5'd0;
+      mask       = 32'sd0;
+      if (rshift_s7 == 6'd0) begin
+        shifted_next_s7    = high_s7;
+        remainder_next_s7  = 32'sd0;
+        threshold_next_s7  = 32'sd0;
+        has_rshift_next_s7 = 1'b0;
       end else begin
-        rshift_amt = (rshift_s4 > 6'd31) ? 5'd31 : rshift_s4[4:0];
+        rshift_amt = (rshift_s7 > 6'd31) ? 5'd31 : rshift_s7[4:0];
         mask       = (32'sd1 <<< rshift_amt) - 32'sd1;
-        shifted_next_s4   = high_s4 >>> rshift_amt;
-        remainder_next_s4 = high_s4 & mask;
-        threshold_next_s4 = (mask >>> 1) + (high_s4[31] ? 32'sd1 : 32'sd0);
-        has_rshift_next_s4 = 1'b1;
+        shifted_next_s7    = high_s7 >>> rshift_amt;
+        remainder_next_s7  = high_s7 & mask;
+        threshold_next_s7  = (mask >>> 1) + (high_s7[31] ? 32'sd1 : 32'sd0);
+        has_rshift_next_s7 = 1'b1;
       end
     end
 
@@ -797,6 +889,9 @@ module vec_requant #(
         lane_en_s5    <= 1'b0;
         lane_en_s6    <= 1'b0;
         lane_en_s7    <= 1'b0;
+        lane_en_s8    <= 1'b0;
+        lane_en_s9    <= 1'b0;
+        lane_en_s10   <= 1'b0;
         out_vec_s8[j] <= '0;
       end else if (init_cfg) begin
         lane_en_s0    <= 1'b0;
@@ -807,29 +902,35 @@ module vec_requant #(
         lane_en_s5    <= 1'b0;
         lane_en_s6    <= 1'b0;
         lane_en_s7    <= 1'b0;
+        lane_en_s8    <= 1'b0;
+        lane_en_s9    <= 1'b0;
+        lane_en_s10   <= 1'b0;
         out_vec_s8[j] <= '0;
       end else begin
-        lane_en_s0 <= (j < (cfg_per_channel ? lane_need_q : lane_need_cur));
-        lane_en_s1 <= lane_en_s0;
-        lane_en_s2    <= lane_en_s1;
-        lane_en_s3 <= lane_en_s2;
-        lane_en_s4 <= lane_en_s3;
-        lane_en_s5 <= lane_en_s4;
-        lane_en_s6 <= lane_en_s5;
-        lane_en_s7 <= lane_en_s6;
+        lane_en_s0  <= accept_valid && (j < (cfg_per_channel ? lane_need_q : lane_need_cur));
+        lane_en_s1  <= lane_en_s0;
+        lane_en_s2  <= lane_en_s1;
+        lane_en_s3  <= lane_en_s2;
+        lane_en_s4  <= lane_en_s3;
+        lane_en_s5  <= lane_en_s4;
+        lane_en_s6  <= lane_en_s5;
+        lane_en_s7  <= lane_en_s6;
+        lane_en_s8  <= lane_en_s7;
+        lane_en_s9  <= lane_en_s8;
+        lane_en_s10 <= lane_en_s9;
 
-        if (!lane_en_s7) begin
+        if (!lane_en_s10) begin
           out_vec_s8[j] <= 8'sd0;
-        end else if (rounded_s6 < activation_min_r) begin
+        end else if (rounded_s10 < activation_min_r) begin
           out_vec_s8[j] <= activation_min_r[7:0];
-        end else if (rounded_s6 > activation_max_r) begin
+        end else if (rounded_s10 > activation_max_r) begin
           out_vec_s8[j] <= activation_max_r[7:0];
-        end else if (rounded_s6 > 32'sd127) begin
+        end else if (rounded_s10 > 32'sd127) begin
           out_vec_s8[j] <= 8'sd127;
-        end else if (rounded_s6 < -32'sd128) begin
+        end else if (rounded_s10 < -32'sd128) begin
           out_vec_s8[j] <= -8'sd128;
         end else begin
-          out_vec_s8[j] <= rounded_s6[7:0];
+          out_vec_s8[j] <= rounded_s10[7:0];
         end
       end
     end
@@ -846,25 +947,45 @@ module vec_requant #(
         lshift_s1  <= lshift_s0;
         rshift_s1  <= rshift_s0;
 
-        prod_s2   <= $signed(acc_s1) * $signed(mult_s1);
+        pp_hh_s2  <= $signed(acc_s1[31:16]) * $signed(mult_s1[31:16]);
+        pp_hl_s2  <= $signed(acc_s1[31:16]) * $signed({1'b0, mult_s1[15:0]});
+        pp_lh_s2  <= $signed(mult_s1[31:16]) * $signed({1'b0, acc_s1[15:0]});
+        pp_ll_s2  <= acc_s1[15:0] * mult_s1[15:0];
         lshift_s2 <= lshift_s1;
         rshift_s2 <= rshift_s1;
 
-        prod_shifted_s3 <= prod_s2 <<< lshift_s2;
+        pp_hh_s3  <= pp_hh_s2;
+        pp_mid_s3 <= $signed({pp_hl_s2[32], pp_hl_s2}) +
+                     $signed({pp_lh_s2[32], pp_lh_s2});
+        pp_ll_s3  <= pp_ll_s2;
+        lshift_s3 <= lshift_s2;
         rshift_s3 <= rshift_s2;
 
-        high_s4   <= (prod_shifted_s3 + (64'sd1 <<< 30)) >>> 31;
+        prod_hi_mid_s4 <= ($signed({{32{pp_hh_s3[31]}}, pp_hh_s3}) <<< 32) +
+                          ($signed({{30{pp_mid_s3[33]}}, pp_mid_s3}) <<< 16);
+        pp_ll_s4  <= pp_ll_s3;
+        lshift_s4 <= lshift_s3;
         rshift_s4 <= rshift_s3;
 
-        shifted_s4    <= shifted_next_s4;
-        remainder_s4  <= remainder_next_s4;
-        threshold_s4  <= threshold_next_s4;
-        has_rshift_s4 <= has_rshift_next_s4;
+        prod_s5   <= prod_hi_mid_s4 + $signed({32'd0, pp_ll_s4});
+        lshift_s5 <= lshift_s4;
+        rshift_s5 <= rshift_s4;
 
-        shifted_s5 <= shifted_s4;
-        round_up_s5 <= has_rshift_s4 && (remainder_s4 > threshold_s4);
+        prod_shifted_s6 <= prod_s5 <<< lshift_s5;
+        rshift_s6 <= rshift_s5;
 
-        rounded_s6 <= shifted_s5 + dst_offset_r + (round_up_s5 ? 32'sd1 : 32'sd0);
+        high_s7   <= 32'((prod_shifted_s6 + (64'sd1 <<< 30)) >>> 31);
+        rshift_s7 <= rshift_s6;
+
+        shifted_s8    <= shifted_next_s7;
+        remainder_s8  <= remainder_next_s7;
+        threshold_s8  <= threshold_next_s7;
+        has_rshift_s8 <= has_rshift_next_s7;
+
+        shifted_s9 <= shifted_s8;
+        round_up_s9 <= has_rshift_s8 && (remainder_s8 > threshold_s8);
+
+        rounded_s10 <= shifted_s9 + dst_offset_r + (round_up_s9 ? 32'sd1 : 32'sd0);
       end
     end
   end

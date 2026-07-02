@@ -29,7 +29,7 @@ module axi_block_dma_arbiter #(
     input  logic [REG_WIDTH-1:0] ia_base_addr,
     input  logic [REG_WIDTH-1:0] ia_row_stride,
     input  logic [REG_WIDTH-1:0] ia_rows_to_read,
-    input  logic [3:0] ia_burst_len_m1,
+    input  logic [7:0] ia_burst_len_m1,
     input  logic [$clog2(CACHE_BLOCKS)-1:0] ia_slot_id,
     input  logic ia_use_16bits,
     input  logic signed [REG_WIDTH-1:0] ia_lhs_zp,
@@ -49,7 +49,7 @@ module axi_block_dma_arbiter #(
     input  logic [REG_WIDTH-1:0] kernel_base_addr,
     input  logic [REG_WIDTH-1:0] kernel_row_stride,
     input  logic [REG_WIDTH-1:0] kernel_rows_to_read,
-    input  logic [3:0] kernel_burst_len_m1,
+    input  logic [7:0] kernel_burst_len_m1,
     input  logic kernel_slot_id,
     input  logic kernel_use_16bits,
     input  logic signed [REG_WIDTH-1:0] kernel_lhs_zp,
@@ -67,7 +67,7 @@ module axi_block_dma_arbiter #(
     input  logic [REG_WIDTH-1:0] bias_base_addr,
     input  logic [REG_WIDTH-1:0] bias_row_stride,
     input  logic [REG_WIDTH-1:0] bias_rows_to_read,
-    input  logic [3:0] bias_burst_len_m1,
+    input  logic [7:0] bias_burst_len_m1,
     input  logic bias_slot_id,
     input  logic bias_use_16bits,
     input  logic signed [REG_WIDTH-1:0] bias_lhs_zp,
@@ -87,7 +87,7 @@ module axi_block_dma_arbiter #(
     input  logic [REG_WIDTH-1:0] quant_base_addr,
     input  logic [REG_WIDTH-1:0] quant_row_stride,
     input  logic [REG_WIDTH-1:0] quant_rows_to_read,
-    input  logic [3:0] quant_burst_len_m1,
+    input  logic [7:0] quant_burst_len_m1,
     input  logic quant_slot_id,
     input  logic quant_use_16bits,
     input  logic signed [REG_WIDTH-1:0] quant_lhs_zp,
@@ -102,7 +102,7 @@ module axi_block_dma_arbiter #(
     input  logic [REG_WIDTH-1:0] oa_base_addr,
     input  logic [REG_WIDTH-1:0] oa_row_stride,
     input  logic [REG_WIDTH-1:0] oa_rows_to_read,
-    input  logic [3:0] oa_burst_len_m1,
+    input  logic [7:0] oa_burst_len_m1,
     input  logic [BUS_WIDTH-1:0] oa_src_wdata,
     input  logic [BUS_WIDTH/8-1:0] oa_src_wmask,
     input  logic oa_src_wvalid,
@@ -159,7 +159,7 @@ module axi_block_dma_arbiter #(
     logic [REG_WIDTH-1:0] rd_dma_base_addr;
     logic [REG_WIDTH-1:0] rd_dma_row_stride;
     logic [REG_WIDTH-1:0] rd_dma_rows_to_read;
-    logic [3:0] rd_dma_burst_len_m1;
+    logic [7:0] rd_dma_burst_len_m1;
     logic [$clog2(CACHE_BLOCKS)-1:0] rd_dma_slot_id;
     logic rd_dma_use_16bits;
     logic signed [REG_WIDTH-1:0] rd_dma_lhs_zp;
