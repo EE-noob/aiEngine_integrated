@@ -22,56 +22,53 @@ set synth_generics {CPU_MEM_DP=65536 CPU_MEM_INIT_EN=0}
 
 set incdirs [list \
     [file join $repo_root include] \
-    [file join $repo_root rtl nice_coprocessor inc] \
 ]
 
 set rtl_files [list \
     [file join $repo_root picorv32 picorv32.v] \
     [file join $repo_root picorv32 picosoc simpleuart.v] \
-    [file join $repo_root rtl nice_coprocessor axil_reg_if_wr.v] \
-    [file join $repo_root rtl nice_coprocessor axil_reg_if_rd.v] \
-    [file join $repo_root rtl nice_coprocessor axil_reg_if.v] \
-    [file join $repo_root rtl nice_coprocessor csr_unit.v] \
-    [file join $repo_root rtl nice_coprocessor wb_pingpong_buf.v] \
-    [file join $repo_root rtl nice_coprocessor wbu.v] \
-    [file join $repo_root rtl nice_coprocessor axi_top mma_axil_top.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA accumulator_array.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA axi_block_dma_arbiter.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA axi_dual_block_dma.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA bias_loader.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA bias_loader_buffer.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA bias_loader_ctrl.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA bias_mux.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA block_dma.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA compute_core.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA data_setup.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA de_diagonalizer.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA ia_buffer_wrapper.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA ia_loader.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA ia_loader_cache_mgr.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA ia_loader_ctrl.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA kernel_block_dma.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA kernel_loader.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA kernel_loader_buffer.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA kernel_loader_ctrl.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA mma_controller.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA mma_top.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA oa_writer.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA ps_buffer.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA ps_buffer_fifo.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA pseudo_dual_port_ram.v] \
-    [file join $repo_root rtl nice_coprocessor MMA shift_accumulator.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA vec_requant.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA vec_s8_to_fifo.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA ws_systolic_array.sv] \
-    [file join $repo_root rtl nice_coprocessor MMA ws_systolic_cell.sv] \
-    [file join $repo_root rtl nice_coprocessor soc pico_native_to_axi.sv] \
-    [file join $repo_root rtl nice_coprocessor soc soc_axi_interconnect.sv] \
-    [file join $repo_root rtl nice_coprocessor soc soc_axi_pingpong_buffer.sv] \
-    [file join $repo_root rtl nice_coprocessor soc soc_axi_ram.sv] \
-    [file join $repo_root rtl nice_coprocessor soc soc_axil_ctrl.sv] \
-    [file join $repo_root rtl nice_coprocessor soc soc_axil_simpleuart.sv] \
-    [file join $repo_root rtl nice_coprocessor soc_top.sv] \
+    [file join $repo_root rtl axi_accelerator axil_reg_if_wr.v] \
+    [file join $repo_root rtl axi_accelerator axil_reg_if_rd.v] \
+    [file join $repo_root rtl axi_accelerator axil_reg_if.v] \
+    [file join $repo_root rtl axi_accelerator csr_unit.v] \
+    [file join $repo_root rtl axi_accelerator wb_pingpong_buf.v] \
+    [file join $repo_root rtl axi_accelerator wbu.v] \
+    [file join $repo_root rtl axi_accelerator axi_top mma_axil_top.sv] \
+    [file join $repo_root rtl axi_accelerator MMA accumulator_array.sv] \
+    [file join $repo_root rtl axi_accelerator MMA axi_block_dma_arbiter.sv] \
+    [file join $repo_root rtl axi_accelerator MMA axi_dual_block_dma.sv] \
+    [file join $repo_root rtl axi_accelerator MMA bias_loader.sv] \
+    [file join $repo_root rtl axi_accelerator MMA bias_loader_buffer.sv] \
+    [file join $repo_root rtl axi_accelerator MMA bias_loader_ctrl.sv] \
+    [file join $repo_root rtl axi_accelerator MMA bias_mux.sv] \
+    [file join $repo_root rtl axi_accelerator MMA compute_core.sv] \
+    [file join $repo_root rtl axi_accelerator MMA data_setup.sv] \
+    [file join $repo_root rtl axi_accelerator MMA de_diagonalizer.sv] \
+    [file join $repo_root rtl axi_accelerator MMA ia_buffer_wrapper.sv] \
+    [file join $repo_root rtl axi_accelerator MMA ia_loader.sv] \
+    [file join $repo_root rtl axi_accelerator MMA ia_loader_cache_mgr.sv] \
+    [file join $repo_root rtl axi_accelerator MMA ia_loader_ctrl.sv] \
+    [file join $repo_root rtl axi_accelerator MMA kernel_loader.sv] \
+    [file join $repo_root rtl axi_accelerator MMA kernel_loader_buffer.sv] \
+    [file join $repo_root rtl axi_accelerator MMA kernel_loader_ctrl.sv] \
+    [file join $repo_root rtl axi_accelerator MMA mma_controller.sv] \
+    [file join $repo_root rtl axi_accelerator MMA mma_top.sv] \
+    [file join $repo_root rtl axi_accelerator MMA oa_writer.sv] \
+    [file join $repo_root rtl axi_accelerator MMA ps_buffer.sv] \
+    [file join $repo_root rtl axi_accelerator MMA ps_buffer_fifo.sv] \
+    [file join $repo_root rtl axi_accelerator MMA pseudo_dual_port_ram.v] \
+    [file join $repo_root rtl axi_accelerator MMA shift_accumulator.sv] \
+    [file join $repo_root rtl axi_accelerator MMA vec_requant.sv] \
+    [file join $repo_root rtl axi_accelerator MMA vec_s8_to_fifo.sv] \
+    [file join $repo_root rtl axi_accelerator MMA ws_systolic_array.sv] \
+    [file join $repo_root rtl axi_accelerator MMA ws_systolic_cell.sv] \
+    [file join $repo_root rtl axi_accelerator soc pico_native_to_axi.sv] \
+    [file join $repo_root rtl axi_accelerator soc soc_axi_interconnect.sv] \
+    [file join $repo_root rtl axi_accelerator soc soc_axi_pingpong_buffer.sv] \
+    [file join $repo_root rtl axi_accelerator soc soc_axi_ram.sv] \
+    [file join $repo_root rtl axi_accelerator soc soc_axil_ctrl.sv] \
+    [file join $repo_root rtl axi_accelerator soc soc_axil_simpleuart.sv] \
+    [file join $repo_root rtl axi_accelerator soc_top.sv] \
 ]
 
 set xdc_file [file join $out_dir soc_top_150mhz.xdc]
