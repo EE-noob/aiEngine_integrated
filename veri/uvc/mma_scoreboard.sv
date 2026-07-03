@@ -10,14 +10,14 @@ class mma_scoreboard extends uvm_scoreboard;
     uvm_analysis_imp_req #(mma_seq_item, mma_scoreboard) analysis_req_imp;
     uvm_analysis_imp_rsp #(mma_seq_item, mma_scoreboard) analysis_rsp_imp;
     mma_seq_item pending_q[$];
-    virtual nice_if vif;
+    virtual tb_ctrl_if tb_ctrl_vif;
     mma_reg_block regmodel;
     bit [31:0] csr_shadow[bit [11:0]];
 
     virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
-        if (!uvm_config_db#(virtual nice_if)::get(this, "", "vif", vif)) begin
-            `uvm_fatal(get_type_name(), "vif is not set via config DB")
+        if (!uvm_config_db#(virtual tb_ctrl_if)::get(this, "", "tb_ctrl_vif", tb_ctrl_vif)) begin
+            `uvm_fatal(get_type_name(), "tb_ctrl_vif is not set via config DB")
         end
     endfunction
 
@@ -200,7 +200,7 @@ class mma_scoreboard extends uvm_scoreboard;
                 word_addr = byte_addr >> 2;
                 lane = byte_addr & 32'h3;
 
-                mem_word = vif.read_sram_word(word_addr);
+                mem_word = tb_ctrl_vif.read_sram_word(word_addr);
                 act_val = $signed(mem_word[(lane * 8) +: 8]);
 
                 if (col == 0) begin

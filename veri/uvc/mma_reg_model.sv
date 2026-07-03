@@ -53,10 +53,8 @@ class mma_reg_block extends uvm_reg_block;
 
 `ifdef DUT_AXI_SOC
         set_hdl_path_root("tb_top.u_soc_top.u_mma_axil_top.u_csr_unit");
-`elsif DUT_AXIL
-        set_hdl_path_root("tb_top.u_axil_top_with_ram.u_mma_axil_top.u_csr_unit");
 `else
-        set_hdl_path_root("tb_top.u_top_ai_engine.e203_subsys_nice_core_inst.u_csr_unit");
+        set_hdl_path_root("tb_top.u_axil_top_with_ram.u_mma_axil_top.u_csr_unit");
 `endif
 
         mult_lhs_ptr = mma_csr_reg::type_id::create("mult_lhs_ptr",,get_full_name());

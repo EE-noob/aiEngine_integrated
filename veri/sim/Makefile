@@ -16,9 +16,9 @@ SIM_RUNNER ?= $(SIM_LAUNCHER) ./$(SIMV)
 SIM_ARGS ?=
 VCS_CC ?= gcc
 VCS_CXX ?= g++
-case     ?= test_case0
+case     ?= ai_mem_gen_smoke_test
 seed     ?= 1
-DUT_MODE ?= nice
+DUT_MODE ?= axil
 SOC_CASE ?= axi_soc_case
 SOC_CASE_DIR ?= ../tb/$(SOC_CASE)
 SOC_K ?= 24
@@ -60,8 +60,7 @@ SOC_C_SRC ?= ../soc_csrc/soc_main.c
 SOC_RUNTIME_C_SRC ?= ../soc_csrc/soc_runtime_main.c
 SOC_APP ?= runtime
 SOC_UART_CLKDIV ?= 8
-E203_SIM_ROOT ?= /home/etc/FPGA/e203_simulator
-SOC_TOOLCHAIN_DIR ?= $(E203_SIM_ROOT)/deps/software-level/bin/gcc_open/bin
+SOC_TOOLCHAIN_DIR ?= /home/etc/FPGA/jichuangsai/alioth_simulator/deps/software-level/bin/gcc_open/bin
 SOC_GCC_FROM_PATH := $(shell command -v riscv64-unknown-elf-gcc 2>/dev/null)
 SOC_GXX_FROM_PATH := $(shell command -v riscv64-unknown-elf-g++ 2>/dev/null)
 SOC_AR_FROM_PATH := $(shell command -v riscv64-unknown-elf-ar 2>/dev/null)
@@ -264,7 +263,7 @@ COV_HIER_FILE ?= ./coverage_accel_axi_soc.hier
 else ifeq ($(DUT_MODE),axil)
 COV_HIER_FILE ?= ./coverage_accel_axil.hier
 else
-COV_HIER_FILE ?= ./coverage_accel_nice.hier
+COV_HIER_FILE ?= ./coverage_accel_axil.hier
 endif
 COVERAGE_GOAL ?= 95
 URG_METRICS ?= group
@@ -315,8 +314,7 @@ FILELIST     ?= ../flist/tb_axil.f
 MODE_DEFINES += DUT_AXIL
 SIM_OPTS     += +DUT_SEL=axil
 else
-FILELIST     ?= ../flist/tb1.f
-SIM_OPTS     += +DUT_SEL=nice
+$(error Unsupported DUT_MODE=$(DUT_MODE). Supported modes are axil and axi_soc)
 endif
 
 ifeq ($(DUMPOPTS),1)
@@ -552,12 +550,12 @@ clean:
 
 help:
 > @echo "Targets:"
-> @echo "  make run   [DUT_MODE=nice|axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
+> @echo "  make run   [DUT_MODE=axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
 > @echo "             [MMA_SIZE=16] [MMA_IA_CACHE_BLOCKS=4] [MMA_PS_FRAME_COUNT=<MMA_SIZE>]"
 > @echo "             [SOC_APP=runtime|case|tflm]  # runtime reuses one O3 CPU app and reads runtime_data.mem"
-> @echo "  make com   [DUT_MODE=nice|axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
-> @echo "  make force_com [DUT_MODE=nice|axil|axi_soc]  # rebuild simv"
-> @echo "  make sim   [DUT_MODE=nice|axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
+> @echo "  make com   [DUT_MODE=axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
+> @echo "  make force_com [DUT_MODE=axil|axi_soc]  # rebuild simv"
+> @echo "  make sim   [DUT_MODE=axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
 > @echo "  make soc_regress [SOC_REGRESS_ITERS=<n>] [SOC_REGRESS_START_SEED=<int>] [SOC_MIN_DIM=<n>] [SOC_MAX_DIM=<n>] [SOC_REGRESS_DIM_MULTIPLE=<n>]"
 > @echo "                   [SOC_SIZE_LIST='8 16'] [SOC_CACHE_BLOCKS_LIST='2 4'] [SOC_REGRESS_DDR_RAND_LAT=1] [SOC_REGRESS_UNALIGNED_LAYOUT=1]"
 > @echo "  make soc_perf_sweep [SOC_PERF_DIMS='32x32x32'] [SOC_PERF_SIZE_LIST='8 16'] [SOC_PERF_CACHE_BLOCKS_LIST='2 4']"
@@ -579,7 +577,7 @@ help:
 > @echo "  make tflm_mnist_mlp_run"
 > @echo "  make tflm_mnist_cnn_run"
 > @echo "  make tflm_my_model_run"
-> @echo "  make vd    [DUT_MODE=nice|axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
+> @echo "  make vd    [DUT_MODE=axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
 > @echo "  make clean"
 > @echo "  make help"
 > @echo ""
@@ -589,16 +587,10 @@ help:
 > @echo "  runs/<case>/seed_<seed>/tb_top.fsdb"
 > @echo ""
 > @echo "case(also UVM_TESTNAME) -> sequence mapping (from veri/test/ai_test_pkg.sv):"
-> @echo "  smoke_test                    -> ai_smoke_nice_seq"
-> @echo "  ai_smoke_test                 -> ai_smoke_seq"
-> @echo "  ai_coverage_test              -> ai_nice_cov_seq"
-> @echo "  ai_nice_ral_csr_wr_check_test -> ai_nice_ral_csr_wr_check_seq"
 > @echo "  ai_mem_gen_smoke_test         -> ai_mem_gen_smoke_seq"
 > @echo "  ai_ral_mem_gen_on_calc_start_test -> ai_ral_mem_gen_on_calc_start_seq"
 > @echo ""
 > @echo "Common examples:"
-> @echo "  make run DUT_MODE=nice case=ai_mem_gen_smoke_test seed=1"
-> @echo "  make run DUT_MODE=nice case=ai_ral_mem_gen_on_calc_start_test seed=1"
 > @echo "  make run DUT_MODE=axil case=ai_mem_gen_smoke_test seed=20260413"
 > @echo "  make run DUT_MODE=axil case=ai_ral_mem_gen_on_calc_start_test seed=20260413"
 > @echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test SOC_K=24 SOC_N=32 SOC_M=16 SOC_LHS_DTYPE=1 SOC_QUANT_MODE=0 SOC_LHS_OFFSET=0 SOC_RHS_OFFSET=0 SOC_DST_OFFSET=0"

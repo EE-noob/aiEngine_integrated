@@ -24,6 +24,9 @@
 `define ADDR_MULT_DST_SHIFT      12'h7CE // Shift (Scalar or Pointer)
 `define ADDR_MULT_ACT_MIN        12'h7CF // Activation Min
 `define ADDR_MULT_ACT_MAX        12'h7D0 // Activation Max
+`define ADDR_MULT_IA_REUSE       12'h7D1 // IA cache row-tile reuse depth
+`define ADDR_MULT_W_REUSE        12'h7D2 // W-side output-column reuse window
+`define ADDR_MULT_DATAFLOW       12'h7D3 // 0=WS, 1=IS
 
 // AXI-Lite Special Registers (mma_axil_top)
 `define ADDR_AXIL_REG_CTRL       12'h000
@@ -32,13 +35,5 @@
 `define ADDR_AXIL_REG_WB_INFO    12'h003
 `define ADDR_AXIL_REG_IA_REUSE   12'h004
 `define ADDR_AXIL_REG_W_REUSE    12'h005
-
-// Instruction Encodings
-`define NICE_CUSTOM_1            7'b0101011
-`define NICE_CUSTOM_3            7'b1111011
-`define NICE_MAT_MULT_FUNCT7     7'h01
-`define NICE_FUNCT3              3'b111
-`define NICE_CSRWR_FUNCT3        3'b010
-`define NICE_CSRR_FUNCT3         3'b100
 
 `endif

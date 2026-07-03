@@ -21,12 +21,12 @@ module mma_monitor (
       calc_start_d <= calc_start;
 
       if (calc_start && !calc_start_d) begin
-        $root.tb_top.nice_vif.mma_calc_start_toggle = ~$root.tb_top.nice_vif.mma_calc_start_toggle;
+        $root.tb_top.tb_ctrl_vif.mma_calc_start_toggle = ~$root.tb_top.tb_ctrl_vif.mma_calc_start_toggle;
         fork
           begin
             wait (wb_valid && wb_ready);
-            $root.tb_top.nice_vif.mma_err_code = err_code;
-            $root.tb_top.nice_vif.mma_wb_handshake_toggle = ~$root.tb_top.nice_vif.mma_wb_handshake_toggle;
+            $root.tb_top.tb_ctrl_vif.mma_err_code = err_code;
+            $root.tb_top.tb_ctrl_vif.mma_wb_handshake_toggle = ~$root.tb_top.tb_ctrl_vif.mma_wb_handshake_toggle;
 
             case (err_code)
               2'b00: `uvm_info("mma_monitor", "writeback handshake ok, status 00=normal", UVM_HIGH)

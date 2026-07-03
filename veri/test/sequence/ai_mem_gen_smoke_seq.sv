@@ -6,7 +6,7 @@
 class ai_mem_gen_smoke_seq extends uvm_sequence#(mma_seq_item);
     `uvm_object_utils(ai_mem_gen_smoke_seq)
 
-    virtual nice_if vif;
+    virtual tb_ctrl_if tb_ctrl_vif;
 
     function new(string name = "ai_mem_gen_smoke_seq");
         super.new(name);
@@ -14,6 +14,9 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(mma_seq_item);
 
     function automatic string get_utn_name();
         string utn_name;
+        if ($value$plusargs("MEM_GEN_CASE_NAME=%s", utn_name) && (utn_name != "")) begin
+            return utn_name;
+        end
         if (!$value$plusargs("UVM_TESTNAME=%s", utn_name) || (utn_name == "")) begin
             utn_name = "test_case_runtime";
         end
@@ -126,6 +129,10 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(mma_seq_item);
         int gen_lhs_dtype;
         int gen_fix_mode;
         int gen_quant_mode;
+        int gen_seed;
+        int gen_dataflow_mode;
+        int gen_ia_reuse;
+        int gen_w_reuse;
 
         int cfg_k;
         int cfg_n;
@@ -156,6 +163,21 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(mma_seq_item);
         gen_lhs_dtype = 1;
         gen_fix_mode = 1;
         gen_quant_mode = 0;
+        gen_seed = 1;
+        gen_dataflow_mode = 0;
+        gen_ia_reuse = 0;
+        gen_w_reuse = 0;
+
+        void'($value$plusargs("MEM_GEN_K=%d", gen_k));
+        void'($value$plusargs("MEM_GEN_N=%d", gen_n));
+        void'($value$plusargs("MEM_GEN_M=%d", gen_m));
+        void'($value$plusargs("MEM_GEN_LHS_DTYPE=%d", gen_lhs_dtype));
+        void'($value$plusargs("MEM_GEN_FIX_MODE=%d", gen_fix_mode));
+        void'($value$plusargs("MEM_GEN_QUANT_MODE=%d", gen_quant_mode));
+        void'($value$plusargs("MEM_GEN_SEED=%d", gen_seed));
+        void'($value$plusargs("MEM_GEN_DATAFLOW=%d", gen_dataflow_mode));
+        void'($value$plusargs("MEM_GEN_IA_REUSE=%d", gen_ia_reuse));
+        void'($value$plusargs("MEM_GEN_W_REUSE=%d", gen_w_reuse));
 
         utn_name = get_utn_name();
         case_dir = $sformatf("../tb/%s", utn_name);
@@ -165,8 +187,8 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(mma_seq_item);
         void'($value$plusargs("PYTHON_BIN=%s", py_bin));
 
         cmd = $sformatf(
-            "cd ../tb && %s ./generate_test_case_complex_mem.py --K %0d --N %0d --M %0d --lhs_dtype %0d %s --quant_mode %0d --out_dir ./%s",
-            py_bin, gen_k, gen_n, gen_m, gen_lhs_dtype, fix_mode_arg, gen_quant_mode, utn_name
+            "cd ../tb && %s ./generate_test_case_complex_mem.py --K %0d --N %0d --M %0d --lhs_dtype %0d %s --quant_mode %0d --seed %0d --out_dir ./%s",
+            py_bin, gen_k, gen_n, gen_m, gen_lhs_dtype, fix_mode_arg, gen_quant_mode, gen_seed, utn_name
         );
         `uvm_info("MEM_GEN_SEQ", {"Run: ", cmd}, UVM_LOW)
 
@@ -175,15 +197,15 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(mma_seq_item);
             `uvm_fatal("MEM_GEN_SEQ", $sformatf("generate_test_case_complex_mem.py failed, rc=%0d", rc))
         end
 
-        if (!uvm_config_db#(virtual nice_if)::get(null, "*", "vif", vif)) begin
-            `uvm_fatal("NOVIF", "Failed to get nice_if from uvm_config_db in sequence")
+        if (!uvm_config_db#(virtual tb_ctrl_if)::get(null, "*", "tb_ctrl_vif", tb_ctrl_vif)) begin
+            `uvm_fatal("NOVIF", "Failed to get tb_ctrl_if from uvm_config_db in sequence")
         end
 
-        @(posedge vif.nice_clk);
-        vif.mem_reload_req <= 1'b1;
-        @(posedge vif.nice_clk);
-        vif.mem_reload_req <= 1'b0;
-        repeat(2) @(posedge vif.nice_clk);
+        @(posedge tb_ctrl_vif.clk);
+        tb_ctrl_vif.mem_reload_req <= 1'b1;
+        @(posedge tb_ctrl_vif.clk);
+        tb_ctrl_vif.mem_reload_req <= 1'b0;
+        repeat(2) @(posedge tb_ctrl_vif.clk);
 
         parse_config(
             cfg_path,
@@ -231,6 +253,9 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(mma_seq_item);
         write_csr(`ADDR_MULT_DST_SHIFT,  dst_shift[31:0]);
         write_csr(`ADDR_MULT_ACT_MIN,    act_min[31:0]);
         write_csr(`ADDR_MULT_ACT_MAX,    act_max[31:0]);
+        write_csr(`ADDR_MULT_IA_REUSE,   gen_ia_reuse[31:0]);
+        write_csr(`ADDR_MULT_W_REUSE,    gen_w_reuse[31:0]);
+        write_csr(`ADDR_MULT_DATAFLOW,   gen_dataflow_mode[31:0]);
 
         // Trigger calc_mult after seq-side mem generation/reload and config programming.
         `uvm_do_with(tr, {

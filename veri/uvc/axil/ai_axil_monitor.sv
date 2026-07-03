@@ -7,7 +7,7 @@ class ai_axil_monitor extends uvm_monitor;
     `uvm_component_utils(ai_axil_monitor)
 
     virtual axil_if axil_vif;
-    virtual nice_if nice_vif;
+    virtual tb_ctrl_if tb_ctrl_vif;
     mma_reg_block regmodel;
     uvm_analysis_port#(mma_seq_item) rsp_ap;
 
@@ -26,8 +26,8 @@ class ai_axil_monitor extends uvm_monitor;
         if (!uvm_config_db#(virtual axil_if)::get(this, "", "axil_vif", axil_vif)) begin
             `uvm_fatal(get_type_name(), "axil_vif is not set via config DB")
         end
-        if (!uvm_config_db#(virtual nice_if)::get(this, "", "vif", nice_vif)) begin
-            `uvm_fatal(get_type_name(), "nice vif is not set via config DB")
+        if (!uvm_config_db#(virtual tb_ctrl_if)::get(this, "", "tb_ctrl_vif", tb_ctrl_vif)) begin
+            `uvm_fatal(get_type_name(), "tb_ctrl_vif is not set via config DB")
         end
         rsp_ap = new("rsp_ap", this);
         trigger_cfg_valid = 1'b0;
@@ -38,9 +38,11 @@ class ai_axil_monitor extends uvm_monitor;
 
     function automatic string get_case_name();
         string case_name;
-        if (!$value$plusargs("case=%s", case_name) || (case_name == "")) begin
-            if (!$value$plusargs("UVM_TESTNAME=%s", case_name) || (case_name == "")) begin
-                case_name = "test_case_runtime";
+        if (!$value$plusargs("MEM_GEN_CASE_NAME=%s", case_name) || (case_name == "")) begin
+            if (!$value$plusargs("case=%s", case_name) || (case_name == "")) begin
+                if (!$value$plusargs("UVM_TESTNAME=%s", case_name) || (case_name == "")) begin
+                    case_name = "test_case_runtime";
+                end
             end
         end
         return case_name;
@@ -110,10 +112,10 @@ class ai_axil_monitor extends uvm_monitor;
             `uvm_fatal("AXIL_MEM_GEN_MON", $sformatf("generate_test_case_complex_mem.py failed, rc=%0d", rc))
         end
 
-        @(posedge nice_vif.nice_clk);
-        nice_vif.mem_reload_req <= 1'b1;
-        @(posedge nice_vif.nice_clk);
-        nice_vif.mem_reload_req <= 1'b0;
+        @(posedge tb_ctrl_vif.clk);
+        tb_ctrl_vif.mem_reload_req <= 1'b1;
+        @(posedge tb_ctrl_vif.clk);
+        tb_ctrl_vif.mem_reload_req <= 1'b0;
         `uvm_info("AXIL_MEM_GEN_MON", "main_extram.mem regenerated and mem_reload_req pulsed on calc_start", UVM_LOW)
     endtask
 
@@ -187,15 +189,15 @@ class ai_axil_monitor extends uvm_monitor;
     endfunction
 
     virtual task run_phase(uvm_phase phase);
-        wait (nice_vif.nice_rst_n == 1'b1);
-        prev_calc_tog = nice_vif.mon_cb.mma_calc_start_toggle;
+        wait (tb_ctrl_vif.rst_n == 1'b1);
+        prev_calc_tog = tb_ctrl_vif.mon_cb.mma_calc_start_toggle;
 
         forever begin
             @(axil_vif.mon_cb);
             sample_ctrl_write();
 
-            if (nice_vif.mon_cb.mma_calc_start_toggle != prev_calc_tog) begin
-                prev_calc_tog = nice_vif.mon_cb.mma_calc_start_toggle;
+            if (tb_ctrl_vif.mon_cb.mma_calc_start_toggle != prev_calc_tog) begin
+                prev_calc_tog = tb_ctrl_vif.mon_cb.mma_calc_start_toggle;
                 phase.raise_objection(this, "wait AXIL irq[2]");
                 `uvm_info(get_type_name(), "calc_start detected in AXIL monitor", UVM_LOW)
                 if (enable_mem_gen_on_calc_start) begin

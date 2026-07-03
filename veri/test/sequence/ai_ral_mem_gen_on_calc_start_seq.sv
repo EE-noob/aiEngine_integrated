@@ -99,6 +99,9 @@ class ai_ral_mem_gen_on_calc_start_seq extends ai_mem_gen_smoke_seq;
         int gen_fix_mode;
         int gen_quant_mode;
         int gen_seed;
+        int gen_dataflow_mode;
+        int gen_ia_reuse;
+        int gen_w_reuse;
 
         int cfg_k;
         int cfg_n;
@@ -131,6 +134,9 @@ class ai_ral_mem_gen_on_calc_start_seq extends ai_mem_gen_smoke_seq;
         gen_fix_mode = 1;
         gen_quant_mode = 0;
         gen_seed = 1;
+        gen_dataflow_mode = 0;
+        gen_ia_reuse = 0;
+        gen_w_reuse = 0;
         void'($value$plusargs("RAL_MEM_GEN_K=%d", gen_k));
         void'($value$plusargs("RAL_MEM_GEN_N=%d", gen_n));
         void'($value$plusargs("RAL_MEM_GEN_M=%d", gen_m));
@@ -138,6 +144,9 @@ class ai_ral_mem_gen_on_calc_start_seq extends ai_mem_gen_smoke_seq;
         void'($value$plusargs("RAL_MEM_GEN_FIX_MODE=%d", gen_fix_mode));
         void'($value$plusargs("RAL_MEM_GEN_QUANT_MODE=%d", gen_quant_mode));
         void'($value$plusargs("RAL_MEM_GEN_SEED=%d", gen_seed));
+        void'($value$plusargs("RAL_MEM_GEN_DATAFLOW=%d", gen_dataflow_mode));
+        void'($value$plusargs("RAL_MEM_GEN_IA_REUSE=%d", gen_ia_reuse));
+        void'($value$plusargs("RAL_MEM_GEN_W_REUSE=%d", gen_w_reuse));
 
         utn_name = get_utn_name();
         case_dir = $sformatf("../tb/%s", utn_name);
@@ -181,8 +190,8 @@ class ai_ral_mem_gen_on_calc_start_seq extends ai_mem_gen_smoke_seq;
             act_max
         );
 
-        `uvm_info("RAL_MEM_GEN", $sformatf("Config prepared: K=%0d N=%0d M=%0d lhs_dtype=%0d quant=%0d seed=%0d",
-            cfg_k, cfg_n, cfg_m, cfg_lhs_dtype, cfg_quant_mode, gen_seed), UVM_MEDIUM)
+        `uvm_info("RAL_MEM_GEN", $sformatf("Config prepared: K=%0d N=%0d M=%0d lhs_dtype=%0d quant=%0d dataflow=%0d reuse=%0d/%0d seed=%0d",
+            cfg_k, cfg_n, cfg_m, cfg_lhs_dtype, cfg_quant_mode, gen_dataflow_mode, gen_ia_reuse, gen_w_reuse, gen_seed), UVM_MEDIUM)
 
         ral_write(regmodel.mult_lhs_ptr,    lhs_addr[31:0],          "mult_lhs_ptr");
         ral_write(regmodel.mult_rhs_ptr,    rhs_addr[31:0],          "mult_rhs_ptr");
@@ -204,6 +213,10 @@ class ai_ral_mem_gen_on_calc_start_seq extends ai_mem_gen_smoke_seq;
         ral_write(regmodel.mult_dst_shift,  dst_shift[31:0],         "mult_dst_shift");
         ral_write(regmodel.mult_act_min,    act_min[31:0],           "mult_act_min");
         ral_write(regmodel.mult_act_max,    act_max[31:0],           "mult_act_max");
+`ifdef DUT_AXIL
+        ral_write(regmodel.axil_ia_reuse,   gen_ia_reuse[31:0],      "axil_ia_reuse");
+        ral_write(regmodel.axil_w_reuse,    gen_w_reuse[31:0],       "axil_w_reuse");
+`endif
 
         `uvm_do_with(tr, {
             cmd_kind == MMA_TRIGGER;

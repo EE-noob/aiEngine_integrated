@@ -13,7 +13,6 @@ class mma_coverage extends uvm_subscriber#(mma_seq_item);
     bit [1:0] a_width, b_width, bias_width;
     bit [2:0] out_width;
     int csr_access_type;
-    int icb_ready_delay, icb_cmd_type;
     int bus_arbitration; // Renamed from bus_utilization
     int consecutive_task_count, task_interval_cycles;
     int csr_mma_order;
@@ -107,19 +106,19 @@ class mma_coverage extends uvm_subscriber#(mma_seq_item);
         option.name = "activation_function_coverage";
         
         cp_act_min: coverpoint act_min {
-            bins neg_max = {32'h80000000};    // 最小值
+            bins neg_max = {32'sh80000000};   // 最小值
             bins zero = {0};
             bins pos_values = {[1:$]};
         }
         
         cp_act_max: coverpoint act_max {
             bins zero = {0};
-            bins pos_max = {32'h7FFFFFFF};    // 最大值
-            bins normal = {[1:32'h7FFFFFFE]};
+            bins pos_max = {32'sh7FFFFFFF};   // 最大值
+            bins normal = {[1:32'sh7FFFFFFE]};
         }
         
         // 激活函数启用状态
-        cp_act_enabled: coverpoint (act_min != 32'h80000000 || act_max != 32'h7FFFFFFF) {
+        cp_act_enabled: coverpoint (act_min != 32'sh80000000 || act_max != 32'sh7FFFFFFF) {
             bins disabled = {0};              // 未启用
             bins enabled = {1};               // 启用
         }
@@ -213,18 +212,6 @@ class mma_coverage extends uvm_subscriber#(mma_seq_item);
             bins continuous_write = {1};
             bins read_verify = {2};
             bins write_read = {3};
-        }
-        
-        // ICB总线握手
-        cp_icb_ready_delay: coverpoint icb_ready_delay {
-            bins no_delay = {0};
-            bins short_delay = {[1:5]};
-            bins long_delay = {[6:20]};
-        }
-        
-        cp_icb_cmd_type: coverpoint icb_cmd_type {
-            bins read = {0};
-            bins write = {1};
         }
         
         // 总线仲裁 (0-4个请求)
@@ -325,8 +312,6 @@ class mma_coverage extends uvm_subscriber#(mma_seq_item);
         reset_during_operation = t.reset_during_operation;
         extreme_value_test = t.extreme_value_test;
         csr_access_type = t.csr_access_type;
-        icb_ready_delay = t.icb_ready_delay;
-        icb_cmd_type = t.icb_cmd_type;
         bus_arbitration = t.bus_arbitration; // Renamed
         consecutive_task_count = t.consecutive_task_count;
         task_interval_cycles = t.task_interval_cycles;
@@ -346,7 +331,5 @@ class mma_coverage extends uvm_subscriber#(mma_seq_item);
 endclass
 
 `endif // MMA_COVERAGE_SV
-
-
 
 

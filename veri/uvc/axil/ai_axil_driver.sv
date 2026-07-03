@@ -173,6 +173,8 @@ class ai_axil_driver extends uvm_driver #(mma_seq_item);
             `ADDR_AXIL_REG_STATUS:    return "AXIL_REG_STATUS";
             `ADDR_AXIL_REG_WB_DATA:   return "AXIL_REG_WB_DATA";
             `ADDR_AXIL_REG_WB_INFO:   return "AXIL_REG_WB_INFO";
+            `ADDR_AXIL_REG_IA_REUSE:  return "AXIL_REG_IA_REUSE";
+            `ADDR_AXIL_REG_W_REUSE:   return "AXIL_REG_W_REUSE";
             `ADDR_MULT_LHS_PTR:       return "MULT_LHS_PTR";
             `ADDR_MULT_RHS_PTR:       return "MULT_RHS_PTR";
             `ADDR_MULT_DST_PTR:       return "MULT_DST_PTR";
@@ -250,9 +252,11 @@ class ai_axil_driver extends uvm_driver #(mma_seq_item);
 
     function automatic string get_case_name();
         string case_name;
-        if (!$value$plusargs("case=%s", case_name) || (case_name == "")) begin
-            if (!$value$plusargs("UVM_TESTNAME=%s", case_name) || (case_name == "")) begin
-                case_name = "test_case_runtime";
+        if (!$value$plusargs("MEM_GEN_CASE_NAME=%s", case_name) || (case_name == "")) begin
+            if (!$value$plusargs("case=%s", case_name) || (case_name == "")) begin
+                if (!$value$plusargs("UVM_TESTNAME=%s", case_name) || (case_name == "")) begin
+                    case_name = "test_case_runtime";
+                end
             end
         end
         return case_name;
@@ -358,7 +362,7 @@ class ai_axil_driver extends uvm_driver #(mma_seq_item);
 `elsif DUT_AXIL
                 mem_word = $root.tb_top.u_axil_top_with_ram.u_axi_sim_ram.mem_r[word_addr];
 `else
-                mem_word = $root.tb_top.u_sram_icb.u_sram.u_sirv_sim_ram.mem_r[word_addr];
+                mem_word = 32'h0;
 `endif
                 act_val = $signed(mem_word[(lane * 8) +: 8]);
 
@@ -420,10 +424,14 @@ class ai_axil_driver extends uvm_driver #(mma_seq_item);
 
     task send_mat_mult(mma_seq_item req);
         bit [31:0] ctrl;
+        int cfg_dataflow_mode;
 
         ctrl = 32'h0;
+        cfg_dataflow_mode = 0;
+        void'($value$plusargs("RAL_MEM_GEN_DATAFLOW=%d", cfg_dataflow_mode));
         ctrl[2] = req.per_ch;
         ctrl[1] = (req.a_w == 2);
+        ctrl[3] = cfg_dataflow_mode[0];
         ctrl[0] = 1'b1;
 
         // Trigger MMA through AXIL special CTRL register (bit0=start pulse).
