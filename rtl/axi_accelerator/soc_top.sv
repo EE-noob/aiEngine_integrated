@@ -567,6 +567,7 @@ module soc_top #(
     ) u_axi_interconnect (
         .clk(clk),
         .rst_n(rst_n),
+        .npu_bus_lock(npu_busy),
         .s0_axi_arvalid(cpu_bus_axi_arvalid),
         .s0_axi_arready(cpu_bus_axi_arready),
         .s0_axi_araddr(cpu_bus_axi_araddr),

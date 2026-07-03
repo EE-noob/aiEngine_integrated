@@ -108,10 +108,10 @@ module npu_axil_top #(
 
     assign m_axi_arcache = 4'b0011;
     assign m_axi_arprot  = 3'b000;
-    assign m_axi_arlock  = 2'b00;
+    assign m_axi_arlock  = npu_busy ? 2'b01 : 2'b00;
     assign m_axi_awcache = 4'b0011;
     assign m_axi_awprot  = 3'b000;
-    assign m_axi_awlock  = 2'b00;
+    assign m_axi_awlock  = npu_busy ? 2'b01 : 2'b00;
 
     npu_axil_reg_if #(
         .AXIL_DATA_WIDTH(AXIL_DATA_WIDTH),

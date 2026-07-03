@@ -11,6 +11,7 @@ module soc_axi_interconnect #(
 ) (
     input  wire                         clk,
     input  wire                         rst_n,
+    input  wire                         npu_bus_lock,
 
     input  wire                         s0_axi_arvalid,
     output logic                        s0_axi_arready,
@@ -243,7 +244,7 @@ module soc_axi_interconnect #(
         cpu_w_dest  = cpu_wr_active_q ? cpu_wr_dest_q : cpu_aw_dest;
     end
 
-    wire cpu_block_new_req = 1'b0;
+    wire cpu_block_new_req = npu_bus_lock;
     wire cpu_arq_full  = cpu_arq_count_q == 2'd2;
     wire cpu_arq_valid = cpu_arq_count_q != 2'd0;
     wire cpu_arq_push  = s0_axi_arvalid && s0_axi_arready;
@@ -583,6 +584,10 @@ module soc_axi_interconnect #(
     longint unsigned npu_ram_aw_wait_cycles;
     longint unsigned rd_yield_cycles;
     longint unsigned wr_yield_cycles;
+    longint unsigned npu_lock_cycles;
+    longint unsigned cpu_lock_ar_block_cycles;
+    longint unsigned cpu_lock_aw_block_cycles;
+    longint unsigned cpu_lock_w_block_cycles;
 
     initial begin
         axi_stats_en = $test$plusargs("SOC_AXI_STATS");
@@ -596,6 +601,10 @@ module soc_axi_interconnect #(
             npu_ram_aw_wait_cycles <= 0;
             rd_yield_cycles        <= 0;
             wr_yield_cycles        <= 0;
+            npu_lock_cycles        <= 0;
+            cpu_lock_ar_block_cycles <= 0;
+            cpu_lock_aw_block_cycles <= 0;
+            cpu_lock_w_block_cycles  <= 0;
         end else if (axi_stats_en) begin
             if (cpu_ram_ar_req && !cpu_ram_ar_hs) begin
                 cpu_ram_ar_wait_cycles <= cpu_ram_ar_wait_cycles + 1;
@@ -615,15 +624,40 @@ module soc_axi_interconnect #(
             if (ram_wr_yield) begin
                 wr_yield_cycles <= wr_yield_cycles + 1;
             end
+            if (npu_bus_lock) begin
+                npu_lock_cycles <= npu_lock_cycles + 1;
+            end
+            if (npu_bus_lock && s0_axi_arvalid && !s0_axi_arready) begin
+                cpu_lock_ar_block_cycles <= cpu_lock_ar_block_cycles + 1;
+            end
+            if (npu_bus_lock && s0_axi_awvalid && !s0_axi_awready) begin
+                cpu_lock_aw_block_cycles <= cpu_lock_aw_block_cycles + 1;
+            end
+            if (npu_bus_lock && s0_axi_wvalid && !s0_axi_wready) begin
+                cpu_lock_w_block_cycles <= cpu_lock_w_block_cycles + 1;
+            end
+        end
+    end
+
+    always_ff @(posedge clk) begin
+        if (rst_n && npu_bus_lock) begin
+            if (s0_axi_arvalid && s0_axi_arready) begin
+                $error("CPU AR accepted while NPU bus lock is active");
+            end
+            if (s0_axi_awvalid && s0_axi_awready) begin
+                $error("CPU AW accepted while NPU bus lock is active");
+            end
         end
     end
 
     final begin
         if (axi_stats_en) begin
-            $display("[SOC_AXI_STATS] cpu_ar_wait=%0d npu_ar_wait=%0d cpu_aw_wait=%0d npu_aw_wait=%0d rd_yield=%0d wr_yield=%0d",
+            $display("[SOC_AXI_STATS] cpu_ar_wait=%0d npu_ar_wait=%0d cpu_aw_wait=%0d npu_aw_wait=%0d rd_yield=%0d wr_yield=%0d npu_lock=%0d cpu_lock_ar_block=%0d cpu_lock_aw_block=%0d cpu_lock_w_block=%0d",
                      cpu_ram_ar_wait_cycles, npu_ram_ar_wait_cycles,
                      cpu_ram_aw_wait_cycles, npu_ram_aw_wait_cycles,
-                     rd_yield_cycles, wr_yield_cycles);
+                     rd_yield_cycles, wr_yield_cycles, npu_lock_cycles,
+                     cpu_lock_ar_block_cycles, cpu_lock_aw_block_cycles,
+                     cpu_lock_w_block_cycles);
         end
     end
 `endif
