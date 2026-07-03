@@ -3,6 +3,7 @@ import argparse
 import concurrent.futures
 import csv
 import itertools
+import os
 import re
 import shutil
 import subprocess
@@ -10,6 +11,7 @@ import sys
 from pathlib import Path
 
 
+DEFAULT_SOC_CPU_MEM_DP = int(os.environ.get("SOC_CPU_MEM_DP", "65536"), 0)
 PASS_RE = re.compile(r"\[TEST_RESULT\]\s+TEST PASS")
 CYCLES_RE = re.compile(r"soc_finish asserted after\s+(\d+)\s+cycles")
 UTIL_LINE_RE = re.compile(r"\[(MMA_UTIL|MMA_CTRL_UTIL|MMA_UTIL_SUMMARY|MMA_CTRL_UTIL_SUMMARY)\]\s+(.*)")
@@ -217,7 +219,7 @@ def run_command(cmd, cwd, log_path, timeout):
 
 def make_vars(seed, case_name, case_dir, size, cache_blocks, ps_frame_count,
               dims, dataflow_mode, lhs_dtype, quant_mode, ia_reuse, w_reuse,
-              sim_args, soc_timeout_cycles=0):
+              sim_args, soc_cpu_mem_dp, soc_timeout_cycles=0):
     k, n, m = dims
     vars_for_make = [
         "DUT_MODE=axi_soc",
@@ -240,7 +242,7 @@ def make_vars(seed, case_name, case_dir, size, cache_blocks, ps_frame_count,
         f"SOC_DATAFLOW_MODE={dataflow_mode}",
         f"SOC_IA_REUSE_NUM={ia_reuse}",
         f"SOC_W_REUSE_NUM={w_reuse}",
-        "SOC_CPU_MEM_DP=524288",
+        f"SOC_CPU_MEM_DP={soc_cpu_mem_dp}",
         "DUMPOPTS=0",
     ]
     if sim_args:
@@ -371,7 +373,7 @@ def run_perf_job(job, sim_dir, log_root, exception_root, timeout):
         job["seed"], case_name, case_dir, job["size"], job["cache_blocks"],
         job["ps_frame_count"], job["dims"], job["dataflow"], job["lhs_dtype"],
         job["quant_mode"], job["ia_reuse"], job["w_reuse"], job["sim_args"],
-        job["soc_timeout_cycles"])
+        job["soc_cpu_mem_dp"], job["soc_timeout_cycles"])
     vars_for_make.append(f"OUT_DIR={out_dir}")
     code, output = run_command(
         ["make", "sim", *vars_for_make], sim_dir, log_path, timeout)
@@ -417,6 +419,8 @@ def main():
     parser.add_argument("--timeout", type=int, default=900)
     parser.add_argument("--soc-timeout-cycles", type=int, default=0,
                         help="0 keeps the testbench default SOC_TIMEOUT_CYCLES")
+    parser.add_argument("--soc-cpu-mem-dp", type=int, default=DEFAULT_SOC_CPU_MEM_DP,
+                        help="CPU RAM depth in 32-bit words; default matches FPGA CPU_MEM_DP")
     parser.add_argument("--log-root", type=Path, default=Path("runs/axi_soc_perf_sweep"))
     parser.add_argument("--seed", type=int, default=80000)
     parser.add_argument("--sizes", default="16")
@@ -497,7 +501,7 @@ def main():
                         args.seed, combo_name, f"../tb/{combo_name}",
                         size, cache_blocks, ps_frame_count, dims,
                         dataflow, lhs_dtype, quant_mode, 0, 0, sim_args,
-                        args.soc_timeout_cycles)
+                        args.soc_cpu_mem_dp, args.soc_timeout_cycles)
                     print(f"compile: S{size}_C{cache_blocks}_P{ps_frame_count}")
                     compile_target = "force_com" if args.force_compile else "com"
                     code, _ = run_command(
@@ -548,6 +552,7 @@ def main():
                         "ia_reuse_eff": ia_eff,
                         "w_reuse_eff": w_eff,
                         "sim_args": sim_args,
+                        "soc_cpu_mem_dp": args.soc_cpu_mem_dp,
                         "soc_timeout_cycles": args.soc_timeout_cycles,
                     })
 

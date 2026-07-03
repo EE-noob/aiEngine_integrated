@@ -30,7 +30,7 @@ soc_axi_ram
 
 | 地址范围 | 用途 |
 | --- | --- |
-| `0x0000_0000` | PicoRV32 程序 RAM，默认深度 `CPU_MEM_DP=524288` words |
+| `0x0000_0000` | PicoRV32 程序 RAM，默认深度 `CPU_MEM_DP=65536` words，与 FPGA 导出工程默认保持一致 |
 | `0x0200_0000` | UART AXI-Lite 窗口，`0x4` 为 divider，`0x8` 为 data |
 | `0x1000_0000` | MMA AXI-Lite CSR 访问窗口，低位地址传给 `mma_axil_top` |
 | `0x2000_0000` | SoC 控制寄存器，C 程序写这里通知 UVM 测试结束 |
@@ -181,7 +181,7 @@ make tflm_person_detection_run
 | `SOC_DST_SHIFT` | 空 | 指定时覆盖自动生成的 quant shift |
 | `SOC_UART_CLKDIV` | `8` | PicoSoC UART divider。数值越大越接近真实低速 UART，数值越小仿真打印越快 |
 | `SOC_C_SRC` | `../soc_csrc/soc_main.c` | C 激励源文件 |
-| `SOC_CPU_MEM_DP` | `524288` | `cpu.mem` 输出深度，单位 word |
+| `SOC_CPU_MEM_DP` | `65536` | `cpu.mem` 输出深度，单位 word；同时决定链接脚本中的 RAM length，必须与 FPGA `CPU_MEM_DP` 一致 |
 | `SOC_AXI_READ_OUTSTANDING` | `4` | SoC RAM/interconnect/MMA DMA 读 outstanding 深度 |
 | `SOC_AXI_WRITE_OUTSTANDING` | `SOC_AXI_READ_OUTSTANDING` | SoC RAM/interconnect/MMA DMA 写 outstanding 深度 |
 

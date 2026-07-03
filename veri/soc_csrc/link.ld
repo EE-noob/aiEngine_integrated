@@ -1,9 +1,11 @@
 OUTPUT_ARCH("riscv")
 ENTRY(_start)
 
+__ram_length = DEFINED(__ram_length) ? __ram_length : 2048K;
+
 MEMORY
 {
-  ram (rwx) : ORIGIN = 0x00000000, LENGTH = 2048K
+  ram (rwx) : ORIGIN = 0x00000000, LENGTH = __ram_length
 }
 
 SECTIONS

@@ -10,7 +10,7 @@ module tb_top #(
     parameter int unsigned DUT_SIZE            = 16,
     parameter int unsigned DUT_IA_CACHE_BLOCKS = 4,
     parameter int unsigned DUT_PS_FRAME_COUNT  = DUT_SIZE,
-    parameter int unsigned DUT_CPU_MEM_DP      = 524288,
+    parameter int unsigned DUT_CPU_MEM_DP      = 65536,
     parameter int unsigned DUT_AXI_READ_OUTSTANDING  = 4,
     parameter int unsigned DUT_AXI_WRITE_OUTSTANDING = DUT_AXI_READ_OUTSTANDING,
     parameter bit          DUT_CPU_ENABLE_ICACHE = 1'b0,

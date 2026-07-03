@@ -48,7 +48,7 @@ SOC_ACT_MIN ?= -128
 SOC_ACT_MAX ?= 127
 SOC_DST_MULT ?=
 SOC_DST_SHIFT ?=
-SOC_CPU_MEM_DP ?= 524288
+SOC_CPU_MEM_DP ?= 65536
 SOC_AXI_READ_OUTSTANDING ?= 4
 SOC_AXI_WRITE_OUTSTANDING ?= $(SOC_AXI_READ_OUTSTANDING)
 SOC_CPU_ENABLE_ICACHE ?= 0
@@ -75,6 +75,8 @@ SOC_ARCH_TAG ?= rv32im
 SOC_BARE_LIBS ?= -lgcc
 SOC_OPT_LEVEL ?= -O3
 HOST_OPT_LEVEL ?= -O3
+SOC_RAM_BYTES ?= $(shell python3 -c 'print(int("$(SOC_CPU_MEM_DP)", 0) * 4)')
+SOC_LINK_FLAGS ?= -T ../soc_csrc/link.ld -Wl,--defsym=__ram_length=$(SOC_RAM_BYTES)
 SOC_REGRESS_ITERS ?= 10
 SOC_REGRESS_START_SEED ?= 1
 SOC_REGRESS_TIMEOUT ?= 300
@@ -115,8 +117,8 @@ SOC_PERF_DDR_RAND_LAT ?= 0
 SOC_PERF_DDR_CMD_MAX_LAT ?= 3
 SOC_PERF_DDR_W_MAX_LAT ?= 2
 SOC_PERF_DDR_RSP_MAX_LAT ?= 8
-SOC_RUNTIME_BASE_ADDR ?= 0x00080000
-SOC_RUNTIME_BASE_WORD ?= 131072
+SOC_RUNTIME_BASE_WORD ?= $(shell python3 -c 'print(int("$(SOC_CPU_MEM_DP)", 0) // 2)')
+SOC_RUNTIME_BASE_ADDR ?= $(shell python3 -c 'print(hex((int("$(SOC_CPU_MEM_DP)", 0) // 2) * 4))')
 SOC_RUNTIME_BUILD_DIR ?= ../tb/axi_soc_runtime_build_S$(MMA_SIZE)_C$(MMA_IA_CACHE_BLOCKS)_P$(MMA_PS_FRAME_COUNT)
 SOC_RUNTIME_CPU_MEM ?= $(SOC_RUNTIME_BUILD_DIR)/cpu.mem
 TFLM_DIR ?= ../../drivers/tflm/my_tflm
@@ -337,14 +339,14 @@ soc_case:
 soc_c: soc_case
 > @mkdir -p $(SOC_CASE_DIR)
 > @echo "[SOC_C] $(SOC_C_SRC) -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GCC) $(SOC_ARCH_FLAGS) $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) -ffreestanding -nostdlib -nostartfiles -DPICOSOC_UART_CLKDIV=$(SOC_UART_CLKDIV) -I../soc_csrc -I$(SOC_CASE_DIR) -T ../soc_csrc/link.ld ../soc_csrc/start.S ../soc_csrc/picosoc_bsp.c ../soc_csrc/dsa_accel_mmio.c $(SOC_CASE_DIR)/soc_case.c $(SOC_C_SRC) $(SOC_BARE_LIBS) -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_GCC) $(SOC_ARCH_FLAGS) $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) -ffreestanding -nostdlib -nostartfiles -DPICOSOC_UART_CLKDIV=$(SOC_UART_CLKDIV) -I../soc_csrc -I$(SOC_CASE_DIR) $(SOC_LINK_FLAGS) ../soc_csrc/start.S ../soc_csrc/picosoc_bsp.c ../soc_csrc/dsa_accel_mmio.c $(SOC_CASE_DIR)/soc_case.c $(SOC_C_SRC) $(SOC_BARE_LIBS) -o $(SOC_CASE_DIR)/cpu.elf
 > $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
 > python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 $(SOC_RUNTIME_CPU_MEM): $(SOC_RUNTIME_C_SRC) ../soc_csrc/start.S ../soc_csrc/picosoc_bsp.c ../soc_csrc/picosoc_bsp.h ../soc_csrc/dsa_accel_mmio.c ../soc_csrc/dsa_accel_mmio.h ../soc_csrc/link.ld Makefile
 > @mkdir -p $(@D)
 > @echo "[SOC_RUNTIME_C] $(SOC_RUNTIME_C_SRC) -> $@"
-> $(SOC_GCC) $(SOC_ARCH_FLAGS) $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) -DSOC_RUNTIME_CASE_BASE=$(SOC_RUNTIME_BASE_ADDR) -ffreestanding -nostdlib -nostartfiles -DPICOSOC_UART_CLKDIV=$(SOC_UART_CLKDIV) -I../soc_csrc -T ../soc_csrc/link.ld ../soc_csrc/start.S ../soc_csrc/picosoc_bsp.c ../soc_csrc/dsa_accel_mmio.c $(SOC_RUNTIME_C_SRC) $(SOC_BARE_LIBS) -o $(@D)/cpu.elf
+> $(SOC_GCC) $(SOC_ARCH_FLAGS) $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) -DSOC_RUNTIME_CASE_BASE=$(SOC_RUNTIME_BASE_ADDR) -ffreestanding -nostdlib -nostartfiles -DPICOSOC_UART_CLKDIV=$(SOC_UART_CLKDIV) -I../soc_csrc $(SOC_LINK_FLAGS) ../soc_csrc/start.S ../soc_csrc/picosoc_bsp.c ../soc_csrc/dsa_accel_mmio.c $(SOC_RUNTIME_C_SRC) $(SOC_BARE_LIBS) -o $(@D)/cpu.elf
 > $(SOC_OBJCOPY) -O binary $(@D)/cpu.elf $(@D)/cpu.bin
 > python3 ../tb/elf_to_mem.py $(@D)/cpu.bin $@ --depth $(SOC_CPU_MEM_DP)
 
@@ -365,42 +367,42 @@ $(TFLM_MICRO_SPEECH_FEATURES_CC): $(TFLM_MICRO_SPEECH_FEATURE_DUMP)
 tflm_soc_c: $(TFLM_LIB)
 > @mkdir -p $(SOC_CASE_DIR)
 > @echo "[TFLM_SOC_C] my_model -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles -T ../soc_csrc/link.ld $(TFLM_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
 > $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
 > python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 tflm_micro_speech_soc_c: $(TFLM_LIB) $(TFLM_MICRO_SPEECH_FEATURES_CC)
 > @mkdir -p $(SOC_CASE_DIR)
 > @echo "[TFLM_SOC_C] micro_speech -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles -T ../soc_csrc/link.ld $(TFLM_MICRO_SPEECH_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_MICRO_SPEECH_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
 > $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
 > python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 tflm_hello_world_soc_c: $(TFLM_LIB)
 > @mkdir -p $(SOC_CASE_DIR)
 > @echo "[TFLM_SOC_C] hello_world -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles -T ../soc_csrc/link.ld $(TFLM_HELLO_WORLD_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_HELLO_WORLD_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
 > $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
 > python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 tflm_person_detection_soc_c: $(TFLM_LIB)
 > @mkdir -p $(SOC_CASE_DIR)
 > @echo "[TFLM_SOC_C] person_detection -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles -T ../soc_csrc/link.ld $(TFLM_PERSON_DETECTION_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_PERSON_DETECTION_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
 > $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
 > python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 tflm_mnist_mlp_soc_c: $(TFLM_LIB) $(TFLM_MNIST_MLP_APP_SRCS)
 > @mkdir -p $(SOC_CASE_DIR)
 > @echo "[TFLM_SOC_C] mnist_mlp -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles -T ../soc_csrc/link.ld $(TFLM_MNIST_MLP_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_MNIST_MLP_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
 > $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
 > python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 tflm_mnist_cnn_soc_c: $(TFLM_LIB) $(TFLM_MNIST_CNN_APP_SRCS)
 > @mkdir -p $(SOC_CASE_DIR)
 > @echo "[TFLM_SOC_C] mnist_cnn -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles -T ../soc_csrc/link.ld $(TFLM_MNIST_CNN_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_MNIST_CNN_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
 > $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
 > python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
