@@ -16,7 +16,7 @@
 physical_addr = DSA_MMIO_BASE + (word_addr << 2)
 ```
 
-如果接入 `axi_soc` 仿真 SoC，`rtl/nice_coprocessor/soc_top.sv` 里的 MMA 窗口基地址目前是 `0x1000_0000`，需要和 RTL 地址映射保持一致。
+如果接入 `axi_soc` 仿真 SoC，`rtl/axi_accelerator/soc_top.sv` 里的 MMA 窗口基地址目前是 `0x1000_0000`，需要和 RTL 地址映射保持一致。
 
 ## 2. 地址窗口
 

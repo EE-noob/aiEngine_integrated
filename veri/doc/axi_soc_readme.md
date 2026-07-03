@@ -4,9 +4,9 @@
 
 ## RTL 结构
 
-SoC 顶层在 `rtl/nice_coprocessor/soc_top.sv`。
+SoC 顶层在 `rtl/axi_accelerator/soc_top.sv`。
 
-主要模块关系如下。`soc_top` 现在只保留模块实例化和连线，地址译码、AXI 仲裁、UART/ctrl 寄存器和 RAM 行为都下沉到 `rtl/nice_coprocessor/soc/` 子模块中：
+主要模块关系如下。`soc_top` 现在只保留模块实例化和连线，地址译码、AXI 仲裁、UART/ctrl 寄存器和 RAM 行为都下沉到 `rtl/axi_accelerator/soc/` 子模块中：
 
 ```text
 PicoRV32 native memory bus

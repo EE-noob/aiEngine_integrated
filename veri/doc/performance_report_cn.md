@@ -380,7 +380,7 @@ EAI 同步验证：
 
 ### 2026-07-01 补充：SoC 顶层 AXI 化和双向 outstanding
 
-本轮对 `rtl/nice_coprocessor/soc_top.sv` 做了结构收敛：顶层只保留 Pico、Pico-to-AXI bridge、AXI interconnect、MMA、RAM、UART 和 SoC ctrl 的实例化与连线。具体功能下沉到 `rtl/nice_coprocessor/soc/`：
+本轮对 `rtl/axi_accelerator/soc_top.sv` 做了结构收敛：顶层只保留 Pico、Pico-to-AXI bridge、AXI interconnect、MMA、RAM、UART 和 SoC ctrl 的实例化与连线。具体功能下沉到 `rtl/axi_accelerator/soc/`：
 
 - `pico_native_to_axi.sv`：封装 PicoRV32 官方 AXI adapter 语义，并补齐 AXI4 burst/size/cache/wlast 属性。修复了早期自写 FSM 中 `mem_ready` 寄存后一拍导致 `_start` 在 `progress=0x5a000001` 后 trap 的问题。
 - `soc_axi_interconnect.sv`：连接 Pico 和 MMA 两个 AXI master，RAM 读写通道分别按 owner 锁定，并允许同一 owner 连续发起多笔 outstanding。读写 outstanding 深度分别由 `READ_OUTSTANDING/WRITE_OUTSTANDING` 参数限制。

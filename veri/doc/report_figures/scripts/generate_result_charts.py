@@ -82,25 +82,35 @@ def load_coverage() -> dict:
 
 def fig_tops_exploration() -> list[dict]:
     data = [
-        {"阵列边长": 36, "IA cache 分块数": 4, "任务总周期": 157168, "NPU 执行周期": 3600, "理论峰值 TOPS@200MHz": 0.5184},
-        {"阵列边长": 40, "IA cache 分块数": 4, "任务总周期": 157552, "NPU 执行周期": 3984, "理论峰值 TOPS@200MHz": 0.6400},
-        {"阵列边长": 44, "IA cache 分块数": 4, "任务总周期": 157976, "NPU 执行周期": 4408, "理论峰值 TOPS@200MHz": 0.7744},
-        {"阵列边长": 48, "IA cache 分块数": 4, "任务总周期": 158440, "NPU 执行周期": 4872, "理论峰值 TOPS@200MHz": 0.9216},
-        {"阵列边长": 50, "IA cache 分块数": 4, "任务总周期": 158396, "NPU 执行周期": 4828, "理论峰值 TOPS@200MHz": 1.0000},
+        {"阵列边长": 4, "IA cache 分块数": 4, "任务规模": "64x64x64", "任务总周期": 212321, "NPU 执行周期": 58485, "理想上限 TOPS@200MHz": 0.0064, "DSA 吞吐 TOPS@200MHz": 0.001793, "SoC 吞吐 TOPS@200MHz": 0.000494},
+        {"阵列边长": 8, "IA cache 分块数": 4, "任务规模": "64x64x64", "任务总周期": 168720, "NPU 执行周期": 14884, "理想上限 TOPS@200MHz": 0.0256, "DSA 吞吐 TOPS@200MHz": 0.007045, "SoC 吞吐 TOPS@200MHz": 0.000621},
+        {"阵列边长": 16, "IA cache 分块数": 4, "任务规模": "64x64x64", "任务总周期": 159825, "NPU 执行周期": 6257, "理想上限 TOPS@200MHz": 0.1024, "DSA 吞吐 TOPS@200MHz": 0.016758, "SoC 吞吐 TOPS@200MHz": 0.000656},
+        {"阵列边长": 32, "IA cache 分块数": 4, "任务规模": "64x64x64", "任务总周期": 158853, "NPU 执行周期": 5285, "理想上限 TOPS@200MHz": 0.4096, "DSA 吞吐 TOPS@200MHz": 0.019841, "SoC 吞吐 TOPS@200MHz": 0.000660},
+        {"阵列边长": 64, "IA cache 分块数": 4, "任务规模": "64x64x64", "任务总周期": 158689, "NPU 执行周期": 5121, "理想上限 TOPS@200MHz": 1.6384, "DSA 吞吐 TOPS@200MHz": 0.020476, "SoC 吞吐 TOPS@200MHz": 0.000661},
     ]
     x = [row["阵列边长"] for row in data]
-    y = [row["理论峰值 TOPS@200MHz"] for row in data]
+    labels = [str(v) for v in x]
+    ideal = [row["理想上限 TOPS@200MHz"] for row in data]
+    dsa = [row["DSA 吞吐 TOPS@200MHz"] for row in data]
+    soc = [row["SoC 吞吐 TOPS@200MHz"] for row in data]
     fig, ax = plt.subplots(figsize=(7.2, 4.2))
-    bars = ax.bar([str(v) for v in x], y, color="#5B8FF9", edgecolor="#2F5DA8", linewidth=0.8)
-    ax.plot([str(v) for v in x], y, color="#D46B08", marker="o", linewidth=1.8)
+    x_pos = list(range(len(labels)))
+    width = 0.34
+    dsa_bars = ax.bar([v - width / 2 for v in x_pos], dsa, width, color="#5B8FF9", edgecolor="#2F5DA8", linewidth=0.8, label="DSA执行吞吐")
+    soc_bars = ax.bar([v + width / 2 for v in x_pos], soc, width, color="#61DDAA", edgecolor="#1B7F5A", linewidth=0.8, label="SoC完成吞吐")
+    ax.plot(x_pos, ideal, color="#D46B08", marker="o", linewidth=1.8, label="理想上限")
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels(labels)
     ax.axhline(0.5, color="#2F9E44", linestyle="--", linewidth=1.1, label="0.5 TOPS")
     ax.axhline(1.0, color="#C92A2A", linestyle="--", linewidth=1.1, label="1.0 TOPS")
-    annotate_bars(ax, bars, "{:.4f}")
-    ax.set_title("阵列规模参数与理论峰值算力")
+    annotate_bars(ax, dsa_bars, "{:.5f}")
+    annotate_bars(ax, soc_bars, "{:.6f}")
+    ax.set_title("固定IA cache块数下的64x64x64任务吞吐")
     ax.set_xlabel("阵列规模 NxN")
-    ax.set_ylabel("理论峰值算力（TOPS，200 MHz）")
-    ax.set_ylim(0, 1.12)
-    ax.legend(loc="lower right", frameon=True, framealpha=0.92, edgecolor="#DDDDDD")
+    ax.set_ylabel("吞吐（TOPS，200 MHz）")
+    ax.set_yscale("log")
+    ax.set_ylim(4e-4, 2.2)
+    ax.legend(loc="upper left", frameon=True, framealpha=0.92, edgecolor="#DDDDDD", fontsize=8)
     savefig("fig11_tops_param_curve.png")
     return data
 
