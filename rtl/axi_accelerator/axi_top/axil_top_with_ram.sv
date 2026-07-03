@@ -18,7 +18,7 @@ module axil_top_with_ram #(
     input  wire clk,
     input  wire rst_n,
 
-    // AXI-Lite slave interface to configure MMA
+    // AXI-Lite slave interface to configure NPU
     input  wire [AXIL_ADDR_WIDTH-1:0]     s_axil_awaddr,
     input  wire [2:0]                     s_axil_awprot,
     input  wire                           s_axil_awvalid,
@@ -43,10 +43,10 @@ module axil_top_with_ram #(
     input  wire [31:0]                    eoi,
 
     input  wire                           mem_reload_req,
-    output wire                           mma_busy
+    output wire                           npu_busy
 );
 
-    // AXI master interconnect between mma_axil_top and axi_sim_ram
+    // AXI master interconnect between npu_axil_top and axi_sim_ram
     wire                          m_axi_arvalid;
     wire                          m_axi_arready;
     wire [AXI_ADDR_WIDTH-1:0]     m_axi_araddr;
@@ -83,7 +83,7 @@ module axil_top_with_ram #(
     wire                          m_axi_bready;
     wire [1:0]                    m_axi_bresp;
 
-    mma_axil_top #(
+    npu_axil_top #(
         .AXIL_DATA_WIDTH(AXIL_DATA_WIDTH),
         .AXIL_ADDR_WIDTH(AXIL_ADDR_WIDTH),
         .WEIGHT_WIDTH(WEIGHT_WIDTH),
@@ -96,7 +96,7 @@ module axil_top_with_ram #(
         .PS_FRAME_COUNT(PS_FRAME_COUNT),
         .AXI_READ_OUTSTANDING(AXI_READ_OUTSTANDING),
         .IRQ_STATUS_MASK(IRQ_STATUS_MASK)
-    ) u_mma_axil_top (
+    ) u_npu_axil_top (
         .clk(clk),
         .rst_n(rst_n),
         .s_axil_awaddr(s_axil_awaddr),
@@ -158,7 +158,7 @@ module axil_top_with_ram #(
         .irq(irq),
         .eoi(eoi),
 
-        .mma_busy(mma_busy)
+        .npu_busy(npu_busy)
     );
 
     axi_sim_ram #(

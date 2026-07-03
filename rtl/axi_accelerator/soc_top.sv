@@ -21,16 +21,16 @@ module soc_top #(
     parameter BYPASS_RAM_PINGPONG = 1,
     parameter RAM_WRITE_TIMING_BUFFER = 1,
     parameter [31:0] CPU_RAM_BASE   = 32'h0000_0000,
-    parameter [31:0] MMA_AXIL_BASE  = 32'h1000_0000,
+    parameter [31:0] NPU_AXIL_BASE  = 32'h1000_0000,
     parameter [31:0] UART_BASE      = 32'h0200_0000,
     parameter [31:0] SOC_CTRL_BASE  = 32'h2000_0000
 ) (
     input  wire        clk,
     input  wire        rst_n,
     input  wire        mem_reload_req,
-    output wire        mma_busy,
-    output wire [31:0] mma_irq,
-    output wire [31:0] mma_eoi,
+    output wire        npu_busy,
+    output wire [31:0] npu_irq,
+    output wire [31:0] npu_eoi,
     output wire        uart_tx,
     input  wire        uart_rx,
     output wire        soc_finish,
@@ -110,69 +110,69 @@ module soc_top #(
     wire        cpu_bus_axi_bready;
     wire [1:0]  cpu_bus_axi_bresp;
 
-    wire        mma_axi_arvalid;
-    wire        mma_axi_arready;
-    wire [AXI_ADDR_WIDTH-1:0] mma_axi_araddr;
-    wire [3:0]  mma_axi_arcache;
-    wire [2:0]  mma_axi_arprot;
-    wire [1:0]  mma_axi_arlock;
-    wire [1:0]  mma_axi_arburst;
-    wire [7:0]  mma_axi_arlen;
-    wire [2:0]  mma_axi_arsize;
-    wire        mma_axi_rvalid;
-    wire        mma_axi_rready;
-    wire [BUS_WIDTH-1:0] mma_axi_rdata;
-    wire [1:0]  mma_axi_rresp;
-    wire        mma_axi_rlast;
-    wire        mma_axi_awvalid;
-    wire        mma_axi_awready;
-    wire [AXI_ADDR_WIDTH-1:0] mma_axi_awaddr;
-    wire [3:0]  mma_axi_awcache;
-    wire [2:0]  mma_axi_awprot;
-    wire [1:0]  mma_axi_awlock;
-    wire [1:0]  mma_axi_awburst;
-    wire [7:0]  mma_axi_awlen;
-    wire [2:0]  mma_axi_awsize;
-    wire        mma_axi_wvalid;
-    wire        mma_axi_wready;
-    wire [BUS_WIDTH-1:0] mma_axi_wdata;
-    wire [BUS_WIDTH/8-1:0] mma_axi_wstrb;
-    wire        mma_axi_wlast;
-    wire        mma_axi_bvalid;
-    wire        mma_axi_bready;
-    wire [1:0]  mma_axi_bresp;
+    wire        npu_axi_arvalid;
+    wire        npu_axi_arready;
+    wire [AXI_ADDR_WIDTH-1:0] npu_axi_araddr;
+    wire [3:0]  npu_axi_arcache;
+    wire [2:0]  npu_axi_arprot;
+    wire [1:0]  npu_axi_arlock;
+    wire [1:0]  npu_axi_arburst;
+    wire [7:0]  npu_axi_arlen;
+    wire [2:0]  npu_axi_arsize;
+    wire        npu_axi_rvalid;
+    wire        npu_axi_rready;
+    wire [BUS_WIDTH-1:0] npu_axi_rdata;
+    wire [1:0]  npu_axi_rresp;
+    wire        npu_axi_rlast;
+    wire        npu_axi_awvalid;
+    wire        npu_axi_awready;
+    wire [AXI_ADDR_WIDTH-1:0] npu_axi_awaddr;
+    wire [3:0]  npu_axi_awcache;
+    wire [2:0]  npu_axi_awprot;
+    wire [1:0]  npu_axi_awlock;
+    wire [1:0]  npu_axi_awburst;
+    wire [7:0]  npu_axi_awlen;
+    wire [2:0]  npu_axi_awsize;
+    wire        npu_axi_wvalid;
+    wire        npu_axi_wready;
+    wire [BUS_WIDTH-1:0] npu_axi_wdata;
+    wire [BUS_WIDTH/8-1:0] npu_axi_wstrb;
+    wire        npu_axi_wlast;
+    wire        npu_axi_bvalid;
+    wire        npu_axi_bready;
+    wire [1:0]  npu_axi_bresp;
 
-    wire        mma_core_axi_arvalid;
-    wire        mma_core_axi_arready;
-    wire [AXI_ADDR_WIDTH-1:0] mma_core_axi_araddr;
-    wire [3:0]  mma_core_axi_arcache;
-    wire [2:0]  mma_core_axi_arprot;
-    wire [1:0]  mma_core_axi_arlock;
-    wire [1:0]  mma_core_axi_arburst;
-    wire [7:0]  mma_core_axi_arlen;
-    wire [2:0]  mma_core_axi_arsize;
-    wire        mma_core_axi_rvalid;
-    wire        mma_core_axi_rready;
-    wire [BUS_WIDTH-1:0] mma_core_axi_rdata;
-    wire [1:0]  mma_core_axi_rresp;
-    wire        mma_core_axi_rlast;
-    wire        mma_core_axi_awvalid;
-    wire        mma_core_axi_awready;
-    wire [AXI_ADDR_WIDTH-1:0] mma_core_axi_awaddr;
-    wire [3:0]  mma_core_axi_awcache;
-    wire [2:0]  mma_core_axi_awprot;
-    wire [1:0]  mma_core_axi_awlock;
-    wire [1:0]  mma_core_axi_awburst;
-    wire [7:0]  mma_core_axi_awlen;
-    wire [2:0]  mma_core_axi_awsize;
-    wire        mma_core_axi_wvalid;
-    wire        mma_core_axi_wready;
-    wire [BUS_WIDTH-1:0] mma_core_axi_wdata;
-    wire [BUS_WIDTH/8-1:0] mma_core_axi_wstrb;
-    wire        mma_core_axi_wlast;
-    wire        mma_core_axi_bvalid;
-    wire        mma_core_axi_bready;
-    wire [1:0]  mma_core_axi_bresp;
+    wire        npu_core_axi_arvalid;
+    wire        npu_core_axi_arready;
+    wire [AXI_ADDR_WIDTH-1:0] npu_core_axi_araddr;
+    wire [3:0]  npu_core_axi_arcache;
+    wire [2:0]  npu_core_axi_arprot;
+    wire [1:0]  npu_core_axi_arlock;
+    wire [1:0]  npu_core_axi_arburst;
+    wire [7:0]  npu_core_axi_arlen;
+    wire [2:0]  npu_core_axi_arsize;
+    wire        npu_core_axi_rvalid;
+    wire        npu_core_axi_rready;
+    wire [BUS_WIDTH-1:0] npu_core_axi_rdata;
+    wire [1:0]  npu_core_axi_rresp;
+    wire        npu_core_axi_rlast;
+    wire        npu_core_axi_awvalid;
+    wire        npu_core_axi_awready;
+    wire [AXI_ADDR_WIDTH-1:0] npu_core_axi_awaddr;
+    wire [3:0]  npu_core_axi_awcache;
+    wire [2:0]  npu_core_axi_awprot;
+    wire [1:0]  npu_core_axi_awlock;
+    wire [1:0]  npu_core_axi_awburst;
+    wire [7:0]  npu_core_axi_awlen;
+    wire [2:0]  npu_core_axi_awsize;
+    wire        npu_core_axi_wvalid;
+    wire        npu_core_axi_wready;
+    wire [BUS_WIDTH-1:0] npu_core_axi_wdata;
+    wire [BUS_WIDTH/8-1:0] npu_core_axi_wstrb;
+    wire        npu_core_axi_wlast;
+    wire        npu_core_axi_bvalid;
+    wire        npu_core_axi_bready;
+    wire [1:0]  npu_core_axi_bresp;
 
     wire        ram_axi_arvalid;
     wire        ram_axi_arready;
@@ -238,45 +238,45 @@ module soc_top #(
     wire        ram_buf_axi_bready;
     wire [1:0]  ram_buf_axi_bresp;
 
-    wire [AXIL_ADDR_WIDTH-1:0] mma_axil_awaddr;
-    wire [2:0]  mma_axil_awprot;
-    wire        mma_axil_awvalid;
-    wire        mma_axil_awready;
-    wire [31:0] mma_axil_wdata;
-    wire [3:0]  mma_axil_wstrb;
-    wire        mma_axil_wvalid;
-    wire        mma_axil_wready;
-    wire [1:0]  mma_axil_bresp;
-    wire        mma_axil_bvalid;
-    wire        mma_axil_bready;
-    wire [AXIL_ADDR_WIDTH-1:0] mma_axil_araddr;
-    wire [2:0]  mma_axil_arprot;
-    wire        mma_axil_arvalid;
-    wire        mma_axil_arready;
-    wire [31:0] mma_axil_rdata;
-    wire [1:0]  mma_axil_rresp;
-    wire        mma_axil_rvalid;
-    wire        mma_axil_rready;
+    wire [AXIL_ADDR_WIDTH-1:0] npu_axil_awaddr;
+    wire [2:0]  npu_axil_awprot;
+    wire        npu_axil_awvalid;
+    wire        npu_axil_awready;
+    wire [31:0] npu_axil_wdata;
+    wire [3:0]  npu_axil_wstrb;
+    wire        npu_axil_wvalid;
+    wire        npu_axil_wready;
+    wire [1:0]  npu_axil_bresp;
+    wire        npu_axil_bvalid;
+    wire        npu_axil_bready;
+    wire [AXIL_ADDR_WIDTH-1:0] npu_axil_araddr;
+    wire [2:0]  npu_axil_arprot;
+    wire        npu_axil_arvalid;
+    wire        npu_axil_arready;
+    wire [31:0] npu_axil_rdata;
+    wire [1:0]  npu_axil_rresp;
+    wire        npu_axil_rvalid;
+    wire        npu_axil_rready;
 
-    wire [AXIL_ADDR_WIDTH-1:0] mma_core_axil_awaddr;
-    wire [2:0]  mma_core_axil_awprot;
-    wire        mma_core_axil_awvalid;
-    wire        mma_core_axil_awready;
-    wire [31:0] mma_core_axil_wdata;
-    wire [3:0]  mma_core_axil_wstrb;
-    wire        mma_core_axil_wvalid;
-    wire        mma_core_axil_wready;
-    wire [1:0]  mma_core_axil_bresp;
-    wire        mma_core_axil_bvalid;
-    wire        mma_core_axil_bready;
-    wire [AXIL_ADDR_WIDTH-1:0] mma_core_axil_araddr;
-    wire [2:0]  mma_core_axil_arprot;
-    wire        mma_core_axil_arvalid;
-    wire        mma_core_axil_arready;
-    wire [31:0] mma_core_axil_rdata;
-    wire [1:0]  mma_core_axil_rresp;
-    wire        mma_core_axil_rvalid;
-    wire        mma_core_axil_rready;
+    wire [AXIL_ADDR_WIDTH-1:0] npu_core_axil_awaddr;
+    wire [2:0]  npu_core_axil_awprot;
+    wire        npu_core_axil_awvalid;
+    wire        npu_core_axil_awready;
+    wire [31:0] npu_core_axil_wdata;
+    wire [3:0]  npu_core_axil_wstrb;
+    wire        npu_core_axil_wvalid;
+    wire        npu_core_axil_wready;
+    wire [1:0]  npu_core_axil_bresp;
+    wire        npu_core_axil_bvalid;
+    wire        npu_core_axil_bready;
+    wire [AXIL_ADDR_WIDTH-1:0] npu_core_axil_araddr;
+    wire [2:0]  npu_core_axil_arprot;
+    wire        npu_core_axil_arvalid;
+    wire        npu_core_axil_arready;
+    wire [31:0] npu_core_axil_rdata;
+    wire [1:0]  npu_core_axil_rresp;
+    wire        npu_core_axil_rvalid;
+    wire        npu_core_axil_rready;
 
     wire [31:0] uart_axil_awaddr;
     wire [2:0]  uart_axil_awprot;
@@ -339,7 +339,7 @@ module soc_top #(
     wire        ctrl_axil_rready;
     wire [31:0] soc_progress;
 
-    assign mma_eoi = 32'h0;
+    assign npu_eoi = 32'h0;
 
     picorv32 #(
         .ENABLE_COUNTERS(1),
@@ -561,7 +561,7 @@ module soc_top #(
         .READ_OUTSTANDING(AXI_READ_OUTSTANDING),
         .WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING),
         .CPU_RAM_BASE(CPU_RAM_BASE),
-        .MMA_AXIL_BASE(MMA_AXIL_BASE),
+        .NPU_AXIL_BASE(NPU_AXIL_BASE),
         .UART_BASE(UART_BASE),
         .SOC_CTRL_BASE(SOC_CTRL_BASE)
     ) u_axi_interconnect (
@@ -598,37 +598,37 @@ module soc_top #(
         .s0_axi_bvalid(cpu_bus_axi_bvalid),
         .s0_axi_bready(cpu_bus_axi_bready),
         .s0_axi_bresp(cpu_bus_axi_bresp),
-        .s1_axi_arvalid(mma_axi_arvalid),
-        .s1_axi_arready(mma_axi_arready),
-        .s1_axi_araddr(mma_axi_araddr),
-        .s1_axi_arcache(mma_axi_arcache),
-        .s1_axi_arprot(mma_axi_arprot),
-        .s1_axi_arlock(mma_axi_arlock),
-        .s1_axi_arburst(mma_axi_arburst),
-        .s1_axi_arlen(mma_axi_arlen),
-        .s1_axi_arsize(mma_axi_arsize),
-        .s1_axi_rvalid(mma_axi_rvalid),
-        .s1_axi_rready(mma_axi_rready),
-        .s1_axi_rdata(mma_axi_rdata),
-        .s1_axi_rresp(mma_axi_rresp),
-        .s1_axi_rlast(mma_axi_rlast),
-        .s1_axi_awvalid(mma_axi_awvalid),
-        .s1_axi_awready(mma_axi_awready),
-        .s1_axi_awaddr(mma_axi_awaddr),
-        .s1_axi_awcache(mma_axi_awcache),
-        .s1_axi_awprot(mma_axi_awprot),
-        .s1_axi_awlock(mma_axi_awlock),
-        .s1_axi_awburst(mma_axi_awburst),
-        .s1_axi_awlen(mma_axi_awlen),
-        .s1_axi_awsize(mma_axi_awsize),
-        .s1_axi_wvalid(mma_axi_wvalid),
-        .s1_axi_wready(mma_axi_wready),
-        .s1_axi_wdata(mma_axi_wdata),
-        .s1_axi_wstrb(mma_axi_wstrb),
-        .s1_axi_wlast(mma_axi_wlast),
-        .s1_axi_bvalid(mma_axi_bvalid),
-        .s1_axi_bready(mma_axi_bready),
-        .s1_axi_bresp(mma_axi_bresp),
+        .s1_axi_arvalid(npu_axi_arvalid),
+        .s1_axi_arready(npu_axi_arready),
+        .s1_axi_araddr(npu_axi_araddr),
+        .s1_axi_arcache(npu_axi_arcache),
+        .s1_axi_arprot(npu_axi_arprot),
+        .s1_axi_arlock(npu_axi_arlock),
+        .s1_axi_arburst(npu_axi_arburst),
+        .s1_axi_arlen(npu_axi_arlen),
+        .s1_axi_arsize(npu_axi_arsize),
+        .s1_axi_rvalid(npu_axi_rvalid),
+        .s1_axi_rready(npu_axi_rready),
+        .s1_axi_rdata(npu_axi_rdata),
+        .s1_axi_rresp(npu_axi_rresp),
+        .s1_axi_rlast(npu_axi_rlast),
+        .s1_axi_awvalid(npu_axi_awvalid),
+        .s1_axi_awready(npu_axi_awready),
+        .s1_axi_awaddr(npu_axi_awaddr),
+        .s1_axi_awcache(npu_axi_awcache),
+        .s1_axi_awprot(npu_axi_awprot),
+        .s1_axi_awlock(npu_axi_awlock),
+        .s1_axi_awburst(npu_axi_awburst),
+        .s1_axi_awlen(npu_axi_awlen),
+        .s1_axi_awsize(npu_axi_awsize),
+        .s1_axi_wvalid(npu_axi_wvalid),
+        .s1_axi_wready(npu_axi_wready),
+        .s1_axi_wdata(npu_axi_wdata),
+        .s1_axi_wstrb(npu_axi_wstrb),
+        .s1_axi_wlast(npu_axi_wlast),
+        .s1_axi_bvalid(npu_axi_bvalid),
+        .s1_axi_bready(npu_axi_bready),
+        .s1_axi_bresp(npu_axi_bresp),
         .m_ram_arvalid(ram_axi_arvalid),
         .m_ram_arready(ram_axi_arready),
         .m_ram_araddr(ram_axi_araddr),
@@ -660,25 +660,25 @@ module soc_top #(
         .m_ram_bvalid(ram_axi_bvalid),
         .m_ram_bready(ram_axi_bready),
         .m_ram_bresp(ram_axi_bresp),
-        .m_mma_awaddr(mma_axil_awaddr),
-        .m_mma_awprot(mma_axil_awprot),
-        .m_mma_awvalid(mma_axil_awvalid),
-        .m_mma_awready(mma_axil_awready),
-        .m_mma_wdata(mma_axil_wdata),
-        .m_mma_wstrb(mma_axil_wstrb),
-        .m_mma_wvalid(mma_axil_wvalid),
-        .m_mma_wready(mma_axil_wready),
-        .m_mma_bresp(mma_axil_bresp),
-        .m_mma_bvalid(mma_axil_bvalid),
-        .m_mma_bready(mma_axil_bready),
-        .m_mma_araddr(mma_axil_araddr),
-        .m_mma_arprot(mma_axil_arprot),
-        .m_mma_arvalid(mma_axil_arvalid),
-        .m_mma_arready(mma_axil_arready),
-        .m_mma_rdata(mma_axil_rdata),
-        .m_mma_rresp(mma_axil_rresp),
-        .m_mma_rvalid(mma_axil_rvalid),
-        .m_mma_rready(mma_axil_rready),
+        .m_npu_awaddr(npu_axil_awaddr),
+        .m_npu_awprot(npu_axil_awprot),
+        .m_npu_awvalid(npu_axil_awvalid),
+        .m_npu_awready(npu_axil_awready),
+        .m_npu_wdata(npu_axil_wdata),
+        .m_npu_wstrb(npu_axil_wstrb),
+        .m_npu_wvalid(npu_axil_wvalid),
+        .m_npu_wready(npu_axil_wready),
+        .m_npu_bresp(npu_axil_bresp),
+        .m_npu_bvalid(npu_axil_bvalid),
+        .m_npu_bready(npu_axil_bready),
+        .m_npu_araddr(npu_axil_araddr),
+        .m_npu_arprot(npu_axil_arprot),
+        .m_npu_arvalid(npu_axil_arvalid),
+        .m_npu_arready(npu_axil_arready),
+        .m_npu_rdata(npu_axil_rdata),
+        .m_npu_rresp(npu_axil_rresp),
+        .m_npu_rvalid(npu_axil_rvalid),
+        .m_npu_rready(npu_axil_rready),
         .m_uart_awaddr(uart_axil_awaddr),
         .m_uart_awprot(uart_axil_awprot),
         .m_uart_awvalid(uart_axil_awvalid),
@@ -722,50 +722,50 @@ module soc_top #(
     soc_axil_pingpong_buffer #(
         .ADDR_WIDTH(AXIL_ADDR_WIDTH),
         .DATA_WIDTH(AXIL_DATA_WIDTH)
-    ) u_mma_axil_pingpong (
+    ) u_npu_axil_pingpong (
         .clk(clk),
         .rst_n(rst_n),
-        .s_axil_awaddr(mma_axil_awaddr),
-        .s_axil_awprot(mma_axil_awprot),
-        .s_axil_awvalid(mma_axil_awvalid),
-        .s_axil_awready(mma_axil_awready),
-        .s_axil_wdata(mma_axil_wdata),
-        .s_axil_wstrb(mma_axil_wstrb),
-        .s_axil_wvalid(mma_axil_wvalid),
-        .s_axil_wready(mma_axil_wready),
-        .s_axil_bresp(mma_axil_bresp),
-        .s_axil_bvalid(mma_axil_bvalid),
-        .s_axil_bready(mma_axil_bready),
-        .s_axil_araddr(mma_axil_araddr),
-        .s_axil_arprot(mma_axil_arprot),
-        .s_axil_arvalid(mma_axil_arvalid),
-        .s_axil_arready(mma_axil_arready),
-        .s_axil_rdata(mma_axil_rdata),
-        .s_axil_rresp(mma_axil_rresp),
-        .s_axil_rvalid(mma_axil_rvalid),
-        .s_axil_rready(mma_axil_rready),
-        .m_axil_awaddr(mma_core_axil_awaddr),
-        .m_axil_awprot(mma_core_axil_awprot),
-        .m_axil_awvalid(mma_core_axil_awvalid),
-        .m_axil_awready(mma_core_axil_awready),
-        .m_axil_wdata(mma_core_axil_wdata),
-        .m_axil_wstrb(mma_core_axil_wstrb),
-        .m_axil_wvalid(mma_core_axil_wvalid),
-        .m_axil_wready(mma_core_axil_wready),
-        .m_axil_bresp(mma_core_axil_bresp),
-        .m_axil_bvalid(mma_core_axil_bvalid),
-        .m_axil_bready(mma_core_axil_bready),
-        .m_axil_araddr(mma_core_axil_araddr),
-        .m_axil_arprot(mma_core_axil_arprot),
-        .m_axil_arvalid(mma_core_axil_arvalid),
-        .m_axil_arready(mma_core_axil_arready),
-        .m_axil_rdata(mma_core_axil_rdata),
-        .m_axil_rresp(mma_core_axil_rresp),
-        .m_axil_rvalid(mma_core_axil_rvalid),
-        .m_axil_rready(mma_core_axil_rready)
+        .s_axil_awaddr(npu_axil_awaddr),
+        .s_axil_awprot(npu_axil_awprot),
+        .s_axil_awvalid(npu_axil_awvalid),
+        .s_axil_awready(npu_axil_awready),
+        .s_axil_wdata(npu_axil_wdata),
+        .s_axil_wstrb(npu_axil_wstrb),
+        .s_axil_wvalid(npu_axil_wvalid),
+        .s_axil_wready(npu_axil_wready),
+        .s_axil_bresp(npu_axil_bresp),
+        .s_axil_bvalid(npu_axil_bvalid),
+        .s_axil_bready(npu_axil_bready),
+        .s_axil_araddr(npu_axil_araddr),
+        .s_axil_arprot(npu_axil_arprot),
+        .s_axil_arvalid(npu_axil_arvalid),
+        .s_axil_arready(npu_axil_arready),
+        .s_axil_rdata(npu_axil_rdata),
+        .s_axil_rresp(npu_axil_rresp),
+        .s_axil_rvalid(npu_axil_rvalid),
+        .s_axil_rready(npu_axil_rready),
+        .m_axil_awaddr(npu_core_axil_awaddr),
+        .m_axil_awprot(npu_core_axil_awprot),
+        .m_axil_awvalid(npu_core_axil_awvalid),
+        .m_axil_awready(npu_core_axil_awready),
+        .m_axil_wdata(npu_core_axil_wdata),
+        .m_axil_wstrb(npu_core_axil_wstrb),
+        .m_axil_wvalid(npu_core_axil_wvalid),
+        .m_axil_wready(npu_core_axil_wready),
+        .m_axil_bresp(npu_core_axil_bresp),
+        .m_axil_bvalid(npu_core_axil_bvalid),
+        .m_axil_bready(npu_core_axil_bready),
+        .m_axil_araddr(npu_core_axil_araddr),
+        .m_axil_arprot(npu_core_axil_arprot),
+        .m_axil_arvalid(npu_core_axil_arvalid),
+        .m_axil_arready(npu_core_axil_arready),
+        .m_axil_rdata(npu_core_axil_rdata),
+        .m_axil_rresp(npu_core_axil_rresp),
+        .m_axil_rvalid(npu_core_axil_rvalid),
+        .m_axil_rready(npu_core_axil_rready)
     );
 
-    mma_axil_top #(
+    npu_axil_top #(
         .AXIL_DATA_WIDTH(AXIL_DATA_WIDTH),
         .AXIL_ADDR_WIDTH(AXIL_ADDR_WIDTH),
         .WEIGHT_WIDTH(WEIGHT_WIDTH),
@@ -778,62 +778,62 @@ module soc_top #(
         .PS_FRAME_COUNT(PS_FRAME_COUNT),
         .AXI_READ_OUTSTANDING(AXI_READ_OUTSTANDING),
         .AXI_WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING)
-    ) u_mma_axil_top (
+    ) u_npu_axil_top (
         .clk(clk),
         .rst_n(rst_n),
-        .s_axil_awaddr(mma_core_axil_awaddr),
-        .s_axil_awprot(mma_core_axil_awprot),
-        .s_axil_awvalid(mma_core_axil_awvalid),
-        .s_axil_awready(mma_core_axil_awready),
-        .s_axil_wdata(mma_core_axil_wdata),
-        .s_axil_wstrb(mma_core_axil_wstrb),
-        .s_axil_wvalid(mma_core_axil_wvalid),
-        .s_axil_wready(mma_core_axil_wready),
-        .s_axil_bresp(mma_core_axil_bresp),
-        .s_axil_bvalid(mma_core_axil_bvalid),
-        .s_axil_bready(mma_core_axil_bready),
-        .s_axil_araddr(mma_core_axil_araddr),
-        .s_axil_arprot(mma_core_axil_arprot),
-        .s_axil_arvalid(mma_core_axil_arvalid),
-        .s_axil_arready(mma_core_axil_arready),
-        .s_axil_rdata(mma_core_axil_rdata),
-        .s_axil_rresp(mma_core_axil_rresp),
-        .s_axil_rvalid(mma_core_axil_rvalid),
-        .s_axil_rready(mma_core_axil_rready),
-        .m_axi_arvalid(mma_core_axi_arvalid),
-        .m_axi_arready(mma_core_axi_arready),
-        .m_axi_araddr(mma_core_axi_araddr),
-        .m_axi_arcache(mma_core_axi_arcache),
-        .m_axi_arprot(mma_core_axi_arprot),
-        .m_axi_arlock(mma_core_axi_arlock),
-        .m_axi_arburst(mma_core_axi_arburst),
-        .m_axi_arlen(mma_core_axi_arlen),
-        .m_axi_arsize(mma_core_axi_arsize),
-        .m_axi_awvalid(mma_core_axi_awvalid),
-        .m_axi_awready(mma_core_axi_awready),
-        .m_axi_awaddr(mma_core_axi_awaddr),
-        .m_axi_awcache(mma_core_axi_awcache),
-        .m_axi_awprot(mma_core_axi_awprot),
-        .m_axi_awlock(mma_core_axi_awlock),
-        .m_axi_awburst(mma_core_axi_awburst),
-        .m_axi_awlen(mma_core_axi_awlen),
-        .m_axi_awsize(mma_core_axi_awsize),
-        .m_axi_rvalid(mma_core_axi_rvalid),
-        .m_axi_rready(mma_core_axi_rready),
-        .m_axi_rdata(mma_core_axi_rdata),
-        .m_axi_rresp(mma_core_axi_rresp),
-        .m_axi_rlast(mma_core_axi_rlast),
-        .m_axi_wvalid(mma_core_axi_wvalid),
-        .m_axi_wready(mma_core_axi_wready),
-        .m_axi_wdata(mma_core_axi_wdata),
-        .m_axi_wstrb(mma_core_axi_wstrb),
-        .m_axi_wlast(mma_core_axi_wlast),
-        .m_axi_bvalid(mma_core_axi_bvalid),
-        .m_axi_bready(mma_core_axi_bready),
-        .m_axi_bresp(mma_core_axi_bresp),
-        .irq(mma_irq),
-        .eoi(mma_eoi),
-        .mma_busy(mma_busy)
+        .s_axil_awaddr(npu_core_axil_awaddr),
+        .s_axil_awprot(npu_core_axil_awprot),
+        .s_axil_awvalid(npu_core_axil_awvalid),
+        .s_axil_awready(npu_core_axil_awready),
+        .s_axil_wdata(npu_core_axil_wdata),
+        .s_axil_wstrb(npu_core_axil_wstrb),
+        .s_axil_wvalid(npu_core_axil_wvalid),
+        .s_axil_wready(npu_core_axil_wready),
+        .s_axil_bresp(npu_core_axil_bresp),
+        .s_axil_bvalid(npu_core_axil_bvalid),
+        .s_axil_bready(npu_core_axil_bready),
+        .s_axil_araddr(npu_core_axil_araddr),
+        .s_axil_arprot(npu_core_axil_arprot),
+        .s_axil_arvalid(npu_core_axil_arvalid),
+        .s_axil_arready(npu_core_axil_arready),
+        .s_axil_rdata(npu_core_axil_rdata),
+        .s_axil_rresp(npu_core_axil_rresp),
+        .s_axil_rvalid(npu_core_axil_rvalid),
+        .s_axil_rready(npu_core_axil_rready),
+        .m_axi_arvalid(npu_core_axi_arvalid),
+        .m_axi_arready(npu_core_axi_arready),
+        .m_axi_araddr(npu_core_axi_araddr),
+        .m_axi_arcache(npu_core_axi_arcache),
+        .m_axi_arprot(npu_core_axi_arprot),
+        .m_axi_arlock(npu_core_axi_arlock),
+        .m_axi_arburst(npu_core_axi_arburst),
+        .m_axi_arlen(npu_core_axi_arlen),
+        .m_axi_arsize(npu_core_axi_arsize),
+        .m_axi_awvalid(npu_core_axi_awvalid),
+        .m_axi_awready(npu_core_axi_awready),
+        .m_axi_awaddr(npu_core_axi_awaddr),
+        .m_axi_awcache(npu_core_axi_awcache),
+        .m_axi_awprot(npu_core_axi_awprot),
+        .m_axi_awlock(npu_core_axi_awlock),
+        .m_axi_awburst(npu_core_axi_awburst),
+        .m_axi_awlen(npu_core_axi_awlen),
+        .m_axi_awsize(npu_core_axi_awsize),
+        .m_axi_rvalid(npu_core_axi_rvalid),
+        .m_axi_rready(npu_core_axi_rready),
+        .m_axi_rdata(npu_core_axi_rdata),
+        .m_axi_rresp(npu_core_axi_rresp),
+        .m_axi_rlast(npu_core_axi_rlast),
+        .m_axi_wvalid(npu_core_axi_wvalid),
+        .m_axi_wready(npu_core_axi_wready),
+        .m_axi_wdata(npu_core_axi_wdata),
+        .m_axi_wstrb(npu_core_axi_wstrb),
+        .m_axi_wlast(npu_core_axi_wlast),
+        .m_axi_bvalid(npu_core_axi_bvalid),
+        .m_axi_bready(npu_core_axi_bready),
+        .m_axi_bresp(npu_core_axi_bresp),
+        .irq(npu_irq),
+        .eoi(npu_eoi),
+        .npu_busy(npu_busy)
     );
 
     generate
@@ -841,105 +841,105 @@ module soc_top #(
             soc_axi_pingpong_buffer #(
                 .ADDR_WIDTH(AXI_ADDR_WIDTH),
                 .DATA_WIDTH(BUS_WIDTH)
-            ) u_mma_axi_pingpong (
+            ) u_npu_axi_pingpong (
                 .clk(clk),
                 .rst_n(rst_n),
-                .s_axi_arvalid(mma_core_axi_arvalid),
-                .s_axi_arready(mma_core_axi_arready),
-                .s_axi_araddr(mma_core_axi_araddr),
-                .s_axi_arcache(mma_core_axi_arcache),
-                .s_axi_arprot(mma_core_axi_arprot),
-                .s_axi_arlock(mma_core_axi_arlock),
-                .s_axi_arburst(mma_core_axi_arburst),
-                .s_axi_arlen(mma_core_axi_arlen),
-                .s_axi_arsize(mma_core_axi_arsize),
-                .s_axi_rvalid(mma_core_axi_rvalid),
-                .s_axi_rready(mma_core_axi_rready),
-                .s_axi_rdata(mma_core_axi_rdata),
-                .s_axi_rresp(mma_core_axi_rresp),
-                .s_axi_rlast(mma_core_axi_rlast),
-                .s_axi_awvalid(mma_core_axi_awvalid),
-                .s_axi_awready(mma_core_axi_awready),
-                .s_axi_awaddr(mma_core_axi_awaddr),
-                .s_axi_awcache(mma_core_axi_awcache),
-                .s_axi_awprot(mma_core_axi_awprot),
-                .s_axi_awlock(mma_core_axi_awlock),
-                .s_axi_awburst(mma_core_axi_awburst),
-                .s_axi_awlen(mma_core_axi_awlen),
-                .s_axi_awsize(mma_core_axi_awsize),
-                .s_axi_wvalid(mma_core_axi_wvalid),
-                .s_axi_wready(mma_core_axi_wready),
-                .s_axi_wdata(mma_core_axi_wdata),
-                .s_axi_wstrb(mma_core_axi_wstrb),
-                .s_axi_wlast(mma_core_axi_wlast),
-                .s_axi_bvalid(mma_core_axi_bvalid),
-                .s_axi_bready(mma_core_axi_bready),
-                .s_axi_bresp(mma_core_axi_bresp),
-                .m_axi_arvalid(mma_axi_arvalid),
-                .m_axi_arready(mma_axi_arready),
-                .m_axi_araddr(mma_axi_araddr),
-                .m_axi_arcache(mma_axi_arcache),
-                .m_axi_arprot(mma_axi_arprot),
-                .m_axi_arlock(mma_axi_arlock),
-                .m_axi_arburst(mma_axi_arburst),
-                .m_axi_arlen(mma_axi_arlen),
-                .m_axi_arsize(mma_axi_arsize),
-                .m_axi_rvalid(mma_axi_rvalid),
-                .m_axi_rready(mma_axi_rready),
-                .m_axi_rdata(mma_axi_rdata),
-                .m_axi_rresp(mma_axi_rresp),
-                .m_axi_rlast(mma_axi_rlast),
-                .m_axi_awvalid(mma_axi_awvalid),
-                .m_axi_awready(mma_axi_awready),
-                .m_axi_awaddr(mma_axi_awaddr),
-                .m_axi_awcache(mma_axi_awcache),
-                .m_axi_awprot(mma_axi_awprot),
-                .m_axi_awlock(mma_axi_awlock),
-                .m_axi_awburst(mma_axi_awburst),
-                .m_axi_awlen(mma_axi_awlen),
-                .m_axi_awsize(mma_axi_awsize),
-                .m_axi_wvalid(mma_axi_wvalid),
-                .m_axi_wready(mma_axi_wready),
-                .m_axi_wdata(mma_axi_wdata),
-                .m_axi_wstrb(mma_axi_wstrb),
-                .m_axi_wlast(mma_axi_wlast),
-                .m_axi_bvalid(mma_axi_bvalid),
-                .m_axi_bready(mma_axi_bready),
-                .m_axi_bresp(mma_axi_bresp)
+                .s_axi_arvalid(npu_core_axi_arvalid),
+                .s_axi_arready(npu_core_axi_arready),
+                .s_axi_araddr(npu_core_axi_araddr),
+                .s_axi_arcache(npu_core_axi_arcache),
+                .s_axi_arprot(npu_core_axi_arprot),
+                .s_axi_arlock(npu_core_axi_arlock),
+                .s_axi_arburst(npu_core_axi_arburst),
+                .s_axi_arlen(npu_core_axi_arlen),
+                .s_axi_arsize(npu_core_axi_arsize),
+                .s_axi_rvalid(npu_core_axi_rvalid),
+                .s_axi_rready(npu_core_axi_rready),
+                .s_axi_rdata(npu_core_axi_rdata),
+                .s_axi_rresp(npu_core_axi_rresp),
+                .s_axi_rlast(npu_core_axi_rlast),
+                .s_axi_awvalid(npu_core_axi_awvalid),
+                .s_axi_awready(npu_core_axi_awready),
+                .s_axi_awaddr(npu_core_axi_awaddr),
+                .s_axi_awcache(npu_core_axi_awcache),
+                .s_axi_awprot(npu_core_axi_awprot),
+                .s_axi_awlock(npu_core_axi_awlock),
+                .s_axi_awburst(npu_core_axi_awburst),
+                .s_axi_awlen(npu_core_axi_awlen),
+                .s_axi_awsize(npu_core_axi_awsize),
+                .s_axi_wvalid(npu_core_axi_wvalid),
+                .s_axi_wready(npu_core_axi_wready),
+                .s_axi_wdata(npu_core_axi_wdata),
+                .s_axi_wstrb(npu_core_axi_wstrb),
+                .s_axi_wlast(npu_core_axi_wlast),
+                .s_axi_bvalid(npu_core_axi_bvalid),
+                .s_axi_bready(npu_core_axi_bready),
+                .s_axi_bresp(npu_core_axi_bresp),
+                .m_axi_arvalid(npu_axi_arvalid),
+                .m_axi_arready(npu_axi_arready),
+                .m_axi_araddr(npu_axi_araddr),
+                .m_axi_arcache(npu_axi_arcache),
+                .m_axi_arprot(npu_axi_arprot),
+                .m_axi_arlock(npu_axi_arlock),
+                .m_axi_arburst(npu_axi_arburst),
+                .m_axi_arlen(npu_axi_arlen),
+                .m_axi_arsize(npu_axi_arsize),
+                .m_axi_rvalid(npu_axi_rvalid),
+                .m_axi_rready(npu_axi_rready),
+                .m_axi_rdata(npu_axi_rdata),
+                .m_axi_rresp(npu_axi_rresp),
+                .m_axi_rlast(npu_axi_rlast),
+                .m_axi_awvalid(npu_axi_awvalid),
+                .m_axi_awready(npu_axi_awready),
+                .m_axi_awaddr(npu_axi_awaddr),
+                .m_axi_awcache(npu_axi_awcache),
+                .m_axi_awprot(npu_axi_awprot),
+                .m_axi_awlock(npu_axi_awlock),
+                .m_axi_awburst(npu_axi_awburst),
+                .m_axi_awlen(npu_axi_awlen),
+                .m_axi_awsize(npu_axi_awsize),
+                .m_axi_wvalid(npu_axi_wvalid),
+                .m_axi_wready(npu_axi_wready),
+                .m_axi_wdata(npu_axi_wdata),
+                .m_axi_wstrb(npu_axi_wstrb),
+                .m_axi_wlast(npu_axi_wlast),
+                .m_axi_bvalid(npu_axi_bvalid),
+                .m_axi_bready(npu_axi_bready),
+                .m_axi_bresp(npu_axi_bresp)
             );
-        end else begin : g_bypass_mma_axi_timing_buffer
-            assign mma_axi_arvalid      = mma_core_axi_arvalid;
-            assign mma_core_axi_arready = mma_axi_arready;
-            assign mma_axi_araddr       = mma_core_axi_araddr;
-            assign mma_axi_arcache      = mma_core_axi_arcache;
-            assign mma_axi_arprot       = mma_core_axi_arprot;
-            assign mma_axi_arlock       = mma_core_axi_arlock;
-            assign mma_axi_arburst      = mma_core_axi_arburst;
-            assign mma_axi_arlen        = mma_core_axi_arlen;
-            assign mma_axi_arsize       = mma_core_axi_arsize;
-            assign mma_core_axi_rvalid  = mma_axi_rvalid;
-            assign mma_axi_rready       = mma_core_axi_rready;
-            assign mma_core_axi_rdata   = mma_axi_rdata;
-            assign mma_core_axi_rresp   = mma_axi_rresp;
-            assign mma_core_axi_rlast   = mma_axi_rlast;
+        end else begin : g_bypass_npu_axi_timing_buffer
+            assign npu_axi_arvalid      = npu_core_axi_arvalid;
+            assign npu_core_axi_arready = npu_axi_arready;
+            assign npu_axi_araddr       = npu_core_axi_araddr;
+            assign npu_axi_arcache      = npu_core_axi_arcache;
+            assign npu_axi_arprot       = npu_core_axi_arprot;
+            assign npu_axi_arlock       = npu_core_axi_arlock;
+            assign npu_axi_arburst      = npu_core_axi_arburst;
+            assign npu_axi_arlen        = npu_core_axi_arlen;
+            assign npu_axi_arsize       = npu_core_axi_arsize;
+            assign npu_core_axi_rvalid  = npu_axi_rvalid;
+            assign npu_axi_rready       = npu_core_axi_rready;
+            assign npu_core_axi_rdata   = npu_axi_rdata;
+            assign npu_core_axi_rresp   = npu_axi_rresp;
+            assign npu_core_axi_rlast   = npu_axi_rlast;
 
-            assign mma_axi_awvalid      = mma_core_axi_awvalid;
-            assign mma_core_axi_awready = mma_axi_awready;
-            assign mma_axi_awaddr       = mma_core_axi_awaddr;
-            assign mma_axi_awcache      = mma_core_axi_awcache;
-            assign mma_axi_awprot       = mma_core_axi_awprot;
-            assign mma_axi_awlock       = mma_core_axi_awlock;
-            assign mma_axi_awburst      = mma_core_axi_awburst;
-            assign mma_axi_awlen        = mma_core_axi_awlen;
-            assign mma_axi_awsize       = mma_core_axi_awsize;
-            assign mma_axi_wvalid       = mma_core_axi_wvalid;
-            assign mma_core_axi_wready  = mma_axi_wready;
-            assign mma_axi_wdata        = mma_core_axi_wdata;
-            assign mma_axi_wstrb        = mma_core_axi_wstrb;
-            assign mma_axi_wlast        = mma_core_axi_wlast;
-            assign mma_core_axi_bvalid  = mma_axi_bvalid;
-            assign mma_axi_bready       = mma_core_axi_bready;
-            assign mma_core_axi_bresp   = mma_axi_bresp;
+            assign npu_axi_awvalid      = npu_core_axi_awvalid;
+            assign npu_core_axi_awready = npu_axi_awready;
+            assign npu_axi_awaddr       = npu_core_axi_awaddr;
+            assign npu_axi_awcache      = npu_core_axi_awcache;
+            assign npu_axi_awprot       = npu_core_axi_awprot;
+            assign npu_axi_awlock       = npu_core_axi_awlock;
+            assign npu_axi_awburst      = npu_core_axi_awburst;
+            assign npu_axi_awlen        = npu_core_axi_awlen;
+            assign npu_axi_awsize       = npu_core_axi_awsize;
+            assign npu_axi_wvalid       = npu_core_axi_wvalid;
+            assign npu_core_axi_wready  = npu_axi_wready;
+            assign npu_axi_wdata        = npu_core_axi_wdata;
+            assign npu_axi_wstrb        = npu_core_axi_wstrb;
+            assign npu_axi_wlast        = npu_core_axi_wlast;
+            assign npu_core_axi_bvalid  = npu_axi_bvalid;
+            assign npu_axi_bready       = npu_core_axi_bready;
+            assign npu_core_axi_bresp   = npu_axi_bresp;
         end
     endgenerate
 

@@ -1,21 +1,21 @@
 `ifndef AI_AXIL_DRIVER_SV
 `define AI_AXIL_DRIVER_SV
 
-`include "mma_csr_defines.svh"
+`include "npu_reg_defines.svh"
 
-class ai_axil_driver extends uvm_driver #(mma_seq_item);
+class ai_axil_driver extends uvm_driver #(npu_seq_item);
     `uvm_component_utils(ai_axil_driver)
 
     localparam bit [31:0] MEM_START_ADDR = 32'h0000_0001;
 
     virtual axil_if vif;
-    uvm_analysis_port #(mma_seq_item) item_collected_port;
+    uvm_analysis_port #(npu_seq_item) item_collected_port;
 
     bit [31:0] ia_base_addr;
     bit [31:0] wgt_base_addr;
     bit [31:0] bias_base_addr;
     bit [31:0] out_base_addr;
-    bit [31:0] csr_shadow [bit[11:0]];
+    bit [31:0] reg_shadow [bit[11:0]];
 
     function new(string name, uvm_component parent);
         super.new(name, parent);
@@ -45,7 +45,7 @@ class ai_axil_driver extends uvm_driver #(mma_seq_item);
     endtask
 
     virtual task run_phase(uvm_phase phase);
-        mma_seq_item req;
+        npu_seq_item req;
         forever begin
             seq_item_port.get_next_item(req);
             item_collected_port.write(req);
@@ -54,29 +54,29 @@ class ai_axil_driver extends uvm_driver #(mma_seq_item);
         end
     endtask
 
-    task drive_item(mma_seq_item req);
+    task drive_item(npu_seq_item req);
         case (req.cmd_kind)
-            MMA_AUTO: begin
+            NPU_AUTO: begin
                 addr_generate(req);
-                csr_wr_all_config(req);
+                reg_wr_all_config(req);
                 send_mat_mult(req);
             end
-            MMA_WR_CSR: begin
-                csr_wr(req.csr_addr[11:0], req.csr_data);
+            NPU_WR_REG: begin
+                reg_wr(req.reg_addr[11:0], req.reg_data);
             end
-            MMA_RD_CSR: begin
-                csr_rd(req.csr_addr[11:0], req.csr_data, req.csr_check_en);
+            NPU_RD_REG: begin
+                reg_rd(req.reg_addr[11:0], req.reg_data, req.reg_check_en);
             end
-            MMA_TRIGGER: begin
+            NPU_TRIGGER: begin
                 send_mat_mult(req);
             end
-            MMA_LOAD_MEM: begin
+            NPU_LOAD_MEM: begin
                 addr_generate(req);
             end
         endcase
     endtask
 
-    task addr_generate(mma_seq_item req);
+    task addr_generate(npu_seq_item req);
         int ia_size, wgt_size, bias_size;
         ia_size = req.matrix_k * req.matrix_n;
         wgt_size = req.matrix_n * req.matrix_m;
@@ -88,7 +88,7 @@ class ai_axil_driver extends uvm_driver #(mma_seq_item);
         out_base_addr  = bias_base_addr + ((bias_size + 3) & 32'hFFFF_FF01);
     endtask
 
-    // task mat_wr(mma_seq_item req);
+    // task mat_wr(npu_seq_item req);
     //     gen_mem_info(req);
     // endtask
 
@@ -163,89 +163,90 @@ class ai_axil_driver extends uvm_driver #(mma_seq_item);
         vif.drv_cb.rready <= 1'b0;
     endtask
 
-    function automatic bit [15:0] csr_axil_addr(bit [11:0] csr_addr);
-        return {csr_addr, 2'b00};
+    function automatic bit [15:0] reg_axil_addr(bit [11:0] reg_addr);
+        return {reg_addr, 2'b00};
     endfunction
 
-    function string csr_name(bit [11:0] addr);
+    function string reg_name(bit [11:0] addr);
         case (addr)
-            `ADDR_AXIL_REG_CTRL:      return "AXIL_REG_CTRL";
-            `ADDR_AXIL_REG_STATUS:    return "AXIL_REG_STATUS";
-            `ADDR_AXIL_REG_WB_DATA:   return "AXIL_REG_WB_DATA";
-            `ADDR_AXIL_REG_WB_INFO:   return "AXIL_REG_WB_INFO";
-            `ADDR_AXIL_REG_IA_REUSE:  return "AXIL_REG_IA_REUSE";
-            `ADDR_AXIL_REG_W_REUSE:   return "AXIL_REG_W_REUSE";
-            `ADDR_MULT_LHS_PTR:       return "MULT_LHS_PTR";
-            `ADDR_MULT_RHS_PTR:       return "MULT_RHS_PTR";
-            `ADDR_MULT_DST_PTR:       return "MULT_DST_PTR";
-            `ADDR_MULT_BIAS_PTR:      return "MULT_BIAS_PTR";
-            `ADDR_MULT_LHS_ROWS:      return "MULT_LHS_ROWS";
-            `ADDR_MULT_RHS_COLS:      return "MULT_RHS_COLS";
-            `ADDR_MULT_RHS_ROWS:      return "MULT_RHS_ROWS";
-            `ADDR_MULT_DST_STRIDE:    return "MULT_DST_STRIDE";
-            `ADDR_MULT_LHS_STRIDE:    return "MULT_LHS_STRIDE";
-            `ADDR_MULT_RHS_STRIDE:    return "MULT_RHS_STRIDE";
-            `ADDR_MULT_LHS_OFFSET:    return "MULT_LHS_OFFSET";
-            `ADDR_MULT_RHS_OFFSET:    return "MULT_RHS_OFFSET";
-            `ADDR_MULT_DST_OFFSET:    return "MULT_DST_OFFSET";
-            `ADDR_MULT_DST_MULT:      return "MULT_DST_MULT";
-            `ADDR_MULT_DST_SHIFT:     return "MULT_DST_SHIFT";
-            `ADDR_MULT_ACT_MIN:       return "MULT_ACT_MIN";
-            `ADDR_MULT_ACT_MAX:       return "MULT_ACT_MAX";
+            `ADDR_NPU_CTRL:      return "NPU_CTRL";
+            `ADDR_NPU_STATUS:    return "NPU_STATUS";
+            `ADDR_NPU_WB_DATA:   return "NPU_WB_DATA";
+            `ADDR_NPU_WB_INFO:   return "NPU_WB_INFO";
+            `ADDR_NPU_IA_REUSE:  return "NPU_IA_REUSE";
+            `ADDR_NPU_W_REUSE:   return "NPU_W_REUSE";
+            `ADDR_NPU_LHS_BASE:       return "NPU_LHS_BASE";
+            `ADDR_NPU_RHS_BASE:       return "NPU_RHS_BASE";
+            `ADDR_NPU_DST_BASE:       return "NPU_DST_BASE";
+            `ADDR_NPU_BIAS_BASE:      return "NPU_BIAS_BASE";
+            `ADDR_NPU_K:      return "NPU_K";
+            `ADDR_NPU_N:      return "NPU_N";
+            `ADDR_NPU_M:      return "NPU_M";
+            `ADDR_NPU_DST_STRIDE_B:    return "NPU_DST_STRIDE_B";
+            `ADDR_NPU_LHS_STRIDE_B:    return "NPU_LHS_STRIDE_B";
+            `ADDR_NPU_RHS_STRIDE_B:    return "NPU_RHS_STRIDE_B";
+            `ADDR_NPU_LHS_ZP:    return "NPU_LHS_ZP";
+            `ADDR_NPU_RHS_ZP:    return "NPU_RHS_ZP";
+            `ADDR_NPU_DST_ZP:    return "NPU_DST_ZP";
+            `ADDR_NPU_Q_MULT:      return "NPU_Q_MULT";
+            `ADDR_NPU_Q_SHIFT:     return "NPU_Q_SHIFT";
+            `ADDR_NPU_ACT_MIN:       return "NPU_ACT_MIN";
+            `ADDR_NPU_ACT_MAX:       return "NPU_ACT_MAX";
+            `ADDR_NPU_DATAFLOW:      return "NPU_DATAFLOW";
             default:                  return $sformatf("UNKNOWN_REG(0x%03h)", addr);
         endcase
     endfunction
 
-    task csr_wr(bit [11:0] addr, bit [31:0] data);
+    task reg_wr(bit [11:0] addr, bit [31:0] data);
         string name;
-        name = csr_name(addr);
-        `uvm_info("AXIL_CSR", $sformatf("CSR WR: Addr=0x%03h (%s) Data=0x%08h", addr, name, data), UVM_MEDIUM)
-        axil_write(csr_axil_addr(addr), data);
-        csr_shadow[addr] = data;
+        name = reg_name(addr);
+        `uvm_info("AXIL_REG", $sformatf("REG WR: Addr=0x%03h (%s) Data=0x%08h", addr, name, data), UVM_MEDIUM)
+        axil_write(reg_axil_addr(addr), data);
+        reg_shadow[addr] = data;
     endtask
 
-    task csr_rd(input bit [11:0] addr, inout bit [31:0] data, input bit check_en = 1'b1);
+    task reg_rd(input bit [11:0] addr, inout bit [31:0] data, input bit check_en = 1'b1);
         bit [31:0] rdata;
         bit [31:0] expected;
         string name;
-        name = csr_name(addr);
+        name = reg_name(addr);
         expected = data;
-        `uvm_info("AXIL_CSR", $sformatf("CSR RD: Addr=0x%03h (%s) Exp=0x%08h", addr, name, expected), UVM_MEDIUM)
-        axil_read(csr_axil_addr(addr), rdata);
-        `uvm_info("AXIL_CSR", $sformatf("CSR_RD got response: rsp_rdat=0x%08h, expected=0x%08h, reg=%s", rdata, expected, name), UVM_HIGH)
+        `uvm_info("AXIL_REG", $sformatf("REG RD: Addr=0x%03h (%s) Exp=0x%08h", addr, name, expected), UVM_MEDIUM)
+        axil_read(reg_axil_addr(addr), rdata);
+        `uvm_info("AXIL_REG", $sformatf("register_RD got response: rsp_rdat=0x%08h, expected=0x%08h, reg=%s", rdata, expected, name), UVM_HIGH)
         if (check_en && (rdata !== expected)) begin
-            `uvm_error("AXIL_CSR", $sformatf("CSR Read Mismatch! Addr=0x%03h (%s) Exp=0x%08h Act=0x%08h", addr, name, expected, rdata))
+            `uvm_error("AXIL_REG", $sformatf("REG Read Mismatch! Addr=0x%03h (%s) Exp=0x%08h Act=0x%08h", addr, name, expected, rdata))
         end
         data = rdata;
     endtask
 
-    task csr_wr_all_config(mma_seq_item req);
-        csr_wr(`ADDR_MULT_LHS_PTR, ia_base_addr);
-        csr_wr(`ADDR_MULT_RHS_PTR, wgt_base_addr);
-        csr_wr(`ADDR_MULT_DST_PTR, out_base_addr);
-        csr_wr(`ADDR_MULT_BIAS_PTR, bias_base_addr);
+    task reg_wr_all_config(npu_seq_item req);
+        reg_wr(`ADDR_NPU_LHS_BASE, ia_base_addr);
+        reg_wr(`ADDR_NPU_RHS_BASE, wgt_base_addr);
+        reg_wr(`ADDR_NPU_DST_BASE, out_base_addr);
+        reg_wr(`ADDR_NPU_BIAS_BASE, bias_base_addr);
 
-        csr_wr(`ADDR_MULT_LHS_ROWS, req.matrix_k);
-        csr_wr(`ADDR_MULT_RHS_ROWS, req.matrix_m);
-        csr_wr(`ADDR_MULT_RHS_COLS, req.matrix_n);
+        reg_wr(`ADDR_NPU_K, req.matrix_k);
+        reg_wr(`ADDR_NPU_M, req.matrix_m);
+        reg_wr(`ADDR_NPU_N, req.matrix_n);
 
-        csr_wr(`ADDR_MULT_LHS_STRIDE, req.matrix_n);
-        csr_wr(`ADDR_MULT_RHS_STRIDE, req.matrix_n);
-        csr_wr(`ADDR_MULT_DST_STRIDE, req.matrix_m);
+        reg_wr(`ADDR_NPU_LHS_STRIDE_B, req.matrix_n);
+        reg_wr(`ADDR_NPU_RHS_STRIDE_B, req.matrix_n);
+        reg_wr(`ADDR_NPU_DST_STRIDE_B, req.matrix_m);
 
-        csr_wr(`ADDR_MULT_LHS_OFFSET, req.lhs_offset);
-        csr_wr(`ADDR_MULT_RHS_OFFSET, req.rhs_offset);
-        csr_wr(`ADDR_MULT_DST_OFFSET, req.dst_offset);
-        csr_wr(`ADDR_MULT_DST_MULT,   req.quant_multiplier);
-        csr_wr(`ADDR_MULT_DST_SHIFT,  req.quant_shift);
+        reg_wr(`ADDR_NPU_LHS_ZP, req.lhs_offset);
+        reg_wr(`ADDR_NPU_RHS_ZP, req.rhs_offset);
+        reg_wr(`ADDR_NPU_DST_ZP, req.dst_offset);
+        reg_wr(`ADDR_NPU_Q_MULT,   req.quant_multiplier);
+        reg_wr(`ADDR_NPU_Q_SHIFT,  req.quant_shift);
 
-        csr_wr(`ADDR_MULT_ACT_MIN, req.act_min);
-        csr_wr(`ADDR_MULT_ACT_MAX, req.act_max);
+        reg_wr(`ADDR_NPU_ACT_MIN, req.act_min);
+        reg_wr(`ADDR_NPU_ACT_MAX, req.act_max);
     endtask
 
-    function automatic bit [31:0] get_csr_or_default(bit [11:0] addr, bit [31:0] dft);
-        if (csr_shadow.exists(addr)) begin
-            return csr_shadow[addr];
+    function automatic bit [31:0] get_reg_or_default(bit [11:0] addr, bit [31:0] dft);
+        if (reg_shadow.exists(addr)) begin
+            return reg_shadow[addr];
         end
         return dft;
     endfunction
@@ -266,7 +267,7 @@ class ai_axil_driver extends uvm_driver #(mma_seq_item);
         return $sformatf("../tb/%s", get_case_name());
     endfunction
 
-    function automatic int infer_out_base(mma_seq_item req);
+    function automatic int infer_out_base(npu_seq_item req);
         int ia_size, wgt_size, bias_size;
         int ia_base, wgt_base, bias_base;
 
@@ -280,7 +281,7 @@ class ai_axil_driver extends uvm_driver #(mma_seq_item);
         return bias_base + ((bias_size + 3) & 32'hFFFF_FF01);
     endfunction
 
-    task automatic dump_compare_output_matrix(mma_seq_item req);
+    task automatic dump_compare_output_matrix(npu_seq_item req);
         int k_val;
         int m_val;
         int dst_base;
@@ -309,9 +310,9 @@ class ai_axil_driver extends uvm_driver #(mma_seq_item);
 
         k_val = req.matrix_k;
         m_val = req.matrix_m;
-        // In mem-gen flow, CSRs are programmed by sequence; use real programmed values.
-        dst_base = get_csr_or_default(`ADDR_MULT_DST_PTR, infer_out_base(req));
-        dst_stride = get_csr_or_default(`ADDR_MULT_DST_STRIDE, req.matrix_m);
+        // In mem-gen flow, registers are programmed by sequence; use real programmed values.
+        dst_base = get_reg_or_default(`ADDR_NPU_DST_BASE, infer_out_base(req));
+        dst_stride = get_reg_or_default(`ADDR_NPU_DST_STRIDE_B, req.matrix_m);
         `uvm_info("AXIL_MAT_CHK", $sformatf("Compare window: dst_base=0x%08h dst_stride=%0d K=%0d M=%0d", dst_base, dst_stride, k_val, m_val), UVM_MEDIUM)
 
         if ((k_val <= 0) || (m_val <= 0) || (dst_stride <= 0)) begin
@@ -422,7 +423,7 @@ class ai_axil_driver extends uvm_driver #(mma_seq_item);
 
 
 
-    task send_mat_mult(mma_seq_item req);
+    task send_mat_mult(npu_seq_item req);
         bit [31:0] ctrl;
         int cfg_dataflow_mode;
 
@@ -434,8 +435,8 @@ class ai_axil_driver extends uvm_driver #(mma_seq_item);
         ctrl[3] = cfg_dataflow_mode[0];
         ctrl[0] = 1'b1;
 
-        // Trigger MMA through AXIL special CTRL register (bit0=start pulse).
-        csr_wr(`ADDR_AXIL_REG_CTRL, ctrl);
+        // Trigger NPU through AXIL special CTRL register (bit0=start pulse).
+        reg_wr(`ADDR_NPU_CTRL, ctrl);
     endtask
 
 endclass

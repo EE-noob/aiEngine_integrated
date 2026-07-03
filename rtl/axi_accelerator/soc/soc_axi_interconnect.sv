@@ -5,7 +5,7 @@ module soc_axi_interconnect #(
     parameter int unsigned READ_OUTSTANDING = 4,
     parameter int unsigned WRITE_OUTSTANDING = READ_OUTSTANDING,
     parameter logic [31:0] CPU_RAM_BASE  = 32'h0000_0000,
-    parameter logic [31:0] MMA_AXIL_BASE = 32'h1000_0000,
+    parameter logic [31:0] NPU_AXIL_BASE = 32'h1000_0000,
     parameter logic [31:0] UART_BASE     = 32'h0200_0000,
     parameter logic [31:0] SOC_CTRL_BASE = 32'h2000_0000
 ) (
@@ -108,25 +108,25 @@ module soc_axi_interconnect #(
     output logic                        m_ram_bready,
     input  wire [1:0]                   m_ram_bresp,
 
-    output wire [15:0]                  m_mma_awaddr,
-    output wire [2:0]                   m_mma_awprot,
-    output wire                         m_mma_awvalid,
-    input  wire                         m_mma_awready,
-    output wire [31:0]                  m_mma_wdata,
-    output wire [3:0]                   m_mma_wstrb,
-    output wire                         m_mma_wvalid,
-    input  wire                         m_mma_wready,
-    input  wire [1:0]                   m_mma_bresp,
-    input  wire                         m_mma_bvalid,
-    output wire                         m_mma_bready,
-    output wire [15:0]                  m_mma_araddr,
-    output wire [2:0]                   m_mma_arprot,
-    output wire                         m_mma_arvalid,
-    input  wire                         m_mma_arready,
-    input  wire [31:0]                  m_mma_rdata,
-    input  wire [1:0]                   m_mma_rresp,
-    input  wire                         m_mma_rvalid,
-    output wire                         m_mma_rready,
+    output wire [15:0]                  m_npu_awaddr,
+    output wire [2:0]                   m_npu_awprot,
+    output wire                         m_npu_awvalid,
+    input  wire                         m_npu_awready,
+    output wire [31:0]                  m_npu_wdata,
+    output wire [3:0]                   m_npu_wstrb,
+    output wire                         m_npu_wvalid,
+    input  wire                         m_npu_wready,
+    input  wire [1:0]                   m_npu_bresp,
+    input  wire                         m_npu_bvalid,
+    output wire                         m_npu_bready,
+    output wire [15:0]                  m_npu_araddr,
+    output wire [2:0]                   m_npu_arprot,
+    output wire                         m_npu_arvalid,
+    input  wire                         m_npu_arready,
+    input  wire [31:0]                  m_npu_rdata,
+    input  wire [1:0]                   m_npu_rresp,
+    input  wire                         m_npu_rvalid,
+    output wire                         m_npu_rready,
 
     output wire [31:0]                  m_uart_awaddr,
     output wire [2:0]                   m_uart_awprot,
@@ -171,7 +171,7 @@ module soc_axi_interconnect #(
 
     typedef enum logic [2:0] {
         D_RAM  = 3'd0,
-        D_MMA  = 3'd1,
+        D_NPU  = 3'd1,
         D_UART = 3'd2,
         D_CTRL = 3'd3,
         D_ERR  = 3'd7
@@ -179,7 +179,7 @@ module soc_axi_interconnect #(
 
     typedef enum logic {
         OWNER_CPU = 1'b0,
-        OWNER_MMA = 1'b1
+        OWNER_NPU = 1'b1
     } owner_e;
 
     localparam int unsigned CPU_ADDR_LSB = 2;
@@ -220,8 +220,8 @@ module soc_axi_interconnect #(
             if (((CPU_RAM_BASE == 32'h0) || (addr[31:0] >= CPU_RAM_BASE)) &&
                 (32'(offset[31:CPU_ADDR_LSB]) < 32'(CPU_MEM_DP))) begin
                 decode_cpu_addr = D_RAM;
-            end else if (addr[31:28] == MMA_AXIL_BASE[31:28]) begin
-                decode_cpu_addr = D_MMA;
+            end else if (addr[31:28] == NPU_AXIL_BASE[31:28]) begin
+                decode_cpu_addr = D_NPU;
             end else if (addr[31:12] == UART_BASE[31:12]) begin
                 decode_cpu_addr = D_UART;
             end else if (addr[31:28] == SOC_CTRL_BASE[31:28]) begin
@@ -243,6 +243,7 @@ module soc_axi_interconnect #(
         cpu_w_dest  = cpu_wr_active_q ? cpu_wr_dest_q : cpu_aw_dest;
     end
 
+    wire cpu_block_new_req = 1'b0;
     wire cpu_arq_full  = cpu_arq_count_q == 2'd2;
     wire cpu_arq_valid = cpu_arq_count_q != 2'd0;
     wire cpu_arq_push  = s0_axi_arvalid && s0_axi_arready;
@@ -267,45 +268,54 @@ module soc_axi_interconnect #(
 
     wire cpu_r_last_hs = s0_axi_rvalid && s0_axi_rready && s0_axi_rlast;
     wire cpu_rd_issue_avail = !cpu_rd_active_q || cpu_r_last_hs;
-    wire cpu_ram_ar_req = cpu_arq_valid && cpu_rd_issue_avail && (cpu_arq_dest == D_RAM);
-    wire cpu_mma_ar_req = cpu_arq_valid && cpu_rd_issue_avail && (cpu_arq_dest == D_MMA);
-    wire cpu_uart_ar_req = cpu_arq_valid && cpu_rd_issue_avail && (cpu_arq_dest == D_UART);
-    wire cpu_ctrl_ar_req = cpu_arq_valid && cpu_rd_issue_avail && (cpu_arq_dest == D_CTRL);
-    wire cpu_err_ar_req = cpu_arq_valid && cpu_rd_issue_avail && (cpu_arq_dest == D_ERR) &&
+    wire cpu_issue_ar_allowed = !cpu_block_new_req;
+    wire cpu_ram_ar_req = cpu_issue_ar_allowed && cpu_arq_valid && cpu_rd_issue_avail &&
+                          (cpu_arq_dest == D_RAM);
+    wire cpu_npu_ar_req = cpu_issue_ar_allowed && cpu_arq_valid && cpu_rd_issue_avail &&
+                          (cpu_arq_dest == D_NPU);
+    wire cpu_uart_ar_req = cpu_issue_ar_allowed && cpu_arq_valid && cpu_rd_issue_avail &&
+                           (cpu_arq_dest == D_UART);
+    wire cpu_ctrl_ar_req = cpu_issue_ar_allowed && cpu_arq_valid && cpu_rd_issue_avail &&
+                           (cpu_arq_dest == D_CTRL);
+    wire cpu_err_ar_req = cpu_issue_ar_allowed && cpu_arq_valid && cpu_rd_issue_avail &&
+                          (cpu_arq_dest == D_ERR) &&
                           !err_rvalid_q;
-    wire mma_ram_ar_req = s1_axi_arvalid;
-    wire cpu_ram_aw_req = s0_axi_awvalid && (cpu_aw_dest == D_RAM);
-    wire mma_ram_aw_req = s1_axi_awvalid;
+    wire npu_ram_ar_req = s1_axi_arvalid;
+    wire cpu_issue_aw_allowed = !cpu_block_new_req;
+    wire cpu_issue_w_allowed = !cpu_block_new_req || cpu_wr_active_q;
+    wire cpu_ram_aw_req = cpu_issue_aw_allowed && s0_axi_awvalid &&
+                          (cpu_aw_dest == D_RAM);
+    wire npu_ram_aw_req = s1_axi_awvalid;
 
-    wire ram_rd_owner_valid = ram_rd_owner_q == OWNER_MMA ? mma_ram_ar_req :
+    wire ram_rd_owner_valid = ram_rd_owner_q == OWNER_NPU ? npu_ram_ar_req :
                                                            cpu_ram_ar_req;
-    wire ram_wr_owner_aw_valid = ram_wr_owner_q == OWNER_MMA ? mma_ram_aw_req :
+    wire ram_wr_owner_aw_valid = ram_wr_owner_q == OWNER_NPU ? npu_ram_aw_req :
                                                               cpu_ram_aw_req;
     wire ram_rd_other_waiting = ram_rd_active_q &&
-                                (ram_rd_owner_q == OWNER_MMA ? cpu_ram_ar_req :
-                                                               mma_ram_ar_req);
+                                (ram_rd_owner_q == OWNER_NPU ? cpu_ram_ar_req :
+                                                               npu_ram_ar_req);
     wire ram_wr_other_waiting = ram_wr_active_q &&
-                                (ram_wr_owner_q == OWNER_MMA ? cpu_ram_aw_req :
-                                                               mma_ram_aw_req);
+                                (ram_wr_owner_q == OWNER_NPU ? cpu_ram_aw_req :
+                                                               npu_ram_aw_req);
     wire ram_rd_select_cpu = !ram_rd_active_q && cpu_ram_ar_req &&
-                             (!mma_ram_ar_req || (ram_rd_owner_q == OWNER_MMA));
-    wire ram_rd_select_mma = !ram_rd_active_q && mma_ram_ar_req &&
+                             (!npu_ram_ar_req || (ram_rd_owner_q == OWNER_NPU));
+    wire ram_rd_select_npu = !ram_rd_active_q && npu_ram_ar_req &&
                              (!cpu_ram_ar_req || (ram_rd_owner_q == OWNER_CPU));
     wire ram_wr_select_cpu = !ram_wr_active_q && cpu_ram_aw_req &&
-                             (!mma_ram_aw_req || (ram_wr_owner_q == OWNER_MMA));
-    wire ram_wr_select_mma = !ram_wr_active_q && mma_ram_aw_req &&
+                             (!npu_ram_aw_req || (ram_wr_owner_q == OWNER_NPU));
+    wire ram_wr_select_npu = !ram_wr_active_q && npu_ram_aw_req &&
                              (!cpu_ram_aw_req || (ram_wr_owner_q == OWNER_CPU));
 
-    wire ram_ar_from_mma = ram_rd_active_q ? (ram_rd_owner_q == OWNER_MMA) : ram_rd_select_mma;
+    wire ram_ar_from_npu = ram_rd_active_q ? (ram_rd_owner_q == OWNER_NPU) : ram_rd_select_npu;
     wire ram_ar_from_cpu = ram_rd_active_q ? (ram_rd_owner_q == OWNER_CPU) : ram_rd_select_cpu;
-    wire ram_aw_from_mma = ram_wr_active_q ? (ram_wr_owner_q == OWNER_MMA) : ram_wr_select_mma;
+    wire ram_aw_from_npu = ram_wr_active_q ? (ram_wr_owner_q == OWNER_NPU) : ram_wr_select_npu;
     wire ram_aw_from_cpu = ram_wr_active_q ? (ram_wr_owner_q == OWNER_CPU) : ram_wr_select_cpu;
-    wire ram_w_from_mma = (ram_wr_active_q && (ram_wr_owner_q == OWNER_MMA)) ||
-                          (!ram_wr_active_q && ram_wr_select_mma);
+    wire ram_w_from_npu = (ram_wr_active_q && (ram_wr_owner_q == OWNER_NPU)) ||
+                          (!ram_wr_active_q && ram_wr_select_npu);
     wire ram_w_from_cpu = (ram_wr_active_q && (ram_wr_owner_q == OWNER_CPU)) ||
                           (!ram_wr_active_q && ram_wr_select_cpu);
-    wire ram_rd_yield = ram_rd_active_q && (ram_rd_owner_q == OWNER_CPU) && mma_ram_ar_req;
-    wire ram_wr_yield = ram_wr_active_q && (ram_wr_owner_q == OWNER_CPU) && mma_ram_aw_req;
+    wire ram_rd_yield = ram_rd_active_q && (ram_rd_owner_q == OWNER_CPU) && npu_ram_ar_req;
+    wire ram_wr_yield = ram_wr_active_q && (ram_wr_owner_q == OWNER_CPU) && npu_ram_aw_req;
 
     wire ram_ar_hs = m_ram_arvalid && m_ram_arready;
     wire ram_r_last_hs = m_ram_rvalid && m_ram_rready && m_ram_rlast;
@@ -314,11 +324,11 @@ module soc_axi_interconnect #(
     wire ram_rd_slot_avail = (ram_rd_outs_q != RD_OUTS_W'(RD_OUTS_DEPTH)) || ram_r_last_hs;
     wire ram_wr_slot_avail = (ram_wr_outs_q != WR_OUTS_W'(WR_OUTS_DEPTH)) || ram_b_hs;
     wire cpu_ram_ar_hs = ram_ar_hs && ram_ar_from_cpu;
-    wire cpu_mma_ar_hs = cpu_mma_ar_req && m_mma_arready;
+    wire cpu_npu_ar_hs = cpu_npu_ar_req && m_npu_arready;
     wire cpu_uart_ar_hs = cpu_uart_ar_req && m_uart_arready;
     wire cpu_ctrl_ar_hs = cpu_ctrl_ar_req && m_ctrl_arready;
     wire cpu_err_ar_hs = cpu_err_ar_req;
-    wire cpu_ar_hs = cpu_ram_ar_hs || cpu_mma_ar_hs || cpu_uart_ar_hs ||
+    wire cpu_ar_hs = cpu_ram_ar_hs || cpu_npu_ar_hs || cpu_uart_ar_hs ||
                      cpu_ctrl_ar_hs || cpu_err_ar_hs;
     wire cpu_arq_pop = cpu_ar_hs;
     wire cpu_aw_hs = s0_axi_awvalid && s0_axi_awready;
@@ -328,7 +338,7 @@ module soc_axi_interconnect #(
                             cpu_w_hs && (cpu_w_dest == D_ERR);
 
     always_comb begin
-        s0_axi_arready = !cpu_arq_full;
+        s0_axi_arready = !cpu_block_new_req && !cpu_arq_full;
         s1_axi_arready = 1'b0;
         s0_axi_rvalid  = 1'b0;
         s0_axi_rdata   = '0;
@@ -348,8 +358,8 @@ module soc_axi_interconnect #(
         m_ram_arsize   = 3'd2;
         m_ram_rready   = 1'b0;
 
-        if (ram_ar_from_mma) begin
-            m_ram_arvalid = mma_ram_ar_req && ram_rd_slot_avail && !ram_rd_yield;
+        if (ram_ar_from_npu) begin
+            m_ram_arvalid = npu_ram_ar_req && ram_rd_slot_avail && !ram_rd_yield;
             m_ram_araddr  = s1_axi_araddr;
             m_ram_arcache = s1_axi_arcache;
             m_ram_arprot  = s1_axi_arprot;
@@ -369,7 +379,7 @@ module soc_axi_interconnect #(
             m_ram_arsize  = cpu_arq_size;
         end
 
-        if (ram_rd_active_q && (ram_rd_owner_q == OWNER_MMA)) begin
+        if (ram_rd_active_q && (ram_rd_owner_q == OWNER_NPU)) begin
             s1_axi_rvalid = m_ram_rvalid;
             s1_axi_rdata  = m_ram_rdata;
             s1_axi_rresp  = m_ram_rresp;
@@ -386,10 +396,10 @@ module soc_axi_interconnect #(
 
         if (cpu_rd_active_q) begin
             unique case (cpu_rd_dest_q)
-                D_MMA: begin
-                    s0_axi_rvalid = m_mma_rvalid;
-                    s0_axi_rdata  = m_mma_rdata;
-                    s0_axi_rresp  = m_mma_rresp;
+                D_NPU: begin
+                    s0_axi_rvalid = m_npu_rvalid;
+                    s0_axi_rdata  = m_npu_rdata;
+                    s0_axi_rresp  = m_npu_rresp;
                     s0_axi_rlast  = 1'b1;
                 end
                 D_UART: begin
@@ -439,8 +449,8 @@ module soc_axi_interconnect #(
         m_ram_wlast    = 1'b0;
         m_ram_bready   = 1'b0;
 
-        if (ram_aw_from_mma) begin
-            m_ram_awvalid = mma_ram_aw_req && ram_wr_slot_avail && !ram_wr_yield;
+        if (ram_aw_from_npu) begin
+            m_ram_awvalid = npu_ram_aw_req && ram_wr_slot_avail && !ram_wr_yield;
             m_ram_awaddr  = s1_axi_awaddr;
             m_ram_awcache = s1_axi_awcache;
             m_ram_awprot  = s1_axi_awprot;
@@ -458,10 +468,11 @@ module soc_axi_interconnect #(
             m_ram_awburst = s0_axi_awburst;
             m_ram_awlen   = s0_axi_awlen;
             m_ram_awsize  = s0_axi_awsize;
-            s0_axi_awready = m_ram_awready && ram_wr_slot_avail && !ram_wr_yield;
+            s0_axi_awready = cpu_ram_aw_req && m_ram_awready &&
+                              ram_wr_slot_avail && !ram_wr_yield;
         end
 
-        if (ram_w_from_mma) begin
+        if (ram_w_from_npu) begin
             m_ram_wvalid = s1_axi_wvalid;
             m_ram_wdata  = s1_axi_wdata;
             m_ram_wstrb  = s1_axi_wstrb;
@@ -475,7 +486,7 @@ module soc_axi_interconnect #(
             s0_axi_wready = m_ram_wready;
         end
 
-        if (ram_wr_active_q && (ram_wr_owner_q == OWNER_MMA)) begin
+        if (ram_wr_active_q && (ram_wr_owner_q == OWNER_NPU)) begin
             s1_axi_bvalid = m_ram_bvalid;
             s1_axi_bresp  = m_ram_bresp;
             m_ram_bready  = s1_axi_bready;
@@ -486,25 +497,29 @@ module soc_axi_interconnect #(
             m_ram_bready  = s0_axi_bready;
         end
 
-        if (cpu_aw_dest == D_MMA) s0_axi_awready = m_mma_awready;
-        else if (cpu_aw_dest == D_UART) s0_axi_awready = m_uart_awready;
-        else if (cpu_aw_dest == D_CTRL) s0_axi_awready = m_ctrl_awready;
-        else if (cpu_aw_dest == D_ERR) s0_axi_awready = !err_bvalid_q;
+        if (cpu_issue_aw_allowed) begin
+            if (cpu_aw_dest == D_NPU) s0_axi_awready = m_npu_awready;
+            else if (cpu_aw_dest == D_UART) s0_axi_awready = m_uart_awready;
+            else if (cpu_aw_dest == D_CTRL) s0_axi_awready = m_ctrl_awready;
+            else if (cpu_aw_dest == D_ERR) s0_axi_awready = !err_bvalid_q;
+        end
 
-        unique case (cpu_w_dest)
-            D_MMA:  s0_axi_wready = m_mma_wready;
-            D_UART: s0_axi_wready = m_uart_wready;
-            D_CTRL: s0_axi_wready = m_ctrl_wready;
-            D_ERR:  s0_axi_wready = !err_bvalid_q;
-            default: begin
-            end
-        endcase
+        if (cpu_issue_w_allowed) begin
+            unique case (cpu_w_dest)
+                D_NPU:  s0_axi_wready = m_npu_wready;
+                D_UART: s0_axi_wready = m_uart_wready;
+                D_CTRL: s0_axi_wready = m_ctrl_wready;
+                D_ERR:  s0_axi_wready = !err_bvalid_q;
+                default: begin
+                end
+            endcase
+        end
 
         if (cpu_wr_active_q) begin
             unique case (cpu_wr_dest_q)
-                D_MMA: begin
-                    s0_axi_bvalid = m_mma_bvalid;
-                    s0_axi_bresp  = m_mma_bresp;
+                D_NPU: begin
+                    s0_axi_bvalid = m_npu_bvalid;
+                    s0_axi_bresp  = m_npu_bresp;
                 end
                 D_UART: begin
                     s0_axi_bvalid = m_uart_bvalid;
@@ -524,24 +539,24 @@ module soc_axi_interconnect #(
         end
     end
 
-    assign m_mma_awaddr  = s0_awaddr32[15:0];
-    assign m_mma_awprot  = s0_axi_awprot;
-    assign m_mma_awvalid = s0_axi_awvalid && (cpu_aw_dest == D_MMA);
-    assign m_mma_wdata   = s0_axi_wdata[31:0];
-    assign m_mma_wstrb   = s0_axi_wstrb[3:0];
-    assign m_mma_wvalid  = s0_axi_wvalid && (cpu_w_dest == D_MMA);
-    assign m_mma_bready  = s0_axi_bready && cpu_wr_active_q && (cpu_wr_dest_q == D_MMA);
-    assign m_mma_araddr  = cpu_arq_addr32[15:0];
-    assign m_mma_arprot  = cpu_arq_prot;
-    assign m_mma_arvalid = cpu_mma_ar_req;
-    assign m_mma_rready  = s0_axi_rready && cpu_rd_active_q && (cpu_rd_dest_q == D_MMA);
+    assign m_npu_awaddr  = s0_awaddr32[15:0];
+    assign m_npu_awprot  = s0_axi_awprot;
+    assign m_npu_awvalid = cpu_issue_aw_allowed && s0_axi_awvalid && (cpu_aw_dest == D_NPU);
+    assign m_npu_wdata   = s0_axi_wdata[31:0];
+    assign m_npu_wstrb   = s0_axi_wstrb[3:0];
+    assign m_npu_wvalid  = cpu_issue_w_allowed && s0_axi_wvalid && (cpu_w_dest == D_NPU);
+    assign m_npu_bready  = s0_axi_bready && cpu_wr_active_q && (cpu_wr_dest_q == D_NPU);
+    assign m_npu_araddr  = cpu_arq_addr32[15:0];
+    assign m_npu_arprot  = cpu_arq_prot;
+    assign m_npu_arvalid = cpu_npu_ar_req;
+    assign m_npu_rready  = s0_axi_rready && cpu_rd_active_q && (cpu_rd_dest_q == D_NPU);
 
     assign m_uart_awaddr  = s0_awaddr32;
     assign m_uart_awprot  = s0_axi_awprot;
-    assign m_uart_awvalid = s0_axi_awvalid && (cpu_aw_dest == D_UART);
+    assign m_uart_awvalid = cpu_issue_aw_allowed && s0_axi_awvalid && (cpu_aw_dest == D_UART);
     assign m_uart_wdata   = s0_axi_wdata[31:0];
     assign m_uart_wstrb   = s0_axi_wstrb[3:0];
-    assign m_uart_wvalid  = s0_axi_wvalid && (cpu_w_dest == D_UART);
+    assign m_uart_wvalid  = cpu_issue_w_allowed && s0_axi_wvalid && (cpu_w_dest == D_UART);
     assign m_uart_bready  = s0_axi_bready && cpu_wr_active_q && (cpu_wr_dest_q == D_UART);
     assign m_uart_araddr  = cpu_arq_addr32;
     assign m_uart_arprot  = cpu_arq_prot;
@@ -550,10 +565,10 @@ module soc_axi_interconnect #(
 
     assign m_ctrl_awaddr  = s0_awaddr32;
     assign m_ctrl_awprot  = s0_axi_awprot;
-    assign m_ctrl_awvalid = s0_axi_awvalid && (cpu_aw_dest == D_CTRL);
+    assign m_ctrl_awvalid = cpu_issue_aw_allowed && s0_axi_awvalid && (cpu_aw_dest == D_CTRL);
     assign m_ctrl_wdata   = s0_axi_wdata[31:0];
     assign m_ctrl_wstrb   = s0_axi_wstrb[3:0];
-    assign m_ctrl_wvalid  = s0_axi_wvalid && (cpu_w_dest == D_CTRL);
+    assign m_ctrl_wvalid  = cpu_issue_w_allowed && s0_axi_wvalid && (cpu_w_dest == D_CTRL);
     assign m_ctrl_bready  = s0_axi_bready && cpu_wr_active_q && (cpu_wr_dest_q == D_CTRL);
     assign m_ctrl_araddr  = cpu_arq_addr32;
     assign m_ctrl_arprot  = cpu_arq_prot;
@@ -563,9 +578,9 @@ module soc_axi_interconnect #(
 `ifndef SYNTHESIS
     bit axi_stats_en;
     longint unsigned cpu_ram_ar_wait_cycles;
-    longint unsigned mma_ram_ar_wait_cycles;
+    longint unsigned npu_ram_ar_wait_cycles;
     longint unsigned cpu_ram_aw_wait_cycles;
-    longint unsigned mma_ram_aw_wait_cycles;
+    longint unsigned npu_ram_aw_wait_cycles;
     longint unsigned rd_yield_cycles;
     longint unsigned wr_yield_cycles;
 
@@ -576,23 +591,23 @@ module soc_axi_interconnect #(
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             cpu_ram_ar_wait_cycles <= 0;
-            mma_ram_ar_wait_cycles <= 0;
+            npu_ram_ar_wait_cycles <= 0;
             cpu_ram_aw_wait_cycles <= 0;
-            mma_ram_aw_wait_cycles <= 0;
+            npu_ram_aw_wait_cycles <= 0;
             rd_yield_cycles        <= 0;
             wr_yield_cycles        <= 0;
         end else if (axi_stats_en) begin
             if (cpu_ram_ar_req && !cpu_ram_ar_hs) begin
                 cpu_ram_ar_wait_cycles <= cpu_ram_ar_wait_cycles + 1;
             end
-            if (mma_ram_ar_req && !s1_axi_arready) begin
-                mma_ram_ar_wait_cycles <= mma_ram_ar_wait_cycles + 1;
+            if (npu_ram_ar_req && !s1_axi_arready) begin
+                npu_ram_ar_wait_cycles <= npu_ram_ar_wait_cycles + 1;
             end
             if (cpu_ram_aw_req && !s0_axi_awready) begin
                 cpu_ram_aw_wait_cycles <= cpu_ram_aw_wait_cycles + 1;
             end
-            if (mma_ram_aw_req && !s1_axi_awready) begin
-                mma_ram_aw_wait_cycles <= mma_ram_aw_wait_cycles + 1;
+            if (npu_ram_aw_req && !s1_axi_awready) begin
+                npu_ram_aw_wait_cycles <= npu_ram_aw_wait_cycles + 1;
             end
             if (ram_rd_yield) begin
                 rd_yield_cycles <= rd_yield_cycles + 1;
@@ -605,9 +620,9 @@ module soc_axi_interconnect #(
 
     final begin
         if (axi_stats_en) begin
-            $display("[SOC_AXI_STATS] cpu_ar_wait=%0d mma_ar_wait=%0d cpu_aw_wait=%0d mma_aw_wait=%0d rd_yield=%0d wr_yield=%0d",
-                     cpu_ram_ar_wait_cycles, mma_ram_ar_wait_cycles,
-                     cpu_ram_aw_wait_cycles, mma_ram_aw_wait_cycles,
+            $display("[SOC_AXI_STATS] cpu_ar_wait=%0d npu_ar_wait=%0d cpu_aw_wait=%0d npu_aw_wait=%0d rd_yield=%0d wr_yield=%0d",
+                     cpu_ram_ar_wait_cycles, npu_ram_ar_wait_cycles,
+                     cpu_ram_aw_wait_cycles, npu_ram_aw_wait_cycles,
                      rd_yield_cycles, wr_yield_cycles);
         end
     end
@@ -664,7 +679,7 @@ module soc_axi_interconnect #(
             if (!ram_rd_active_q) begin
                 if (ram_ar_hs) begin
                     ram_rd_active_q <= 1'b1;
-                    ram_rd_owner_q  <= ram_ar_from_mma ? OWNER_MMA : OWNER_CPU;
+                    ram_rd_owner_q  <= ram_ar_from_npu ? OWNER_NPU : OWNER_CPU;
                 end
             end else if ((ram_rd_outs_q == RD_OUTS_W'(1)) && ram_r_last_hs &&
                          !ram_ar_hs &&
@@ -681,7 +696,7 @@ module soc_axi_interconnect #(
             if (!ram_wr_active_q) begin
                 if (ram_aw_hs) begin
                     ram_wr_active_q <= 1'b1;
-                    ram_wr_owner_q  <= ram_aw_from_mma ? OWNER_MMA : OWNER_CPU;
+                    ram_wr_owner_q  <= ram_aw_from_npu ? OWNER_NPU : OWNER_CPU;
                 end
             end else if ((ram_wr_outs_q == WR_OUTS_W'(1)) && ram_b_hs &&
                          !ram_aw_hs &&

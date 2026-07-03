@@ -189,7 +189,7 @@ module axi_sim_ram #(
 
     initial begin
         mem_path_q = MEM_PATH;
-        void'($value$plusargs("SOC_MMA_MEM=%s", mem_path_q));
+        void'($value$plusargs("SOC_NPU_MEM=%s", mem_path_q));
         if (INIT_EN && mem_path_q != "") begin
             $display("axi_sim_ram: loading memory from %s", mem_path_q);
             $readmemh(mem_path_q, mem_r);

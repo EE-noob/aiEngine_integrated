@@ -1,12 +1,12 @@
 `ifndef AI_RAL_MEM_GEN_ON_CALC_START_SEQ_SV
 `define AI_RAL_MEM_GEN_ON_CALC_START_SEQ_SV
 
-`include "mma_csr_defines.svh"
+`include "npu_reg_defines.svh"
 
 class ai_ral_mem_gen_on_calc_start_seq extends ai_mem_gen_smoke_seq;
     `uvm_object_utils(ai_ral_mem_gen_on_calc_start_seq)
 
-    mma_reg_block regmodel;
+    npu_reg_block regmodel;
 
     function new(string name = "ai_ral_mem_gen_on_calc_start_seq");
         super.new(name);
@@ -68,7 +68,7 @@ class ai_ral_mem_gen_on_calc_start_seq extends ai_mem_gen_smoke_seq;
         end
     endtask
 
-    task automatic ral_write(mma_csr_reg rg, bit [31:0] data, string name);
+    task automatic ral_write(npu_reg rg, bit [31:0] data, string name);
         uvm_status_e status;
 
         if (rg == null) begin
@@ -83,7 +83,7 @@ class ai_ral_mem_gen_on_calc_start_seq extends ai_mem_gen_smoke_seq;
     endtask
 
     virtual task body();
-        mma_seq_item tr;
+        npu_seq_item tr;
         string utn_name;
         string case_dir;
         string cfg_path;
@@ -155,8 +155,8 @@ class ai_ral_mem_gen_on_calc_start_seq extends ai_mem_gen_smoke_seq;
         py_bin = "/home/yusen/opt/anaconda3/bin/python3";
         void'($value$plusargs("PYTHON_BIN=%s", py_bin));
 
-        // Pre-generate once only to obtain the CSR values. The monitor regenerates
-        // and reloads the same memory image when it sees mma calc_start.
+        // Pre-generate once only to obtain the register values. The monitor regenerates
+        // and reloads the same memory image when it sees npu calc_start.
         cmd = $sformatf(
             "cd ../tb && %s ./generate_test_case_complex_mem.py --K %0d --N %0d --M %0d --lhs_dtype %0d %s --quant_mode %0d --seed %0d --out_dir ./%s",
             py_bin, gen_k, gen_n, gen_m, gen_lhs_dtype, fix_mode_arg, gen_quant_mode, gen_seed, utn_name
@@ -193,33 +193,33 @@ class ai_ral_mem_gen_on_calc_start_seq extends ai_mem_gen_smoke_seq;
         `uvm_info("RAL_MEM_GEN", $sformatf("Config prepared: K=%0d N=%0d M=%0d lhs_dtype=%0d quant=%0d dataflow=%0d reuse=%0d/%0d seed=%0d",
             cfg_k, cfg_n, cfg_m, cfg_lhs_dtype, cfg_quant_mode, gen_dataflow_mode, gen_ia_reuse, gen_w_reuse, gen_seed), UVM_MEDIUM)
 
-        ral_write(regmodel.mult_lhs_ptr,    lhs_addr[31:0],          "mult_lhs_ptr");
-        ral_write(regmodel.mult_rhs_ptr,    rhs_addr[31:0],          "mult_rhs_ptr");
-        ral_write(regmodel.mult_bias_ptr,   bias_addr[31:0],         "mult_bias_ptr");
-        ral_write(regmodel.mult_dst_ptr,    output_base_addr[31:0],  "mult_dst_ptr");
+        ral_write(regmodel.npu_lhs_base,    lhs_addr[31:0],          "npu_lhs_base");
+        ral_write(regmodel.npu_rhs_base,    rhs_addr[31:0],          "npu_rhs_base");
+        ral_write(regmodel.npu_bias_base,   bias_addr[31:0],         "npu_bias_base");
+        ral_write(regmodel.npu_dst_base,    output_base_addr[31:0],  "npu_dst_base");
 
-        ral_write(regmodel.mult_lhs_rows,   cfg_k[31:0],             "mult_lhs_rows");
-        ral_write(regmodel.mult_rhs_rows,   cfg_m[31:0],             "mult_rhs_rows");
-        ral_write(regmodel.mult_rhs_cols,   cfg_n[31:0],             "mult_rhs_cols");
+        ral_write(regmodel.npu_k,   cfg_k[31:0],             "npu_k");
+        ral_write(regmodel.npu_m,   cfg_m[31:0],             "npu_m");
+        ral_write(regmodel.npu_n,   cfg_n[31:0],             "npu_n");
 
-        ral_write(regmodel.mult_lhs_stride, lhs_row_stride[31:0],    "mult_lhs_stride");
-        ral_write(regmodel.mult_rhs_stride, rhs_row_stride[31:0],    "mult_rhs_stride");
-        ral_write(regmodel.mult_dst_stride, dst_row_stride[31:0],    "mult_dst_stride");
+        ral_write(regmodel.npu_lhs_stride_b, lhs_row_stride[31:0],    "npu_lhs_stride_b");
+        ral_write(regmodel.npu_rhs_stride_b, rhs_row_stride[31:0],    "npu_rhs_stride_b");
+        ral_write(regmodel.npu_dst_stride_b, dst_row_stride[31:0],    "npu_dst_stride_b");
 
-        ral_write(regmodel.mult_lhs_offset, lhs_offset[31:0],        "mult_lhs_offset");
-        ral_write(regmodel.mult_rhs_offset, rhs_offset[31:0],        "mult_rhs_offset");
-        ral_write(regmodel.mult_dst_offset, dst_offset[31:0],        "mult_dst_offset");
-        ral_write(regmodel.mult_dst_mult,   dst_mult[31:0],          "mult_dst_mult");
-        ral_write(regmodel.mult_dst_shift,  dst_shift[31:0],         "mult_dst_shift");
-        ral_write(regmodel.mult_act_min,    act_min[31:0],           "mult_act_min");
-        ral_write(regmodel.mult_act_max,    act_max[31:0],           "mult_act_max");
+        ral_write(regmodel.npu_lhs_zp, lhs_offset[31:0],        "npu_lhs_zp");
+        ral_write(regmodel.npu_rhs_zp, rhs_offset[31:0],        "npu_rhs_zp");
+        ral_write(regmodel.npu_dst_zp, dst_offset[31:0],        "npu_dst_zp");
+        ral_write(regmodel.npu_q_mult,   dst_mult[31:0],          "npu_q_mult");
+        ral_write(regmodel.npu_q_shift,  dst_shift[31:0],         "npu_q_shift");
+        ral_write(regmodel.npu_act_min,    act_min[31:0],           "npu_act_min");
+        ral_write(regmodel.npu_act_max,    act_max[31:0],           "npu_act_max");
 `ifdef DUT_AXIL
         ral_write(regmodel.axil_ia_reuse,   gen_ia_reuse[31:0],      "axil_ia_reuse");
         ral_write(regmodel.axil_w_reuse,    gen_w_reuse[31:0],       "axil_w_reuse");
 `endif
 
         `uvm_do_with(tr, {
-            cmd_kind == MMA_TRIGGER;
+            cmd_kind == NPU_TRIGGER;
             matrix_k == cfg_k;
             matrix_n == cfg_n;
             matrix_m == cfg_m;

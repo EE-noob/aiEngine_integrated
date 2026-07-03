@@ -1,9 +1,9 @@
 `ifndef AI_MEM_GEN_SMOKE_SEQ_SV
 `define AI_MEM_GEN_SMOKE_SEQ_SV
 
-`include "mma_csr_defines.svh"
+`include "npu_reg_defines.svh"
 
-class ai_mem_gen_smoke_seq extends uvm_sequence#(mma_seq_item);
+class ai_mem_gen_smoke_seq extends uvm_sequence#(npu_seq_item);
     `uvm_object_utils(ai_mem_gen_smoke_seq)
 
     virtual tb_ctrl_if tb_ctrl_vif;
@@ -23,12 +23,12 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(mma_seq_item);
         return utn_name;
     endfunction
 
-    task automatic write_csr(bit [31:0] addr, bit [31:0] data);
-        mma_seq_item tr;
+    task automatic write_reg(bit [31:0] addr, bit [31:0] data);
+        npu_seq_item tr;
         `uvm_do_with(tr, {
-            cmd_kind == MMA_WR_CSR;
-            csr_addr == addr;
-            csr_data == data;
+            cmd_kind == NPU_WR_REG;
+            reg_addr == addr;
+            reg_data == data;
         })
     endtask
 
@@ -114,7 +114,7 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(mma_seq_item);
     endtask
 
     virtual task body();
-        mma_seq_item tr;
+        npu_seq_item tr;
         string utn_name;
         string case_dir;
         string cfg_path;
@@ -233,33 +233,33 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(mma_seq_item);
         `uvm_info("MEM_GEN_SEQ", $sformatf("Config loaded: K=%0d N=%0d M=%0d lhs=0x%08h rhs=0x%08h bias=0x%08h out=0x%08h",
             cfg_k, cfg_n, cfg_m, lhs_addr, rhs_addr, bias_addr, output_base_addr), UVM_MEDIUM)
         uvm_top.print_topology();
-        write_csr(`ADDR_MULT_LHS_PTR,   lhs_addr[31:0]);
-        write_csr(`ADDR_MULT_RHS_PTR,   rhs_addr[31:0]);
-        write_csr(`ADDR_MULT_BIAS_PTR,  bias_addr[31:0]);
-        write_csr(`ADDR_MULT_DST_PTR,   output_base_addr[31:0]);
+        write_reg(`ADDR_NPU_LHS_BASE,   lhs_addr[31:0]);
+        write_reg(`ADDR_NPU_RHS_BASE,   rhs_addr[31:0]);
+        write_reg(`ADDR_NPU_BIAS_BASE,  bias_addr[31:0]);
+        write_reg(`ADDR_NPU_DST_BASE,   output_base_addr[31:0]);
 
-        write_csr(`ADDR_MULT_LHS_ROWS,  cfg_k[31:0]);
-        write_csr(`ADDR_MULT_RHS_ROWS,  cfg_m[31:0]);
-        write_csr(`ADDR_MULT_RHS_COLS,  cfg_n[31:0]);
+        write_reg(`ADDR_NPU_K,  cfg_k[31:0]);
+        write_reg(`ADDR_NPU_M,  cfg_m[31:0]);
+        write_reg(`ADDR_NPU_N,  cfg_n[31:0]);
 
-        write_csr(`ADDR_MULT_LHS_STRIDE, lhs_row_stride[31:0]);
-        write_csr(`ADDR_MULT_RHS_STRIDE, rhs_row_stride[31:0]);
-        write_csr(`ADDR_MULT_DST_STRIDE, dst_row_stride[31:0]);
+        write_reg(`ADDR_NPU_LHS_STRIDE_B, lhs_row_stride[31:0]);
+        write_reg(`ADDR_NPU_RHS_STRIDE_B, rhs_row_stride[31:0]);
+        write_reg(`ADDR_NPU_DST_STRIDE_B, dst_row_stride[31:0]);
 
-        write_csr(`ADDR_MULT_LHS_OFFSET, lhs_offset[31:0]);
-        write_csr(`ADDR_MULT_RHS_OFFSET, rhs_offset[31:0]);
-        write_csr(`ADDR_MULT_DST_OFFSET, dst_offset[31:0]);
-        write_csr(`ADDR_MULT_DST_MULT,   dst_mult[31:0]);
-        write_csr(`ADDR_MULT_DST_SHIFT,  dst_shift[31:0]);
-        write_csr(`ADDR_MULT_ACT_MIN,    act_min[31:0]);
-        write_csr(`ADDR_MULT_ACT_MAX,    act_max[31:0]);
-        write_csr(`ADDR_MULT_IA_REUSE,   gen_ia_reuse[31:0]);
-        write_csr(`ADDR_MULT_W_REUSE,    gen_w_reuse[31:0]);
-        write_csr(`ADDR_MULT_DATAFLOW,   gen_dataflow_mode[31:0]);
+        write_reg(`ADDR_NPU_LHS_ZP, lhs_offset[31:0]);
+        write_reg(`ADDR_NPU_RHS_ZP, rhs_offset[31:0]);
+        write_reg(`ADDR_NPU_DST_ZP, dst_offset[31:0]);
+        write_reg(`ADDR_NPU_Q_MULT,   dst_mult[31:0]);
+        write_reg(`ADDR_NPU_Q_SHIFT,  dst_shift[31:0]);
+        write_reg(`ADDR_NPU_ACT_MIN,    act_min[31:0]);
+        write_reg(`ADDR_NPU_ACT_MAX,    act_max[31:0]);
+        write_reg(`ADDR_NPU_IA_REUSE,   gen_ia_reuse[31:0]);
+        write_reg(`ADDR_NPU_W_REUSE,    gen_w_reuse[31:0]);
+        write_reg(`ADDR_NPU_DATAFLOW,   gen_dataflow_mode[31:0]);
 
         // Trigger calc_mult after seq-side mem generation/reload and config programming.
         `uvm_do_with(tr, {
-            cmd_kind == MMA_TRIGGER;
+            cmd_kind == NPU_TRIGGER;
             matrix_k == cfg_k;
             matrix_n == cfg_n;
             matrix_m == cfg_m;

@@ -27,41 +27,36 @@ set incdirs [list \
 set rtl_files [list \
     [file join $repo_root picorv32 picorv32.v] \
     [file join $repo_root picorv32 picosoc simpleuart.v] \
-    [file join $repo_root rtl axi_accelerator axil_reg_if_wr.v] \
-    [file join $repo_root rtl axi_accelerator axil_reg_if_rd.v] \
-    [file join $repo_root rtl axi_accelerator axil_reg_if.v] \
-    [file join $repo_root rtl axi_accelerator csr_unit.v] \
-    [file join $repo_root rtl axi_accelerator wb_pingpong_buf.v] \
-    [file join $repo_root rtl axi_accelerator wbu.v] \
-    [file join $repo_root rtl axi_accelerator axi_top mma_axil_top.sv] \
-    [file join $repo_root rtl axi_accelerator MMA accumulator_array.sv] \
-    [file join $repo_root rtl axi_accelerator MMA axi_block_dma_arbiter.sv] \
-    [file join $repo_root rtl axi_accelerator MMA axi_dual_block_dma.sv] \
-    [file join $repo_root rtl axi_accelerator MMA bias_loader.sv] \
-    [file join $repo_root rtl axi_accelerator MMA bias_loader_buffer.sv] \
-    [file join $repo_root rtl axi_accelerator MMA bias_loader_ctrl.sv] \
-    [file join $repo_root rtl axi_accelerator MMA bias_mux.sv] \
-    [file join $repo_root rtl axi_accelerator MMA compute_core.sv] \
-    [file join $repo_root rtl axi_accelerator MMA data_setup.sv] \
-    [file join $repo_root rtl axi_accelerator MMA de_diagonalizer.sv] \
-    [file join $repo_root rtl axi_accelerator MMA ia_buffer_wrapper.sv] \
-    [file join $repo_root rtl axi_accelerator MMA ia_loader.sv] \
-    [file join $repo_root rtl axi_accelerator MMA ia_loader_cache_mgr.sv] \
-    [file join $repo_root rtl axi_accelerator MMA ia_loader_ctrl.sv] \
-    [file join $repo_root rtl axi_accelerator MMA kernel_loader.sv] \
-    [file join $repo_root rtl axi_accelerator MMA kernel_loader_buffer.sv] \
-    [file join $repo_root rtl axi_accelerator MMA kernel_loader_ctrl.sv] \
-    [file join $repo_root rtl axi_accelerator MMA mma_controller.sv] \
-    [file join $repo_root rtl axi_accelerator MMA mma_top.sv] \
-    [file join $repo_root rtl axi_accelerator MMA oa_writer.sv] \
-    [file join $repo_root rtl axi_accelerator MMA ps_buffer.sv] \
-    [file join $repo_root rtl axi_accelerator MMA ps_buffer_fifo.sv] \
-    [file join $repo_root rtl axi_accelerator MMA pseudo_dual_port_ram.v] \
-    [file join $repo_root rtl axi_accelerator MMA shift_accumulator.sv] \
-    [file join $repo_root rtl axi_accelerator MMA vec_requant.sv] \
-    [file join $repo_root rtl axi_accelerator MMA vec_s8_to_fifo.sv] \
-    [file join $repo_root rtl axi_accelerator MMA ws_systolic_array.sv] \
-    [file join $repo_root rtl axi_accelerator MMA ws_systolic_cell.sv] \
+    [file join $repo_root rtl axi_accelerator axi_top npu_axil_reg_if.sv] \
+    [file join $repo_root rtl axi_accelerator axi_top npu_axil_top.sv] \
+    [file join $repo_root rtl axi_accelerator npu accumulator_array.sv] \
+    [file join $repo_root rtl axi_accelerator npu axi_block_dma_arbiter.sv] \
+    [file join $repo_root rtl axi_accelerator npu axi_dual_block_dma.sv] \
+    [file join $repo_root rtl axi_accelerator npu bias_loader.sv] \
+    [file join $repo_root rtl axi_accelerator npu bias_loader_buffer.sv] \
+    [file join $repo_root rtl axi_accelerator npu bias_loader_ctrl.sv] \
+    [file join $repo_root rtl axi_accelerator npu bias_mux.sv] \
+    [file join $repo_root rtl axi_accelerator npu compute_core.sv] \
+    [file join $repo_root rtl axi_accelerator npu data_setup.sv] \
+    [file join $repo_root rtl axi_accelerator npu de_diagonalizer.sv] \
+    [file join $repo_root rtl axi_accelerator npu ia_buffer_wrapper.sv] \
+    [file join $repo_root rtl axi_accelerator npu ia_loader.sv] \
+    [file join $repo_root rtl axi_accelerator npu ia_loader_cache_mgr.sv] \
+    [file join $repo_root rtl axi_accelerator npu ia_loader_ctrl.sv] \
+    [file join $repo_root rtl axi_accelerator npu kernel_loader.sv] \
+    [file join $repo_root rtl axi_accelerator npu kernel_loader_buffer.sv] \
+    [file join $repo_root rtl axi_accelerator npu kernel_loader_ctrl.sv] \
+    [file join $repo_root rtl axi_accelerator npu npu_controller.sv] \
+    [file join $repo_root rtl axi_accelerator npu npu_top.sv] \
+    [file join $repo_root rtl axi_accelerator npu oa_writer.sv] \
+    [file join $repo_root rtl axi_accelerator npu ps_buffer.sv] \
+    [file join $repo_root rtl axi_accelerator npu ps_buffer_fifo.sv] \
+    [file join $repo_root rtl axi_accelerator npu pseudo_dual_port_ram.v] \
+    [file join $repo_root rtl axi_accelerator npu shift_accumulator.sv] \
+    [file join $repo_root rtl axi_accelerator npu vec_requant.sv] \
+    [file join $repo_root rtl axi_accelerator npu vec_s8_to_fifo.sv] \
+    [file join $repo_root rtl axi_accelerator npu ws_systolic_array.sv] \
+    [file join $repo_root rtl axi_accelerator npu ws_systolic_cell.sv] \
     [file join $repo_root rtl axi_accelerator soc pico_native_to_axi.sv] \
     [file join $repo_root rtl axi_accelerator soc soc_axi_interconnect.sv] \
     [file join $repo_root rtl axi_accelerator soc soc_axi_pingpong_buffer.sv] \

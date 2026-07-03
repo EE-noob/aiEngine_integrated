@@ -75,10 +75,10 @@ uint32_t status = dsa_matmul_execute(&config);
 
 ```c
 // 写入寄存器
-dsa_reg_write(CSR_MULT_LHS_PTR, (uint32_t)(uintptr_t)A);
+dsa_reg_write(NPU_REG_LHS_BASE, (uint32_t)(uintptr_t)A);
 
 // 读取寄存器
-uint32_t value = dsa_reg_read(CSR_MULT_LHS_ROWS);
+uint32_t value = dsa_reg_read(NPU_REG_K);
 
 // 直接调用高层 API
 uint32_t status = dsa_matmul_execute(&config);

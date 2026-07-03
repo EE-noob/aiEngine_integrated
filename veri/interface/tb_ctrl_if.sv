@@ -6,11 +6,11 @@ interface tb_ctrl_if (
     input logic rst_n
 );
 
-    // Testbench-side controls and MMA monitor synchronization.
+    // Testbench-side controls and NPU monitor synchronization.
     logic       mem_reload_req;
-    logic       mma_calc_start_toggle;
-    logic       mma_wb_handshake_toggle;
-    logic [1:0] mma_err_code;
+    logic       npu_calc_start_toggle;
+    logic       npu_wb_handshake_toggle;
+    logic [1:0] npu_err_code;
 
     clocking drv_cb @(posedge clk);
         default input #1step output #1step;
@@ -20,9 +20,9 @@ interface tb_ctrl_if (
     clocking mon_cb @(posedge clk);
         default input #1step output #1step;
         input mem_reload_req;
-        input mma_calc_start_toggle;
-        input mma_wb_handshake_toggle;
-        input mma_err_code;
+        input npu_calc_start_toggle;
+        input npu_wb_handshake_toggle;
+        input npu_err_code;
     endclocking
 
     function automatic bit [31:0] read_sram_word(input int unsigned word_addr);

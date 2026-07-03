@@ -7,24 +7,43 @@
 /* axi_soc maps the accelerator window at 0x1000_0000 in soc_top.sv. */
 #define DSA_MMIO_BASE 0x10000000u
 
-/* ========== 寄存器地址（按 word 编址） ========== */
-#define DSA_REG_CTRL    0x000u
-#define DSA_REG_STATUS  0x001u
-#define DSA_REG_WB_DATA 0x002u
-#define DSA_REG_WB_INFO 0x003u
-#define DSA_REG_IA_REUSE 0x004u
-#define DSA_REG_W_REUSE  0x005u
+/* ========== NPU AXI-Lite 寄存器地址（字节偏移） ========== */
+#define NPU_REG_CTRL         0x000u
+#define NPU_REG_STATUS       0x004u
+#define NPU_REG_WB_DATA      0x008u
+#define NPU_REG_WB_INFO      0x00Cu
+#define NPU_REG_LHS_BASE     0x010u
+#define NPU_REG_RHS_BASE     0x014u
+#define NPU_REG_DST_BASE     0x018u
+#define NPU_REG_BIAS_BASE    0x01Cu
+#define NPU_REG_K            0x020u
+#define NPU_REG_N            0x024u
+#define NPU_REG_M            0x028u
+#define NPU_REG_LHS_STRIDE_B 0x02Cu
+#define NPU_REG_RHS_STRIDE_B 0x030u
+#define NPU_REG_DST_STRIDE_B 0x034u
+#define NPU_REG_LHS_ZP       0x038u
+#define NPU_REG_RHS_ZP       0x03Cu
+#define NPU_REG_DST_ZP       0x040u
+#define NPU_REG_Q_MULT       0x044u
+#define NPU_REG_Q_SHIFT      0x048u
+#define NPU_REG_ACT_MIN      0x04Cu
+#define NPU_REG_ACT_MAX      0x050u
+#define NPU_REG_IA_REUSE     0x054u
+#define NPU_REG_W_REUSE      0x058u
+#define NPU_REG_DATAFLOW     0x05Cu
+#define NPU_REG_ID           0x0FCu
 
-#define DSA_CTRL_START          (1u << 0)
-#define DSA_CTRL_CFG_16BITS_IA  (1u << 1)
-#define DSA_CTRL_PER_CHANNEL    (1u << 2)
-#define DSA_CTRL_DATAFLOW_IS    (1u << 3)
-#define DSA_CTRL_CLEAR_DONE     (1u << 8)
-#define DSA_CTRL_CLEAR_WB_VALID (1u << 9)
+#define NPU_CTRL_START          (1u << 0)
+#define NPU_CTRL_CFG_16BITS_IA  (1u << 1)
+#define NPU_CTRL_PER_CHANNEL    (1u << 2)
+#define NPU_CTRL_DATAFLOW_IS    (1u << 3)
+#define NPU_CTRL_CLEAR_DONE     (1u << 8)
+#define NPU_CTRL_CLEAR_WB_VALID (1u << 9)
 
-#define DSA_STATUS_DONE      (1u << 2)
-#define DSA_STATUS_ERR_SHIFT 4u
-#define DSA_STATUS_ERR_MASK  (3u << DSA_STATUS_ERR_SHIFT)
+#define NPU_STATUS_DONE      (1u << 2)
+#define NPU_STATUS_ERR_SHIFT 4u
+#define NPU_STATUS_ERR_MASK  (3u << NPU_STATUS_ERR_SHIFT)
 
 #ifndef DSA_TILE_SIZE
 #define DSA_TILE_SIZE 16u
@@ -48,42 +67,15 @@ static inline uint32_t dsa_mmio_read(uint32_t addr)
     return *(volatile uint32_t *)(uintptr_t)addr;
 }
 
-static inline void dsa_reg_write(uint32_t word_addr, uint32_t data)
+static inline void dsa_reg_write(uint32_t byte_offset, uint32_t data)
 {
-    dsa_mmio_write(DSA_MMIO_BASE + (word_addr << 2), data);
+    dsa_mmio_write(DSA_MMIO_BASE + byte_offset, data);
 }
 
-static inline uint32_t dsa_reg_read(uint32_t word_addr)
+static inline uint32_t dsa_reg_read(uint32_t byte_offset)
 {
-    return dsa_mmio_read(DSA_MMIO_BASE + (word_addr << 2));
+    return dsa_mmio_read(DSA_MMIO_BASE + byte_offset);
 }
-
-#define DSA_CSRWR(csr, val) dsa_reg_write((uint32_t)(csr), (uint32_t)(val))
-#define DSA_CSRRD(csr, out_var) do { (out_var) = dsa_reg_read((uint32_t)(csr)); } while (0)
-
-/* ========== CSR/配置寄存器地址 ========== */
-#define CSR_MULT_LHS_PTR    0x7C0u
-#define CSR_MULT_RHS_PTR    0x7C1u
-#define CSR_MULT_DST_PTR    0x7C2u
-#define CSR_MULT_BIAS_PTR   0x7C3u
-
-#define CSR_MULT_LHS_ROWS       0x7C4u
-#define CSR_MULT_RHS_COLS       0x7C5u
-#define CSR_MULT_RHS_ROWS       0x7C6u
-#define CSR_MULT_DST_ROW_STRIDE 0x7C7u
-#define CSR_MULT_LHS_ROW_STRIDE 0x7C8u
-#define CSR_MULT_RHS_COL_STRIDE 0x7C9u
-#define CSR_MULT_ROW_ADDR_OFFSET CSR_MULT_DST_ROW_STRIDE
-#define CSR_MULT_LHS_COLS_OFFSET CSR_MULT_LHS_ROW_STRIDE
-#define CSR_MULT_RHS_ROW_STRIDE  CSR_MULT_RHS_COL_STRIDE
-
-#define CSR_MULT_LHS_OFFSET 0x7CAu
-#define CSR_MULT_RHS_OFFSET 0x7CBu
-#define CSR_MULT_DST_OFFSET 0x7CCu
-#define CSR_MULT_DST_MULT   0x7CDu
-#define CSR_MULT_DST_SHIFT  0x7CEu
-#define CSR_MULT_ACT_MIN    0x7CFu
-#define CSR_MULT_ACT_MAX    0x7D0u
 
 /* ========== 配置字位域定义 ========== */
 #define CFG_OUT_W_S4   0x0u

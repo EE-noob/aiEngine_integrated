@@ -33,9 +33,9 @@ interface axil_if #(
     logic                       rvalid;
     logic                       rready;
 
-    // Passive MMA completion sideband for AXIL monitor.
-    logic [31:0]                mma_irq;
-    logic [31:0]                mma_status;
+    // Passive NPU completion sideband for AXIL monitor.
+    logic [31:0]                npu_irq;
+    logic [31:0]                npu_status;
 
     clocking drv_cb @(posedge clk);
         default input #1step output #1step;
@@ -58,7 +58,7 @@ interface axil_if #(
         input bresp, bvalid, bready;
         input araddr, arprot, arvalid, arready;
         input rdata, rresp, rvalid, rready;
-        input mma_irq, mma_status;
+        input npu_irq, npu_status;
     endclocking
 
 endinterface

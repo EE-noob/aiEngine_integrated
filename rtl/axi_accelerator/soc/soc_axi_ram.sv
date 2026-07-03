@@ -509,7 +509,7 @@ module soc_axi_ram #(
         data_mem_path_q = "";
 
         void'($value$plusargs("SOC_CPU_MEM=%s", mem_path_q));
-        void'($value$plusargs("SOC_MMA_MEM=%s", data_mem_path_q));
+        void'($value$plusargs("SOC_NPU_MEM=%s", data_mem_path_q));
         void'($value$plusargs("SOC_DATA_MEM=%s", data_mem_path_q));
         void'($value$plusargs("SOC_DATA_MEM_BASE_WORD=%d", data_mem_base_word_q));
         void'($value$plusargs("DDR_RAND_LAT=%d", ddr_rand_lat_en));
