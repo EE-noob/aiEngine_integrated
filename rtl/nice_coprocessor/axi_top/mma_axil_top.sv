@@ -1,5 +1,3 @@
-`include "e203_defines.v"
-
 module mma_axil_top #(
     parameter AXIL_DATA_WIDTH = 32,
     parameter AXIL_ADDR_WIDTH = 16,

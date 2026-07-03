@@ -1,5 +1,3 @@
-`include "e203_defines.v"
-
 module csr_unit #(
     parameter REG_WIDTH = 32
 ) (

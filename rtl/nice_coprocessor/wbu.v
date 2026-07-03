@@ -1,9 +1,3 @@
-/* verilator lint_off TIMESCALEMOD */
-
-/* verilator lint_on TIMESCALEMOD */
-
-`include "e203_defines.v"
-
 module wbu #(
     parameter DW = 32  // Data width
 ) (

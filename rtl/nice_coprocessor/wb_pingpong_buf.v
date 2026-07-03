@@ -1,7 +1,4 @@
 
-
-`include "e203_defines.v"
-
 module wb_pingpong_buf #(
     parameter DW = 32  // Data width
 ) (

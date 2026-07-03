@@ -62,7 +62,7 @@ module soc_axi_ram #(
     localparam int unsigned RD_USED_W = RD_CNT_W + 1;
     localparam int unsigned WR_USED_W = WR_CNT_W + 1;
 
-    (* ram_style = "block", ram_decomp = "power" *) logic [DW-1:0] mem_r [0:DP-1];
+    (* ram_style = "block" *) logic [DW-1:0] mem_r [0:DP-1];
 
     logic [AW-1:0] rd_addr_q [0:RD_DEPTH-1];
     logic [7:0]    rd_len_q  [0:RD_DEPTH-1];
