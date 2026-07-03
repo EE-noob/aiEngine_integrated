@@ -16,7 +16,7 @@ module soc_top #(
     parameter CPU_MEM_INIT_EN = 1,
     parameter CPU_ENABLE_ICACHE = 0,
     parameter CPU_AXI_READ_TIMING_BUFFER = 1,
-    parameter MMA_AXI_TIMING_BUFFER = 1,
+    parameter NPU_AXI_TIMING_BUFFER = 1,
     parameter CPU_AXI_WRITE_TIMING_BUFFER = 1,
     parameter BYPASS_RAM_PINGPONG = 1,
     parameter RAM_WRITE_TIMING_BUFFER = 1,
@@ -837,7 +837,7 @@ module soc_top #(
     );
 
     generate
-        if (MMA_AXI_TIMING_BUFFER) begin : g_mma_axi_timing_buffer
+        if (NPU_AXI_TIMING_BUFFER) begin : g_npu_axi_timing_buffer
             soc_axi_pingpong_buffer #(
                 .ADDR_WIDTH(AXI_ADDR_WIDTH),
                 .DATA_WIDTH(BUS_WIDTH)

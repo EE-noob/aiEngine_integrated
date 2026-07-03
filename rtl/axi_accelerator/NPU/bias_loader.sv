@@ -1,7 +1,7 @@
 /*
  * bias_loader — 顶层汇聚
  * ============================================================
- * 复用 mma_top 的共享 AXI block_dma 做一维块读取，ctrl 负责顺序/切换，buffer 负责 bank 存储。
+ * 复用 npu_top 的共享 AXI block_dma 做一维块读取，ctrl 负责顺序/切换，buffer 负责 bank 存储。
  * 每个 bias block 采用一次 burst 连续读取，避免单 beat 访问开销。
  */
 

@@ -130,7 +130,7 @@ module axi_dual_block_dma #(
     logic dma_trace_en;
     initial begin
         dma_trace_en = 1'b0;
-        if ($test$plusargs("MMA_DMA_TRACE")) dma_trace_en = 1'b1;
+        if ($test$plusargs("NPU_DMA_TRACE")) dma_trace_en = 1'b1;
     end
 `endif
 

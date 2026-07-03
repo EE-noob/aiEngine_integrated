@@ -117,7 +117,7 @@ module oa_writer #(
 
     initial begin
         oa_trace_en = 1'b0;
-        if ($test$plusargs("MMA_OA_TRACE")) oa_trace_en = 1'b1;
+        if ($test$plusargs("NPU_OA_TRACE")) oa_trace_en = 1'b1;
     end
 `else
     localparam bit oa_trace_en = 1'b0;

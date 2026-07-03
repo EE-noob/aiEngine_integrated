@@ -1,4 +1,4 @@
-// MMA(Matrix Multiply Accumulate) Controller
+// NPU task controller for tiled matrix multiply/accumulate execution.
 //
 // ==== 参数配置规则 ====
 // 1. 基地址指针 (base pointers):
@@ -26,7 +26,7 @@
 //    - 2'b01: 无效/不支持的配置（非法参数组合）
 //    - 2'b10: 必需资源缺失或指针为 0
 //
-module mma_controller #(
+module npu_controller #(
     parameter int unsigned WEIGHT_WIDTH = 16,  // 权重数据宽度
     parameter int unsigned DATA_WIDTH   = 16,  // IA数据宽度
     parameter int unsigned SIZE         = 16,  // 阵列大小
@@ -173,9 +173,9 @@ module mma_controller #(
         ctrl_trace_en = 1'b0;
         util_trace_en = 1'b0;
         util_summary_en = 1'b0;
-        if ($test$plusargs("MMA_CTRL_TRACE")) ctrl_trace_en = 1'b1;
-        if ($test$plusargs("MMA_UTIL_TRACE")) util_trace_en = 1'b1;
-        if ($test$plusargs("MMA_UTIL_SUMMARY")) util_summary_en = 1'b1;
+        if ($test$plusargs("NPU_CTRL_TRACE")) ctrl_trace_en = 1'b1;
+        if ($test$plusargs("NPU_UTIL_TRACE")) util_trace_en = 1'b1;
+        if ($test$plusargs("NPU_UTIL_SUMMARY")) util_summary_en = 1'b1;
     end
 `endif
 
@@ -272,7 +272,7 @@ module mma_controller #(
 `ifndef SYNTHESIS
 	                if (ctrl_trace_en) begin
 	                    $display("Simulation time: %t", $time);
-	                    $display("MMA Controller Start: lhs_base=%h, rhs_base=%h, dst_base=%h, bias_base=%h", lhs_base, rhs_base, dst_base, bias_base);
+	                    $display("NPU Controller Start: lhs_base=%h, rhs_base=%h, dst_base=%h, bias_base=%h", lhs_base, rhs_base, dst_base, bias_base);
 	                    $display("Dimensions: k=%d, n=%d, m=%d", k, n, m);
 	                    $display("Strides: lhs_row_stride_b=%d, rhs_col_stride_b=%d, dst_row_stride_b=%d", lhs_row_stride_b, rhs_col_stride_b, dst_row_stride_b);
 	                    $display("Quantization: q_mult_pt=%d, q_shift_pt=%d, use_per_channel=%b, cfg_16bits_ia=%b, cfg_dataflow_mode=%b", q_mult_pt, q_shift_pt, use_per_channel, cfg_16bits_ia, cfg_dataflow_mode);
@@ -445,7 +445,7 @@ module mma_controller #(
                 util_sum_weight_trigger_count     <= util_sum_weight_trigger_count + util_weight_trigger_count;
                 util_sum_ia_trigger_count         <= util_sum_ia_trigger_count + util_ia_trigger_count;
                 if (util_trace_en) begin
-                    $display("[MMA_CTRL_UTIL] op=%0d active=%0d weight_start=%0d weight_wait=%0d ia_start=%0d ia_wait=%0d wait_wb=%0d weight_tail_stall=%0d weight_data_stall=%0d weight_done_wait=%0d ia_data_stall=%0d bias_stall=%0d quant_stall=%0d fifo_stall=%0d ia_done_wait=%0d tail_pending=%0d tail_done=%0d weight_trig=%0d ia_trig=%0d",
+                    $display("[NPU_CTRL_UTIL] op=%0d active=%0d weight_start=%0d weight_wait=%0d ia_start=%0d ia_wait=%0d wait_wb=%0d weight_tail_stall=%0d weight_data_stall=%0d weight_done_wait=%0d ia_data_stall=%0d bias_stall=%0d quant_stall=%0d fifo_stall=%0d ia_done_wait=%0d tail_pending=%0d tail_done=%0d weight_trig=%0d ia_trig=%0d",
                              util_op_id,
                              util_active_cycles,
                              util_weight_start_cycles,
@@ -473,7 +473,7 @@ module mma_controller #(
 
     final begin
         if (util_summary_en) begin
-            $display("[MMA_CTRL_UTIL_SUMMARY] ops=%0d active=%0d weight_start=%0d weight_wait=%0d ia_start=%0d ia_wait=%0d wait_wb=%0d weight_tail_stall=%0d weight_data_stall=%0d weight_done_wait=%0d ia_data_stall=%0d bias_stall=%0d quant_stall=%0d fifo_stall=%0d ia_done_wait=%0d tail_pending=%0d tail_done=%0d weight_trig=%0d ia_trig=%0d",
+            $display("[NPU_CTRL_UTIL_SUMMARY] ops=%0d active=%0d weight_start=%0d weight_wait=%0d ia_start=%0d ia_wait=%0d wait_wb=%0d weight_tail_stall=%0d weight_data_stall=%0d weight_done_wait=%0d ia_data_stall=%0d bias_stall=%0d quant_stall=%0d fifo_stall=%0d ia_done_wait=%0d tail_pending=%0d tail_done=%0d weight_trig=%0d ia_trig=%0d",
                      util_op_id,
                      util_sum_active_cycles,
                      util_sum_weight_start_cycles,
@@ -526,7 +526,7 @@ module mma_controller #(
                     end
 `ifndef SYNTHESIS
                     if (ctrl_trace_en) begin
-                        $display("MMA Controller: Calculation completed.");
+                        $display("NPU Controller: Calculation completed.");
                     end
 `endif
                 end else if (issue_weight_now) begin
@@ -545,7 +545,7 @@ module mma_controller #(
                     end
 `ifndef SYNTHESIS
                     if (ctrl_trace_en) begin
-                        $display("MMA Controller: Calculation completed.");
+                        $display("NPU Controller: Calculation completed.");
                     end
 `endif
                 end else if (weight_sending_done) begin

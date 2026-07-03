@@ -185,7 +185,7 @@ module vec_s8_to_fifo #(
 `ifndef SYNTHESIS
   initial begin
     oa_trace_en = 1'b0;
-    if ($test$plusargs("MMA_OA_TRACE")) oa_trace_en = 1'b1;
+    if ($test$plusargs("NPU_OA_TRACE")) oa_trace_en = 1'b1;
   end
 `endif
 

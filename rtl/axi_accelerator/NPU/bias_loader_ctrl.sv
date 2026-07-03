@@ -5,7 +5,7 @@
  * metadata.  That was good for hiding a small amount of bias latency, but it
  * cost several thousand LUTs after synthesis.  This version keeps the external
  * handshake semantics and the two-bank buffer, but loads the next group only
- * when the compute schedule raises bias_switch.  The MMA controller already
+ * when the compute schedule raises bias_switch.  The NPU controller already
  * waits for bias_valid before issuing IA, so correctness is preserved while the
  * control network is much smaller.
  */

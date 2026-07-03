@@ -116,7 +116,7 @@ module vec_requant #(
 
   initial begin
     requant_trace_en = 1'b0;
-    if ($test$plusargs("MMA_REQUANT_TRACE")) requant_trace_en = 1'b1;
+    if ($test$plusargs("NPU_REQUANT_TRACE")) requant_trace_en = 1'b1;
   end
 `else
   localparam bit requant_trace_en = 1'b0;

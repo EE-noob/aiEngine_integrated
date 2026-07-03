@@ -53,7 +53,7 @@ module kernel_loader_buffer #(
 
   initial begin
     kernel_buf_trace_en = 1'b0;
-    if ($test$plusargs("MMA_KERNEL_BUF_TRACE")) kernel_buf_trace_en = 1'b1;
+    if ($test$plusargs("NPU_KERNEL_BUF_TRACE")) kernel_buf_trace_en = 1'b1;
   end
 `else
   localparam bit kernel_buf_trace_en = 1'b0;

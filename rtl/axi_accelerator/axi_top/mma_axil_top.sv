@@ -403,7 +403,7 @@ module mma_axil_top #(
         .act_max(act_max)
     );
 
-    mma_top #(
+    npu_top #(
         .WEIGHT_WIDTH(WEIGHT_WIDTH),
         .DATA_WIDTH(DATA_WIDTH),
         .SIZE(SIZE),
@@ -414,7 +414,7 @@ module mma_axil_top #(
 	        .PS_FRAME_COUNT(PS_FRAME_COUNT),
 	        .AXI_READ_OUTSTANDING(AXI_READ_OUTSTANDING),
 	        .AXI_WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING)
-    ) u_mma_top (
+    ) u_npu_top (
         .clk(clk),
         .rst_n(rst_n),
         .calc_start(calc_start_pulse),

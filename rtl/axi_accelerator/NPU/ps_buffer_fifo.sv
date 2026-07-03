@@ -61,7 +61,7 @@ module ps_buffer_fifo #(
 
     initial begin
         ps_trace_en = 1'b0;
-        if ($test$plusargs("MMA_PS_TRACE")) ps_trace_en = 1'b1;
+        if ($test$plusargs("NPU_PS_TRACE")) ps_trace_en = 1'b1;
     end
 `else
     localparam bit ps_trace_en = 1'b0;

@@ -9,7 +9,7 @@
  *
  * 子模块：
  *   ia_loader_ctrl      — 缓存调度、循环计数、发送控制
- *   AXI block DMA client — 通过 mma_top 的共享 AXI DMA 读入分块
+ *   AXI block DMA client — 通过 npu_top 的共享 AXI DMA 读入分块
  *   ia_loader_cache_mgr — 缓存 RAM 管理、对角化输出、控制信号生成
  *
  * 相对 v1.1 的改进：
@@ -400,7 +400,7 @@ module ia_loader #(
     );
 
     // =======================================================================
-    // DMA 接入：通过 mma_top 的共享 AXI block_dma 写入本地 cache
+    // DMA 接入：通过 npu_top 的共享 AXI block_dma 写入本地 cache
     // =======================================================================
     logic [REG_WIDTH-1:0] active_valid_cols;
 

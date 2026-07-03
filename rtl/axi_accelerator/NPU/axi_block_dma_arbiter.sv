@@ -1,5 +1,5 @@
 /*
- * axi_block_dma_arbiter -- AXI-native DMA front-end for MMA clients
+ * axi_block_dma_arbiter -- AXI-native DMA front-end for NPU clients
  * ================================================================
  *
  * Read clients (IA/kernel/bias/quant) share the AXI read engine through a
@@ -172,6 +172,10 @@ module axi_block_dma_arbiter #(
     logic dma_wr_use_16bits;
     logic [BUS_WIDTH-1:0] dma_raw_data;
     logic dma_raw_valid;
+    logic [$clog2(DMA_SIZE)-1:0] dma_raw_row;
+    logic [$clog2(DMA_SIZE)-1:0] dma_raw_col_base;
+    logic dma_rd_error;
+    logic dma_wr_error;
 
     logic wr_active;
     logic wr_started;
@@ -353,13 +357,13 @@ module axi_block_dma_arbiter #(
     assign quant_raw_valid = quant_granted && dma_raw_valid;
 
     axi_dual_block_dma #(
-        .DATA_WIDTH  (DATA_WIDTH),
-        .SIZE        (DMA_SIZE),
-        .BUS_WIDTH   (BUS_WIDTH),
-        .REG_WIDTH   (REG_WIDTH),
-        .CACHE_BLOCKS(CACHE_BLOCKS),
-	        .READ_OUTSTANDING(READ_OUTSTANDING),
-	        .WRITE_OUTSTANDING(WRITE_OUTSTANDING)
+        .DATA_WIDTH       (DATA_WIDTH),
+        .SIZE             (DMA_SIZE),
+        .BUS_WIDTH        (BUS_WIDTH),
+        .REG_WIDTH        (REG_WIDTH),
+        .CACHE_BLOCKS     (CACHE_BLOCKS),
+        .READ_OUTSTANDING (READ_OUTSTANDING),
+        .WRITE_OUTSTANDING(WRITE_OUTSTANDING)
     ) u_dma (
         .clk                (clk),
         .rst_n              (rst_n),
@@ -419,10 +423,10 @@ module axi_block_dma_arbiter #(
         .wr_use_16bits      (dma_wr_use_16bits),
         .rd_raw_data        (dma_raw_data),
         .rd_raw_valid       (dma_raw_valid),
-        .rd_raw_row         (),
-        .rd_raw_col_base    (),
-        .rd_error           (),
-        .wr_error           ()
+        .rd_raw_row         (dma_raw_row),
+        .rd_raw_col_base    (dma_raw_col_base),
+        .rd_error           (dma_rd_error),
+        .wr_error           (dma_wr_error)
     );
 
 endmodule

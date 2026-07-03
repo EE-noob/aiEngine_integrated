@@ -1,5 +1,5 @@
-// 矩阵乘累加(MMA)顶层模块
-module mma_top #(
+// NPU 顶层模块：矩阵/卷积算子的分块计算、量化和写回数据通路
+module npu_top #(
     parameter int unsigned WEIGHT_WIDTH = 16,  // 权重数据宽度；WS 下 s8 符号扩展，IS+s16 下使用 16bit LHS
     parameter int unsigned DATA_WIDTH = 16,  // IA数据宽度
     parameter int unsigned SIZE = 16,  // 阵列大小
@@ -211,7 +211,7 @@ module mma_top #(
 	    logic oa_dma_src_wvalid, oa_dma_src_wready, oa_dma_busy, oa_dma_done;
 
     // 添加缺少的内部信号
-    // per-submodule init_cfg signals (由mma_controller产生的单拍脉冲)
+    // per-submodule init_cfg signals (由npu_controller产生的单拍脉冲)
     wire init_cfg_ia;
     wire init_cfg_weight;
     wire init_cfg_bias;
@@ -607,14 +607,14 @@ module mma_top #(
     // 模块实例化
     //========================================
 
-	    // MMA 控制器
-    mma_controller #(
+	    // NPU 控制器
+    npu_controller #(
         .WEIGHT_WIDTH(WEIGHT_WIDTH),
         .DATA_WIDTH  (DATA_WIDTH),
         .SIZE        (SIZE),
         .BUS_WIDTH   (BUS_WIDTH),
         .REG_WIDTH   (REG_WIDTH)
-    ) u_mma_controller (
+    ) u_npu_controller (
         .clk              (clk),
         .rst_n            (rst_n),
         .calc_start       (ctrl_calc_start),
@@ -1145,7 +1145,7 @@ module mma_top #(
 
     initial begin
         top_util_trace_en = 1'b0;
-        if ($test$plusargs("MMA_UTIL_TRACE")) top_util_trace_en = 1'b1;
+        if ($test$plusargs("NPU_UTIL_TRACE")) top_util_trace_en = 1'b1;
     end
 
     wire top_util_start_event = calc_start && sa_ready;
@@ -1278,7 +1278,7 @@ module mma_top #(
 
             if (top_util_finish_event) begin
                 if (top_util_trace_en) begin
-                    $display("[MMA_UTIL] op=%0d active=%0d ia_row=%0d ia_row_util_bp=%0d acc_valid=%0d acc_util_bp=%0d requant_valid=%0d fifo_valid=%0d fifo_full=%0d store_weight=%0d send_weight=%0d send_ia=%0d tile_start=%0d tile_over=%0d partial_over=%0d l1_switch=%0d dma_busy_ia=%0d dma_busy_kernel=%0d dma_busy_bias=%0d dma_busy_quant=%0d dma_busy_oa=%0d axi_ar=%0d axi_r=%0d axi_aw=%0d axi_w=%0d axi_b=%0d",
+                    $display("[NPU_UTIL] op=%0d active=%0d ia_row=%0d ia_row_util_bp=%0d acc_valid=%0d acc_util_bp=%0d requant_valid=%0d fifo_valid=%0d fifo_full=%0d store_weight=%0d send_weight=%0d send_ia=%0d tile_start=%0d tile_over=%0d partial_over=%0d l1_switch=%0d dma_busy_ia=%0d dma_busy_kernel=%0d dma_busy_bias=%0d dma_busy_quant=%0d dma_busy_oa=%0d axi_ar=%0d axi_r=%0d axi_aw=%0d axi_w=%0d axi_b=%0d",
                              top_util_op_id,
                              top_util_active_cycles,
                              top_util_ia_row_cycles,
