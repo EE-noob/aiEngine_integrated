@@ -1,0 +1,40 @@
+flowchart LR
+    LHS[(LHS/IA<br/>外存矩阵)]
+    RHS[(RHS/W<br/>外存权重)]
+    BIAS[(bias 与 per-channel 参数)]
+    DST[(DST<br/>int8 输出)]
+    DMA[统一块 DMA<br/>二维 burst 读写]
+    IAC[IA cache<br/>多个输入矩阵分块]
+    KBUF[权重缓存<br/>列向量输出]
+    BBUF[bias/quant buffer<br/>输出通道组]
+    PE[16x16 脉动阵列<br/>signed multiply accumulate]
+    PS[partial sum buffer<br/>int32 累加保存]
+    RQ[vec_requant<br/>mult shift zero point clamp]
+    OFIFO[输出打包 FIFO<br/>32 bit 数据与 4 bit 写掩码]
+    OAW[oa_writer<br/>输出地址生成]
+
+    LHS --> DMA
+    RHS --> DMA
+    BIAS --> DMA
+    DMA --> IAC
+    DMA --> KBUF
+    DMA --> BBUF
+    IAC -->|ia_data_valid| PE
+    KBUF -->|store_weight_req weight_data_valid| PE
+    BBUF -->|bias_valid quant_valid| PE
+    PE -->|acc_valid acc_data| PS
+    PS -->|中间和回灌| PE
+    PE -->|最终归约 tile| RQ
+    RQ -->|s8 valid data| OFIFO
+    OFIFO --> OAW
+    OAW --> DMA
+    DMA --> DST
+
+    classDef mem fill:#EAF7EA,stroke:#3B873E,stroke-width:1px,color:#111;
+    classDef dma fill:#FFECEC,stroke:#B64B4B,stroke-width:1px,color:#111;
+    classDef cache fill:#FFF4D6,stroke:#B88300,stroke-width:1px,color:#111;
+    classDef calc fill:#F2ECFF,stroke:#6C43B6,stroke-width:1px,color:#111;
+    class LHS,RHS,BIAS,DST mem;
+    class DMA,OAW dma;
+    class IAC,KBUF,BBUF,PS,OFIFO cache;
+    class PE,RQ calc;

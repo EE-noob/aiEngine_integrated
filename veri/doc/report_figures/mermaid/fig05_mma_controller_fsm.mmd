@@ -1,0 +1,29 @@
+stateDiagram-v2
+    [*] --> IDLE
+    IDLE: ready=1, busy=0
+    CONFIG: lock CSR and check configuration
+    LOAD_IA: request LHS tile and fill IA cache
+    LOAD_W: request RHS tile and fill weight buffer
+    LOAD_BIAS: request bias and quant parameters
+    COMPUTE: drive IA and weight streams to array
+    REQUANT: convert int32 result to int8
+    WRITE_BACK: send output data to DMA writer
+    DONE: set done and writeback_valid
+    ERROR: set error_code and clear busy
+
+    IDLE --> CONFIG: start sampled and cfg_valid=1
+    CONFIG --> LOAD_IA: configuration accepted
+    CONFIG --> ERROR: illegal configuration
+    LOAD_IA --> LOAD_W: ia_tile_ready=1
+    LOAD_W --> LOAD_BIAS: weight_tile_ready=1
+    LOAD_BIAS --> COMPUTE: bias_valid=1 or bias_disabled=1
+    COMPUTE --> LOAD_IA: next reduction tile required
+    COMPUTE --> REQUANT: final reduction tile complete
+    REQUANT --> WRITE_BACK: output_fifo_valid=1
+    WRITE_BACK --> DONE: all write responses returned
+    LOAD_IA --> ERROR: dma_resp_error=1
+    LOAD_W --> ERROR: dma_resp_error=1
+    LOAD_BIAS --> ERROR: dma_resp_error=1
+    WRITE_BACK --> ERROR: dma_resp_error=1
+    DONE --> IDLE: clear_done sampled
+    ERROR --> IDLE: soft_reset or clear_error sampled

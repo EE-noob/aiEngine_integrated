@@ -1,0 +1,32 @@
+flowchart LR
+    CPU[PicoRV32<br/>控制处理器]
+    BRIDGE[pico_native_to_axi<br/>CPU 原生接口转换]
+    IC[soc_axi_interconnect<br/>地址译码与仲裁]
+    RAM[soc_axi_ram<br/>共享 SRAM]
+    UART[UART<br/>串口外设]
+    SOCREG[SOC 控制寄存器<br/>启动与观测]
+    AXIL[mma_axil_top<br/>AXI-Lite 控制寄存器]
+    CSR[csr_unit<br/>任务配置与状态]
+    MMA[mma_top<br/>矩阵计算 NPU]
+    DMA[axi_dual_block_dma<br/>AXI4 数据主接口]
+
+    CPU -->|mem_valid mem_addr mem_wdata mem_wstrb| BRIDGE
+    BRIDGE -->|AXI master| IC
+    IC -->|AXI RAM 访问| RAM
+    IC -->|AXI-Lite 外设访问| UART
+    IC -->|AXI-Lite 外设访问| SOCREG
+    IC -->|AXI-Lite CSR 访问| AXIL
+    AXIL --> CSR
+    CSR -->|cfg start clear| MMA
+    MMA -->|dma request data mask| DMA
+    DMA -->|AXI read write burst| IC
+    MMA -->|done busy error writeback_valid| CSR
+
+    classDef cpu fill:#E8F1FF,stroke:#2F5DA8,stroke-width:1px,color:#111;
+    classDef bus fill:#FFF4D6,stroke:#B88300,stroke-width:1px,color:#111;
+    classDef mem fill:#EAF7EA,stroke:#3B873E,stroke-width:1px,color:#111;
+    classDef npu fill:#F2ECFF,stroke:#6C43B6,stroke-width:1px,color:#111;
+    class CPU,BRIDGE cpu;
+    class IC bus;
+    class RAM,UART,SOCREG mem;
+    class AXIL,CSR,MMA,DMA npu;

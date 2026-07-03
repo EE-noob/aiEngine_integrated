@@ -1,0 +1,68 @@
+图表,字段,数值
+fig11_tops_param_curve,阵列边长,36
+fig11_tops_param_curve,IA cache 分块数,4
+fig11_tops_param_curve,任务总周期,157168
+fig11_tops_param_curve,NPU 执行周期,3600
+fig11_tops_param_curve,理论峰值 TOPS@200MHz,0.5184
+fig11_tops_param_curve,阵列边长,40
+fig11_tops_param_curve,IA cache 分块数,4
+fig11_tops_param_curve,任务总周期,157552
+fig11_tops_param_curve,NPU 执行周期,3984
+fig11_tops_param_curve,理论峰值 TOPS@200MHz,0.64
+fig11_tops_param_curve,阵列边长,44
+fig11_tops_param_curve,IA cache 分块数,4
+fig11_tops_param_curve,任务总周期,157976
+fig11_tops_param_curve,NPU 执行周期,4408
+fig11_tops_param_curve,理论峰值 TOPS@200MHz,0.7744
+fig11_tops_param_curve,阵列边长,48
+fig11_tops_param_curve,IA cache 分块数,4
+fig11_tops_param_curve,任务总周期,158440
+fig11_tops_param_curve,NPU 执行周期,4872
+fig11_tops_param_curve,理论峰值 TOPS@200MHz,0.9216
+fig11_tops_param_curve,阵列边长,50
+fig11_tops_param_curve,IA cache 分块数,4
+fig11_tops_param_curve,任务总周期,158396
+fig11_tops_param_curve,NPU 执行周期,4828
+fig11_tops_param_curve,理论峰值 TOPS@200MHz,1.0
+fig12_inference_time_compare,模型,MNIST MLP
+fig12_inference_time_compare,硬件 Invoke 平均周期,443903
+fig12_inference_time_compare,软件 Invoke 平均周期,44126602
+fig12_inference_time_compare,加速比,99.4
+fig12_inference_time_compare,模型,MNIST CNN
+fig12_inference_time_compare,硬件 Invoke 平均周期,4198745
+fig12_inference_time_compare,软件 Invoke 平均周期,60410324
+fig12_inference_time_compare,加速比,14.39
+fig13_accuracy_compare,模型,MNIST MLP
+fig13_accuracy_compare,浮点测试集准确率,96.93
+fig13_accuracy_compare,样本级运行正确率,100.0
+fig13_accuracy_compare,模型,MNIST CNN
+fig13_accuracy_compare,浮点测试集准确率,97.74
+fig13_accuracy_compare,样本级运行正确率,100.0
+fig14_bus_util_curve,配置,"4x4
+IA分块=256"
+fig14_bus_util_curve,读 beat/active,6.8
+fig14_bus_util_curve,写 beat/active,0.75
+fig14_bus_util_curve,配置,"8x8
+IA分块=64"
+fig14_bus_util_curve,读 beat/active,16.78
+fig14_bus_util_curve,写 beat/active,2.79
+fig14_bus_util_curve,配置,"16x16
+IA分块=16"
+fig14_bus_util_curve,读 beat/active,44.85
+fig14_bus_util_curve,写 beat/active,7.44
+fig14_bus_util_curve,配置,"32x32
+IA分块=4"
+fig14_bus_util_curve,读 beat/active,49.26
+fig14_bus_util_curve,写 beat/active,5.44
+fig15_npu_compute_util_bar,模型,MNIST MLP
+fig15_npu_compute_util_bar,MMA active GOPS,0.611
+fig15_npu_compute_util_bar,阵列利用率,0.6
+fig15_npu_compute_util_bar,模型,MNIST CNN
+fig15_npu_compute_util_bar,MMA active GOPS,2.0281
+fig15_npu_compute_util_bar,阵列利用率,1.98
+fig16_coverage_histogram,指标,功能覆盖率
+fig16_coverage_histogram,百分比,100.0
+fig16_coverage_histogram,指标,URG group
+fig16_coverage_histogram,百分比,0.0
+fig16_coverage_histogram,指标,URG overall
+fig16_coverage_histogram,百分比,0.0

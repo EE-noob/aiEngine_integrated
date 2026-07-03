@@ -1,0 +1,33 @@
+flowchart TD
+    S([CPU 进入算子入口])
+    PREP[写入输入、权重、bias 与量化参数]
+    CSR0[写 CSR: base address, stride, K/N/M, dtype, quant, reuse]
+    START[写 control.start]
+    LATCH[NPU 锁存配置并置 busy]
+    LOAD[loader 发起 DMA 读请求]
+    COMPUTE[脉动阵列执行分块乘加]
+    PS[partial sum 保存或回灌]
+    FINAL{是否最后归约 tile}
+    REQ[重量化、打包、输出地址生成]
+    WRITE[DMA 写回 DST 并等待 B response]
+    DONE[NPU 置 done 与 writeback_valid]
+    POLL[CPU 轮询 status 或响应中断]
+    CLR[CPU 清除 done/writeback_valid]
+    END([返回上层算子])
+    ERR{error 或 response error}
+    FALLBACK[返回错误码或进入软件 fallback]
+
+    S --> PREP --> CSR0 --> START --> LATCH --> LOAD --> COMPUTE --> PS --> FINAL
+    FINAL -- 否 --> LOAD
+    FINAL -- 是 --> REQ --> WRITE --> DONE --> POLL --> ERR
+    ERR -- 否 --> CLR --> END
+    ERR -- 是 --> FALLBACK --> END
+
+    classDef cpu fill:#E8F1FF,stroke:#2F5DA8,stroke-width:1px,color:#111;
+    classDef npu fill:#F2ECFF,stroke:#6C43B6,stroke-width:1px,color:#111;
+    classDef dma fill:#FFECEC,stroke:#B64B4B,stroke-width:1px,color:#111;
+    classDef decision fill:#FFF4D6,stroke:#B88300,stroke-width:1px,color:#111;
+    class S,PREP,CSR0,START,POLL,CLR,END,FALLBACK cpu;
+    class LATCH,COMPUTE,PS,REQ,DONE npu;
+    class LOAD,WRITE dma;
+    class FINAL,ERR decision;

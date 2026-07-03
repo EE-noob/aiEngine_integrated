@@ -256,11 +256,32 @@ COV_REPORT_DIR ?= $(COV_ROOT)/urg_report
 COV_NAME ?= $(DUT_MODE)_$(case)_seed_$(seed)_S$(MMA_SIZE)_C$(MMA_IA_CACHE_BLOCKS)_P$(MMA_PS_FRAME_COUNT)
 COV_COMPILE_DB ?= $(COV_VDB_ROOT)/$(SIMV).vdb
 COV_DB ?= $(COV_COMPILE_DB)
+COV_ACCEL_SCOPE ?= 1
+ifeq ($(filter 1 yes true TRUE,$(COV_ACCEL_SCOPE)),)
 COV_HIER_FILE ?=
+else ifeq ($(DUT_MODE),axi_soc)
+COV_HIER_FILE ?= ./coverage_accel_axi_soc.hier
+else ifeq ($(DUT_MODE),axil)
+COV_HIER_FILE ?= ./coverage_accel_axil.hier
+else
+COV_HIER_FILE ?= ./coverage_accel_nice.hier
+endif
 COVERAGE_GOAL ?= 95
 URG_METRICS ?= group
 COVERAGE_SIGNOFF_METRICS ?= functional,group
 COV_ALLOW_URG_FAIL ?= 1
+COV_REPORT_TARGET ?= cov_report
+COV_PLAN_ARGS ?=
+COV_CODE_URG_METRICS ?= line+cond+tgl+branch+fsm
+COV_CODE_SIGNOFF_METRICS ?= line
+COV_VDB_MERGE_MODE ?= instance
+COV_LINE_EXCLUDE_FILE ?= ./coverage_line_exclude.json
+COV_CODE_REPORT_ROOT ?= $(COV_ROOT)/urg_code_by_design
+COV_MODULE_ROOT ?= runs/coverage_module
+COV_MODULE_PLAN_ARGS ?= --only axil_mem_gen_smoke --only axil_ral_mem_gen_start --only axil_csr_directed --only soc_runtime_ws_s8 --only soc_runtime_is_s16 --only soc_runtime_per_channel_s8 --only soc_reuse_ws_s8 --only soc_reuse_is_s16 --only soc_reuse_wide_ws_s8 --only soc_reuse_wide_is_s16 --only soc_saturation_clamp_ws_s8 --only soc_saturation_clamp_is_s8 --only soc_tail_ws_s8 --only soc_tail_is_s16 --only soc_tail_per_channel_s16 --only soc_unaligned_randlat_ws_s8
+COV_SOC_ROOT ?= runs/coverage_soc
+COV_SOC_HIER_FILE ?= ./coverage_accel_axi_soc.hier
+COV_SOC_PLAN_ARGS ?= --only soc_runtime_ws_s8 --only soc_runtime_is_s16 --only soc_runtime_per_channel_s8 --only soc_reuse_ws_s8 --only soc_reuse_is_s16 --only soc_reuse_wide_ws_s8 --only soc_reuse_wide_is_s16 --only soc_saturation_clamp_ws_s8 --only soc_saturation_clamp_is_s8 --only soc_tail_ws_s8 --only soc_tail_is_s16 --only soc_tail_per_channel_s16 --only soc_unaligned_randlat_ws_s8
 COV_COMPILE_OPTS = $(if $(filter 1 yes true TRUE,$(COV)),-cm $(COV_TYPES) -cm_dir $(COV_COMPILE_DB) $(if $(strip $(COV_HIER_FILE)),-cm_hier $(COV_HIER_FILE),),)
 COV_SIM_OPTS = $(if $(filter 1 yes true TRUE,$(COV)),-cm $(COV_TYPES) -cm_dir $(COV_DB) -cm_name $(COV_NAME),)
 
@@ -447,10 +468,47 @@ cov_report:
 >         exit $$rc; \
 >     fi; \
 > fi
-> @python3 ./coverage_summary.py --urg-report "$(COV_REPORT_DIR)" --sim-root . --goal "$(COVERAGE_GOAL)" --signoff-metrics "$(COVERAGE_SIGNOFF_METRICS)" --out-md "$(COV_ROOT)/coverage_report_summary.md" --out-json "$(COV_ROOT)/coverage_report_summary.json"
+> @python3 ./coverage_summary.py --urg-report "$(COV_REPORT_DIR)" --sim-root . --cov-root "$(COV_ROOT)" --goal "$(COVERAGE_GOAL)" --signoff-metrics "$(COVERAGE_SIGNOFF_METRICS)" --out-md "$(COV_ROOT)/coverage_report_summary.md" --out-json "$(COV_ROOT)/coverage_report_summary.json"
 
 cov_plan:
-> @python3 ./run_coverage_plan.py --plan ./coverage_plan.json --goal "$(COVERAGE_GOAL)"
+> @python3 ./run_coverage_plan.py --plan ./coverage_plan.json --goal "$(COVERAGE_GOAL)" --report-target "$(COV_REPORT_TARGET)" $(COV_PLAN_ARGS)
+
+cov_code_report:
+> @mkdir -p "$(COV_ROOT)" "$(COV_CODE_REPORT_ROOT)"
+> @dbs=$$(find "$(COV_VDB_ROOT)" -maxdepth 1 -type d -name '*.vdb' 2>/dev/null | sort); \
+> if [ -z "$$dbs" ]; then echo "[COV] no VDB found under $(COV_VDB_ROOT)"; exit 1; fi; \
+> report_args=""; \
+> urg_failed=0; \
+> for db in $$dbs; do \
+>     name=$$(basename "$$db" .vdb); \
+>     report_dir="$(COV_CODE_REPORT_ROOT)/$$name"; \
+>     rm -rf "$$report_dir" "$(COV_CODE_REPORT_ROOT)/$$name.vdb"; \
+>     echo "[COV_CODE] report $$name from $$db"; \
+>     if $(URG) -full64 -metric "$(COV_CODE_URG_METRICS)" -dir "$$db" -report "$$report_dir" -format both -dbname "$(COV_CODE_REPORT_ROOT)/$$name.vdb" -log "$(COV_CODE_REPORT_ROOT)/$$name.urg.log"; then \
+>         report_args="$$report_args --urg-report $$report_dir"; \
+>     else \
+>         rc=$$?; \
+>         urg_failed=1; \
+>         rm -rf "$$report_dir"; \
+>         if [ "$(COV_ALLOW_URG_FAIL)" = "1" ] || [ "$(COV_ALLOW_URG_FAIL)" = "yes" ] || [ "$(COV_ALLOW_URG_FAIL)" = "true" ] || [ "$(COV_ALLOW_URG_FAIL)" = "TRUE" ]; then \
+>             echo "[COV_CODE] URG failed for $$name with rc=$$rc; coverage_summary.py will use VCS VDB direct fallback"; \
+>         else \
+>             exit $$rc; \
+>         fi; \
+>     fi; \
+> done; \
+> if [ $$urg_failed -ne 0 ]; then echo "[COV_CODE] one or more URG reports failed; keeping VDB fallback evidence"; fi; \
+> python3 ./coverage_summary.py $$report_args --sim-root . --cov-root "$(COV_ROOT)" --goal "$(COVERAGE_GOAL)" --signoff-metrics "$(COV_CODE_SIGNOFF_METRICS)" --vdb-merge-mode "$(COV_VDB_MERGE_MODE)" $(if $(strip $(COV_LINE_EXCLUDE_FILE)),--line-exclude-file "$(COV_LINE_EXCLUDE_FILE)",) --out-md "$(COV_ROOT)/coverage_code_report_summary.md" --out-json "$(COV_ROOT)/coverage_code_report_summary.json"
+
+coverage_module:
+> $(MAKE) cov_clean COV_ROOT=$(COV_MODULE_ROOT)
+> $(MAKE) cov_plan COVERAGE_GOAL=$(COVERAGE_GOAL) COV_REPORT_TARGET=cov_code_report COV_PLAN_ARGS='$(COV_MODULE_PLAN_ARGS) --make-var COV_ROOT=$(COV_MODULE_ROOT) --make-var COV_ACCEL_SCOPE=1 --make-var COV_VDB_MERGE_MODE=definition'
+
+coverage_soc:
+> $(MAKE) cov_clean COV_ROOT=$(COV_SOC_ROOT)
+> $(MAKE) cov_plan COVERAGE_GOAL=$(COVERAGE_GOAL) COV_REPORT_TARGET=cov_code_report COV_PLAN_ARGS='$(COV_SOC_PLAN_ARGS) --make-var COV_ROOT=$(COV_SOC_ROOT) --make-var COV_ACCEL_SCOPE=1 --make-var COV_HIER_FILE=$(COV_SOC_HIER_FILE) --make-var COV_VDB_MERGE_MODE=definition'
+
+coverage: coverage_module
 
 cov_clean:
 > rm -rf "$(COV_ROOT)"
@@ -505,9 +563,14 @@ help:
 > @echo "  make soc_perf_sweep [SOC_PERF_DIMS='32x32x32'] [SOC_PERF_SIZE_LIST='8 16'] [SOC_PERF_CACHE_BLOCKS_LIST='2 4']"
 > @echo "                      [SOC_PERF_INCLUDE_AUTO=1] [SOC_PERF_FORCE_COMPILE=1] [SOC_PERF_JOBS=4] [SOC_PERF_DDR_RAND_LAT=1]"
 > @echo "  make run COV=1 DUT_MODE=axil case=ai_mem_gen_smoke_test seed=1  # collect VCS code coverage"
+> @echo "  make coverage COVERAGE_GOAL=95                                 # clean, run curated suite, and sign off VCS code coverage"
+> @echo "             [COV_ACCEL_SCOPE=1] limits coverage to the accelerator hierarchy"
+> @echo "  make coverage_module COVERAGE_GOAL=95                          # accelerator-module scoped coverage"
+> @echo "  make coverage_soc COVERAGE_GOAL=95                             # soc_top scoped integration coverage"
 > @echo "  make cov_plan COVERAGE_GOAL=95                                 # run curated coverage suite"
 > @echo "  make cov_report COVERAGE_GOAL=95 [URG_METRICS=group|line+branch+group]"
 > @echo "             [COVERAGE_SIGNOFF_METRICS=functional,group]         # merge VDBs and check threshold"
+> @echo "  make cov_code_report COVERAGE_GOAL=95                          # report code coverage per compile design"
 > @echo "  make cov_clean                                                  # remove runs/coverage only"
 > @echo "  make tflm_run"
 > @echo "  make tflm_hello_world_run"
@@ -551,4 +614,4 @@ help:
 > @echo "  make tflm_my_model_run"
 > @echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test VCS_CC=gcc-4.8 VCS_CXX=g++-4.8"
 > @echo "  make vd DUT_MODE=axil case=ai_mem_gen_smoke_test seed=20260413"
-.PHONY: run soc_case soc_c soc_runtime_c tflm_soc_c tflm_micro_speech_soc_c tflm_hello_world_soc_c tflm_person_detection_soc_c tflm_mnist_mlp_soc_c tflm_mnist_cnn_soc_c tflm_run tflm_micro_speech_run tflm_hello_world_run tflm_person_detection_run tflm_mnist_mlp_run tflm_mnist_cnn_run tflm_my_model_run com force_com sim cov_report cov_plan cov_clean soc_regress vd clean help
+.PHONY: run soc_case soc_c soc_runtime_c tflm_soc_c tflm_micro_speech_soc_c tflm_hello_world_soc_c tflm_person_detection_soc_c tflm_mnist_mlp_soc_c tflm_mnist_cnn_soc_c tflm_run tflm_micro_speech_run tflm_hello_world_run tflm_person_detection_run tflm_mnist_mlp_run tflm_mnist_cnn_run tflm_my_model_run com force_com sim cov_report cov_code_report cov_plan coverage_module coverage_soc coverage cov_clean soc_regress vd clean help

@@ -1,0 +1,17 @@
+{
+  "head": {
+    "text": "valid-ready 反压与数据保持时序"
+  },
+  "config": {
+    "hscale": 1
+  },
+  "signal": [
+    { "name": "clk", "wave": "p............." },
+    { "name": "rst_n", "wave": "0.1..........." },
+    { "name": "valid", "wave": "0..1...0.10..." },
+    { "name": "ready", "wave": "0....1.0.10..." },
+    { "name": "payload", "wave": "x..=...x.=x...", "data": ["DATA_A", "DATA_B"] },
+    { "name": "transfer", "wave": "0....10..10..." },
+    { "name": "counter_en", "wave": "0....10..10..." }
+  ]
+}

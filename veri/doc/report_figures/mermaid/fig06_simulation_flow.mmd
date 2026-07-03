@@ -1,0 +1,26 @@
+flowchart TD
+    SRC[RTL 与软件镜像]
+    CFG[仿真配置<br/>阵列规模 cache 深度 frame 数]
+    BUILD[编译 testbench 与固件]
+    CASES[执行用例集合<br/>AXI-Lite DMA controller SoC TFLM performance]
+    LOG[采集 sim.log 与计数器输出]
+    CHECK[比对输出矩阵、状态位和错误码]
+    PERF[提取 cycle beat active utilization]
+    COV[汇总代码覆盖率与功能覆盖率]
+    REPORT[生成表格与图形源文件]
+
+    SRC --> CFG --> BUILD --> CASES
+    CASES --> LOG
+    LOG --> CHECK
+    LOG --> PERF
+    LOG --> COV
+    CHECK --> REPORT
+    PERF --> REPORT
+    COV --> REPORT
+
+    classDef src fill:#E8F1FF,stroke:#2F5DA8,stroke-width:1px,color:#111;
+    classDef run fill:#FFF4D6,stroke:#B88300,stroke-width:1px,color:#111;
+    classDef result fill:#EAF7EA,stroke:#3B873E,stroke-width:1px,color:#111;
+    class SRC,CFG src;
+    class BUILD,CASES,LOG run;
+    class CHECK,PERF,COV,REPORT result;

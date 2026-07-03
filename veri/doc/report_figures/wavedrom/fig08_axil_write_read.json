@@ -1,0 +1,29 @@
+{
+  "head": {
+    "text": "AXI-Lite 寄存器写读时序"
+  },
+  "config": {
+    "hscale": 1
+  },
+  "signal": [
+    { "name": "aclk", "wave": "p.............." },
+    { "name": "aresetn", "wave": "0.1............" },
+    { "name": "AWVALID", "wave": "0..10.........." },
+    { "name": "AWREADY", "wave": "0..10.........." },
+    { "name": "AWADDR", "wave": "x..=x..........", "data": ["CSR_ADDR"] },
+    { "name": "WVALID", "wave": "0..10.........." },
+    { "name": "WREADY", "wave": "0..10.........." },
+    { "name": "WDATA", "wave": "x..=x..........", "data": ["WDATA"] },
+    { "name": "WSTRB", "wave": "x..=x..........", "data": ["4'b1111"] },
+    { "name": "BVALID", "wave": "0....10........" },
+    { "name": "BREADY", "wave": "1.............." },
+    { "name": "BRESP", "wave": "x....=x........", "data": ["OKAY"] },
+    { "name": "ARVALID", "wave": "0.......10....." },
+    { "name": "ARREADY", "wave": "0.......10....." },
+    { "name": "ARADDR", "wave": "x.......=x.....", "data": ["CSR_ADDR"] },
+    { "name": "RVALID", "wave": "0.........10..." },
+    { "name": "RREADY", "wave": "1.............." },
+    { "name": "RDATA", "wave": "x.........=x...", "data": ["RDATA"] },
+    { "name": "RRESP", "wave": "x.........=x...", "data": ["OKAY"] }
+  ]
+}

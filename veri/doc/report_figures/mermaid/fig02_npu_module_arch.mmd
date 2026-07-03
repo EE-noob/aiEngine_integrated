@@ -1,0 +1,56 @@
+flowchart TB
+    AXIL[mma_axil_top<br/>AXI-Lite slave]
+    CSR[csr_unit<br/>寄存器组与状态位]
+    CTRL[mma_controller<br/>任务状态机]
+    DMAARB[axi_block_dma_arbiter<br/>读写请求仲裁]
+    DMAC[axi_dual_block_dma<br/>二维 burst 访问]
+    IACTRL[ia_loader_ctrl<br/>输入矩阵块调度]
+    IACACHE[ia_loader_cache_mgr<br/>输入缓存与对角化输出]
+    WCTRL[kernel_loader_ctrl<br/>权重块调度]
+    WBUF[kernel_loader_buffer<br/>权重缓存]
+    BCTRL[bias_loader_ctrl<br/>bias 与量化参数读取]
+    CORE[compute_core<br/>计算控制与部分和接口]
+    ARRAY[ws_systolic_array<br/>权重固定脉动阵列]
+    PS[ps_buffer<br/>int32 部分和缓存]
+    REQ[vec_requant<br/>重量化与裁剪]
+    FIFO[vec_s8_to_fifo<br/>int8 打包 FIFO]
+    WR[oa_writer<br/>输出地址与写掩码]
+
+    AXIL --> CSR
+    CSR --> CTRL
+    CTRL --> IACTRL
+    CTRL --> WCTRL
+    CTRL --> BCTRL
+    CTRL --> CORE
+    IACTRL --> IACACHE
+    WCTRL --> WBUF
+    BCTRL --> CORE
+    IACACHE --> CORE
+    WBUF --> ARRAY
+    CORE --> ARRAY
+    ARRAY --> CORE
+    CORE <--> PS
+    CORE --> REQ
+    REQ --> FIFO
+    FIFO --> WR
+    IACTRL --> DMAARB
+    WCTRL --> DMAARB
+    BCTRL --> DMAARB
+    WR --> DMAARB
+    DMAARB --> DMAC
+    DMAC -->|read data| IACACHE
+    DMAC -->|read data| WBUF
+    DMAC -->|read data| BCTRL
+    DMAC -->|write response| WR
+    CTRL -->|done busy error| CSR
+
+    classDef cfg fill:#E8F1FF,stroke:#2F5DA8,stroke-width:1px,color:#111;
+    classDef ctrl fill:#FFF4D6,stroke:#B88300,stroke-width:1px,color:#111;
+    classDef load fill:#EAF7EA,stroke:#3B873E,stroke-width:1px,color:#111;
+    classDef calc fill:#F2ECFF,stroke:#6C43B6,stroke-width:1px,color:#111;
+    classDef dma fill:#FFECEC,stroke:#B64B4B,stroke-width:1px,color:#111;
+    class AXIL,CSR cfg;
+    class CTRL ctrl;
+    class IACTRL,IACACHE,WCTRL,WBUF,BCTRL,WR,FIFO load;
+    class CORE,ARRAY,PS,REQ calc;
+    class DMAARB,DMAC dma;

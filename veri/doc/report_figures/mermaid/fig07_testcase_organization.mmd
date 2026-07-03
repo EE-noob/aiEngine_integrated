@@ -1,0 +1,42 @@
+flowchart TB
+    ROOT[测试用例组织]
+    CFG[配置与控制类]
+    MEM[数据搬移类]
+    SYS[系统与软件类]
+    RES[性能与覆盖率类]
+
+    ROOT --> CFG
+    ROOT --> MEM
+    ROOT --> SYS
+    ROOT --> RES
+
+    CFG --> AXIL[AXI-Lite 寄存器访问<br/>读写、清除位、非法地址]
+    CFG --> CTRL[控制状态机<br/>启动、完成、错误、软复位]
+    MEM --> DMA[DMA 传输<br/>非对齐、stride、burst、写掩码]
+    MEM --> DATA[矩阵数据面<br/>s8、s16、尾块、量化模式]
+    SYS --> SOC[SoC 集成<br/>PicoRV32、RAM、UART、MMA]
+    SYS --> TFLM[TFLM/NMSIS-NN 入口<br/>全连接与卷积 im2col]
+    RES --> PERF[性能扫描<br/>阵列规模、IA 分块数、frame 数]
+    RES --> COV[覆盖率回归<br/>功能覆盖点与 URG 汇总]
+
+    AXIL --> AXIL1[寄存器默认值]
+    AXIL --> AXIL2[写 1 清除规则]
+    CTRL --> CTRL1[normal done]
+    CTRL --> CTRL2[error exit]
+    DMA --> DMA1[读返回顺序]
+    DMA --> DMA2[写响应等待]
+    DATA --> DATA1[reference compare]
+    DATA --> DATA2[tail valid channels]
+    SOC --> SOC1[SoC boot]
+    TFLM --> TFLM1[operator invoke]
+    PERF --> PERF1[cycle counter]
+    PERF --> PERF2[read/write beat]
+    COV --> COV1[functional bins]
+    COV --> COV2[URG summary]
+
+    classDef root fill:#F2ECFF,stroke:#6C43B6,stroke-width:1px,color:#111;
+    classDef group fill:#E8F1FF,stroke:#2F5DA8,stroke-width:1px,color:#111;
+    classDef leaf fill:#EAF7EA,stroke:#3B873E,stroke-width:1px,color:#111;
+    class ROOT root;
+    class CFG,MEM,SYS,RES,AXIL,DMA,CTRL,DATA,SOC,TFLM,PERF,COV group;
+    class AXIL1,AXIL2,DMA1,DMA2,CTRL1,CTRL2,DATA1,DATA2,SOC1,TFLM1,PERF1,PERF2,COV1,COV2 leaf;
