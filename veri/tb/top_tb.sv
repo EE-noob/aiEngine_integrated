@@ -35,20 +35,20 @@ module tb_top #(
     );
 
 `ifdef DUT_AXIL
-    logic                       mma_busy;
-    logic [31:0]                mma_irq;
-    logic [31:0]                mma_eoi;
+    logic                       npu_busy;
+    logic [31:0]                npu_irq;
+    logic [31:0]                npu_eoi;
     localparam int unsigned     AXIL_MEM_DP = 131072;
 
-    assign mma_eoi = 32'h0;
-    assign axil_vif.mma_irq = mma_irq;
-    assign axil_vif.mma_status = u_axil_top_with_ram.u_mma_axil_top.status_bits;
+    assign npu_eoi = 32'h0;
+    assign axil_vif.npu_irq = npu_irq;
+    assign axil_vif.npu_status = u_axil_top_with_ram.u_npu_axil_top.status_bits;
 `endif
 
 `ifdef DUT_AXI_SOC
-    logic                       soc_mma_busy;
-    logic [31:0]                soc_mma_irq;
-    logic [31:0]                soc_mma_eoi;
+    logic                       soc_npu_busy;
+    logic [31:0]                soc_npu_irq;
+    logic [31:0]                soc_npu_eoi;
     logic                       soc_finish;
     logic [31:0]                soc_status;
     logic                       cpu_trap;
@@ -73,9 +73,9 @@ module tb_top #(
         .clk            (tb_clk),
         .rst_n          (tb_rst_n),
         .mem_reload_req (tb_ctrl_vif.mem_reload_req),
-        .mma_busy       (soc_mma_busy),
-        .mma_irq        (soc_mma_irq),
-        .mma_eoi        (soc_mma_eoi),
+        .npu_busy       (soc_npu_busy),
+        .npu_irq        (soc_npu_irq),
+        .npu_eoi        (soc_npu_eoi),
         .uart_tx        (soc_uart_tx),
         .uart_rx        (soc_uart_rx),
         .soc_finish     (soc_finish),
@@ -115,10 +115,10 @@ module tb_top #(
         .s_axil_rresp    (axil_vif.rresp),
         .s_axil_rvalid   (axil_vif.rvalid),
         .s_axil_rready   (axil_vif.rready),
-        .irq             (mma_irq),
-        .eoi             (mma_eoi),
+        .irq             (npu_irq),
+        .eoi             (npu_eoi),
         .mem_reload_req  (tb_ctrl_vif.mem_reload_req),
-        .mma_busy        (mma_busy)
+        .npu_busy        (npu_busy)
     );
 `else
     initial begin
@@ -134,9 +134,9 @@ module tb_top #(
     initial begin
         tb_rst_n = 1'b0;
         tb_ctrl_vif.mem_reload_req = 1'b0;
-        tb_ctrl_vif.mma_calc_start_toggle = 1'b0;
-        tb_ctrl_vif.mma_wb_handshake_toggle = 1'b0;
-        tb_ctrl_vif.mma_err_code = 2'b00;
+        tb_ctrl_vif.npu_calc_start_toggle = 1'b0;
+        tb_ctrl_vif.npu_wb_handshake_toggle = 1'b0;
+        tb_ctrl_vif.npu_err_code = 2'b00;
         repeat (3) @(posedge tb_clk);
         tb_rst_n = 1'b1;
     end

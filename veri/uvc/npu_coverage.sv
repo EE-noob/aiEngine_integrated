@@ -1,8 +1,8 @@
-`ifndef MMA_COVERAGE_SV
-`define MMA_COVERAGE_SV
+`ifndef NPU_COVERAGE_SV
+`define NPU_COVERAGE_SV
 
-class mma_coverage extends uvm_subscriber#(mma_seq_item);
-    `uvm_component_utils(mma_coverage) // FIX: 使用正确的类名
+class npu_coverage extends uvm_subscriber#(npu_seq_item);
+    `uvm_component_utils(npu_coverage) // FIX: 使用正确的类名
 
     // FIX: 将成员变量声明移到 covergroup 之前，确保 coverpoint 能识别到
     int m_rows, n_cols, k_inner;
@@ -12,10 +12,10 @@ class mma_coverage extends uvm_subscriber#(mma_seq_item);
     int act_min, act_max;
     bit [1:0] a_width, b_width, bias_width;
     bit [2:0] out_width;
-    int csr_access_type;
+    int reg_access_type;
     int bus_arbitration; // Renamed from bus_utilization
     int consecutive_task_count, task_interval_cycles;
-    int csr_mma_order;
+    int reg_npu_order;
     int latency_cycles;
     real throughput_ops_per_cycle;
     bit overflow_detected, saturation_occurred;
@@ -206,8 +206,8 @@ class mma_coverage extends uvm_subscriber#(mma_seq_item);
         option.per_instance = 1;
         option.name = "interface_timing_coverage";
         
-        // CSR访问类型
-        cp_csr_access: coverpoint csr_access_type {
+        // register访问类型
+        cp_reg_access: coverpoint reg_access_type {
             bins single_write = {0};
             bins continuous_write = {1};
             bins read_verify = {2};
@@ -273,7 +273,7 @@ class mma_coverage extends uvm_subscriber#(mma_seq_item);
         }
     endgroup
 
-    function new(string name = "mma_coverage", uvm_component parent = null); // FIX: 默认名字修正
+    function new(string name = "npu_coverage", uvm_component parent = null); // FIX: 默认名字修正
         super.new(name, parent);
         cg_matrix_dimension = new();
         cg_quantization_config = new();
@@ -285,7 +285,7 @@ class mma_coverage extends uvm_subscriber#(mma_seq_item);
         cg_exception = new();
     endfunction
 
-    function void write(mma_seq_item t); // FIX: 参数类型修正为 mma_seq_item
+    function void write(npu_seq_item t); // FIX: 参数类型修正为 npu_seq_item
         // 更新覆盖率变量
         m_rows = t.matrix_m;      // FIX: Name mapping
         n_cols = t.matrix_n;      // FIX: Name mapping
@@ -311,11 +311,11 @@ class mma_coverage extends uvm_subscriber#(mma_seq_item);
         illegal_config_type = t.illegal_config_type;
         reset_during_operation = t.reset_during_operation;
         extreme_value_test = t.extreme_value_test;
-        csr_access_type = t.csr_access_type;
+        reg_access_type = t.reg_access_type;
         bus_arbitration = t.bus_arbitration; // Renamed
         consecutive_task_count = t.consecutive_task_count;
         task_interval_cycles = t.task_interval_cycles;
-        csr_mma_order = t.csr_mma_order;
+        reg_npu_order = t.reg_npu_order;
 
         // 采样覆盖率
         cg_matrix_dimension.sample();
@@ -330,6 +330,6 @@ class mma_coverage extends uvm_subscriber#(mma_seq_item);
 
 endclass
 
-`endif // MMA_COVERAGE_SV
+`endif // NPU_COVERAGE_SV
 
 

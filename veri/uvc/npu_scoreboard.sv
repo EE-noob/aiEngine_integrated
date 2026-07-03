@@ -1,18 +1,18 @@
-`ifndef MMA_SCOREBOARD_SV
-`define MMA_SCOREBOARD_SV
+`ifndef NPU_SCOREBOARD_SV
+`define NPU_SCOREBOARD_SV
 
 `uvm_analysis_imp_decl(_req)
 `uvm_analysis_imp_decl(_rsp)
 
-class mma_scoreboard extends uvm_scoreboard;
-    `uvm_component_utils(mma_scoreboard)
+class npu_scoreboard extends uvm_scoreboard;
+    `uvm_component_utils(npu_scoreboard)
 
-    uvm_analysis_imp_req #(mma_seq_item, mma_scoreboard) analysis_req_imp;
-    uvm_analysis_imp_rsp #(mma_seq_item, mma_scoreboard) analysis_rsp_imp;
-    mma_seq_item pending_q[$];
+    uvm_analysis_imp_req #(npu_seq_item, npu_scoreboard) analysis_req_imp;
+    uvm_analysis_imp_rsp #(npu_seq_item, npu_scoreboard) analysis_rsp_imp;
+    npu_seq_item pending_q[$];
     virtual tb_ctrl_if tb_ctrl_vif;
-    mma_reg_block regmodel;
-    bit [31:0] csr_shadow[bit [11:0]];
+    npu_reg_block regmodel;
+    bit [31:0] reg_shadow[bit [11:0]];
 
     virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
@@ -27,14 +27,14 @@ class mma_scoreboard extends uvm_scoreboard;
         analysis_rsp_imp = new("analysis_rsp_imp", this);
     endfunction
 
-    virtual function void write_req(mma_seq_item tr);
-        mma_seq_item cpy;
-        if (tr.cmd_kind == MMA_WR_CSR) begin
-            csr_shadow[tr.csr_addr[11:0]] = tr.csr_data;
+    virtual function void write_req(npu_seq_item tr);
+        npu_seq_item cpy;
+        if (tr.cmd_kind == NPU_WR_REG) begin
+            reg_shadow[tr.reg_addr[11:0]] = tr.reg_data;
         end
 
-        if ((tr.cmd_kind == MMA_AUTO) || (tr.cmd_kind == MMA_TRIGGER)) begin
-            cpy = mma_seq_item::type_id::create("pending_req_cpy");
+        if ((tr.cmd_kind == NPU_AUTO) || (tr.cmd_kind == NPU_TRIGGER)) begin
+            cpy = npu_seq_item::type_id::create("pending_req_cpy");
             cpy.copy(tr);
             pending_q.push_back(cpy);
             tr.print();
@@ -42,16 +42,16 @@ class mma_scoreboard extends uvm_scoreboard;
     endfunction
 
     // NOTE: scoreboard只接收“启动比对”信号，是否启动由monitor决定。
-    virtual function void write_rsp(mma_seq_item tr);
-        mma_seq_item req;
+    virtual function void write_rsp(npu_seq_item tr);
+        npu_seq_item req;
         if (pending_q.size() == 0) begin
-            req = mma_seq_item::type_id::create("mirror_only_req");
-            req.cmd_kind = MMA_TRIGGER;
-            `uvm_info("mma_seq_item req q empty", $sformatf("Compare trigger arrived with no pending req, using RAL mirror only. Status=0x%08h", tr.csr_data), UVM_LOW)
+            req = npu_seq_item::type_id::create("mirror_only_req");
+            req.cmd_kind = NPU_TRIGGER;
+            `uvm_info("npu_seq_item req q empty", $sformatf("Compare trigger arrived with no pending req, using RAL mirror only. Status=0x%08h", tr.reg_data), UVM_LOW)
         end else begin
             req = pending_q.pop_front();
         end
-        `uvm_info("MULT_DONE", $sformatf("Matrix compare triggered. Status=0x%08h", tr.csr_data), UVM_LOW)
+        `uvm_info("NPU_DONE", $sformatf("Matrix compare triggered. Status=0x%08h", tr.reg_data), UVM_LOW)
         dump_compare_output_matrix(req);
     endfunction
 
@@ -67,7 +67,7 @@ class mma_scoreboard extends uvm_scoreboard;
         return $sformatf("../tb/%s", get_utn_name());
     endfunction
 
-    function automatic int infer_out_base(mma_seq_item req);
+    function automatic int infer_out_base(npu_seq_item req);
         int ia_size, wgt_size, bias_size;
         int ia_base, wgt_base, bias_base;
 
@@ -85,22 +85,22 @@ class mma_scoreboard extends uvm_scoreboard;
         if (regmodel == null) begin
             return 1'b0;
         end
-        return ((regmodel.mult_lhs_rows.get_mirrored_value() != 0) &&
-                (regmodel.mult_rhs_rows.get_mirrored_value() != 0) &&
-                (regmodel.mult_dst_stride.get_mirrored_value() != 0));
+        return ((regmodel.npu_k.get_mirrored_value() != 0) &&
+                (regmodel.npu_m.get_mirrored_value() != 0) &&
+                (regmodel.npu_dst_stride_b.get_mirrored_value() != 0));
     endfunction
 
     function automatic bit shadow_is_valid();
-        return csr_shadow.exists(`ADDR_MULT_LHS_ROWS) &&
-               csr_shadow.exists(`ADDR_MULT_RHS_ROWS) &&
-               csr_shadow.exists(`ADDR_MULT_DST_PTR) &&
-               csr_shadow.exists(`ADDR_MULT_DST_STRIDE) &&
-               (csr_shadow[`ADDR_MULT_LHS_ROWS] != 0) &&
-               (csr_shadow[`ADDR_MULT_RHS_ROWS] != 0) &&
-               (csr_shadow[`ADDR_MULT_DST_STRIDE] != 0);
+        return reg_shadow.exists(`ADDR_NPU_K) &&
+               reg_shadow.exists(`ADDR_NPU_M) &&
+               reg_shadow.exists(`ADDR_NPU_DST_BASE) &&
+               reg_shadow.exists(`ADDR_NPU_DST_STRIDE_B) &&
+               (reg_shadow[`ADDR_NPU_K] != 0) &&
+               (reg_shadow[`ADDR_NPU_M] != 0) &&
+               (reg_shadow[`ADDR_NPU_DST_STRIDE_B] != 0);
     endfunction
 
-    function automatic void dump_compare_output_matrix(mma_seq_item req);
+    function automatic void dump_compare_output_matrix(npu_seq_item req);
         int k_val;
         int m_val;
         int dst_base;
@@ -133,20 +133,20 @@ class mma_scoreboard extends uvm_scoreboard;
             uvm_reg_data_t mirror_dst_base;
             uvm_reg_data_t mirror_dst_stride;
 
-            mirror_k = regmodel.mult_lhs_rows.get_mirrored_value();
-            mirror_m = regmodel.mult_rhs_rows.get_mirrored_value();
-            mirror_dst_base = regmodel.mult_dst_ptr.get_mirrored_value();
-            mirror_dst_stride = regmodel.mult_dst_stride.get_mirrored_value();
+            mirror_k = regmodel.npu_k.get_mirrored_value();
+            mirror_m = regmodel.npu_m.get_mirrored_value();
+            mirror_dst_base = regmodel.npu_dst_base.get_mirrored_value();
+            mirror_dst_stride = regmodel.npu_dst_stride_b.get_mirrored_value();
 
             k_val = int'(mirror_k[31:0]);
             m_val = int'(mirror_m[31:0]);
             dst_base = int'(mirror_dst_base[31:0]);
             dst_stride = int'(mirror_dst_stride[31:0]);
         end else if (shadow_is_valid()) begin
-            k_val = int'(csr_shadow[`ADDR_MULT_LHS_ROWS]);
-            m_val = int'(csr_shadow[`ADDR_MULT_RHS_ROWS]);
-            dst_base = int'(csr_shadow[`ADDR_MULT_DST_PTR]);
-            dst_stride = int'(csr_shadow[`ADDR_MULT_DST_STRIDE]);
+            k_val = int'(reg_shadow[`ADDR_NPU_K]);
+            m_val = int'(reg_shadow[`ADDR_NPU_M]);
+            dst_base = int'(reg_shadow[`ADDR_NPU_DST_BASE]);
+            dst_stride = int'(reg_shadow[`ADDR_NPU_DST_STRIDE_B]);
         end else begin
             k_val = req.matrix_k;
             m_val = req.matrix_m;

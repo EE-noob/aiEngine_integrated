@@ -21,10 +21,10 @@ class ai_env extends uvm_env;
 
     ai_env_cfg          cfg;
     ai_axil_agent       axil_agent;
-    mma_scoreboard     mma_scb;
-    mma_reg_block      regmodel;
-    mma_reg_adapter    reg_adapter;
-    mma_sequencer      active_seqr;
+    npu_scoreboard     npu_scb;
+    npu_reg_block      regmodel;
+    npu_reg_adapter    reg_adapter;
+    npu_sequencer      active_seqr;
 
     function new(string name, uvm_component parent);
         super.new(name, parent);
@@ -38,12 +38,12 @@ class ai_env extends uvm_env;
             cfg.dut_kind = AI_DUT_AXIL;
         end
 
-        regmodel   = mma_reg_block::type_id::create("regmodel", this);
-        reg_adapter = mma_reg_adapter::type_id::create("reg_adapter");
+        regmodel   = npu_reg_block::type_id::create("regmodel", this);
+        reg_adapter = npu_reg_adapter::type_id::create("reg_adapter");
         regmodel.build();
         regmodel.reset();
 
-        mma_scb = mma_scoreboard::type_id::create("mma_scb", this);
+        npu_scb = npu_scoreboard::type_id::create("npu_scb", this);
 
         if (cfg.dut_kind == AI_DUT_AXIL) begin
             axil_agent = ai_axil_agent::type_id::create("axil_agent", this);
@@ -54,15 +54,15 @@ class ai_env extends uvm_env;
         super.connect_phase(phase);
 
         if (cfg.dut_kind == AI_DUT_AXIL) begin
-            axil_agent.req_ap.connect(mma_scb.analysis_req_imp);
-            axil_agent.rsp_ap.connect(mma_scb.analysis_rsp_imp);
-            mma_scb.regmodel = regmodel;
+            axil_agent.req_ap.connect(npu_scb.analysis_req_imp);
+            axil_agent.rsp_ap.connect(npu_scb.analysis_rsp_imp);
+            npu_scb.regmodel = regmodel;
             axil_agent.monitor.regmodel = regmodel;
             regmodel.default_map.set_sequencer(axil_agent.seqr, reg_adapter);
             regmodel.default_map.set_auto_predict(1);
             active_seqr = axil_agent.seqr;
         end else begin
-            mma_scb.regmodel = regmodel;
+            npu_scb.regmodel = regmodel;
             active_seqr = null;
         end
     endfunction

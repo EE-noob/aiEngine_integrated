@@ -5,7 +5,7 @@
 import uvm_pkg::*;
 `include "uvm_macros.svh"
 
-`include "sequence/ai_axil_csr_directed_seq.sv"
+`include "sequence/ai_axil_reg_directed_seq.sv"
 `include "sequence/ai_mem_gen_smoke_seq.sv"
 `include "sequence/ai_ral_mem_gen_on_calc_start_seq.sv"
 
@@ -203,28 +203,28 @@ class ai_axi_soc_c_test extends ai_base_test;
     endtask
 endclass
 
-class ai_axil_csr_directed_test extends ai_base_test;
-    `uvm_component_utils(ai_axil_csr_directed_test)
+class ai_axil_reg_directed_test extends ai_base_test;
+    `uvm_component_utils(ai_axil_reg_directed_test)
 
-    function new(string name = "ai_axil_csr_directed_test", uvm_component parent = null);
+    function new(string name = "ai_axil_reg_directed_test", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
     virtual task main_phase(uvm_phase phase);
-        ai_axil_csr_directed_seq csr_seq;
+        ai_axil_reg_directed_seq reg_seq;
 
         phase.raise_objection(this);
-        `uvm_info(get_type_name(), "ai_axil_csr_directed_test main_phase start", UVM_MEDIUM)
+        `uvm_info(get_type_name(), "ai_axil_reg_directed_test main_phase start", UVM_MEDIUM)
 
         if ((env == null) || (env.active_seqr == null)) begin
             `uvm_fatal("TEST", "env/active_seqr is null")
         end
 
-        csr_seq = ai_axil_csr_directed_seq::type_id::create("csr_seq");
+        reg_seq = ai_axil_reg_directed_seq::type_id::create("reg_seq");
         #1000ns;
-        csr_seq.start(env.active_seqr);
+        reg_seq.start(env.active_seqr);
 
-        `uvm_info(get_type_name(), "ai_axil_csr_directed_test main_phase end", UVM_MEDIUM)
+        `uvm_info(get_type_name(), "ai_axil_reg_directed_test main_phase end", UVM_MEDIUM)
         #2us;
         phase.drop_objection(this);
     endtask

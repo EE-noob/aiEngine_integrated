@@ -1,7 +1,7 @@
-`ifndef MMA_MONITOR_BIND_SV
-`define MMA_MONITOR_BIND_SV
+`ifndef NPU_MONITOR_BIND_SV
+`define NPU_MONITOR_BIND_SV
 
-bind npu_top mma_monitor u_mma_monitor (
+bind npu_top npu_monitor u_npu_monitor (
     .clk       (clk),
     .rst_n     (rst_n),
     .calc_start(calc_start),

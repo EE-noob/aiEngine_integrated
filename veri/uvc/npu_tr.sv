@@ -1,16 +1,16 @@
-`ifndef MMA_TR_SV
-`define MMA_TR_SV
+`ifndef NPU_TR_SV
+`define NPU_TR_SV
 
 // Define command types for driver interaction
 typedef enum bit [2:0] {
-    MMA_AUTO      = 0, // Auto: Calc Addr -> Load Mem -> Config CSR -> Trigger
-    MMA_WR_CSR    = 1, // Single CSR Write
-    MMA_RD_CSR    = 2, // Single CSR Read
-    MMA_TRIGGER   = 3, // Just trigger the engine
-    MMA_LOAD_MEM  = 4  // Just load memory
-} mma_cmd_t;
+    NPU_AUTO      = 0, // Auto: Calc Addr -> Load Mem -> Config register -> Trigger
+    NPU_WR_REG    = 1, // Single register Write
+    NPU_RD_REG    = 2, // Single REG Read
+    NPU_TRIGGER   = 3, // Just trigger the engine
+    NPU_LOAD_MEM  = 4  // Just load memory
+} npu_cmd_t;
 
-class mma_seq_item extends uvm_sequence_item;
+class npu_seq_item extends uvm_sequence_item;
     // Low level fields
     rand bit [15:0]  matrix_k; // Increased width from [5:0] to [15:0]
     rand bit [15:0]  matrix_n; // Increased width from [5:0] to [15:0]
@@ -33,12 +33,12 @@ class mma_seq_item extends uvm_sequence_item;
     rand bit signed [31:0] dst_offset; // Widened to 32-bit
     rand bit [31:0]        quant_multiplier;
     rand bit signed [5:0]  quant_shift;
-    rand mma_cmd_t cmd_kind;
+    rand npu_cmd_t cmd_kind;
 
-    // CSR Direct Access Fields
-    rand bit [31:0] csr_addr;
-    rand bit [31:0] csr_data;
-    rand bit        csr_check_en;// enable compare for direct MMA_RD_CSR
+    // REG Direct Access Fields
+    rand bit [31:0] reg_addr;
+    rand bit [31:0] reg_data;
+    rand bit        reg_check_en;// enable compare for direct NPU_RD_REG
 
     // File based loading (optional)
     string ia_matrix_file = "";
@@ -47,8 +47,8 @@ class mma_seq_item extends uvm_sequence_item;
 
     string result_matrix_file = "result_matrix.out";
 
-    string csr_read_data_file = "csr_read_data.out";
-    string csr_write_data_file = "csr_write_data.out";
+    string reg_read_data_file = "reg_read_data.out";
+    string reg_write_data_file = "reg_write_data.out";
     string mem_init_file = "../memInfo/main_extram.mem";
     // Analysis / Coverage fields (populated by monitor)
     int latency_cycles;
@@ -58,18 +58,18 @@ class mma_seq_item extends uvm_sequence_item;
     int illegal_config_type;
     int reset_during_operation;
     int extreme_value_test;
-    int csr_access_type;
+    int reg_access_type;
     int bus_arbitration; // Renamed from bus_utilization
     int bus_utilization;
     int consecutive_task_count;
     int task_interval_cycles;
-    int csr_mma_order;
+    int reg_npu_order;
 
-    `uvm_object_utils_begin(mma_seq_item)
-        `uvm_field_enum(mma_cmd_t, cmd_kind, UVM_ALL_ON)
-        `uvm_field_int(csr_addr, UVM_ALL_ON)
-        `uvm_field_int(csr_data, UVM_ALL_ON)
-        `uvm_field_int(csr_check_en, UVM_ALL_ON)
+    `uvm_object_utils_begin(npu_seq_item)
+        `uvm_field_enum(npu_cmd_t, cmd_kind, UVM_ALL_ON)
+        `uvm_field_int(reg_addr, UVM_ALL_ON)
+        `uvm_field_int(reg_data, UVM_ALL_ON)
+        `uvm_field_int(reg_check_en, UVM_ALL_ON)
         `uvm_field_string(ia_matrix_file, UVM_ALL_ON)
         `uvm_field_string(wgt_matrix_file, UVM_ALL_ON)
         
@@ -81,11 +81,11 @@ class mma_seq_item extends uvm_sequence_item;
         `uvm_field_int(illegal_config_type, UVM_ALL_ON)
         `uvm_field_int(reset_during_operation, UVM_ALL_ON)
         `uvm_field_int(extreme_value_test, UVM_ALL_ON)
-        `uvm_field_int(csr_access_type, UVM_ALL_ON)
+        `uvm_field_int(reg_access_type, UVM_ALL_ON)
         `uvm_field_int(bus_arbitration, UVM_ALL_ON) // Renamed
         `uvm_field_int(consecutive_task_count, UVM_ALL_ON)
         `uvm_field_int(task_interval_cycles, UVM_ALL_ON)
-        `uvm_field_int(csr_mma_order, UVM_ALL_ON)
+        `uvm_field_int(reg_npu_order, UVM_ALL_ON)
 
         `uvm_field_int(matrix_k        , UVM_ALL_ON)
         `uvm_field_int(matrix_n        , UVM_ALL_ON)
@@ -127,10 +127,10 @@ class mma_seq_item extends uvm_sequence_item;
     }
     // Default command is AUTO for simple sequences
     constraint c_default_cmd {
-        soft cmd_kind == MMA_AUTO;
+        soft cmd_kind == NPU_AUTO;
     }
-    constraint c_csr_check_default {
-        soft csr_check_en == 1;
+    constraint c_reg_check_default {
+        soft reg_check_en == 1;
     }
 
     // Activation & zero-point coherence
@@ -168,7 +168,7 @@ class mma_seq_item extends uvm_sequence_item;
         soft out_w == 1; // s8
     }
 
-    function new(string name = "mma_seq_item");
+    function new(string name = "npu_seq_item");
         super.new(name);
     endfunction
 
