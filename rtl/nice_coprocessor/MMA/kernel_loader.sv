@@ -75,6 +75,9 @@ module kernel_loader #(
   logic                        buf_load_start;
   logic                        buf_send_start;
   logic                        buf_load_ready;
+  logic                        buf_weight_sending_done;
+  logic                        buf_store_weight_req;
+  logic signed [DATA_WIDTH-1:0] buf_weight_out [SIZE];
   logic                        dma_busy;
 	  logic                        dma_done;
 	  assign load_weight_done = dma_done;
@@ -344,9 +347,28 @@ module kernel_loader #(
     .send_start          (buf_send_start),
     .load_ready          (buf_load_ready),
     .weight_data_valid   (weight_data_valid),
-    .weight_sending_done (weight_sending_done),
-    .store_weight_req    (store_weight_req),
-    .weight_out          (weight_out)
+    .weight_sending_done (buf_weight_sending_done),
+    .store_weight_req    (buf_store_weight_req),
+    .weight_out          (buf_weight_out)
   );
+
+  // Keep the kernel RAM local to the loader.  The controller observes the
+  // delayed done together with the delayed store request, so IA launch remains
+  // ordered after the final weight-load beat.
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      weight_sending_done <= 1'b0;
+      store_weight_req    <= 1'b0;
+      for (int c = 0; c < SIZE; c++) begin
+        weight_out[c] <= '0;
+      end
+    end else begin
+      weight_sending_done <= buf_weight_sending_done;
+      store_weight_req    <= buf_store_weight_req;
+      for (int c = 0; c < SIZE; c++) begin
+        weight_out[c] <= buf_weight_out[c];
+      end
+    end
+  end
 
 endmodule

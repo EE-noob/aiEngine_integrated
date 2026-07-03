@@ -304,8 +304,8 @@ module soc_axi_interconnect #(
                           (!ram_wr_active_q && ram_wr_select_mma);
     wire ram_w_from_cpu = (ram_wr_active_q && (ram_wr_owner_q == OWNER_CPU)) ||
                           (!ram_wr_active_q && ram_wr_select_cpu);
-    wire ram_rd_yield = ram_rd_active_q && ram_rd_other_waiting;
-    wire ram_wr_yield = ram_wr_active_q && ram_wr_other_waiting;
+    wire ram_rd_yield = ram_rd_active_q && (ram_rd_owner_q == OWNER_CPU) && mma_ram_ar_req;
+    wire ram_wr_yield = ram_wr_active_q && (ram_wr_owner_q == OWNER_CPU) && mma_ram_aw_req;
 
     wire ram_ar_hs = m_ram_arvalid && m_ram_arready;
     wire ram_r_last_hs = m_ram_rvalid && m_ram_rready && m_ram_rlast;

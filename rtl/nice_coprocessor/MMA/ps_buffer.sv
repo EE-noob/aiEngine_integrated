@@ -132,6 +132,9 @@ module ps_buffer_wide_fifo #(
     logic [CNT_W-1:0]       write_ptr_ext;
     logic [CNT_W-1:0]       frame_len_next;
     logic [DATA_WIDTH-1:0]  ram_read_data;
+    logic                   ram_write_en_q;
+    logic [ADDR_W-1:0]      ram_write_addr_q;
+    logic [DATA_WIDTH-1:0]  ram_write_data_q;
     logic                   replay_data_valid;
     logic [CNT_W:0]         ram_write_addr_ext;
     logic [CNT_W:0]         write_base_next_ext;
@@ -189,15 +192,21 @@ module ps_buffer_wide_fifo #(
         .clk   (clk),
         .ena   (1'b1),
         .enb   (ram_read_en),
-        .wea   (ram_write_en),
-        .addra (ram_write_addr),
-        .dia   (data_in),
+        .wea   (ram_write_en_q),
+        .addra (ram_write_addr_q),
+        .dia   (ram_write_data_q),
         .addrb (ram_read_addr),
         .dob   (ram_read_data)
     );
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
+        ram_write_addr_q <= ram_write_addr;
+        ram_write_data_q <= data_in;
+    end
+
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
+            ram_write_en_q      <= 1'b0;
             write_ptr           <= '0;
             read_ptr            <= '0;
             write_base          <= '0;
@@ -224,6 +233,7 @@ module ps_buffer_wide_fifo #(
             ia_l1_switch_i_d    <= ia_l1_switch_i;
             send_ia_trigger_i_d <= send_ia_trigger_i;
             replay_data_valid   <= ram_read_en;
+            ram_write_en_q      <= ram_write_en;
 
             if (input_valid_i) begin
                 write_ptr <= write_ptr + 1'b1;

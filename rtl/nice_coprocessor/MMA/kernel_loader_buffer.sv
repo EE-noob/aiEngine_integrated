@@ -39,7 +39,12 @@ module kernel_loader_buffer #(
   logic load_busy;
   logic row_rd_en;
   logic [ROW_VEC_W-1:0] row_data_vec;
+  logic [ROW_VEC_W-1:0] row_data_vec_q;
   logic [ROW_VEC_W-1:0] row_rd_data [SIZE];
+  logic row_valid_q;
+  logic load_done_q;
+  logic [IDX_W-1:0] row_idx_q;
+  logic [SIZE-1:0] row_wr_bank_q;
 `ifndef SYNTHESIS
   bit kernel_buf_trace_en;
 
@@ -67,7 +72,7 @@ module kernel_loader_buffer #(
   genvar row_bank;
   generate
     for (row_bank = 0; row_bank < SIZE; row_bank++) begin : gen_row_ram
-      wire row_wr_en = row_valid && load_busy && (row_idx == IDX_W'(row_bank));
+      wire row_wr_en = row_wr_bank_q[row_bank] && load_busy;
 
       kernel_loader_row_ram #(
         .DATA_WIDTH(ROW_VEC_W),
@@ -77,7 +82,7 @@ module kernel_loader_buffer #(
         .clk    (clk),
         .wr_en  (row_wr_en),
         .wr_addr(load_slot),
-        .wr_data(row_data_vec),
+        .wr_data(row_data_vec_q),
         .rd_en  (row_rd_en),
         .rd_addr(rd_slot),
         .rd_data(row_rd_data[row_bank])
@@ -85,7 +90,7 @@ module kernel_loader_buffer #(
     end
   endgenerate
 
-  always_ff @(posedge clk or negedge rst_n) begin
+  always_ff @(posedge clk) begin
     if (!rst_n) begin
       wr_slot             <= '0;
       rd_slot             <= '0;
@@ -99,27 +104,40 @@ module kernel_loader_buffer #(
       send_pending        <= 1'b0;
       send_prefetch       <= 1'b0;
       load_busy           <= 1'b0;
+      row_valid_q         <= 1'b0;
+      load_done_q         <= 1'b0;
+      row_idx_q           <= '0;
+      row_data_vec_q      <= '0;
+      row_wr_bank_q       <= '0;
       row_rd_en           <= 1'b0;
       store_weight_req    <= 1'b0;
       weight_sending_done <= 1'b0;
-      for (int s = 0; s < SLOT_COUNT; s++) begin
-        slot_valid_cols[s] <= '0;
-      end
       for (int c = 0; c < SIZE; c++) begin
         weight_out[c] <= '0;
+      end
+      for (int s = 0; s < SLOT_COUNT; s++) begin
+        slot_valid_cols[s] <= '0;
       end
     end else begin
       logic load_complete_event;
       logic send_complete_event;
       logic [VALID_W-1:0] row_valid_cols_next;
 
-      load_complete_event = load_done && load_busy;
+      load_complete_event = load_done_q && load_busy;
       send_complete_event = 1'b0;
       row_valid_cols_next = load_valid_cols;
-      if (row_valid && load_busy) begin
-        if ((VALID_W'(row_idx) + VALID_W'(1)) > load_valid_cols) begin
-          row_valid_cols_next = VALID_W'(row_idx) + VALID_W'(1);
+      if (row_valid_q && load_busy) begin
+        if ((VALID_W'(row_idx_q) + VALID_W'(1)) > load_valid_cols) begin
+          row_valid_cols_next = VALID_W'(row_idx_q) + VALID_W'(1);
         end
+      end
+      row_valid_q   <= row_valid;
+      load_done_q   <= load_done;
+      row_idx_q     <= row_idx;
+      row_data_vec_q <= row_data_vec;
+      row_wr_bank_q <= '0;
+      if (row_valid) begin
+        row_wr_bank_q[row_idx] <= 1'b1;
       end
       store_weight_req    <= 1'b0;
       weight_sending_done <= 1'b0;
@@ -131,7 +149,7 @@ module kernel_loader_buffer #(
         load_valid_cols <= '0;
       end
 
-      if (row_valid && load_busy) begin
+      if (row_valid_q && load_busy) begin
         load_valid_cols <= row_valid_cols_next;
       end
 

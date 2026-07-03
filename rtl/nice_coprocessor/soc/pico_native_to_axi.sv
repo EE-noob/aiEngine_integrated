@@ -68,6 +68,8 @@ module pico_native_to_axi #(
         (IC_WORD_ADDR_WIDTH > (IC_LINE_WORD_BITS + IC_INDEX_BITS))
             ? (IC_WORD_ADDR_WIDTH - IC_LINE_WORD_BITS - IC_INDEX_BITS) : 1;
     localparam int unsigned IC_LINE_BYTE_LSB = ADDR_LSB + IC_LINE_WORD_BITS;
+    localparam int unsigned ICACHE_WORDS = ICACHE_LINES * ICACHE_LINE_WORDS;
+    localparam int unsigned IC_DATA_ADDR_BITS = IC_INDEX_BITS + IC_LINE_WORD_BITS;
 
     logic [ADDR_WIDTH-1:0]   addr_q;
     logic [DATA_WIDTH-1:0]   wdata_q;
@@ -82,15 +84,23 @@ module pico_native_to_axi #(
     logic [IC_LINE_WORD_BITS-1:0] ic_fill_beat_q;
     logic [IC_LINE_WORD_BITS-1:0] ic_fill_req_word_q;
     logic [DATA_WIDTH-1:0]        ic_fill_req_data_q;
+    logic                    ic_req_q;
+    logic [ADDR_WIDTH-1:0]   ic_req_line_addr_q;
+    logic [IC_INDEX_BITS-1:0]     ic_req_index_q;
+    logic [IC_TAG_WIDTH-1:0]      ic_req_tag_q;
+    logic [IC_LINE_WORD_BITS-1:0] ic_req_word_q;
+    logic [DATA_WIDTH-1:0]        ic_lookup_data_q;
+    logic [IC_TAG_WIDTH-1:0]      ic_lookup_tag_q;
+    logic                         ic_lookup_valid_q;
     logic                    write_busy_q;
     logic                    aw_pending_q;
     logic                    w_pending_q;
 
-    logic [DATA_WIDTH-1:0] ic_data_q [0:ICACHE_LINES-1][0:ICACHE_LINE_WORDS-1];
+    (* ram_style = "block" *) logic [DATA_WIDTH-1:0] ic_data_q [0:ICACHE_WORDS-1];
     logic [IC_TAG_WIDTH-1:0] ic_tag_q [0:ICACHE_LINES-1];
     logic ic_valid_q [0:ICACHE_LINES-1];
 
-    wire bridge_idle   = !read_busy_q && !write_busy_q;
+    wire bridge_idle   = !read_busy_q && !write_busy_q && !ic_req_q;
     wire mem_write_req = mem_valid && (mem_wstrb != '0);
     wire mem_read_req  = mem_valid && (mem_wstrb == '0);
     wire new_read_req  = bridge_idle && mem_read_req;
@@ -107,14 +117,20 @@ module pico_native_to_axi #(
     wire [ADDR_WIDTH-1:0] mem_ic_line_addr =
         {mem_addr[ADDR_WIDTH-1:IC_LINE_BYTE_LSB], {IC_LINE_BYTE_LSB{1'b0}}};
     wire icacheable_read = ENABLE_ICACHE && mem_instr && mem_read_req;
-    wire icache_hit = new_read_req && icacheable_read &&
-                      ic_valid_q[mem_ic_index] &&
-                      (ic_tag_q[mem_ic_index] == mem_ic_tag);
-    wire icache_miss = new_read_req && icacheable_read && !icache_hit;
-    wire [ADDR_WIDTH-1:0] new_read_axi_addr = icache_miss ? mem_ic_line_addr :
-                                                             mem_addr;
-    wire [7:0] new_read_axi_len = icache_miss ? 8'(ICACHE_LINE_WORDS - 1) :
-                                                8'd0;
+    wire new_ic_read_req = new_read_req && icacheable_read;
+    wire new_direct_read_req = new_read_req && !icacheable_read;
+    wire icache_hit = ic_req_q && ic_lookup_valid_q &&
+                      (ic_lookup_tag_q == ic_req_tag_q);
+    wire icache_miss = ic_req_q && !icache_hit;
+    wire [ADDR_WIDTH-1:0] read_axi_addr = icache_miss ? ic_req_line_addr_q :
+                                                         mem_addr;
+    wire [7:0] read_axi_len = icache_miss ? 8'(ICACHE_LINE_WORDS - 1) :
+                                            8'd0;
+    wire read_axi_req = new_direct_read_req || icache_miss;
+    wire [IC_DATA_ADDR_BITS-1:0] mem_ic_data_addr =
+        {mem_ic_index, mem_ic_word};
+    wire [IC_DATA_ADDR_BITS-1:0] fill_ic_data_addr =
+        {ic_fill_index_q, ic_fill_beat_q};
 
     wire ar_fire = m_axi_arvalid && m_axi_arready;
     wire r_fire  = m_axi_rvalid && m_axi_rready;
@@ -128,10 +144,10 @@ module pico_native_to_axi #(
     wire [DATA_WIDTH-1:0] ic_fill_rsp_data =
         ic_fill_req_current ? m_axi_rdata : ic_fill_req_data_q;
 
-    assign m_axi_arvalid = (new_read_req && !icache_hit) || ar_pending_q;
-    assign m_axi_araddr  = (new_read_req && !icache_hit) ? new_read_axi_addr :
-                                                              addr_q;
-    assign m_axi_arprot  = (new_read_req ? mem_instr : instr_q) ? 3'b100 : 3'b000;
+    assign m_axi_arvalid = read_axi_req || ar_pending_q;
+    assign m_axi_araddr  = read_axi_req ? read_axi_addr : addr_q;
+    assign m_axi_arprot  = (new_direct_read_req ? mem_instr :
+                            icache_miss ? 1'b1 : instr_q) ? 3'b100 : 3'b000;
 
     assign m_axi_awvalid = new_write_req || (write_busy_q && aw_pending_q);
     assign m_axi_awaddr  = new_write_req ? mem_addr : addr_q;
@@ -140,14 +156,14 @@ module pico_native_to_axi #(
     assign m_axi_wdata   = new_write_req ? mem_wdata : wdata_q;
     assign m_axi_wstrb   = new_write_req ? mem_wstrb : wstrb_q;
 
-    assign m_axi_rready = read_busy_q || (new_read_req && !icache_hit);
+    assign m_axi_rready = read_busy_q;
     assign m_axi_bready = write_busy_q || new_write_req;
     assign mem_ready = icache_hit || read_done_fire || b_fire;
-    assign mem_rdata = icache_hit      ? ic_data_q[mem_ic_index][mem_ic_word] :
+    assign mem_rdata = icache_hit      ? ic_lookup_data_q :
                        read_done_fire  ? (ic_fill_q ? ic_fill_rsp_data : m_axi_rdata) :
                                          '0;
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
             for (int i = 0; i < ICACHE_LINES; i++) begin
                 ic_valid_q[i] <= 1'b0;
@@ -166,32 +182,63 @@ module pico_native_to_axi #(
             ic_fill_beat_q  <= '0;
             ic_fill_req_word_q <= '0;
             ic_fill_req_data_q <= '0;
+            ic_req_q <= 1'b0;
+            ic_req_line_addr_q <= '0;
+            ic_req_index_q <= '0;
+            ic_req_tag_q <= '0;
+            ic_req_word_q <= '0;
+            ic_lookup_tag_q <= '0;
+            ic_lookup_valid_q <= 1'b0;
             write_busy_q <= 1'b0;
             aw_pending_q <= 1'b0;
             w_pending_q  <= 1'b0;
         end else begin
-            if (new_read_req && icache_hit) begin
+            if (new_ic_read_req) begin
+                ic_req_q <= 1'b1;
+                ic_req_line_addr_q <= mem_ic_line_addr;
+                ic_req_index_q <= mem_ic_index;
+                ic_req_tag_q <= mem_ic_tag;
+                ic_req_word_q <= mem_ic_word;
+                ic_lookup_tag_q <= ic_tag_q[mem_ic_index];
+                ic_lookup_valid_q <= ic_valid_q[mem_ic_index];
                 read_busy_q  <= 1'b0;
                 ar_pending_q <= 1'b0;
                 ic_fill_q    <= 1'b0;
-            end else if (new_read_req) begin
-                addr_q       <= new_read_axi_addr;
+            end else if (ic_req_q) begin
+                if (icache_hit) begin
+                    ic_req_q <= 1'b0;
+                    read_busy_q  <= 1'b0;
+                    ar_pending_q <= 1'b0;
+                    ic_fill_q    <= 1'b0;
+                end else begin
+                    addr_q       <= ic_req_line_addr_q;
+                    instr_q      <= 1'b1;
+                    arlen_q      <= read_axi_len;
+                    read_busy_q  <= 1'b1;
+                    ar_pending_q <= !m_axi_arready;
+                    ic_fill_q    <= 1'b1;
+                    ic_fill_index_q <= ic_req_index_q;
+                    ic_fill_tag_q   <= ic_req_tag_q;
+                    ic_fill_beat_q  <= '0;
+                    ic_fill_req_word_q <= ic_req_word_q;
+                    ic_fill_req_data_q <= '0;
+                    ic_req_q <= 1'b0;
+                end
+            end else if (new_direct_read_req) begin
+                addr_q       <= mem_addr;
                 instr_q      <= mem_instr;
-                arlen_q      <= new_read_axi_len;
-                read_busy_q  <= !read_done_fire;
+                arlen_q      <= read_axi_len;
+                read_busy_q  <= 1'b1;
                 ar_pending_q <= !m_axi_arready;
-                ic_fill_q    <= icache_miss;
-                ic_fill_index_q <= mem_ic_index;
-                ic_fill_tag_q   <= mem_ic_tag;
+                ic_fill_q    <= 1'b0;
                 ic_fill_beat_q  <= '0;
-                ic_fill_req_word_q <= mem_ic_word;
+                ic_fill_req_word_q <= '0;
                 ic_fill_req_data_q <= '0;
             end else if (read_busy_q) begin
                 if (ar_pending_q && m_axi_arready) begin
                     ar_pending_q <= 1'b0;
                 end
                 if (r_fire && ic_fill_q) begin
-                    ic_data_q[ic_fill_index_q][ic_fill_beat_q] <= m_axi_rdata;
                     if (ic_fill_beat_q == ic_fill_req_word_q) begin
                         ic_fill_req_data_q <= m_axi_rdata;
                     end
@@ -218,9 +265,7 @@ module pico_native_to_axi #(
                 write_busy_q <= !b_fire;
                 aw_pending_q <= !aw_fire;
                 w_pending_q  <= !w_fire;
-                if (ENABLE_ICACHE &&
-                    ic_valid_q[mem_ic_index] &&
-                    (ic_tag_q[mem_ic_index] == mem_ic_tag)) begin
+                if (ENABLE_ICACHE) begin
                     ic_valid_q[mem_ic_index] <= 1'b0;
                 end
             end else if (write_busy_q) begin
@@ -239,11 +284,19 @@ module pico_native_to_axi #(
         end
     end
 
+    always_ff @(posedge clk) begin
+        if (new_ic_read_req) begin
+            ic_lookup_data_q <= ic_data_q[mem_ic_data_addr];
+        end
+        if (r_fire && ic_fill_q) begin
+            ic_data_q[fill_ic_data_addr] <= m_axi_rdata;
+        end
+    end
+
     assign m_axi_arcache = 4'b0011;
     assign m_axi_arlock  = 2'b00;
     assign m_axi_arburst = 2'b01;
-    assign m_axi_arlen   = (new_read_req && !icache_hit) ? new_read_axi_len :
-                                                            arlen_q;
+    assign m_axi_arlen   = read_axi_req ? read_axi_len : arlen_q;
     assign m_axi_arsize  = AXI_SIZE;
 
     assign m_axi_awcache = 4'b0011;
@@ -287,7 +340,7 @@ module pico_native_to_axi #(
         end
     end
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
             stat_read_reqs         <= 0;
             stat_write_reqs        <= 0;
@@ -303,9 +356,9 @@ module pico_native_to_axi #(
                 stat_read_reqs <= stat_read_reqs + 1;
                 if (mem_instr) stat_instr_reqs <= stat_instr_reqs + 1;
                 else stat_data_reqs <= stat_data_reqs + 1;
-                if (icache_hit) stat_icache_hits <= stat_icache_hits + 1;
-                if (icache_miss) stat_icache_misses <= stat_icache_misses + 1;
             end
+            if (icache_hit) stat_icache_hits <= stat_icache_hits + 1;
+            if (icache_miss) stat_icache_misses <= stat_icache_misses + 1;
             if (new_write_req) begin
                 stat_write_reqs <= stat_write_reqs + 1;
                 stat_data_reqs <= stat_data_reqs + 1;
@@ -313,7 +366,7 @@ module pico_native_to_axi #(
             if (r_fire && ic_fill_q) begin
                 stat_icache_fill_beats <= stat_icache_fill_beats + 1;
             end
-            if (read_busy_q && !r_fire) begin
+            if ((read_busy_q && !r_fire) || ic_req_q) begin
                 stat_read_wait_cycles <= stat_read_wait_cycles + 1;
             end
             if (write_busy_q && !b_fire) begin

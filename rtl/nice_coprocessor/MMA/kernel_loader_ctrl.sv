@@ -60,6 +60,8 @@ module kernel_loader_ctrl #(
   logic [REG_WIDTH-1:0] last_m_cols;
   logic [REG_WIDTH-1:0] cfg_last_n_rows;
   logic [REG_WIDTH-1:0] cfg_last_m_cols;
+  logic [REG_WIDTH-1:0] cfg_group_tail_cols;
+  logic [REG_WIDTH-1:0] cfg_last_group_width;
   logic [REG_WIDTH-1:0] first_group_width;
 
   logic [REG_WIDTH-1:0] load_tile_row;
@@ -90,9 +92,8 @@ module kernel_loader_ctrl #(
   logic [REG_WIDTH-1:0] cfg_col_addr_step;
   logic [REG_WIDTH-1:0] cfg_row_addr_step;
   logic [REG_WIDTH-1:0] cfg_group_addr_step;
-  logic [REG_WIDTH-1:0] next_group_base_col;
-  logic [REG_WIDTH-1:0] remaining_cols_after_group;
-  logic [REG_WIDTH-1:0] next_group_width;
+  logic [REG_WIDTH-1:0] last_group_width;
+  logic [REG_WIDTH-1:0] following_group_width;
 
   function automatic logic [REG_WIDTH-1:0] ceil_div_pow2(input logic [REG_WIDTH-1:0] a,
                                                          input logic [REG_WIDTH-1:0] pow2);
@@ -135,6 +136,29 @@ module kernel_loader_ctrl #(
     if (cfg_last_n_rows == 0) cfg_last_n_rows = REG_WIDTH'(SIZE);
     if (cfg_last_m_cols == 0) cfg_last_m_cols = REG_WIDTH'(SIZE);
 
+    unique case (w_reuse_norm)
+      REG_WIDTH'(1):    cfg_group_tail_cols = REG_WIDTH'(0);
+      REG_WIDTH'(2):    cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(1);
+      REG_WIDTH'(4):    cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(3);
+      REG_WIDTH'(8):    cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(7);
+      REG_WIDTH'(16):   cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(15);
+      REG_WIDTH'(32):   cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(31);
+      REG_WIDTH'(64):   cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(63);
+      REG_WIDTH'(128):  cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(127);
+      REG_WIDTH'(256):  cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(255);
+      REG_WIDTH'(512):  cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(511);
+      REG_WIDTH'(1024): cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(1023);
+      default:          cfg_group_tail_cols = REG_WIDTH'(0);
+    endcase
+    if (cfg_l2_groups_total <= REG_WIDTH'(1)) begin
+      cfg_last_group_width = cfg_tile_cols_total;
+    end else if (cfg_group_tail_cols == 0) begin
+      cfg_last_group_width = w_reuse_norm;
+    end else begin
+      cfg_last_group_width = cfg_group_tail_cols;
+    end
+    if (cfg_last_group_width == 0) cfg_last_group_width = REG_WIDTH'(1);
+
     if (tile_cols_total < w_reuse_total) begin
       first_group_width = tile_cols_total;
     end else begin
@@ -142,18 +166,10 @@ module kernel_loader_ctrl #(
     end
     if (first_group_width == 0) first_group_width = REG_WIDTH'(1);
 
-    next_group_base_col = group_base_col + current_group_width;
-    if (tile_cols_total > next_group_base_col) begin
-      remaining_cols_after_group = tile_cols_total - next_group_base_col;
+    if ((load_l2 + REG_WIDTH'(2)) >= l2_groups_total) begin
+      following_group_width = last_group_width;
     end else begin
-      remaining_cols_after_group = REG_WIDTH'(0);
-    end
-    if (remaining_cols_after_group == 0) begin
-      next_group_width = REG_WIDTH'(1);
-    end else if (remaining_cols_after_group < w_reuse_total) begin
-      next_group_width = remaining_cols_after_group;
-    end else begin
-      next_group_width = w_reuse_total;
+      following_group_width = w_reuse_total;
     end
 
     load_tile_col = group_base_col + load_col_in_group;
@@ -227,6 +243,7 @@ module kernel_loader_ctrl #(
       last_m_cols         <= REG_WIDTH'(SIZE);
       current_group_width <= REG_WIDTH'(1);
       w_reuse_total       <= REG_WIDTH'(1);
+      last_group_width    <= REG_WIDTH'(SIZE);
       base_addr_reg       <= '0;
       col_addr_step       <= '0;
       row_addr_step       <= REG_WIDTH'(SIZE);
@@ -254,6 +271,7 @@ module kernel_loader_ctrl #(
             last_m_cols         <= cfg_last_m_cols;
             current_group_width <= REG_WIDTH'(1);
             w_reuse_total       <= w_reuse_norm;
+            last_group_width    <= cfg_last_group_width;
             base_addr_reg       <= cfg_rhs_base;
             col_addr_step       <= cfg_col_addr_step;
             row_addr_step       <= cfg_row_addr_step;
@@ -293,8 +311,8 @@ module kernel_loader_ctrl #(
                 row_addr_offset <= '0;
                 if (!last_l2_group) begin
                   load_l2             <= load_l2 + 1'b1;
-                  group_base_col      <= next_group_base_col;
-                  current_group_width <= next_group_width;
+                  group_base_col      <= group_base_col + current_group_width;
+                  current_group_width <= following_group_width;
                   group_base_addr     <= group_base_addr + group_addr_step;
                 end else begin
                   load_l2             <= '0;

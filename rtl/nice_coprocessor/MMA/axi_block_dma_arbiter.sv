@@ -188,7 +188,7 @@ module axi_block_dma_arbiter #(
         else rd_next_client = C_NONE;
     end
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
             rd_client  <= C_NONE;
             rd_active  <= 1'b0;
@@ -297,7 +297,7 @@ module axi_block_dma_arbiter #(
         endcase
     end
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
             wr_active  <= 1'b0;
             wr_started <= 1'b0;

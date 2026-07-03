@@ -242,14 +242,14 @@ module ia_loader_ctrl #(
   logic [LOAD_CNT_W-1:0] r_cur_cnt;
   logic [W_CNT_W-1:0] w_cnt_narrow;
   logic [W_CNT_W-1:0] w_cur_narrow;
-  assign ia_iter_last = (ia_idx == r_cur - 1);
-  assign w_iter_last  = (w_cnt == w_cur - 1);
   assign ia_idx_cnt = ia_idx[LOAD_CNT_W-1:0];
   assign r_cur_cnt = r_cur[LOAD_CNT_W-1:0];
   assign w_cnt_narrow = w_cnt[W_CNT_W-1:0];
   assign w_cur_narrow = w_cur[W_CNT_W-1:0];
   assign ia_iter_last_narrow = ((ia_idx_cnt + LOAD_CNT_W'(1)) == r_cur_cnt);
   assign w_iter_last_narrow = ((w_cnt_narrow + W_CNT_W'(1)) == w_cur_narrow);
+  assign ia_iter_last = ia_iter_last_narrow;
+  assign w_iter_last  = w_iter_last_narrow;
 
   always_comb begin
     first_w_group_width = (w_groups_total <= REG_WIDTH'(1))
@@ -638,6 +638,7 @@ module ia_loader_ctrl #(
   // 仅在 req/granted 握手成功时，允许启动 tile_loader
   logic tl_start_r;
   logic can_issue_load;
+  logic load_issue;
   logic [REG_WIDTH-1:0] tl_base_addr_r;
   logic [REG_WIDTH-1:0] tl_row_stride_r;
   logic [REG_WIDTH-1:0] tl_rows_to_read_r;
@@ -647,6 +648,7 @@ module ia_loader_ctrl #(
   logic                 tl_use_16bits_r;
   logic signed [REG_WIDTH-1:0] tl_lhs_zp_r;
   assign can_issue_load = can_start_load && load_ia_req && load_ia_granted;
+  assign load_issue = can_issue_load && !tl_start_r;
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -660,8 +662,8 @@ module ia_loader_ctrl #(
       tl_use_16bits_r   <= 1'b0;
       tl_lhs_zp_r       <= '0;
     end else begin
-      tl_start_r <= can_issue_load && !tl_start_r;
-      if (can_issue_load && !tl_start_r) begin
+      tl_start_r <= load_issue;
+      if (load_issue) begin
         tl_base_addr_r    <= computed_tile_base;
         tl_row_stride_r   <= cfg_lhs_row_stride_b;
         tl_rows_to_read_r <= load_rows_cur;

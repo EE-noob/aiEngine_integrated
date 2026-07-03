@@ -11,7 +11,7 @@ module mma_top #(
     parameter int unsigned PS_FRAME_COUNT = SIZE,  // PS buffer 可保留的输出列 tile 数
     parameter int unsigned AXI_READ_OUTSTANDING = 4,  // AXI 读通道最多提前排队的 burst 数
     parameter int unsigned AXI_WRITE_OUTSTANDING = AXI_READ_OUTSTANDING,  // AXI 写通道最多提前排队的 burst 数
-    parameter int unsigned OA_FIFO_BANKS_MAX = 4  // 写回 FIFO 最大 tile bank 数；满时反压计算以控制面积
+    parameter int unsigned OA_FIFO_BANKS_MAX = (IA_CACHE_BLOCKS < 4) ? 4 : IA_CACHE_BLOCKS  // 写回 FIFO 最大 tile bank 数；随 IA cache 深度派生以控制面积
 ) (
     //==== 时钟与复位 ====
     input wire clk,   // 系统时钟
@@ -1088,6 +1088,7 @@ module mma_top #(
         //.output_req       (fifo_output_req),
         .oa_fifo_req      (fifo_output_req),
         .transpose_mode   (is_mode),
+        .reserve_banks    (ia_reuse_num_eff),
         .vec_valid_num_col(fifo_vec_valid_num_col),
         .vec_valid_num_row(fifo_vec_valid_num_row),
         .output_valid     (fifo_output_valid),

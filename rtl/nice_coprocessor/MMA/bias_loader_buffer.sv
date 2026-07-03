@@ -41,6 +41,34 @@ module bias_loader_buffer #(
   logic [DATA_WIDTH-1:0]        bank_words [2][GROUP_ELEMS];
   logic                         bank_loaded [2];
   logic [REG_WIDTH-1:0]         bank_block_idx [2];
+  logic                         load_bank_q;
+  logic                         load_word_valid_q [BUS_WIDTH/8];
+  logic [REG_WIDTH-1:0]         load_word_row_q;
+  logic [$clog2(SIZE * (DATA_WIDTH / 8))-1:0] load_word_col_base_q;
+  logic signed [DMA_DATA_WIDTH-1:0] load_word_data_q [BUS_WIDTH/8];
+  logic                         load_done_q;
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      load_bank_q          <= 1'b0;
+      load_word_row_q      <= '0;
+      load_word_col_base_q <= '0;
+      load_done_q          <= 1'b0;
+      for (int i = 0; i < BUS_WIDTH/8; i++) begin
+        load_word_valid_q[i] <= 1'b0;
+        load_word_data_q[i]  <= '0;
+      end
+    end else begin
+      load_bank_q          <= load_bank;
+      load_word_row_q      <= load_word_row;
+      load_word_col_base_q <= load_word_col_base;
+      load_done_q          <= load_done;
+      for (int i = 0; i < BUS_WIDTH/8; i++) begin
+        load_word_valid_q[i] <= load_word_valid[i] && !load_start && !init_cfg;
+        load_word_data_q[i]  <= load_word_data[i];
+      end
+    end
+  end
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -57,8 +85,8 @@ module bias_loader_buffer #(
       if (load_start) begin
         bank_loaded[load_bank]    <= 1'b0;
         bank_block_idx[load_bank] <= load_block_idx;
-      end else if (load_done) begin
-        bank_loaded[load_bank] <= 1'b1;
+      end else if (load_done_q) begin
+        bank_loaded[load_bank_q] <= 1'b1;
       end
     end
   end
@@ -80,16 +108,16 @@ module bias_loader_buffer #(
     if (!init_cfg && !load_start) begin
 `endif
       for (int i = 0; i < BUS_WIDTH/8; i++) begin
-        if (load_word_valid[i]) begin
+        if (load_word_valid_q[i]) begin
           automatic int byte_offset;
           automatic int word_idx;
           automatic int byte_lane;
 
-          byte_offset = int'(load_word_col_base) + i;
-          word_idx    = (int'(load_word_row) * SIZE) + (byte_offset >> BYTE_SHIFT);
+          byte_offset = int'(load_word_col_base_q) + i;
+          word_idx    = (int'(load_word_row_q) * SIZE) + (byte_offset >> BYTE_SHIFT);
           byte_lane   = byte_offset & BYTE_MASK;
           if ((word_idx < GROUP_ELEMS) && (byte_lane < BYTES_PER_WORD)) begin
-            bank_words[load_bank][word_idx][byte_lane*8 +: 8] <= load_word_data[i][7:0];
+            bank_words[load_bank_q][word_idx][byte_lane*8 +: 8] <= load_word_data_q[i][7:0];
           end
         end
       end
@@ -102,19 +130,11 @@ module bias_loader_buffer #(
 
   always_comb begin
     for (int gi = 0; gi < GROUP_ELEMS; gi++) begin
-      if (bias_valid) begin
-        group_data_out[gi] = $signed(bank_words[active_bank][gi]);
-      end else begin
-        group_data_out[gi] = '0;
-      end
+      group_data_out[gi] = $signed(bank_words[active_bank][gi]);
     end
 
     for (int i = 0; i < SIZE; i++) begin
-      if (bias_valid) begin
-        data_out[i] = $signed(bank_words[active_bank][i]);
-      end else begin
-        data_out[i] = '0;
-      end
+      data_out[i] = $signed(bank_words[active_bank][i]);
     end
   end
 

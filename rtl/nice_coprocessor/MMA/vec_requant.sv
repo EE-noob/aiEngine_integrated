@@ -125,7 +125,6 @@ module vec_requant #(
   // ----------------------------
   // 配置寄存
   // ----------------------------
-  logic signed [31:0] activation_min_r, activation_max_r, dst_offset_r;
   logic signed [31:0] pt_multiplier_r;  // per-tensor 常量
   logic [5:0]         pt_lshift_r, pt_rshift_r;
   logic [31:0] k_r, m_r;  // 锁存的尺寸
@@ -149,11 +148,8 @@ module vec_requant #(
     end
   end
 
-  always_ff @(posedge clk or negedge rst_n) begin
+  always_ff @(posedge clk) begin
     if (!rst_n) begin
-      activation_min_r <= '0;
-      activation_max_r <= '0;
-      dst_offset_r     <= '0;
       pt_multiplier_r  <= '0;
       pt_lshift_r      <= 6'd0;
       pt_rshift_r      <= 6'd0;
@@ -168,9 +164,6 @@ module vec_requant #(
       last_row_tile    <= '0;
       last_col_tile    <= '0;
     end else if (init_cfg) begin
-      activation_min_r <= activation_min_in;
-      activation_max_r <= activation_max_in;
-      dst_offset_r     <= dst_offset_in;
       pt_multiplier_r  <= multiplier_in;
       pt_lshift_r      <= pt_lshift_next;
       pt_rshift_r      <= pt_rshift_next;
@@ -275,7 +268,7 @@ module vec_requant #(
   end
 
   // 参数就绪拍锁存（供计算屏蔽尾块）
-  always_ff @(posedge clk or negedge rst_n) begin
+  always_ff @(posedge clk) begin
     if (!rst_n) begin
       lane_need_q <= '0;
     end else if (init_cfg) begin
@@ -361,7 +354,7 @@ module vec_requant #(
   // ----------------------------
   // 主状态机（只保留 4 个状态名）
   // ----------------------------
-  always_ff @(posedge clk or negedge rst_n) begin
+  always_ff @(posedge clk) begin
     if (!rst_n) begin
       // reset all sequential state
       state              <= IDLE;
@@ -689,7 +682,7 @@ module vec_requant #(
   assign out_valid = stage11_valid;
   assign out_tile_done = stage11_tile_done;
 
-  always_ff @(posedge clk or negedge rst_n) begin
+  always_ff @(posedge clk) begin
     if (!rst_n) begin
       stage0_valid     <= 1'b0;
       stage1_valid     <= 1'b0;
@@ -782,6 +775,9 @@ module vec_requant #(
     logic signed [31:0] mult_sel;
     logic [5:0]         lshift_sel;
     logic [5:0]         rshift_sel;
+    logic signed [31:0] activation_min_lane_r;
+    logic signed [31:0] activation_max_lane_r;
+    logic signed [31:0] dst_offset_lane_r;
 
     logic signed [31:0] acc_s0;
     logic signed [31:0] mult_s0;
@@ -879,7 +875,7 @@ module vec_requant #(
       end
     end
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
       if (!rst_n) begin
         lane_en_s0    <= 1'b0;
         lane_en_s1    <= 1'b0;
@@ -893,6 +889,9 @@ module vec_requant #(
         lane_en_s9    <= 1'b0;
         lane_en_s10   <= 1'b0;
         out_vec_s8[j] <= '0;
+        activation_min_lane_r <= '0;
+        activation_max_lane_r <= '0;
+        dst_offset_lane_r     <= '0;
       end else if (init_cfg) begin
         lane_en_s0    <= 1'b0;
         lane_en_s1    <= 1'b0;
@@ -906,6 +905,9 @@ module vec_requant #(
         lane_en_s9    <= 1'b0;
         lane_en_s10   <= 1'b0;
         out_vec_s8[j] <= '0;
+        activation_min_lane_r <= activation_min_in;
+        activation_max_lane_r <= activation_max_in;
+        dst_offset_lane_r     <= dst_offset_in;
       end else begin
         lane_en_s0  <= accept_valid && (j < (cfg_per_channel ? lane_need_q : lane_need_cur));
         lane_en_s1  <= lane_en_s0;
@@ -921,10 +923,10 @@ module vec_requant #(
 
         if (!lane_en_s10) begin
           out_vec_s8[j] <= 8'sd0;
-        end else if (rounded_s10 < activation_min_r) begin
-          out_vec_s8[j] <= activation_min_r[7:0];
-        end else if (rounded_s10 > activation_max_r) begin
-          out_vec_s8[j] <= activation_max_r[7:0];
+        end else if (rounded_s10 < activation_min_lane_r) begin
+          out_vec_s8[j] <= activation_min_lane_r[7:0];
+        end else if (rounded_s10 > activation_max_lane_r) begin
+          out_vec_s8[j] <= activation_max_lane_r[7:0];
         end else if (rounded_s10 > 32'sd127) begin
           out_vec_s8[j] <= 8'sd127;
         end else if (rounded_s10 < -32'sd128) begin
@@ -985,7 +987,7 @@ module vec_requant #(
         shifted_s9 <= shifted_s8;
         round_up_s9 <= has_rshift_s8 && (remainder_s8 > threshold_s8);
 
-        rounded_s10 <= shifted_s9 + dst_offset_r + (round_up_s9 ? 32'sd1 : 32'sd0);
+        rounded_s10 <= shifted_s9 + dst_offset_lane_r + (round_up_s9 ? 32'sd1 : 32'sd0);
       end
     end
   end

@@ -78,6 +78,9 @@ module bias_loader #(
     logic                               ctrl_active_bank;
     logic                               ctrl_switch_pending;
     logic                               ctrl_load_block_valid;
+    logic                               buffer_bias_valid;
+    logic signed [DATA_WIDTH-1:0]       buffer_data_out [SIZE];
+    logic signed [DATA_WIDTH-1:0]       buffer_group_data_out [GROUP_BLOCKS_MAX * SIZE];
 
     logic                               dma_busy;
     logic                               dma_done;
@@ -223,12 +226,41 @@ module bias_loader #(
         .load_done         (dma_done),
         .active_bank       (ctrl_active_bank),
         .current_block_idx (ctrl_current_block_idx),
-        .bias_valid        (bias_valid),
+        .bias_valid        (buffer_bias_valid),
         .load_block_valid  (ctrl_load_block_valid),
-        .data_out          (data_out),
-        .group_data_out    (group_data_out)
+        .data_out          (buffer_data_out),
+        .group_data_out    (buffer_group_data_out)
     );
 
-    assign bias_group_valid = bias_valid && !ctrl_switch_pending;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            bias_valid       <= 1'b0;
+            bias_group_valid <= 1'b0;
+            for (int i = 0; i < SIZE; i++) begin
+                data_out[i] <= '0;
+            end
+            for (int gi = 0; gi < GROUP_BLOCKS_MAX * SIZE; gi++) begin
+                group_data_out[gi] <= '0;
+            end
+        end else if (init_cfg) begin
+            bias_valid       <= 1'b0;
+            bias_group_valid <= 1'b0;
+            for (int i = 0; i < SIZE; i++) begin
+                data_out[i] <= '0;
+            end
+            for (int gi = 0; gi < GROUP_BLOCKS_MAX * SIZE; gi++) begin
+                group_data_out[gi] <= '0;
+            end
+        end else begin
+            bias_valid       <= buffer_bias_valid;
+            bias_group_valid <= buffer_bias_valid && !ctrl_switch_pending;
+            for (int i = 0; i < SIZE; i++) begin
+                data_out[i] <= buffer_data_out[i];
+            end
+            for (int gi = 0; gi < GROUP_BLOCKS_MAX * SIZE; gi++) begin
+                group_data_out[gi] <= buffer_group_data_out[gi];
+            end
+        end
+    end
 
 endmodule

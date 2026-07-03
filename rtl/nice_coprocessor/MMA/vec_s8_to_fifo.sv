@@ -9,6 +9,7 @@ module vec_s8_to_fifo #(
     input  wire [   VLEN*8-1:0] in_vec_s8,
     output reg                  oa_fifo_req,
     input  wire                 transpose_mode,
+    input  wire [          31:0] reserve_banks,
     input  wire [$clog2(VLEN)-1:0] vec_valid_num_col,
     input  wire [$clog2(VLEN)-1:0] vec_valid_num_row,
     output wire                 output_valid,
@@ -24,12 +25,14 @@ module vec_s8_to_fifo #(
   localparam integer ROW_BEATS   = (VLEN + 3) >> 2;
   localparam integer BEAT_WIDTH  = (ROW_BEATS <= 1) ? 1 : $clog2(ROW_BEATS);
   localparam integer BANK_WIDTH  = (BANKS <= 1) ? 1 : $clog2(BANKS);
+  localparam integer BANK_COUNT_WIDTH = (BANKS <= 1) ? 1 : $clog2(BANKS + 1);
   localparam integer ROW_BANKS   = 4;
   localparam integer MEM_DEPTH   = BANKS * ROW_BEATS;
   localparam integer MEM_ADDR_W  = (MEM_DEPTH <= 1) ? 1 : $clog2(MEM_DEPTH);
 
   reg [COUNT_WIDTH-1:0] bank_count [0:BANKS-1];
   reg [BANKS-1:0] bank_ready;
+  reg [BANK_COUNT_WIDTH-1:0] ready_bank_count_q;
 
   reg [BANK_WIDTH-1:0]  write_bank;
   reg [BANK_WIDTH-1:0]  read_bank;
@@ -63,6 +66,10 @@ module vec_s8_to_fifo #(
 
   wire write_bank_blocked = bank_ready[write_bank];
   wire next_write_bank_blocked = bank_ready[next_bank(write_bank)];
+  logic [BANK_COUNT_WIDTH-1:0] reserve_bank_count;
+  logic [BANK_COUNT_WIDTH-1:0] used_bank_count;
+  logic [BANK_COUNT_WIDTH-1:0] free_bank_count;
+  logic                   fifo_watermark_full;
   // A temporary valid gap can appear between cached IA slots.  Only the
   // explicit tile_done marker is allowed to publish a bank to the writer.
   wire finish_write_bank = in_valid && in_tile_done;
@@ -96,7 +103,23 @@ module vec_s8_to_fifo #(
 
   assign output_valid = stream_active && data_valid;
   assign output_row_switch = last_beat_in_row;
-  assign fifo_full_flag = write_bank_blocked || next_write_bank_blocked;
+  always_comb begin
+    if (reserve_banks == 32'd0) begin
+      reserve_bank_count = BANK_COUNT_WIDTH'(1);
+    end else if (reserve_banks >= 32'(BANKS)) begin
+      reserve_bank_count = BANK_COUNT_WIDTH'(BANKS);
+    end else begin
+      reserve_bank_count = BANK_COUNT_WIDTH'(reserve_banks);
+    end
+
+    used_bank_count = ready_bank_count_q + ((write_ptr != '0) ? BANK_COUNT_WIDTH'(1) : BANK_COUNT_WIDTH'(0));
+    free_bank_count = (used_bank_count >= BANK_COUNT_WIDTH'(BANKS))
+                    ? '0
+                    : (BANK_COUNT_WIDTH'(BANKS) - used_bank_count);
+    fifo_watermark_full = (free_bank_count < reserve_bank_count);
+  end
+
+  assign fifo_full_flag = write_bank_blocked || next_write_bank_blocked || fifo_watermark_full;
   assign ram_read_en = start_stream || stream_has_next;
 
   always_comb begin
@@ -166,7 +189,7 @@ module vec_s8_to_fifo #(
   end
 `endif
 
-  always @(posedge clk or negedge rst_n) begin
+  always @(posedge clk) begin
     if (!rst_n) begin
       write_bank   <= '0;
       read_bank    <= '0;
@@ -180,6 +203,7 @@ module vec_s8_to_fifo #(
       transpose_mode_tmp <= 1'b0;
       oa_fifo_req  <= 1'b0;
       bank_ready   <= '0;
+      ready_bank_count_q <= '0;
       for (int bank_idx = 0; bank_idx < BANKS; bank_idx++) begin
         bank_count[bank_idx] <= '0;
       end
@@ -196,6 +220,9 @@ module vec_s8_to_fifo #(
         end
         write_ptr <= '0;
         write_bank <= next_bank(write_bank);
+        if (!(output_fire && last_row_in_bank)) begin
+          ready_bank_count_q <= ready_bank_count_q + BANK_COUNT_WIDTH'(1);
+        end
       end else if (in_valid && !write_bank_blocked) begin
         write_ptr <= write_ptr + 1'b1;
       end
@@ -226,6 +253,9 @@ module vec_s8_to_fifo #(
           bank_ready[read_bank] <= 1'b0;
           bank_count[read_bank] <= '0;
           read_bank <= next_bank(read_bank);
+          if (!(finish_write_bank && !write_bank_blocked)) begin
+            ready_bank_count_q <= ready_bank_count_q - BANK_COUNT_WIDTH'(1);
+          end
         end else if (last_beat_in_row) begin
           beat_idx <= '0;
           read_ptr <= read_ptr + 1'b1;

@@ -111,7 +111,7 @@ module ps_buffer_fifo #(
         .dob   (ram_read_data)
     );
 
-	    always_ff @(posedge clk or negedge rst_n) begin
+	    always_ff @(posedge clk) begin
         if (!rst_n) begin
             write_ptr           <= '0;
             read_ptr            <= '0;

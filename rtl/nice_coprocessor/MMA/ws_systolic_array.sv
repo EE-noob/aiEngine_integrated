@@ -44,6 +44,21 @@ module ws_systolic_array #(
 wire signed [DATA_IN_WIDTH-1:0] data_pipe   [SIZE][SIZE];
 wire signed [WEIGHT_WIDTH-1:0]  weight_pipe [SIZE][SIZE];
 wire signed [ACC_WIDTH-1:0]     sum_pipe    [SIZE][SIZE];
+wire                              store_weight_req_col [SIZE];
+
+generate
+    for (genvar sw_col = 0; sw_col < SIZE; sw_col++) begin : gen_store_weight_buf
+`ifdef SYNTHESIS
+        (* DONT_TOUCH = "TRUE" *)
+        LUT1 #(.INIT(2'b10)) u_store_weight_buf (
+            .I0(store_weight_req),
+            .O (store_weight_req_col[sw_col])
+        );
+`else
+        assign store_weight_req_col[sw_col] = store_weight_req;
+`endif
+    end
+endgenerate
 
 genvar row, col;
 generate
@@ -56,7 +71,7 @@ generate
                     .ACC_WIDTH    (ACC_WIDTH)
                 ) ws_cell (
                     .clk(clk),
-                    .store_weight_req(store_weight_req),
+                    .store_weight_req(store_weight_req_col[col]),
                     .weight_in(weight_in[col]),
                     .data_in(data_in[row]),
                     .sum_in(sum_in[col]),
@@ -71,7 +86,7 @@ generate
                     .ACC_WIDTH    (ACC_WIDTH)
                 ) ws_cell (
                     .clk(clk),
-                    .store_weight_req(store_weight_req),
+                    .store_weight_req(store_weight_req_col[col]),
                     .weight_in(weight_in[col]),
                     .data_in(data_pipe[row][col-1]),
                     .sum_in(sum_in[col]),
@@ -86,7 +101,7 @@ generate
                     .ACC_WIDTH    (ACC_WIDTH)
                 ) ws_cell (
                     .clk(clk),
-                    .store_weight_req(store_weight_req),
+                    .store_weight_req(store_weight_req_col[col]),
                     .weight_in(weight_pipe[row-1][col]),
                     .data_in(data_in[row]),
                     .sum_in(sum_pipe[row-1][col]),
@@ -101,7 +116,7 @@ generate
                     .ACC_WIDTH    (ACC_WIDTH)
                 ) ws_cell (
                     .clk(clk),
-                    .store_weight_req(store_weight_req),
+                    .store_weight_req(store_weight_req_col[col]),
                     .weight_in(weight_pipe[row-1][col]),
                     .data_in(data_pipe[row][col-1]),
                     .sum_in(sum_pipe[row-1][col]),

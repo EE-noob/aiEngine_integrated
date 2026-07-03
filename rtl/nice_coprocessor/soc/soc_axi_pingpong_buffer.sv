@@ -26,7 +26,7 @@ module soc_axi_pingpong_chan #(
     assign m_valid = (count_q != 2'd0);
     assign m_data  = rd_sel_q ? data1_q : data0_q;
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
             data0_q  <= '0;
             data1_q  <= '0;

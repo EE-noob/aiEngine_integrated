@@ -199,7 +199,7 @@ module axi_dual_block_dma #(
 
     wire last_rd_rsp = rd_rsp_done && (rd_rsp_row_cnt == rd_cfg_rows - 1);
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
             rd_done_r <= 1'b0;
         end else begin
@@ -207,7 +207,7 @@ module axi_dual_block_dma #(
         end
     end
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
             rd_active           <= 1'b0;
             rd_cfg_base_addr    <= '0;
@@ -238,7 +238,7 @@ module axi_dual_block_dma #(
         end
     end
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
             m_axi_arvalid   <= 1'b0;
             m_axi_araddr    <= '0;
@@ -300,7 +300,7 @@ module axi_dual_block_dma #(
     end
 
 `ifndef SYNTHESIS
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
             rd_trace_ar_count          <= '0;
             rd_trace_unaligned_ar_count <= '0;
@@ -365,7 +365,7 @@ module axi_dual_block_dma #(
                                 ? rd_rsp_logical_beat_comb[$clog2(SIZE)-1:0] << $clog2(ELEM_PER_BEAT_S16)
                                 : rd_rsp_logical_beat_comb[$clog2(SIZE)-1:0] << $clog2(ELEM_PER_BEAT_S8);
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
             rd_rsp_row_cnt    <= '0;
             rd_rsp_row_addr_cur <= '0;
@@ -527,7 +527,7 @@ module axi_dual_block_dma #(
 
     wire last_wr_b = wr_b_hs && (wr_resp_row_cnt == wr_cfg_rows - 1);
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
             wr_done_r <= 1'b0;
         end else begin
@@ -535,7 +535,7 @@ module axi_dual_block_dma #(
         end
     end
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
             wr_active           <= 1'b0;
             wr_cfg_base_addr    <= '0;
@@ -556,7 +556,7 @@ module axi_dual_block_dma #(
         end
     end
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
             m_axi_awvalid <= 1'b0;
             m_axi_awaddr  <= '0;
@@ -659,7 +659,7 @@ module axi_dual_block_dma #(
     end
 
 `ifndef SYNTHESIS
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
             wr_trace_aw_count       <= '0;
             wr_trace_cross_aw_count <= '0;

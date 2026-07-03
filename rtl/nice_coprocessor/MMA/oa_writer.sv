@@ -272,7 +272,7 @@ module oa_writer #(
     assign tile_done_pending = write_done;
     assign beats_per_row = beats_per_row_cur_tile;
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
             cfg_dst_base <= '0;
             cfg_dst_row_stride_b <= '0;
@@ -299,16 +299,20 @@ module oa_writer #(
             cfg_lat_tick <= 1'b1;
             row_tiles_total <= row_tiles_total_pre;
             col_tiles_total <= col_tiles_total_pre;
-            row_tiles_last_idx <= (row_tiles_total_pre == '0) ? '0 : (row_tiles_total_pre - REG_WIDTH'(1));
-            col_tiles_last_idx <= (col_tiles_total_pre == '0) ? '0 : (col_tiles_total_pre - REG_WIDTH'(1));
+            row_tiles_last_idx <= '0;
+            col_tiles_last_idx <= '0;
             k_last_valid <= k_last_valid_pre;
             m_last_valid <= m_last_valid_pre;
+        end else if (cfg_lat_tick) begin
+            cfg_lat_tick <= 1'b0;
+            row_tiles_last_idx <= (row_tiles_total == '0) ? '0 : (row_tiles_total - REG_WIDTH'(1));
+            col_tiles_last_idx <= (col_tiles_total == '0) ? '0 : (col_tiles_total - REG_WIDTH'(1));
         end else begin
             cfg_lat_tick <= 1'b0;
         end
     end
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
             state <= S_IDLE;
             tiles_done <= '0;
