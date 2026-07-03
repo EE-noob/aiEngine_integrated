@@ -332,3 +332,44 @@ RAM 延迟必须真实，不能为了性能伪造组合返回；
 - `soc_top.BYPASS_RAM_PINGPONG=1` 作为默认性能路径，`SOC_BYPASS_RAM_PINGPONG=0` 可复现 RAM FIFO 分支。
 - `pico_native_to_axi` 增加小型指令行缓存和 `+SOC_CPU_AXI_STATS`，用于保护 Pico 单请求路径。
 - 对齐/非对齐小矩阵边界回归均 PASS 32/32；RAM pingpong 分支单独烟测 PASS。
+
+---
+
+## 9. 2026-07-02 复盘：MMA 面积压缩到 40000 LUT 内
+
+本轮目标是将 `SIZE=16, IA_CACHE_BLOCKS=4` 的 MMA 综合面积压到 40000 LUT 内，同时保持 150MHz 综合时序为正。优化不能只依赖综合器自动推断，而要让 RTL 明确表达硬件结构。
+
+关键经验：
+
+1. 大块数据缓存优先写成同步 RAM。`kernel_loader_buffer`、`vec_s8_to_fifo`、`ps_buffer` 的大 payload 存储改成同步 RAM/BRAM 结构后，能显著降低 LUT/FF 面积。
+2. 无效 payload 不 reset。`de_diagonalizer` 的三角延迟线删除 payload reset/clear 后，Vivado 能推断 SRL；控制状态仍保留 reset，功能由 valid 语义保护。
+3. 小容量但多路组合读的 buffer 不要硬改同步 BRAM。`bias_loader_buffer` 需要同拍输出整组 bias，直接改同步读 RAM 会改变控制语义；本轮改为 32-bit word 存储并删除整 bank payload 清零，先降低 byte 拼接、reset mux 和清零 fanout。
+4. 初始化长路径用预装载拍切断。`kernel_loader_ctrl` 增加 `S_INIT`，把 `cfg_*` 派生参数先寄存，再从寄存后的 tile/reuse 参数生成首个 group width。该改动只增加配置启动一拍，不影响 RUN 态 DMA/计算吞吐。
+5. 面积优化后必须重新看 timing。删除 reset、推断 SRL 和 RAM 后可能改变布局及 worst path；本轮 `cfg_m -> current_group_width` 的 -0.081ns 路径被切开，最终 worst setup slack 为 +0.169ns。
+
+本轮综合口径：
+
+| 项目 | 优化前 | 优化后 |
+|---|---:|---:|
+| `u_mma_top` total LUT | 49262 | 39204 |
+| `u_mma_top` logic LUT | 49262 附近 | 38561 |
+| `u_de_diagonalizer` total LUT | 4383 | 985 |
+| `u_ps_buffer` total LUT | 5258 | 1860 |
+| `u_bias_loader/u_buffer` total LUT | 1536 | 480 |
+| `u_block_dma_arbiter` total LUT | 8211 | 7088 |
+| `u_mma_top` FF | 36731 | 26932 |
+| BRAM | 104 RAMB36 + 16 RAMB18 | 100 RAMB36 + 17 RAMB18 |
+| DSP | 320 | 320 |
+| 150MHz WNS | -0.081ns | +0.169ns |
+
+本轮功能验收：
+
+| 类别 | 配置 | 结果 |
+|---|---|---|
+| 随机回归 | `SIZE=16/8/4`，WS/IS，s8/s16，per-channel/per-tensor，尾块 | PASS 8/8 |
+| 固定边界 | `K=N=M=1`，WS，s8 | PASS |
+| 固定尾块 | `K=17,N=19,M=31`，IS，s8，`R=2,W=2` | PASS |
+| 较大矩阵 | `K=64,N=65,M=79`，WS，s16，随机 DDR 延迟 | PASS |
+| 大随机 | `SIZE=16,max_dim=128`，随机 DDR 延迟 | PASS 8/8 |
+
+后续如果继续压面积，应优先处理仍然较大的 `vec_requant`、`axi_dual_block_dma` 和 `bias_loader_ctrl`。其中 `bias_loader_ctrl` 当前有较多预计算/缓存元数据寄存器，适合进一步拆分初始化计算和运行态控制；`axi_dual_block_dma` 应重点检查未对齐写入、bank byte/word 选择和 outstanding 元数据是否存在宽 mux 或重复寄存。

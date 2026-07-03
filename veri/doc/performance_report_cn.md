@@ -41,9 +41,9 @@
 
 ## 图 1：新版 cache 大小对周期的影响
 
-![新版 cache cycles dataflow=0](perf_plots/cache_cycles_by_dim_df0.png)
+![新版 IA cache 大小对周期的影响](perf_plots/cache_cycles_by_dim_df0.png)
 
-![新版 cache speedup dataflow=0](perf_plots/cache_speedup_vs_c2_df0.png)
+![新版 IA cache 增大后的周期加速比](perf_plots/cache_speedup_vs_c2_df0.png)
 
 ## 新版 cache sweep 详细表
 
@@ -60,9 +60,9 @@
 
 ## 图 2：旧版 MMA 与新版 cached MMA 的 WS 直接对比
 
-![旧版与新版 WS cycles](perf_plots/old_new_mma_ws_cycles.png)
+![旧版与新版 WS 周期对比](perf_plots/old_new_mma_ws_cycles.png)
 
-![旧版与新版 WS ratio](perf_plots/old_new_mma_ws_ratio.png)
+![旧版与新版 WS 周期比](perf_plots/old_new_mma_ws_ratio.png)
 
 ### 旧版 WS 与新版 WS 周期表
 
@@ -77,7 +77,7 @@
 
 ## 图 3：TFLM 端到端新旧版本对比
 
-![TFLM old new cycles](perf_plots/tflm_old_new_cycles.png)
+![TFLM 模型新旧版本周期对比](perf_plots/tflm_old_new_cycles.png)
 
 | Case | 旧版状态 | 旧版 cycles/timeout | 新版状态 | 新版 cycles | 新版优势 | 说明 |
 |---|---|---:|---|---:|---:|---|
@@ -209,7 +209,7 @@ trace 中看到 `vec_requant` 打印 `row_cnt=6/8 done=1` 并不是少算一行�
 
 DDR 随机延迟打开，`DDR_CMD_MAX_LAT=3`，`DDR_W_MAX_LAT=2`，`DDR_RSP_MAX_LAT=8`。`SIZE=8` 与 `SIZE=16` 均覆盖 `IA_CACHE_BLOCKS=2/4/8`，全部 PASS。
 
-![随机 DDR 延迟下 cache cycles](perf_plots/cache_rand_latency_cycles.png)
+![随机 DDR 延迟下 IA cache 周期对比](perf_plots/cache_rand_latency_cycles.png)
 
 `SIZE=8, PS=8`：
 
@@ -578,7 +578,7 @@ TFLM_SOC_MMA_MIN_MACS
 
 同时修复了 `run_axi_soc_perf_sweep.py` 的利用率解析：旧逻辑会把多条 `MMA_UTIL/MMA_CTRL_UTIL` 覆盖成最后一条 op 的值；新逻辑会对所有 op 聚合，并从总 `mma_active` 重新计算 `mma_ia_row_util_bp` 与 `mma_acc_util_bp`。因此下面的 active/stall 均为整次模型运行的累计值。
 
-![TFLM my_model min MACs sweep](perf_plots/tflm_min_macs_threshold_sweep.png)
+![TFLM my_model 最小 MAC 阈值扫描](perf_plots/tflm_min_macs_threshold_sweep.png)
 
 | `TFLM_SOC_MMA_MIN_MACS` | SoC cycles | 相对 0 阈值 | MMA ops | MMA active | IA stall | W stall | tail pending | 结论 |
 |---:|---:|---:|---:|---:|---:|---:|---:|---|
@@ -675,7 +675,7 @@ TFLM_SOC_MMA_MIN_MACS
 
 #### 端到端性能结果
 
-![SoC TFLM noinit + FC-MMA cycles](perf_plots/soc_tflm_fc_noinit_cycles.png)
+![SoC TFLM noinit 与 FC-MMA 周期对比](perf_plots/soc_tflm_fc_noinit_cycles.png)
 
 | Case | 修复前 cycles | 修复后 cycles | 变化 | 说明 |
 |---|---:|---:|---:|---|
@@ -743,7 +743,7 @@ TFLM_SOC_MMA_MIN_MACS
 - `bias_loader_ctrl` 利用已有双 bank，在当前 bias group 可用后后台预取下一 group；若消费端提前 `bias_switch`，则把后台加载提升为前台等待，保持原有握手语义。
 - 读仲裁优先级最终保持 `kernel > quant > IA > bias`。实验中把 bias 提到最高优先级可把 `bias_stall` 压到 239 cycles，但会把 `weight_data_stall` 推高到 140,394 cycles，净收益不如保持 kernel 优先。
 
-![SoC bias prefetch stall breakdown](perf_plots/soc_bias_prefetch_stalls.png)
+![SoC bias 预取等待分解](perf_plots/soc_bias_prefetch_stalls.png)
 
 | 配置 | SoC cycles | MMA active | weight_data_stall | ia_data_stall | bias_stall | IA 行利用率 |
 |---|---:|---:|---:|---:|---:|---:|
@@ -915,7 +915,7 @@ RTL/仿真改动：
 - 训练配置：MNIST 训练集前 30,000 张，4 epochs，float test accuracy=96.93%。
 - SoC 测试样本：3 张正确分类样本，标签序列 `7,2,1`。
 
-![MNIST MLP big model HW/SW cycles](perf_plots/mnist_mlp_big_hw_sw_cycles.png)
+![MNIST MLP 大模型硬件加速与纯软件周期对比](perf_plots/mnist_mlp_big_hw_sw_cycles.png)
 
 复现命令：
 
@@ -1009,7 +1009,7 @@ make tflm_mnist_mlp_run \
 - DepthwiseConv：`riscv_depthwise_conv_s8_acc()` 同步使用同一宏，避免卷积加速路径提交节奏不一致。
 - buffer size 计算同步改为 `DSA_CONV_IM2COL_BATCH_ROWS * aligned_rhs_cols`，保证 tensor arena 申请大小和实际 im2col 写入行数一致。
 
-![MNIST CNN im2col batch32 cycles](perf_plots/mnist_cnn_im2col_batch32_cycles.png)
+![MNIST CNN im2col batch32 周期对比](perf_plots/mnist_cnn_im2col_batch32_cycles.png)
 
 复现命令：
 
@@ -1046,7 +1046,7 @@ make tflm_mnist_cnn_run \
 
 上节只给出了 CNN 硬件路径和 im2col batch 调整效果。本节补充同一个 MNIST CNN 模型在 SoC 上的纯软件 baseline。为避免 pure-reference CNN 在 3 张样本下占用过长仿真时间，本轮硬件和软件都编译 `-DTFLM_MNIST_CNN_SAMPLE_LIMIT=1`，只跑第 0 张 MNIST 样本，统计口径仍然只包 `interpreter.Invoke()`。
 
-![MNIST CNN HW/SW sample1 cycles](perf_plots/mnist_cnn_hw_sw_sample1_cycles.png)
+![MNIST CNN 单样本硬件加速与纯软件周期对比](perf_plots/mnist_cnn_hw_sw_sample1_cycles.png)
 
 复现命令：
 

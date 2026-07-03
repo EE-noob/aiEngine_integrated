@@ -1,0 +1,238 @@
+{
+  "source_docx": "a87efbe1-4635-47c7-9b6e-e2b3eb1420c1.docx",
+  "extracted_from": "原版 Word 技术报告",
+  "document_statistics": {
+    "sections": 2,
+    "paragraphs_visible_to_python_docx": 767,
+    "tables": 28,
+    "toc_sdt": {
+      "exists": true,
+      "paragraph_count": 72,
+      "field": "TOC \\o \"1-3\" \\h \\z \\u"
+    },
+    "styles_counts": {
+      "Normal": 482,
+      "图标题": 104,
+      "Heading 3": 33,
+      "Heading 2": 28,
+      "表标题": 27,
+      "Heading 4": 25,
+      "9-图": 24,
+      "Heading 1": 11,
+      "Heading 5": 9,
+      "List Paragraph": 7,
+      "Normal (Web)": 5,
+      "无间隔1": 4,
+      "whitespace-normal": 2,
+      "图注": 2,
+      "8-表": 2,
+      "555-正文": 2
+    },
+    "images": {
+      "inline": 105,
+      "anchor": 1,
+      "media_files": 117,
+      "png": 106,
+      "svg": 6,
+      "emf": 5
+    }
+  },
+  "page_setup": {
+    "paper": "A4, portrait",
+    "pgSz_twips": {
+      "w": 11900,
+      "h": 16840
+    },
+    "approx_size_cm": {
+      "w": 21.0,
+      "h": 29.7
+    },
+    "margins_cm": {
+      "top": 2.54,
+      "bottom": 2.54,
+      "left": 1.9,
+      "right": 1.9,
+      "header": 1.5,
+      "footer": 1.75
+    },
+    "doc_grid": {
+      "type": "lines",
+      "linePitch_twips": 312
+    },
+    "default_tab_stop_twips": 420,
+    "character_spacing_control": "compressPunctuation"
+  },
+  "header_footer": {
+    "header_text": "2025年全国大学生嵌入式芯片与系统设计竞赛芯片设计赛道",
+    "header_style": "Header / 页眉: 9 pt, centered; actual body header has bottom single line on default header",
+    "footer": "centered PAGE field, footer style 9 pt; first/even/default footer exist"
+  },
+  "styles": {
+    "Normal": {
+      "style_id": "a1",
+      "fonts": {
+        "eastAsia": "仿宋",
+        "ascii": "Times New Roman",
+        "hAnsi": "Times New Roman",
+        "cs": "Times New Roman"
+      },
+      "size_pt": 12,
+      "line_spacing": "1.5 lines (w:line=360, auto)",
+      "alignment": "justify/both",
+      "first_line_indent": "200 twips ≈ 0.35 cm; effectively two Chinese characters in original grid",
+      "widow_control": false
+    },
+    "Normal Web": {
+      "style_id": "ac",
+      "fonts": {
+        "ascii": "宋体",
+        "hAnsi": "宋体",
+        "cs": "宋体"
+      },
+      "alignment": "left",
+      "space_before_after": "5 pt / 5 pt"
+    },
+    "Heading 1": {
+      "style_id": "1",
+      "font_size_pt": 16,
+      "bold": true,
+      "outline_level": 0,
+      "numbering": "numId 16 level 0: chineseCountingThousand, '%1、'",
+      "keep_with_next": true,
+      "keep_lines": true,
+      "indent": "left 0; first line 0"
+    },
+    "Heading 2": {
+      "style_id": "2",
+      "font_size_pt": 15,
+      "bold": true,
+      "outline_level": 1,
+      "line_spacing": "double (w:line=480)",
+      "numbering": "numId 16 level 1: decimal, '%1.%2'",
+      "keep_with_next": true,
+      "keep_lines": true,
+      "indent": "left 0; first line 0"
+    },
+    "Heading 3": {
+      "style_id": "3",
+      "font_size_pt": 12,
+      "bold": true,
+      "outline_level": 2,
+      "numbering": "numId 16 level 2: decimal, '%1.%2.%3'",
+      "indent": "left 680 twips ≈ 1.20 cm; hanging 113 twips ≈ 0.20 cm"
+    },
+    "Heading 4": {
+      "style_id": "4",
+      "font_size_pt": 12,
+      "bold": true,
+      "outline_level": 3,
+      "numbering": "numId 16 level 3: decimal, '%1.%2.%3.%4'",
+      "spacing": "before 5 pt; after 5 pt",
+      "indent": "left 857 twips ≈ 1.51 cm; hanging 737 twips ≈ 1.30 cm"
+    },
+    "Heading 5": {
+      "style_id": "5",
+      "font_size_pt": 12,
+      "bold": true,
+      "outline_level": 4,
+      "numbering": "numId 16 level 4: decimal, '%1.%2.%3.%4.%5'",
+      "spacing": "before 6 pt; after 6 pt; line 1.57x",
+      "indent": "style left 100 twips; numbering level left 2100 twips/hanging 2100 twips"
+    },
+    "Table Caption": {
+      "style_name": "表标题",
+      "style_id": "a0",
+      "alignment": "center",
+      "spacing": "before 12 pt; after 6 pt; exact line 20 pt",
+      "first_line_indent": "0"
+    },
+    "Figure Caption": {
+      "style_name": "图标题",
+      "style_id": "a",
+      "spacing": "before 0; after 12 pt",
+      "note": "部分图题使用 9-图/图注 样式；转换时建议统一居中并使用图标题/9-图的间距逻辑。"
+    },
+    "Figure Center Paragraph": {
+      "style_name": "9-图",
+      "alignment": "center",
+      "font_size_pt": 10.5,
+      "spacing": "before 6 pt; after 12 pt; at-least line 20 pt"
+    },
+    "Table Center Paragraph": {
+      "style_name": "8-表",
+      "alignment": "center",
+      "font_size_pt": 10.5,
+      "spacing": "before 12 pt; after 6 pt; at-least line 20 pt"
+    },
+    "Table Text": {
+      "style_name": "表格",
+      "alignment": "center",
+      "first_line_indent": "0"
+    },
+    "Header": {
+      "style_id": "aa",
+      "font_size_pt": 9,
+      "alignment": "center"
+    },
+    "Footer": {
+      "style_id": "a8",
+      "font_size_pt": 9,
+      "alignment": "left by style, page number centered by direct paragraph formatting"
+    }
+  },
+  "numbering": {
+    "numId": 16,
+    "abstractNumId": 14,
+    "levels": [
+      {
+        "level": 0,
+        "format": "chineseCountingThousand",
+        "text": "%1、",
+        "pStyle": "Heading 1"
+      },
+      {
+        "level": 1,
+        "format": "decimal",
+        "text": "%1.%2",
+        "pStyle": "Heading 2"
+      },
+      {
+        "level": 2,
+        "format": "decimal",
+        "text": "%1.%2.%3",
+        "pStyle": "Heading 3"
+      },
+      {
+        "level": 3,
+        "format": "decimal",
+        "text": "%1.%2.%3.%4",
+        "pStyle": "Heading 4"
+      },
+      {
+        "level": 4,
+        "format": "decimal",
+        "text": "%1.%2.%3.%4.%5",
+        "pStyle": "Heading 5"
+      }
+    ]
+  },
+  "tables": {
+    "count": 28,
+    "styles": [
+      "Normal Table",
+      "Table Grid",
+      "表格111"
+    ],
+    "borders": "single line, size 4 eighths of a point ≈ 0.5 pt, color auto/black",
+    "cell_margins": "Normal Table left/right 108 twips ≈ 0.19 cm; top/bottom 0",
+    "preferred_alignment": "centered table; cells vertically centered; header row bold and center aligned"
+  },
+  "markdown_conversion": {
+    "inline_code_font": "Consolas",
+    "code_block_font": "Consolas",
+    "code_block_size_pt": 9.5,
+    "single_quote_identifier_rule": "If a token like 'A', 'AXI_AWVALID', 'IDLE', '0x7C3' is wrapped in single quotes and contains only ASCII identifier/symbol characters, keep the quotes and render the whole quoted token in Consolas as inline code.",
+    "blockquote_style": "Indented explanatory paragraph; do not confuse with code block.",
+    "caption_detection": "A standalone line such as '8. ASL Alphabet数据集手势图' after an image or '2. e203_subsys_nice_core 模块接口定义表' before a table is a caption, not an ordered list."
+  }
+}

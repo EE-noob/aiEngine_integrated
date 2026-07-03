@@ -1,0 +1,29 @@
+{
+  "title": "NPU 空闲控制与低功耗待补时序",
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "p........"
+    },
+    {
+      "name": "sa_ready",
+      "wave": "1.0...1.."
+    },
+    {
+      "name": "calc_start",
+      "wave": "010......"
+    },
+    {
+      "name": "mma_busy",
+      "wave": "0.111.0.."
+    },
+    {
+      "name": "array_clk_en_待补",
+      "wave": "x........"
+    },
+    {
+      "name": "dfs_req_待补",
+      "wave": "0........"
+    }
+  ]
+}

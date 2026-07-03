@@ -1,0 +1,45 @@
+{
+  "title": "AXI-Lite 配置、启动与完成时序",
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "p........."
+    },
+    {
+      "name": "rst_n",
+      "wave": "01........"
+    },
+    {
+      "name": "s_axil_awvalid",
+      "wave": "010......."
+    },
+    {
+      "name": "s_axil_awready",
+      "wave": "010......."
+    },
+    {
+      "name": "s_axil_wvalid",
+      "wave": "010......."
+    },
+    {
+      "name": "s_axil_wready",
+      "wave": "010......."
+    },
+    {
+      "name": "s_axil_bvalid",
+      "wave": "0.10......"
+    },
+    {
+      "name": "calc_start",
+      "wave": "0.10......"
+    },
+    {
+      "name": "mma_busy",
+      "wave": "0.1....0.."
+    },
+    {
+      "name": "done_sticky",
+      "wave": "0......1.."
+    }
+  ]
+}

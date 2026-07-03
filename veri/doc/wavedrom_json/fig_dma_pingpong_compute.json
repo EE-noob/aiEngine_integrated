@@ -1,0 +1,41 @@
+{
+  "title": "DMA 预取、计算与写回重叠时序",
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "p.........."
+    },
+    {
+      "name": "rd_start",
+      "wave": "010...10..."
+    },
+    {
+      "name": "buf0_load",
+      "wave": "0110......."
+    },
+    {
+      "name": "buf0_compute",
+      "wave": "0..1110...."
+    },
+    {
+      "name": "buf1_load",
+      "wave": "0....1110.."
+    },
+    {
+      "name": "buf1_compute",
+      "wave": "0.......111"
+    },
+    {
+      "name": "oa_dma_start",
+      "wave": "0....10..10"
+    },
+    {
+      "name": "m_axi_wvalid",
+      "wave": "0.....111.1"
+    },
+    {
+      "name": "m_axi_bvalid",
+      "wave": "0.......1.1"
+    }
+  ]
+}
