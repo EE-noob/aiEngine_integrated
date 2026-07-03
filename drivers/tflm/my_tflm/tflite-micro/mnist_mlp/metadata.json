@@ -1,20 +1,16 @@
 {
   "batch_size": 128,
   "epochs": 4,
-  "float_test_accuracy": 0.9692999720573425,
-  "float_test_loss": 0.10104195028543472,
+  "float_test_accuracy": 0.9319000244140625,
+  "float_test_loss": 0.2338784635066986,
   "hidden_units": [
-    512,
-    256,
-    128
+    64
   ],
   "input_scale": 0.003921568859368563,
   "input_zero_point": -128,
-  "int8_ops_per_sample": 1133056,
-  "macs_per_sample": 566528,
+  "int8_ops_per_sample": 101632,
+  "macs_per_sample": 50816,
   "ops": [
-    "FULLY_CONNECTED",
-    "FULLY_CONNECTED",
     "FULLY_CONNECTED",
     "FULLY_CONNECTED",
     "SOFTMAX"
@@ -44,6 +40,6 @@
     1,
     2
   ],
-  "tflite_bytes": 594768,
-  "train_samples": 30000
+  "tflite_bytes": 53112,
+  "train_samples": 20000
 }

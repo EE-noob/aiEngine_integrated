@@ -225,14 +225,14 @@ def main() -> None:
     parser.add_argument(
         "--hidden_units",
         type=parse_hidden_units,
-        default=parse_hidden_units("512,256,128"),
+        default=parse_hidden_units("64"),
     )
     parser.add_argument("--representative_samples", type=int, default=512)
     parser.add_argument("--samples_per_digit", type=int, default=1)
     parser.add_argument(
         "--sample_count",
         type=int,
-        default=0,
+        default=3,
         help="select this many correctly classified samples instead of per-digit samples",
     )
     args = parser.parse_args()

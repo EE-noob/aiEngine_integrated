@@ -40,6 +40,36 @@ static void PicosocUartPutChar(char ch) {
 
 void picosoc_uart_init(void) { PicosocUartInit(); }
 
+void picosoc_uart_puts(const char* s) {
+  if (s == nullptr) {
+    return;
+  }
+  while (*s != '\0') {
+    PicosocUartPutChar(*s++);
+  }
+}
+
+void picosoc_uart_put_u32(uint32_t value) {
+  char buf[10];
+  int pos = 0;
+  do {
+    buf[pos++] = static_cast<char>('0' + (value % 10u));
+    value /= 10u;
+  } while (value != 0u);
+  while (pos > 0) {
+    PicosocUartPutChar(buf[--pos]);
+  }
+}
+
+void picosoc_uart_put_i32(int32_t value) {
+  if (value < 0) {
+    PicosocUartPutChar('-');
+    picosoc_uart_put_u32(static_cast<uint32_t>(-(value + 1)) + 1u);
+  } else {
+    picosoc_uart_put_u32(static_cast<uint32_t>(value));
+  }
+}
+
 void _init(void) {}
 void _fini(void) {}
 

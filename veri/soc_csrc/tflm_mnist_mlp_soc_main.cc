@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "mnist_mlp/mnist_mlp_model_data.h"
@@ -12,6 +11,9 @@
 #include "tensorflow/lite/schema/schema_generated.h"
 
 extern "C" void picosoc_uart_init(void);
+extern "C" void picosoc_uart_put_i32(int32_t value);
+extern "C" void picosoc_uart_put_u32(uint32_t value);
+extern "C" void picosoc_uart_puts(const char* s);
 extern "C" uint32_t soc_get_cycle(void);
 
 namespace {
@@ -19,7 +21,7 @@ namespace {
 constexpr uintptr_t kSocProgressAddr = 0x2000000cu;
 
 #ifndef TFLM_MNIST_MLP_ARENA_SIZE
-#define TFLM_MNIST_MLP_ARENA_SIZE (128 * 1024)
+#define TFLM_MNIST_MLP_ARENA_SIZE (16 * 1024)
 #endif
 
 #ifndef TFLM_MNIST_MLP_SAMPLE_LIMIT
@@ -34,6 +36,16 @@ void WriteProgress(uint32_t value) {
 
 uint32_t EncodeError(uint32_t major, uint32_t detail) {
   return 0x98000000u | ((major & 0xffu) << 8) | (detail & 0xffu);
+}
+
+void LogU32(const char* key, uint32_t value) {
+  picosoc_uart_puts(key);
+  picosoc_uart_put_u32(value);
+}
+
+void LogI32(const char* key, int32_t value) {
+  picosoc_uart_puts(key);
+  picosoc_uart_put_i32(value);
 }
 
 TfLiteStatus RegisterMnistMlpOps(tflite::MicroMutableOpResolver<2>& resolver) {
@@ -55,21 +67,23 @@ int ArgMax(const int8_t* data, int size) {
 }
 
 uint32_t RunMnistMlpTest() {
-  printf("[tflm] mnist_mlp start\n");
+  picosoc_uart_puts("[tflm] mnist_mlp start\n");
   WriteProgress(0x5e100001u);
   tflite::InitializeTarget();
 
   const tflite::Model* model = tflite::GetModel(g_mnist_mlp_model_data);
   if (model->version() != TFLITE_SCHEMA_VERSION) {
-    printf("[tflm] schema mismatch model=%d expected=%d\n", model->version(),
-           TFLITE_SCHEMA_VERSION);
+    picosoc_uart_puts("[tflm] schema mismatch");
+    LogI32(" model=", model->version());
+    LogI32(" expected=", TFLITE_SCHEMA_VERSION);
+    picosoc_uart_puts("\n");
     return EncodeError(1, static_cast<uint32_t>(model->version()));
   }
   WriteProgress(0x5e100002u);
 
   static tflite::MicroMutableOpResolver<2> resolver;
   if (RegisterMnistMlpOps(resolver) != kTfLiteOk) {
-    printf("[tflm] mnist_mlp op registration failed\n");
+    picosoc_uart_puts("[tflm] mnist_mlp op registration failed\n");
     return EncodeError(2, 0);
   }
   WriteProgress(0x5e100003u);
@@ -77,13 +91,14 @@ uint32_t RunMnistMlpTest() {
   static tflite::MicroInterpreter interpreter(
       model, resolver, g_tensor_arena, TFLM_MNIST_MLP_ARENA_SIZE);
   if (interpreter.AllocateTensors() != kTfLiteOk) {
-    printf("[tflm] mnist_mlp AllocateTensors failed\n");
+    picosoc_uart_puts("[tflm] mnist_mlp AllocateTensors failed\n");
     return EncodeError(3, 0);
   }
   WriteProgress(0x5e100004u);
-  printf("[tflm] mnist_mlp tensors allocated arena=%d used=%u\n",
-         TFLM_MNIST_MLP_ARENA_SIZE,
-         static_cast<unsigned>(interpreter.arena_used_bytes()));
+  picosoc_uart_puts("[tflm] mnist_mlp tensors allocated");
+  LogU32(" arena=", TFLM_MNIST_MLP_ARENA_SIZE);
+  LogU32(" used=", static_cast<uint32_t>(interpreter.arena_used_bytes()));
+  picosoc_uart_puts("\n");
 
   TfLiteTensor* input = interpreter.input(0);
   TfLiteTensor* output = interpreter.output(0);
@@ -91,16 +106,19 @@ uint32_t RunMnistMlpTest() {
     return EncodeError(4, 0);
   }
   if (input->type != kTfLiteInt8 || output->type != kTfLiteInt8) {
-    printf("[tflm] mnist_mlp tensor type mismatch input=%d output=%d\n",
-           input->type, output->type);
+    picosoc_uart_puts("[tflm] mnist_mlp tensor type mismatch");
+    LogI32(" input=", input->type);
+    LogI32(" output=", output->type);
+    picosoc_uart_puts("\n");
     return EncodeError(5, (static_cast<uint32_t>(input->type) << 4) |
                               static_cast<uint32_t>(output->type));
   }
   if (input->bytes != kMnistMlpInputSize ||
       output->bytes != kMnistMlpClassCount) {
-    printf("[tflm] mnist_mlp tensor size mismatch input=%u output=%u\n",
-           static_cast<unsigned>(input->bytes),
-           static_cast<unsigned>(output->bytes));
+    picosoc_uart_puts("[tflm] mnist_mlp tensor size mismatch");
+    LogU32(" input=", static_cast<uint32_t>(input->bytes));
+    LogU32(" output=", static_cast<uint32_t>(output->bytes));
+    picosoc_uart_puts("\n");
     return EncodeError(6, 0);
   }
 
@@ -122,7 +140,9 @@ uint32_t RunMnistMlpTest() {
     WriteProgress(0x5e200000u | static_cast<uint32_t>(sample));
     const uint32_t invoke_start = soc_get_cycle();
     if (interpreter.Invoke() != kTfLiteOk) {
-      printf("[tflm] mnist_mlp Invoke failed sample=%d\n", sample);
+      picosoc_uart_puts("[tflm] mnist_mlp Invoke failed");
+      LogI32(" sample=", sample);
+      picosoc_uart_puts("\n");
       return EncodeError(7, static_cast<uint32_t>(sample));
     }
     const uint32_t cycles = soc_get_cycle() - invoke_start;
@@ -133,22 +153,33 @@ uint32_t RunMnistMlpTest() {
     const int pred =
         ArgMax(tflite::GetTensorData<int8_t>(output), kMnistMlpClassCount);
     const int label = static_cast<int>(g_mnist_mlp_test_labels[sample]);
-    printf("[tflm_perf] mnist_mlp sample=%d index=%d label=%d pred=%d invoke_cycles=%u\n",
-           sample, static_cast<int>(g_mnist_mlp_test_indices[sample]), label,
-           pred, cycles);
+    picosoc_uart_puts("[tflm_perf] mnist_mlp");
+    LogI32(" sample=", sample);
+    LogI32(" index=", static_cast<int>(g_mnist_mlp_test_indices[sample]));
+    LogI32(" label=", label);
+    LogI32(" pred=", pred);
+    LogU32(" invoke_cycles=", cycles);
+    picosoc_uart_puts("\n");
     if (pred != label) {
-      printf("[tflm] mnist_mlp mismatch sample=%d label=%d pred=%d\n", sample,
-             label, pred);
+      picosoc_uart_puts("[tflm] mnist_mlp mismatch");
+      LogI32(" sample=", sample);
+      LogI32(" label=", label);
+      LogI32(" pred=", pred);
+      picosoc_uart_puts("\n");
       return 0x98100000u | ((sample & 0xffu) << 8) |
              static_cast<uint32_t>(pred & 0xff);
     }
   }
 
   const uint32_t avg_cycles = total_cycles / kRunSampleCount;
-  printf("[tflm_perf] mnist_mlp total_invoke_cycles=%u avg=%u min=%u max=%u samples=%d\n",
-         total_cycles, avg_cycles, min_cycles, max_cycles,
-         kRunSampleCount);
-  printf("[tflm] mnist_mlp PASS\n");
+  picosoc_uart_puts("[tflm_perf] mnist_mlp");
+  LogU32(" total_invoke_cycles=", total_cycles);
+  LogU32(" avg=", avg_cycles);
+  LogU32(" min=", min_cycles);
+  LogU32(" max=", max_cycles);
+  LogI32(" samples=", kRunSampleCount);
+  picosoc_uart_puts("\n");
+  picosoc_uart_puts("[tflm] mnist_mlp PASS\n");
   WriteProgress(0x5e100005u);
   return 1;
 }
