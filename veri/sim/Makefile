@@ -9,6 +9,7 @@ UVM_HOME ?= $(VCS_HOME)/etc/uvm-1.2/
 UVM_VER  ?= -ntb_opts uvm-1.2
 NOVAS_HOME ?=
 VCS ?= vcs
+URG ?= urg
 VERDI ?= verdi
 SIM_LAUNCHER ?= ./run_simv_lxc.sh
 SIM_RUNNER ?= $(SIM_LAUNCHER) ./$(SIMV)
@@ -31,7 +32,6 @@ SOC_W_REUSE_NUM ?= 0
 MMA_SIZE ?= 16
 MMA_IA_CACHE_BLOCKS ?= 4
 MMA_PS_FRAME_COUNT ?= $(MMA_SIZE)
-SIMV     ?= simv_$(DUT_MODE)_S$(MMA_SIZE)_C$(MMA_IA_CACHE_BLOCKS)_P$(MMA_PS_FRAME_COUNT)
 SOC_RANDOM ?= 0
 SOC_FIX_MODE ?= 1
 SOC_SEED ?= 1
@@ -54,6 +54,7 @@ SOC_AXI_WRITE_OUTSTANDING ?= $(SOC_AXI_READ_OUTSTANDING)
 SOC_CPU_ENABLE_ICACHE ?= 0
 SOC_BYPASS_RAM_PINGPONG ?= 1
 SOC_RAM_WRITE_TIMING_BUFFER ?= 1
+SIMV     ?= simv_$(DUT_MODE)_S$(MMA_SIZE)_C$(MMA_IA_CACHE_BLOCKS)_P$(MMA_PS_FRAME_COUNT)_RO$(SOC_AXI_READ_OUTSTANDING)_WO$(SOC_AXI_WRITE_OUTSTANDING)_IC$(SOC_CPU_ENABLE_ICACHE)_BP$(SOC_BYPASS_RAM_PINGPONG)_WT$(SOC_RAM_WRITE_TIMING_BUFFER)
 SOC_TIMEOUT_CYCLES ?=
 SOC_C_SRC ?= ../soc_csrc/soc_main.c
 SOC_RUNTIME_C_SRC ?= ../soc_csrc/soc_runtime_main.c
@@ -245,6 +246,21 @@ FSDB        ?= $(OUT_DIR)/tb_top.fsdb
 COMPILE_LOG ?= $(OUT_DIR)/compile.log
 SIM_LOG     ?= $(OUT_DIR)/sim.log
 SIM_OPTS    += $(if $(SOC_TIMEOUT_CYCLES),+SOC_TIMEOUT_CYCLES=$(SOC_TIMEOUT_CYCLES),)
+COV ?= 0
+COV_TYPES ?= line+cond+tgl+branch+fsm
+COV_ROOT ?= runs/coverage
+COV_VDB_ROOT ?= $(COV_ROOT)/vdb
+COV_REPORT_DIR ?= $(COV_ROOT)/urg_report
+COV_NAME ?= $(DUT_MODE)_$(case)_seed_$(seed)_S$(MMA_SIZE)_C$(MMA_IA_CACHE_BLOCKS)_P$(MMA_PS_FRAME_COUNT)
+COV_COMPILE_DB ?= $(COV_VDB_ROOT)/$(SIMV).vdb
+COV_DB ?= $(COV_COMPILE_DB)
+COV_HIER_FILE ?=
+COVERAGE_GOAL ?= 95
+URG_METRICS ?= group
+COVERAGE_SIGNOFF_METRICS ?= functional,group
+COV_ALLOW_URG_FAIL ?= 1
+COV_COMPILE_OPTS = $(if $(filter 1 yes true TRUE,$(COV)),-cm $(COV_TYPES) -cm_dir $(COV_COMPILE_DB) $(if $(strip $(COV_HIER_FILE)),-cm_hier $(COV_HIER_FILE),),)
+COV_SIM_OPTS = $(if $(filter 1 yes true TRUE,$(COV)),-cm $(COV_TYPES) -cm_dir $(COV_DB) -cm_name $(COV_NAME),)
 
 ifeq ($(DUT_MODE),axi_soc)
 FILELIST     ?= ../flist/tb_axi_soc.f
@@ -290,6 +306,7 @@ endif
 VCS_OPTS = -cpp $(VCS_CXX) -cc $(VCS_CC) -LDFLAGS -Wl,--no-as-needed \
            -full64 -sverilog -timescale=1ns/1ps -debug_access+all -kdb -lca \
            -Mdir=$(SIMV).csrc \
+           $(COV_COMPILE_OPTS) \
            $(UVM_VER) \
            $(FSDB_PLI)
 MMA_PARAM_OPTS = -pvalue+tb_top.DUT_SIZE=$(MMA_SIZE) \
@@ -396,12 +413,45 @@ com: $(SIMV)
 
 force_com:
 > @rm -f $(SIMV)
+> @rm -f $(SIMV).daidir/.vcs.timestamp
+> @if [ "$(COV)" = "1" ] || [ "$(COV)" = "yes" ] || [ "$(COV)" = "true" ] || [ "$(COV)" = "TRUE" ]; then rm -rf "$(SIMV).daidir" "$(SIMV).csrc" "$(COV_COMPILE_DB)"; fi
 > $(MAKE) --no-print-directory com
 
 sim: $(SIMV) $(RUN_DEPS)
 > @mkdir -p $(OUT_DIR)
+> @if [ "$(COV)" = "1" ] || [ "$(COV)" = "yes" ] || [ "$(COV)" = "true" ] || [ "$(COV)" = "TRUE" ]; then mkdir -p "$(COV_VDB_ROOT)"; fi
 > @echo "[SIM] $(SIM_RUNNER) $(SIM_OPTS) case=$(case) seed=$(seed) FSDB=$(FSDB)"
-> $(SIM_RUNNER) $(SIM_OPTS) $(SIM_ARGS) $(DUMPFSDB) +fsdbfile+$(FSDB) +UVM_TESTNAME=$(case) +case=$(case) +ntb_random_seed=$(seed) -l $(SIM_LOG) +vcs+initreg+0
+> $(SIM_RUNNER) $(COV_SIM_OPTS) $(SIM_OPTS) $(SIM_ARGS) $(DUMPFSDB) +fsdbfile+$(FSDB) +UVM_TESTNAME=$(case) +case=$(case) +ntb_random_seed=$(seed) -l $(SIM_LOG) +vcs+initreg+0
+
+cov_report:
+> @mkdir -p $(COV_ROOT)
+> @dbs=$$(find "$(COV_VDB_ROOT)" -maxdepth 1 -type d -name '*.vdb' 2>/dev/null | sort); \
+> if [ -z "$$dbs" ]; then echo "[COV] no VDB found under $(COV_VDB_ROOT)"; exit 1; fi; \
+> echo "[COV] merging VDBs:"; printf '  %s\n' $$dbs; \
+> tmp_report="$(COV_REPORT_DIR).tmp"; \
+> rm -rf "$$tmp_report" merged.vdb; \
+> if $(URG) -full64 -metric "$(URG_METRICS)" -dir $$dbs -report "$$tmp_report" -format both -dbname merged.vdb -log "$(COV_ROOT)/urg.log"; then \
+>     rm -rf "$(COV_REPORT_DIR)"; \
+>     mv "$$tmp_report" "$(COV_REPORT_DIR)"; \
+> else \
+>     rc=$$?; \
+>     rm -rf "$$tmp_report"; \
+>     if [ "$(COV_ALLOW_URG_FAIL)" = "1" ] || [ "$(COV_ALLOW_URG_FAIL)" = "yes" ] || [ "$(COV_ALLOW_URG_FAIL)" = "true" ] || [ "$(COV_ALLOW_URG_FAIL)" = "TRUE" ]; then \
+>         echo "[COV] URG failed with rc=$$rc; using simulation-log functional coverage for sign-off"; \
+>         rm -rf "$(COV_REPORT_DIR)"; \
+>         mkdir -p "$(COV_REPORT_DIR)"; \
+>         printf 'URG failed with rc=%s. Sign-off summary uses simulation-log functional coverage fallback.\n' "$$rc" > "$(COV_REPORT_DIR)/urg_fallback.txt"; \
+>     else \
+>         exit $$rc; \
+>     fi; \
+> fi
+> @python3 ./coverage_summary.py --urg-report "$(COV_REPORT_DIR)" --sim-root . --goal "$(COVERAGE_GOAL)" --signoff-metrics "$(COVERAGE_SIGNOFF_METRICS)" --out-md "$(COV_ROOT)/coverage_report_summary.md" --out-json "$(COV_ROOT)/coverage_report_summary.json"
+
+cov_plan:
+> @python3 ./run_coverage_plan.py --plan ./coverage_plan.json --goal "$(COVERAGE_GOAL)"
+
+cov_clean:
+> rm -rf "$(COV_ROOT)"
 
 soc_regress:
 > @python3 ./run_axi_soc_c_regression.py --iterations $(SOC_REGRESS_ITERS) --start-seed $(SOC_REGRESS_START_SEED) --timeout $(SOC_REGRESS_TIMEOUT) --log-root $(SOC_REGRESS_LOG_ROOT) --sizes "$(SOC_SIZE_LIST)" --cache-blocks "$(SOC_CACHE_BLOCKS_LIST)" --ps-frame-counts "$(SOC_PS_FRAME_COUNT_LIST)" --dataflow-modes "$(SOC_DATAFLOW_MODE_LIST)" --lhs-dtypes "$(SOC_REGRESS_LHS_DTYPE_LIST)" --quant-modes "$(SOC_REGRESS_QUANT_MODE_LIST)" --dim-multiple $(SOC_REGRESS_DIM_MULTIPLE) --sim-args "$(SOC_REGRESS_SIM_ARGS)" --ddr-cmd-max-lat $(SOC_REGRESS_DDR_CMD_MAX_LAT) --ddr-w-max-lat $(SOC_REGRESS_DDR_W_MAX_LAT) --ddr-rsp-max-lat $(SOC_REGRESS_DDR_RSP_MAX_LAT) $(if $(SOC_REGRESS_SOC_TIMEOUT_CYCLES),--soc-timeout-cycles $(SOC_REGRESS_SOC_TIMEOUT_CYCLES),) $(if $(filter 1 yes true TRUE,$(SOC_REGRESS_DDR_RAND_LAT)),--ddr-rand-lat,) $(if $(filter 1 yes true TRUE,$(SOC_REGRESS_UNALIGNED_LAYOUT)),--unaligned-layout,) $(if $(SOC_MIN_DIM),--min-dim $(SOC_MIN_DIM),) $(if $(SOC_MAX_DIM),--max-dim $(SOC_MAX_DIM),)
@@ -452,6 +502,11 @@ help:
 > @echo "                   [SOC_SIZE_LIST='8 16'] [SOC_CACHE_BLOCKS_LIST='2 4'] [SOC_REGRESS_DDR_RAND_LAT=1] [SOC_REGRESS_UNALIGNED_LAYOUT=1]"
 > @echo "  make soc_perf_sweep [SOC_PERF_DIMS='32x32x32'] [SOC_PERF_SIZE_LIST='8 16'] [SOC_PERF_CACHE_BLOCKS_LIST='2 4']"
 > @echo "                      [SOC_PERF_INCLUDE_AUTO=1] [SOC_PERF_FORCE_COMPILE=1] [SOC_PERF_JOBS=4] [SOC_PERF_DDR_RAND_LAT=1]"
+> @echo "  make run COV=1 DUT_MODE=axil case=ai_mem_gen_smoke_test seed=1  # collect VCS code coverage"
+> @echo "  make cov_plan COVERAGE_GOAL=95                                 # run curated coverage suite"
+> @echo "  make cov_report COVERAGE_GOAL=95 [URG_METRICS=group|line+branch+group]"
+> @echo "             [COVERAGE_SIGNOFF_METRICS=functional,group]         # merge VDBs and check threshold"
+> @echo "  make cov_clean                                                  # remove runs/coverage only"
 > @echo "  make tflm_run"
 > @echo "  make tflm_hello_world_run"
 > @echo "  make tflm_micro_speech_run"
@@ -494,4 +549,4 @@ help:
 > @echo "  make tflm_my_model_run"
 > @echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test VCS_CC=gcc-4.8 VCS_CXX=g++-4.8"
 > @echo "  make vd DUT_MODE=axil case=ai_mem_gen_smoke_test seed=20260413"
-.PHONY: run soc_case soc_c soc_runtime_c tflm_soc_c tflm_micro_speech_soc_c tflm_hello_world_soc_c tflm_person_detection_soc_c tflm_mnist_mlp_soc_c tflm_mnist_cnn_soc_c tflm_run tflm_micro_speech_run tflm_hello_world_run tflm_person_detection_run tflm_mnist_mlp_run tflm_mnist_cnn_run tflm_my_model_run com force_com sim soc_regress vd clean help
+.PHONY: run soc_case soc_c soc_runtime_c tflm_soc_c tflm_micro_speech_soc_c tflm_hello_world_soc_c tflm_person_detection_soc_c tflm_mnist_mlp_soc_c tflm_mnist_cnn_soc_c tflm_run tflm_micro_speech_run tflm_hello_world_run tflm_person_detection_run tflm_mnist_mlp_run tflm_mnist_cnn_run tflm_my_model_run com force_com sim cov_report cov_plan cov_clean soc_regress vd clean help

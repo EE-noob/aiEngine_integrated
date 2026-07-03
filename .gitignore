@@ -143,3 +143,9 @@ veri/tb/axi_soc_reuse_*/
 veri/tb/axi_soc_util_*/
 veri/tb/axi_soc_cmp_*/
 veri/tb/axi_soc_ws_*/
+veri/tb/axi_soc_cov_*/
+
+# Large source/report artifacts kept outside git
+veri/doc/*.docx
+veri/doc/*.pdf
+veri/doc/original_docx_report_md/

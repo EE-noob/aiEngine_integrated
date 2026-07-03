@@ -1,0 +1,11 @@
+runs/
+simv*
+*.daidir/
+*.csrc/
+*.vdb/
+urgReport/
+ucli.key
+*.key
+*.log
+novas.*
+verdiLog/

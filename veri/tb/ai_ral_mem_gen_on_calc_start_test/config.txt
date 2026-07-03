@@ -1,4 +1,5 @@
 # Human-readable config file
+seed = 1
 K = 24
 N = 32
 M = 16
