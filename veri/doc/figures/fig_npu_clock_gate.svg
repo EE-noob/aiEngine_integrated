@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="620" viewBox="0 0 1180 620">
+  <defs>
+    <style>
+      .title { font: 700 26px 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif; fill: #111827; }
+      .label { font: 600 16px 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif; fill: #1f2937; }
+      .small { font: 14px 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif; fill: #374151; }
+      .note { font: 13px 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif; fill: #4b5563; }
+      .axis { stroke: #9ca3af; stroke-width: 1; }
+      .wave { fill: none; stroke: #111827; stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; }
+      .clk { fill: none; stroke: #2563eb; stroke-width: 2.2; stroke-linejoin: round; }
+      .gate { fill: none; stroke: #059669; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+      .pulse { fill: none; stroke: #dc2626; stroke-width: 2.8; stroke-linejoin: round; stroke-linecap: round; }
+      .shade-reset { fill: #eff6ff; }
+      .shade-idle { fill: #f9fafb; }
+      .shade-run { fill: #ecfdf5; }
+      .shade-done { fill: #fff7ed; }
+      .box { fill: #ffffff; stroke: #d1d5db; stroke-width: 1; rx: 8; }
+      .divider { stroke: #e5e7eb; stroke-width: 1; }
+    </style>
+  </defs>
+
+  <rect width="1180" height="620" fill="#ffffff"/>
+  <text x="590" y="44" text-anchor="middle" class="title">NPU 主动门控时钟启动与关闭时序</text>
+
+  <rect x="210" y="72" width="130" height="470" class="shade-reset"/>
+  <rect x="340" y="72" width="185" height="470" class="shade-idle"/>
+  <rect x="525" y="72" width="330" height="470" class="shade-run"/>
+  <rect x="855" y="72" width="190" height="470" class="shade-done"/>
+
+  <text x="275" y="96" text-anchor="middle" class="small">复位后预热</text>
+  <text x="432" y="96" text-anchor="middle" class="small">空闲等待启动</text>
+  <text x="690" y="96" text-anchor="middle" class="small">任务执行与 AXI 活动</text>
+  <text x="950" y="96" text-anchor="middle" class="small">完成、清除与关钟</text>
+
+  <line x1="210" y1="112" x2="1045" y2="112" class="axis"/>
+  <line x1="210" y1="542" x2="1045" y2="542" class="axis"/>
+  <line x1="340" y1="72" x2="340" y2="542" class="divider"/>
+  <line x1="525" y1="72" x2="525" y2="542" class="divider"/>
+  <line x1="855" y1="72" x2="855" y2="542" class="divider"/>
+  <line x1="1045" y1="72" x2="1045" y2="542" class="divider"/>
+
+  <g transform="translate(0,0)">
+    <text x="42" y="140" class="label">clk</text>
+    <path class="clk" d="M210 146 L230 146 L230 126 L250 126 L250 146 L270 146 L270 126 L290 126 L290 146 L310 146 L310 126 L330 126 L330 146 L350 146 L350 126 L370 126 L370 146 L390 146 L390 126 L410 126 L410 146 L430 146 L430 126 L450 126 L450 146 L470 146 L470 126 L490 126 L490 146 L510 146 L510 126 L530 126 L530 146 L550 146 L550 126 L570 126 L570 146 L590 146 L590 126 L610 126 L610 146 L630 146 L630 126 L650 126 L650 146 L670 146 L670 126 L690 126 L690 146 L710 146 L710 126 L730 126 L730 146 L750 146 L750 126 L770 126 L770 146 L790 146 L790 126 L810 126 L810 146 L830 146 L830 126 L850 126 L850 146 L870 146 L870 126 L890 126 L890 146 L910 146 L910 126 L930 126 L930 146 L950 146 L950 126 L970 126 L970 146 L990 146 L990 126 L1010 126 L1010 146 L1030 146 L1030 126 L1045 126"/>
+  </g>
+
+  <g>
+    <text x="42" y="190" class="label">calc_start</text>
+    <path class="pulse" d="M210 202 L405 202 L405 174 L445 174 L445 202 L1045 202"/>
+    <text x="405" y="166" class="note">CPU 写 CTRL[0]</text>
+  </g>
+
+  <g>
+    <text x="42" y="240" class="label">start_pending</text>
+    <path class="wave" d="M210 252 L410 252 L410 224 L525 224 L525 252 L1045 252"/>
+    <text x="470" y="218" class="note">保持启动请求</text>
+  </g>
+
+  <g>
+    <text x="42" y="290" class="label">npu_clk_gate_en</text>
+    <path class="gate" d="M210 274 L340 274 L340 302 L410 302 L410 274 L930 274 L930 302 L1045 302"/>
+    <text x="245" y="268" class="note">预热开钟</text>
+    <text x="660" y="268" class="note">启动、busy 或 AXI 活动保持开钟</text>
+  </g>
+
+  <g>
+    <text x="42" y="340" class="label">npu_core_clk</text>
+    <path class="clk" d="M210 346 L230 346 L230 326 L250 326 L250 346 L270 346 L270 326 L290 326 L290 346 L310 346 L310 326 L330 326 L330 346 L340 346 L410 346 L430 346 L430 326 L450 326 L450 346 L470 346 L470 326 L490 326 L490 346 L510 346 L510 326 L530 326 L530 346 L550 346 L550 326 L570 326 L570 346 L590 346 L590 326 L610 326 L610 346 L630 346 L630 326 L650 326 L650 346 L670 346 L670 326 L690 326 L690 346 L710 346 L710 326 L730 326 L730 346 L750 346 L750 326 L770 326 L770 346 L790 346 L790 326 L810 326 L810 346 L830 346 L830 326 L850 326 L850 346 L870 346 L870 326 L890 326 L890 346 L910 346 L910 326 L930 326 L930 346 L1045 346"/>
+  </g>
+
+  <g>
+    <text x="42" y="390" class="label">core_start</text>
+    <path class="pulse" d="M210 402 L530 402 L530 374 L570 374 L570 402 L1045 402"/>
+    <text x="535" y="366" class="note">时钟可用且 ready 后发给 npu_top</text>
+  </g>
+
+  <g>
+    <text x="42" y="440" class="label">npu_busy / AXI</text>
+    <path class="wave" d="M210 452 L560 452 L560 424 L805 424 L805 452 L1045 452"/>
+    <path class="wave" d="M210 486 L640 486 L640 466 L890 466 L890 486 L1045 486"/>
+    <text x="810" y="420" class="note">done_valid</text>
+    <text x="690" y="464" class="note">AXI master 未完成事务</text>
+  </g>
+
+  <g>
+    <text x="42" y="530" class="label">irq</text>
+    <path class="pulse" d="M210 530 L850 530 L850 506 L990 506 L990 530 L1045 530"/>
+    <text x="855" y="500" class="note">done sticky 置位</text>
+    <text x="960" y="500" class="note">STATUS[2] 写 1 清除</text>
+  </g>
+
+  <rect x="715" y="558" width="414" height="42" class="box"/>
+  <text x="728" y="583" class="small">关钟条件：done 已握手、核心 ready、AXI 读写通道空闲。</text>
+</svg>

@@ -1,30 +1,32 @@
 {
-  "head": {
-    "text": "AXI4 burst 读写时序"
-  },
-  "config": {
-    "hscale": 1
-  },
+  "head": { "text": "AXI4 二维块 DMA 突发读写时序" },
+  "config": { "hscale": 1.35 },
   "signal": [
-    { "name": "aclk", "wave": "p...................." },
-    { "name": "ARVALID", "wave": "0.10................." },
-    { "name": "ARREADY", "wave": "0.10................." },
-    { "name": "ARADDR", "wave": "x.=x.................", "data": ["RD_BASE"] },
-    { "name": "ARLEN", "wave": "x.=x.................", "data": ["BURST_LEN"] },
-    { "name": "RVALID", "wave": "0...1.1.1.10........." },
-    { "name": "RREADY", "wave": "1...................." },
-    { "name": "RDATA", "wave": "x...=.=.=.=x.........", "data": ["D0", "D1", "D2", "D_last"] },
-    { "name": "RLAST", "wave": "0.........10........." },
-    { "name": "AWVALID", "wave": "0...........10......." },
-    { "name": "AWREADY", "wave": "0...........10......." },
-    { "name": "AWADDR", "wave": "x...........=x.......", "data": ["WR_BASE"] },
-    { "name": "WVALID", "wave": "0.............1.1.10." },
-    { "name": "WREADY", "wave": "1...................." },
-    { "name": "WDATA", "wave": "x.............=.=.=x.", "data": ["Q0", "Q1", "Q_last"] },
-    { "name": "WSTRB", "wave": "x.............=.=.=x.", "data": ["MASK0", "MASK1", "MASK_last"] },
-    { "name": "WLAST", "wave": "0.................10." },
-    { "name": "BVALID", "wave": "0..................10" },
-    { "name": "BREADY", "wave": "1...................." },
-    { "name": "BRESP", "wave": "x..................=x", "data": ["OKAY"] }
+    { "name": "aclk", "wave": "p........................" },
+    { "name": "rd_start", "wave": "0.10...................." },
+    { "name": "rd_cmd", "wave": "x.=x....................", "data": ["base,stride,rows,len"] },
+    { "name": "ARVALID", "wave": "0..1..0..1..0..........." },
+    { "name": "ARREADY", "wave": "0...10....10............" },
+    { "name": "ARADDR", "wave": "x..=..x..=..x...........", "data": ["row0", "row1"] },
+    { "name": "ARLEN", "wave": "x..=..x..=..x...........", "data": ["len0", "len1"] },
+    { "name": "RVALID", "wave": "0.....1.1.1.0.1.1.10..." },
+    { "name": "RREADY", "wave": "1........................" },
+    { "name": "RDATA", "wave": "x.....=.=.=.x.=.=.=x...", "data": ["r0d0", "r0d1", "r0last", "r1d0", "r1d1", "r1last"] },
+    { "name": "RLAST", "wave": "0.........10.....10...." },
+    { "name": "rd_done", "wave": "0..................10.." },
+    {},
+    { "name": "wr_start", "wave": "0...........10........." },
+    { "name": "wr_cmd", "wave": "x...........=x.........", "data": ["dst,stride,mask"] },
+    { "name": "AWVALID", "wave": "0............1..0......" },
+    { "name": "AWREADY", "wave": "0.............10......." },
+    { "name": "AWADDR", "wave": "x............=..x......", "data": ["dst_row"] },
+    { "name": "WVALID", "wave": "0..............1.1.10.." },
+    { "name": "WREADY", "wave": "1........................" },
+    { "name": "WDATA", "wave": "x..............=.=.=x..", "data": ["q0", "q1", "q_last"] },
+    { "name": "WSTRB", "wave": "x..............=.=.=x..", "data": ["1111", "1111", "tail"] },
+    { "name": "WLAST", "wave": "0..................10.." },
+    { "name": "BVALID", "wave": "0....................10" },
+    { "name": "BREADY", "wave": "1........................" },
+    { "name": "wr_done", "wave": "0.....................1" }
   ]
 }

@@ -1,29 +1,49 @@
 {
-  "title": "NPU 空闲控制与低功耗待补时序",
+  "title": "NPU 主动门控时钟启动与关闭时序",
   "signal": [
     {
       "name": "clk",
-      "wave": "p........"
-    },
-    {
-      "name": "sa_ready",
-      "wave": "1.0...1.."
+      "wave": "p..........."
     },
     {
       "name": "calc_start",
-      "wave": "010......"
+      "wave": "010........."
     },
     {
-      "name": "mma_busy",
-      "wave": "0.111.0.."
+      "name": "npu_start_pending_q",
+      "wave": "01..0......."
     },
     {
-      "name": "array_clk_en_待补",
-      "wave": "x........"
+      "name": "npu_clk_gate_en",
+      "wave": "1....0.1..0."
     },
     {
-      "name": "dfs_req_待补",
-      "wave": "0........"
+      "name": "npu_core_clk",
+      "wave": "p....0.p..0."
+    },
+    {
+      "name": "npu_sa_ready",
+      "wave": "1...0....1.."
+    },
+    {
+      "name": "npu_core_calc_start",
+      "wave": "0...10......"
+    },
+    {
+      "name": "npu_busy",
+      "wave": "0....1..0..."
+    },
+    {
+      "name": "m_axi_active",
+      "wave": "0.....1.0..."
+    },
+    {
+      "name": "done_valid",
+      "wave": "0.......10.."
+    },
+    {
+      "name": "irq",
+      "wave": "0........1.0"
     }
   ]
 }
