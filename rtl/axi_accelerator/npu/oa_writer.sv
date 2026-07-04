@@ -2,7 +2,9 @@ module oa_writer #(
     parameter int unsigned VLEN       = 16,
     parameter int unsigned DATA_WIDTH = 8,
     parameter int unsigned REG_WIDTH  = 32,
-    parameter int unsigned BUS_WIDTH  = 32
+    parameter int unsigned BUS_WIDTH  = 32,
+    parameter int unsigned COUNT_WIDTH = REG_WIDTH,
+    parameter int unsigned ENABLE_IS_MODE = 1
 ) (
     input logic clk,
     input logic rst_n,
@@ -53,6 +55,8 @@ module oa_writer #(
     localparam int unsigned VCOL_W = $clog2(VLEN);
     localparam int unsigned LOG2_BPB = $clog2(BYTE_PER_BEAT);
     localparam logic [VCOL_W:0] VLEN_COUNT = (VCOL_W + 1)'(VLEN);
+    localparam int unsigned CNT_W = (COUNT_WIDTH < 1) ? 1 : COUNT_WIDTH;
+    typedef logic [CNT_W-1:0] count_t;
 
     typedef enum logic [2:0] {
         S_IDLE,
@@ -62,28 +66,28 @@ module oa_writer #(
         S_DONE
     } state_t;
 
-    state_t state;
+    (* fsm_encoding = "sequential" *) state_t state;
 
     logic [REG_WIDTH-1:0] cfg_dst_base;
     logic [REG_WIDTH-1:0] cfg_dst_row_stride_b;
     logic [REG_WIDTH-1:0] cfg_k;
     logic [REG_WIDTH-1:0] cfg_m;
-    logic [REG_WIDTH-1:0] cfg_ia_reuse_num;
+    count_t               cfg_ia_reuse_num;
     logic                 cfg_has_tiles;
     logic                 cfg_is_mode;
     logic                 cfg_lat_tick;
-    logic [REG_WIDTH-1:0] row_tiles_total;
-    logic [REG_WIDTH-1:0] col_tiles_total;
-    logic [REG_WIDTH-1:0] row_tiles_last_idx;
-    logic [REG_WIDTH-1:0] col_tiles_last_idx;
+    count_t               row_tiles_total;
+    count_t               col_tiles_total;
+    count_t               row_tiles_last_idx;
+    count_t               col_tiles_last_idx;
     logic [VCOL_W:0]      k_last_valid;
     logic [VCOL_W:0]      m_last_valid;
 
-    logic [REG_WIDTH-1:0] tiles_done;
-    logic [REG_WIDTH-1:0] tile_row_idx;
-    logic [REG_WIDTH-1:0] tile_col_idx;
-    logic [REG_WIDTH-1:0] row_group_base_idx;
-    logic [REG_WIDTH-1:0] row_group_next_base_idx;
+    count_t               tiles_done;
+    count_t               tile_row_idx;
+    count_t               tile_col_idx;
+    count_t               row_group_base_idx;
+    count_t               row_group_next_base_idx;
     logic [VCOL_W-1:0]    vec_valid_num_col_r;
     logic [VCOL_W-1:0]    vec_valid_num_row_r;
     logic [VCOL_W:0]      rows_valid_cur_tile;
@@ -123,34 +127,38 @@ module oa_writer #(
     localparam bit oa_trace_en = 1'b0;
 `endif
 
+    wire is_mode_eff = (ENABLE_IS_MODE != 0) ? is_mode : 1'b0;
+
     assign vec_valid_num_col = vec_valid_num_col_r;
     assign vec_valid_num_row = vec_valid_num_row_r;
 
-    wire [REG_WIDTH-1:0] k_tiles_pre = (k == '0) ? '0 : ((k + REG_WIDTH'(VLEN - 1)) >> VCOL_W);
-    wire [REG_WIDTH-1:0] m_tiles_pre = (m == '0) ? '0 : ((m + REG_WIDTH'(VLEN - 1)) >> VCOL_W);
+    wire [REG_WIDTH-1:0] k_tiles_pre_w = (k == '0) ? '0 : ((k + REG_WIDTH'(VLEN - 1)) >> VCOL_W);
+    wire [REG_WIDTH-1:0] m_tiles_pre_w = (m == '0) ? '0 : ((m + REG_WIDTH'(VLEN - 1)) >> VCOL_W);
+    wire count_t k_tiles_pre = count_t'(k_tiles_pre_w);
+    wire count_t m_tiles_pre = count_t'(m_tiles_pre_w);
     wire [VCOL_W-1:0]    k_tail_pre  = k[VCOL_W-1:0];
     wire [VCOL_W-1:0]    m_tail_pre  = m[VCOL_W-1:0];
     wire [VCOL_W:0]      k_last_valid_pre =
         (k == '0) ? '0 : ((k_tail_pre == '0) ? VLEN_COUNT : {1'b0, k_tail_pre});
     wire [VCOL_W:0]      m_last_valid_pre =
         (m == '0) ? '0 : ((m_tail_pre == '0) ? VLEN_COUNT : {1'b0, m_tail_pre});
-    wire [REG_WIDTH-1:0] row_tiles_total_pre = is_mode ? m_tiles_pre : k_tiles_pre;
-    wire [REG_WIDTH-1:0] col_tiles_total_pre = is_mode ? k_tiles_pre : m_tiles_pre;
+    wire count_t row_tiles_total_pre = is_mode_eff ? m_tiles_pre : k_tiles_pre;
+    wire count_t col_tiles_total_pre = is_mode_eff ? k_tiles_pre : m_tiles_pre;
 
-    logic [REG_WIDTH-1:0] tile_row_inc;
-    logic [REG_WIDTH-1:0] tile_col_inc;
-    logic [REG_WIDTH-1:0] reuse_group_base_cur;
-    logic [REG_WIDTH-1:0] reuse_group_next_base_cur;
-    logic [REG_WIDTH-1:0] next_tile_row_cur;
-    logic [REG_WIDTH-1:0] next_tile_col_cur;
+    count_t tile_row_inc;
+    count_t tile_col_inc;
+    count_t reuse_group_base_cur;
+    count_t reuse_group_next_base_cur;
+    count_t next_tile_row_cur;
+    count_t next_tile_col_cur;
     logic                 next_tile_row_is_last_cur;
     logic                 next_tile_col_is_last_cur;
     logic                 next_tile_wrap_cur;
     logic                 next_tile_row_advance_cur;
     logic                 next_tile_col_advance_cur;
     logic                 next_tile_group_advance_cur;
-    logic [REG_WIDTH-1:0] next_tile_row_r;
-    logic [REG_WIDTH-1:0] next_tile_col_r;
+    count_t next_tile_row_r;
+    count_t next_tile_col_r;
     logic                 next_tile_row_is_last_r;
     logic                 next_tile_col_is_last_r;
     logic                 next_tile_wrap_r;
@@ -166,7 +174,7 @@ module oa_writer #(
     logic [VCOL_W:0]      beats_per_row_calc;
     logic [VCOL_W:0]      vec_valid_num_col_next_w;
     logic [VCOL_W:0]      vec_valid_num_row_next_w;
-    logic [REG_WIDTH-1:0] init_reuse_num_eff;
+    count_t               init_reuse_num_eff;
     logic [REG_WIDTH-1:0] init_tile_linear_step;
     logic [REG_WIDTH-1:0] init_tile_stride_step;
     logic [REG_WIDTH-1:0] init_row_addr_step;
@@ -174,24 +182,24 @@ module oa_writer #(
     logic [REG_WIDTH-1:0] init_group_row_addr_step;
 
     always_comb begin
-        init_reuse_num_eff = (ia_reuse_num == '0) ? REG_WIDTH'(1) : ia_reuse_num;
+        init_reuse_num_eff = (ia_reuse_num == '0) ? count_t'(1) : count_t'(ia_reuse_num);
         init_tile_linear_step = REG_WIDTH'(VLEN);
         init_tile_stride_step = dst_row_stride_b << VCOL_W;
-        init_row_addr_step = is_mode ? init_tile_linear_step : init_tile_stride_step;
-        init_col_addr_step = is_mode ? init_tile_stride_step : init_tile_linear_step;
+        init_row_addr_step = is_mode_eff ? init_tile_linear_step : init_tile_stride_step;
+        init_col_addr_step = is_mode_eff ? init_tile_stride_step : init_tile_linear_step;
         unique case (init_reuse_num_eff)
-            REG_WIDTH'(1):  init_group_row_addr_step = init_row_addr_step;
-            REG_WIDTH'(2):  init_group_row_addr_step = init_row_addr_step << 1;
-            REG_WIDTH'(4):  init_group_row_addr_step = init_row_addr_step << 2;
-            REG_WIDTH'(8):  init_group_row_addr_step = init_row_addr_step << 3;
-            REG_WIDTH'(16): init_group_row_addr_step = init_row_addr_step << 4;
-            REG_WIDTH'(32): init_group_row_addr_step = init_row_addr_step << 5;
-            REG_WIDTH'(64): init_group_row_addr_step = init_row_addr_step << 6;
+            count_t'(1):  init_group_row_addr_step = init_row_addr_step;
+            count_t'(2):  init_group_row_addr_step = init_row_addr_step << 1;
+            count_t'(4):  init_group_row_addr_step = init_row_addr_step << 2;
+            count_t'(8):  init_group_row_addr_step = init_row_addr_step << 3;
+            count_t'(16): init_group_row_addr_step = init_row_addr_step << 4;
+            count_t'(32): init_group_row_addr_step = init_row_addr_step << 5;
+            count_t'(64): init_group_row_addr_step = init_row_addr_step << 6;
             default:        init_group_row_addr_step = init_row_addr_step;
         endcase
 
-        tile_row_inc = tile_row_idx + REG_WIDTH'(1);
-        tile_col_inc = tile_col_idx + REG_WIDTH'(1);
+        tile_row_inc = tile_row_idx + count_t'(1);
+        tile_col_inc = tile_col_idx + count_t'(1);
         reuse_group_base_cur = row_group_base_idx;
         reuse_group_next_base_cur = row_group_next_base_idx;
         next_tile_row_is_last_cur = (row_tiles_last_idx == '0);
@@ -278,7 +286,7 @@ module oa_writer #(
             cfg_dst_row_stride_b <= '0;
             cfg_k <= '0;
             cfg_m <= '0;
-            cfg_ia_reuse_num <= REG_WIDTH'(1);
+            cfg_ia_reuse_num <= count_t'(1);
             cfg_has_tiles <= 1'b0;
             cfg_is_mode <= 1'b0;
             cfg_lat_tick <= 1'b0;
@@ -293,9 +301,9 @@ module oa_writer #(
             cfg_dst_row_stride_b <= dst_row_stride_b;
             cfg_k <= k;
             cfg_m <= m;
-            cfg_ia_reuse_num <= (ia_reuse_num == '0) ? REG_WIDTH'(1) : ia_reuse_num;
+            cfg_ia_reuse_num <= (ia_reuse_num == '0) ? count_t'(1) : count_t'(ia_reuse_num);
             cfg_has_tiles <= (k != '0) && (m != '0);
-            cfg_is_mode <= is_mode;
+            cfg_is_mode <= is_mode_eff;
             cfg_lat_tick <= 1'b1;
             row_tiles_total <= row_tiles_total_pre;
             col_tiles_total <= col_tiles_total_pre;
@@ -305,8 +313,8 @@ module oa_writer #(
             m_last_valid <= m_last_valid_pre;
         end else if (cfg_lat_tick) begin
             cfg_lat_tick <= 1'b0;
-            row_tiles_last_idx <= (row_tiles_total == '0) ? '0 : (row_tiles_total - REG_WIDTH'(1));
-            col_tiles_last_idx <= (col_tiles_total == '0) ? '0 : (col_tiles_total - REG_WIDTH'(1));
+            row_tiles_last_idx <= (row_tiles_total == '0) ? '0 : (row_tiles_total - count_t'(1));
+            col_tiles_last_idx <= (col_tiles_total == '0) ? '0 : (col_tiles_total - count_t'(1));
         end else begin
             cfg_lat_tick <= 1'b0;
         end
@@ -319,7 +327,7 @@ module oa_writer #(
             tile_row_idx <= '0;
             tile_col_idx <= '0;
             row_group_base_idx <= '0;
-            row_group_next_base_idx <= REG_WIDTH'(1);
+                row_group_next_base_idx <= count_t'(1);
             vec_valid_num_col_r <= '0;
             vec_valid_num_row_r <= '0;
             rows_valid_cur_tile <= '0;
@@ -371,8 +379,8 @@ module oa_writer #(
                 row_group_base_addr_cur <= dst_base;
                 col_offset_addr_cur <= '0;
                 row_offset_addr_cur <= '0;
-                tile_row_is_last <= (row_tiles_total_pre <= REG_WIDTH'(1));
-                tile_col_is_last <= (col_tiles_total_pre <= REG_WIDTH'(1));
+                tile_row_is_last <= (row_tiles_total_pre <= count_t'(1));
+                tile_col_is_last <= (col_tiles_total_pre <= count_t'(1));
                 next_tile_row_r <= '0;
                 next_tile_col_r <= '0;
                 next_tile_row_is_last_r <= 1'b1;
@@ -446,7 +454,7 @@ module oa_writer #(
                             end
                             if ((beats_in_row + 1'b1) >= beats_per_row_cur_tile) begin
                                 beats_in_row <= '0;
-                                if ((REG_WIDTH'(row_in_tile) + REG_WIDTH'(1)) < REG_WIDTH'(rows_valid_cur_tile)) begin
+                                if (((VCOL_W + 1)'(row_in_tile) + (VCOL_W + 1)'(1)) < rows_valid_cur_tile) begin
                                     row_in_tile <= row_in_tile + 1'b1;
                                 end
                             end else begin
@@ -471,7 +479,7 @@ module oa_writer #(
                                 tile_col_is_last <= (col_tiles_last_idx == '0);
                                 if (oa_trace_en) begin
                                     $display("[OA_TRACE] time=%0t writer_done final tiles=%0d",
-                                             $time, tiles_done + 1'b1);
+                                             $time, tiles_done + count_t'(1));
                                 end
                             end else begin
                                 tile_row_idx <= next_tile_row_r;
@@ -503,7 +511,7 @@ module oa_writer #(
                                 state <= S_IDLE;
                                 if (oa_trace_en) begin
                                     $display("[OA_TRACE] time=%0t writer_done next=(%0d,%0d) tiles=%0d",
-                                             $time, next_tile_row_r, next_tile_col_r, tiles_done + 1'b1);
+                                             $time, next_tile_row_r, next_tile_col_r, tiles_done + count_t'(1));
                                 end
                             end
                         end

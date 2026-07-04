@@ -14,6 +14,7 @@ module soc_top #(
     parameter AXI_WRITE_OUTSTANDING = AXI_READ_OUTSTANDING,
     parameter NPU_ENABLE_IS_MODE = 1,
     parameter NPU_ENABLE_PER_CHANNEL = 1,
+    parameter NPU_ENABLE_CLOCK_GATING = 1,
     parameter CPU_MEM_DP      = 524288,
     parameter CPU_MEM_PATH    = "../tb/axi_soc_case/cpu.mem",
     parameter CPU_MEM_INIT_EN = 1,
@@ -32,8 +33,7 @@ module soc_top #(
     input  wire        rst_n,
     input  wire        mem_reload_req,
     output wire        npu_busy,
-    output wire [31:0] npu_irq,
-    output wire [31:0] npu_eoi,
+    output wire        npu_irq,
     output wire        uart_tx,
     input  wire        uart_rx,
     output wire        soc_finish,
@@ -341,8 +341,6 @@ module soc_top #(
     wire        ctrl_axil_rvalid;
     wire        ctrl_axil_rready;
     wire [31:0] soc_progress;
-
-    assign npu_eoi = 32'h0;
 
     picorv32 #(
         .ENABLE_COUNTERS(1),
@@ -784,7 +782,8 @@ module soc_top #(
         .AXI_READ_OUTSTANDING(AXI_READ_OUTSTANDING),
         .AXI_WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING),
         .ENABLE_IS_MODE(NPU_ENABLE_IS_MODE),
-        .ENABLE_PER_CHANNEL(NPU_ENABLE_PER_CHANNEL)
+        .ENABLE_PER_CHANNEL(NPU_ENABLE_PER_CHANNEL),
+        .ENABLE_CLOCK_GATING(NPU_ENABLE_CLOCK_GATING)
     ) u_npu_axil_top (
         .clk(clk),
         .rst_n(rst_n),
@@ -839,7 +838,6 @@ module soc_top #(
         .m_axi_bready(npu_core_axi_bready),
         .m_axi_bresp(npu_core_axi_bresp),
         .irq(npu_irq),
-        .eoi(npu_eoi),
         .npu_busy(npu_busy)
     );
 

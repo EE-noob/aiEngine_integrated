@@ -47,7 +47,8 @@ module ps_buffer #(
     ps_buffer_wide_fifo #(
         .DEPTH      (DEPTH),
         .DATA_WIDTH (FIFO_VEC_WIDTH),
-        .FRAME_COUNT(FRAME_COUNT)
+        .FRAME_COUNT(FRAME_COUNT),
+        .MAX_FRAME_LEN(MAX_FRAME_LEN)
     ) u_ps_buffer_fifo (
         .clk              (clk),
         .rst_n            (rst_n),
@@ -91,7 +92,8 @@ endmodule
 module ps_buffer_wide_fifo #(
     parameter int unsigned DEPTH       = 16,
     parameter int unsigned DATA_WIDTH  = 512,
-    parameter int unsigned FRAME_COUNT = 1
+    parameter int unsigned FRAME_COUNT = 1,
+    parameter int unsigned MAX_FRAME_LEN = DEPTH
 ) (
     input  logic                  clk,
     input  logic                  rst_n,
@@ -106,6 +108,7 @@ module ps_buffer_wide_fifo #(
     localparam int unsigned CNT_W       = (DEPTH <= 1) ? 1 : $clog2(DEPTH + 1);
     localparam int unsigned FRAME_IDX_W = (FRAME_COUNT <= 1) ? 1 : $clog2(FRAME_COUNT);
     localparam int unsigned FRAME_CNT_W = (FRAME_COUNT < 1) ? 1 : $clog2(FRAME_COUNT + 1);
+    localparam int unsigned FRAME_LEN_W = (MAX_FRAME_LEN <= 1) ? 1 : $clog2(MAX_FRAME_LEN + 1);
     localparam int unsigned EXT_W       = CNT_W + 1;
 
     localparam logic [ADDR_W-1:0]      DEPTH_LAST_ADDR = ADDR_W'(DEPTH - 1);
@@ -116,12 +119,12 @@ module ps_buffer_wide_fifo #(
     logic [ADDR_W-1:0]      read_ptr;
     logic [ADDR_W-1:0]      write_base;
     logic [ADDR_W-1:0]      read_base;
-    logic [CNT_W-1:0]       frame_len;
-    logic [CNT_W-1:0]       frame_len_fifo [FRAME_COUNT];
+    logic [FRAME_LEN_W-1:0] frame_len;
+    logic [FRAME_LEN_W-1:0] frame_len_fifo [FRAME_COUNT];
     logic [FRAME_IDX_W-1:0] frame_wr_ptr;
     logic [FRAME_IDX_W-1:0] frame_rd_ptr;
     logic [FRAME_CNT_W-1:0] frame_count;
-    logic [CNT_W-1:0]       replay_count;
+    logic [FRAME_LEN_W-1:0] replay_count;
     logic                   ia_l1_switch_i_d;
     logic                   send_ia_trigger_i_d;
 
@@ -130,7 +133,7 @@ module ps_buffer_wide_fifo #(
     logic [ADDR_W-1:0]      ram_write_addr;
     logic [ADDR_W-1:0]      ram_read_addr;
     logic [CNT_W-1:0]       write_ptr_ext;
-    logic [CNT_W-1:0]       frame_len_next;
+    logic [FRAME_LEN_W-1:0] frame_len_next;
     logic [DATA_WIDTH-1:0]  ram_read_data;
     logic                   ram_write_en_q;
     logic [ADDR_W-1:0]      ram_write_addr_q;
@@ -160,7 +163,9 @@ module ps_buffer_wide_fifo #(
     assign ram_read_en    = (replay_count != '0);
     assign ram_read_addr  = read_ptr;
     assign write_ptr_ext  = write_ptr;
-    assign frame_len_next = input_valid_i ? (write_ptr_ext + 1'b1) : write_ptr_ext;
+    assign frame_len_next = input_valid_i
+                          ? FRAME_LEN_W'(write_ptr_ext + CNT_W'(1))
+                          : FRAME_LEN_W'(write_ptr_ext);
     assign frame_len      = (frame_count != '0) ? frame_len_fifo[frame_rd_ptr] : '0;
 
     assign ram_write_addr_ext = EXT_W'(write_base) + EXT_W'(write_ptr);

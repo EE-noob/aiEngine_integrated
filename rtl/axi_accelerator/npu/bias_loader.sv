@@ -10,6 +10,7 @@ module bias_loader #(
 	    parameter int unsigned DATA_WIDTH = 32,
 	    parameter int unsigned BUS_WIDTH  = 32,
 	    parameter int unsigned REG_WIDTH  = 32,
+	    parameter int unsigned COUNT_WIDTH = REG_WIDTH,
 	    parameter int unsigned GROUP_BLOCKS_MAX = 1
 	) (
     input logic clk,
@@ -30,8 +31,9 @@ module bias_loader #(
     output logic                         bias_valid,
     output logic                         bias_group_valid,
     output logic                         load_bias_done,
+    input  logic [$clog2(GROUP_BLOCKS_MAX * SIZE)-1:0] group_read_idx,
     output logic signed [DATA_WIDTH-1:0] data_out  [SIZE],
-	    output logic signed [DATA_WIDTH-1:0] group_data_out [GROUP_BLOCKS_MAX * SIZE],
+    output logic signed [DATA_WIDTH-1:0] group_data_scalar,
 
 		    // ---- 共享 AXI block_dma 客户端接口 ----
 	    output logic                 ext_dma_start,
@@ -55,21 +57,23 @@ module bias_loader #(
 	);
 
     localparam int DMA_SIZE = SIZE * (DATA_WIDTH / 8);
+    localparam int CNT_W = (COUNT_WIDTH < 1) ? 1 : COUNT_WIDTH;
+    typedef logic [CNT_W-1:0] count_t;
 
     logic                               ctrl_dma_start;
     logic        [       REG_WIDTH-1:0] ctrl_dma_base_addr;
     logic        [       REG_WIDTH-1:0] ctrl_dma_rows_to_read;
     logic        [                     7:0] ctrl_dma_burst_len_m1;
     logic                               ctrl_load_bank;
-    logic        [       REG_WIDTH-1:0] ctrl_current_block_idx;
-    logic        [       REG_WIDTH-1:0] ctrl_load_block_idx;
-    logic        [       REG_WIDTH-1:0] ctrl_group_blocks_needed;
+    count_t                             ctrl_current_block_idx;
+    count_t                             ctrl_load_block_idx;
+    count_t                             ctrl_group_blocks_needed;
     logic                               ctrl_active_bank;
     logic                               ctrl_switch_pending;
     logic                               ctrl_load_block_valid;
     logic                               buffer_bias_valid;
     logic signed [DATA_WIDTH-1:0]       buffer_data_out [SIZE];
-    logic signed [DATA_WIDTH-1:0]       buffer_group_data_out [GROUP_BLOCKS_MAX * SIZE];
+    logic signed [DATA_WIDTH-1:0]       buffer_group_data_scalar;
 
     logic                               dma_busy;
     logic                               dma_done;
@@ -94,7 +98,8 @@ module bias_loader #(
 
     bias_loader_ctrl #(
         .SIZE     (SIZE),
-        .REG_WIDTH(REG_WIDTH)
+        .REG_WIDTH(REG_WIDTH),
+        .COUNT_WIDTH(COUNT_WIDTH)
     ) u_ctrl (
         .clk              (clk),
         .rst_n            (rst_n),
@@ -140,6 +145,7 @@ module bias_loader #(
         .DATA_WIDTH     (DATA_WIDTH),
         .DMA_DATA_WIDTH (8),
         .REG_WIDTH      (REG_WIDTH),
+        .COUNT_WIDTH    (COUNT_WIDTH),
         .GROUP_BLOCKS_MAX(GROUP_BLOCKS_MAX)
     ) u_buffer (
         .clk               (clk),
@@ -155,21 +161,20 @@ module bias_loader #(
         .load_done         (dma_done),
         .active_bank       (ctrl_active_bank),
         .current_block_idx (ctrl_current_block_idx),
+        .group_read_idx    (group_read_idx),
         .bias_valid        (buffer_bias_valid),
         .load_block_valid  (ctrl_load_block_valid),
         .data_out          (buffer_data_out),
-        .group_data_out    (buffer_group_data_out)
+        .group_data_scalar (buffer_group_data_scalar)
     );
 
     assign bias_valid       = buffer_bias_valid;
     assign bias_group_valid = buffer_bias_valid && !ctrl_switch_pending;
+    assign group_data_scalar = buffer_group_data_scalar;
 
     generate
         for (genvar out_i = 0; out_i < SIZE; out_i++) begin : gen_data_out
             assign data_out[out_i] = buffer_data_out[out_i];
-        end
-        for (genvar out_gi = 0; out_gi < GROUP_BLOCKS_MAX * SIZE; out_gi++) begin : gen_group_data_out
-            assign group_data_out[out_gi] = buffer_group_data_out[out_gi];
         end
     endgenerate
 

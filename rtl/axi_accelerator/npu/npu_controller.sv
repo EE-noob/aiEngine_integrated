@@ -98,10 +98,10 @@ module npu_controller #(
     //==== OA Writer Interface ====
     input  wire oa_calc_over,      // OA计算完成
 
-    //==== Writeback Handshake Interface ====
-    output reg        wb_valid,  // 写回有效信号
-    input  wire       wb_ready,  // 写回就绪信号
-    output reg  [1:0] err_code   // 写回状态码: 00=正常, 01=配置错误, 10=资源缺失
+    //==== Task Completion Handshake Interface ====
+    output reg        done_valid,  // 任务完成有效信号
+    input  wire       done_ready,  // 任务完成接收就绪信号
+    output reg  [1:0] err_code   // 完成状态码: 00=正常, 01=配置错误, 10=资源缺失
 );
 
     // 状态机定义
@@ -112,7 +112,7 @@ module npu_controller #(
         IA_START = 4'b0011,
         WEIGHT_WAIT = 4'b0101,  // 在发送权重触发后等待发送完成
         IA_WAIT = 4'b0110,      // 在发送IA触发后等待发送完成（保证单拍脉冲）
-        WAIT_WB = 4'b0111,      // 等待写回握手完成
+        WAIT_DONE = 4'b0111,      // 等待完成握手
         ERROR = 4'b1000         // 参数配置错误状态
     } state_t;
 
@@ -137,7 +137,7 @@ module npu_controller #(
     longint unsigned util_weight_wait_cycles;
     longint unsigned util_ia_start_cycles;
     longint unsigned util_ia_wait_cycles;
-    longint unsigned util_wait_wb_cycles;
+    longint unsigned util_wait_done_cycles;
     longint unsigned util_stall_weight_tail_cycles;
     longint unsigned util_stall_weight_data_cycles;
     longint unsigned util_stall_weight_done_cycles;
@@ -155,7 +155,7 @@ module npu_controller #(
     longint unsigned util_sum_weight_wait_cycles;
     longint unsigned util_sum_ia_start_cycles;
     longint unsigned util_sum_ia_wait_cycles;
-    longint unsigned util_sum_wait_wb_cycles;
+    longint unsigned util_sum_wait_done_cycles;
     longint unsigned util_sum_stall_weight_tail_cycles;
     longint unsigned util_sum_stall_weight_data_cycles;
     longint unsigned util_sum_stall_weight_done_cycles;
@@ -314,7 +314,7 @@ module npu_controller #(
             util_weight_wait_cycles       <= '0;
             util_ia_start_cycles          <= '0;
             util_ia_wait_cycles           <= '0;
-            util_wait_wb_cycles           <= '0;
+            util_wait_done_cycles           <= '0;
             util_stall_weight_tail_cycles <= '0;
             util_stall_weight_data_cycles <= '0;
             util_stall_weight_done_cycles <= '0;
@@ -332,7 +332,7 @@ module npu_controller #(
             util_sum_weight_wait_cycles       <= '0;
             util_sum_ia_start_cycles          <= '0;
             util_sum_ia_wait_cycles           <= '0;
-            util_sum_wait_wb_cycles           <= '0;
+            util_sum_wait_done_cycles           <= '0;
             util_sum_stall_weight_tail_cycles <= '0;
             util_sum_stall_weight_data_cycles <= '0;
             util_sum_stall_weight_done_cycles <= '0;
@@ -354,7 +354,7 @@ module npu_controller #(
                 util_weight_wait_cycles       <= '0;
                 util_ia_start_cycles          <= '0;
                 util_ia_wait_cycles           <= '0;
-                util_wait_wb_cycles           <= '0;
+                util_wait_done_cycles           <= '0;
                 util_stall_weight_tail_cycles <= '0;
                 util_stall_weight_data_cycles <= '0;
                 util_stall_weight_done_cycles <= '0;
@@ -375,7 +375,7 @@ module npu_controller #(
                     WEIGHT_WAIT:  util_weight_wait_cycles  <= util_weight_wait_cycles + 1'b1;
                     IA_START:     util_ia_start_cycles     <= util_ia_start_cycles + 1'b1;
                     IA_WAIT:      util_ia_wait_cycles      <= util_ia_wait_cycles + 1'b1;
-                    WAIT_WB:      util_wait_wb_cycles      <= util_wait_wb_cycles + 1'b1;
+                    WAIT_DONE:      util_wait_done_cycles      <= util_wait_done_cycles + 1'b1;
                     default: begin
                     end
                 endcase
@@ -431,7 +431,7 @@ module npu_controller #(
                 util_sum_weight_wait_cycles       <= util_sum_weight_wait_cycles + util_weight_wait_cycles;
                 util_sum_ia_start_cycles          <= util_sum_ia_start_cycles + util_ia_start_cycles;
                 util_sum_ia_wait_cycles           <= util_sum_ia_wait_cycles + util_ia_wait_cycles;
-                util_sum_wait_wb_cycles           <= util_sum_wait_wb_cycles + util_wait_wb_cycles;
+                util_sum_wait_done_cycles           <= util_sum_wait_done_cycles + util_wait_done_cycles;
                 util_sum_stall_weight_tail_cycles <= util_sum_stall_weight_tail_cycles + util_stall_weight_tail_cycles;
                 util_sum_stall_weight_data_cycles <= util_sum_stall_weight_data_cycles + util_stall_weight_data_cycles;
                 util_sum_stall_weight_done_cycles <= util_sum_stall_weight_done_cycles + util_stall_weight_done_cycles;
@@ -445,14 +445,14 @@ module npu_controller #(
                 util_sum_weight_trigger_count     <= util_sum_weight_trigger_count + util_weight_trigger_count;
                 util_sum_ia_trigger_count         <= util_sum_ia_trigger_count + util_ia_trigger_count;
                 if (util_trace_en) begin
-                    $display("[NPU_CTRL_UTIL] op=%0d active=%0d weight_start=%0d weight_wait=%0d ia_start=%0d ia_wait=%0d wait_wb=%0d weight_tail_stall=%0d weight_data_stall=%0d weight_done_wait=%0d ia_data_stall=%0d bias_stall=%0d quant_stall=%0d fifo_stall=%0d ia_done_wait=%0d tail_pending=%0d tail_done=%0d weight_trig=%0d ia_trig=%0d",
+                    $display("[NPU_CTRL_UTIL] op=%0d active=%0d weight_start=%0d weight_wait=%0d ia_start=%0d ia_wait=%0d wait_done=%0d weight_tail_stall=%0d weight_data_stall=%0d weight_done_wait=%0d ia_data_stall=%0d bias_stall=%0d quant_stall=%0d fifo_stall=%0d ia_done_wait=%0d tail_pending=%0d tail_done=%0d weight_trig=%0d ia_trig=%0d",
                              util_op_id,
                              util_active_cycles,
                              util_weight_start_cycles,
                              util_weight_wait_cycles,
                              util_ia_start_cycles,
                              util_ia_wait_cycles,
-                             util_wait_wb_cycles,
+                             util_wait_done_cycles,
                              util_stall_weight_tail_cycles,
                              util_stall_weight_data_cycles,
                              util_stall_weight_done_cycles,
@@ -473,14 +473,14 @@ module npu_controller #(
 
     final begin
         if (util_summary_en) begin
-            $display("[NPU_CTRL_UTIL_SUMMARY] ops=%0d active=%0d weight_start=%0d weight_wait=%0d ia_start=%0d ia_wait=%0d wait_wb=%0d weight_tail_stall=%0d weight_data_stall=%0d weight_done_wait=%0d ia_data_stall=%0d bias_stall=%0d quant_stall=%0d fifo_stall=%0d ia_done_wait=%0d tail_pending=%0d tail_done=%0d weight_trig=%0d ia_trig=%0d",
+            $display("[NPU_CTRL_UTIL_SUMMARY] ops=%0d active=%0d weight_start=%0d weight_wait=%0d ia_start=%0d ia_wait=%0d wait_done=%0d weight_tail_stall=%0d weight_data_stall=%0d weight_done_wait=%0d ia_data_stall=%0d bias_stall=%0d quant_stall=%0d fifo_stall=%0d ia_done_wait=%0d tail_pending=%0d tail_done=%0d weight_trig=%0d ia_trig=%0d",
                      util_op_id,
                      util_sum_active_cycles,
                      util_sum_weight_start_cycles,
                      util_sum_weight_wait_cycles,
                      util_sum_ia_start_cycles,
                      util_sum_ia_wait_cycles,
-                     util_sum_wait_wb_cycles,
+                     util_sum_wait_done_cycles,
                      util_sum_stall_weight_tail_cycles,
                      util_sum_stall_weight_data_cycles,
                      util_sum_stall_weight_done_cycles,
@@ -518,11 +518,11 @@ module npu_controller #(
 
             WEIGHT_START: begin
                 if (oa_calc_over) begin
-                    // 当计算完成时，检查写回握手
-                    if (wb_ready) begin
+                    // 当计算完成时，检查完成握手
+                    if (done_ready) begin
                         next_state = IDLE;
                     end else begin
-                        next_state = WAIT_WB;
+                        next_state = WAIT_DONE;
                     end
 `ifndef SYNTHESIS
                     if (ctrl_trace_en) begin
@@ -537,11 +537,11 @@ module npu_controller #(
             // 新增等待状态：在发出触发后等待 weight_sending_done 完成
             WEIGHT_WAIT: begin
                 if (oa_calc_over) begin
-                    // 当计算完成时，检查写回握手
-                    if (wb_ready) begin
+                    // 当计算完成时，检查完成握手
+                    if (done_ready) begin
                         next_state = IDLE;
                     end else begin
-                        next_state = WAIT_WB;
+                        next_state = WAIT_DONE;
                     end
 `ifndef SYNTHESIS
                     if (ctrl_trace_en) begin
@@ -564,10 +564,10 @@ module npu_controller #(
             IA_WAIT: begin
                 if (ia_sending_done) begin
                     if (oa_calc_over) begin
-                        if (wb_ready) begin
+                        if (done_ready) begin
                             next_state = IDLE;
                         end else begin
-                            next_state = WAIT_WB;
+                            next_state = WAIT_DONE;
                         end
                     end else begin
                         next_state = issue_weight_now ? WEIGHT_WAIT : WEIGHT_START;
@@ -575,16 +575,16 @@ module npu_controller #(
                 end
             end
 
-            // 新增 WAIT_WB 状态：等待写回握手完成
-            WAIT_WB: begin
-                if (wb_ready) begin
+            // 新增 WAIT_DONE 状态：等待完成握手
+            WAIT_DONE: begin
+                if (done_ready) begin
                     next_state = IDLE;
                 end
             end
 
-            // 新增 ERROR 状态：等待写回握手完成后返回 IDLE
+            // 新增 ERROR 状态：等待完成握手后返回 IDLE
             ERROR: begin
-                if (wb_ready) begin
+                if (done_ready) begin
                     next_state = IDLE;
                 end
             end
@@ -692,14 +692,14 @@ module npu_controller #(
     // sa_ready信号
     assign sa_ready = (current_state == IDLE);
 
-    // 写回有效信号
-    wire wb_valid_next = oa_calc_over || (current_state == WAIT_WB) || (current_state == ERROR);
+    // 任务完成有效信号
+    wire done_valid_next = oa_calc_over || (current_state == WAIT_DONE) || (current_state == ERROR);
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            wb_valid <= 1'b0;
+            done_valid <= 1'b0;
         end else begin
-            wb_valid <= wb_valid_next;
+            done_valid <= done_valid_next;
         end
     end
 

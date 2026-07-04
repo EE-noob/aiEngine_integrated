@@ -1,6 +1,7 @@
 module kernel_loader_ctrl #(
     parameter int unsigned SIZE      = 4,
-    parameter int unsigned REG_WIDTH = 32
+    parameter int unsigned REG_WIDTH = 32,
+    parameter int unsigned COUNT_WIDTH = REG_WIDTH
 ) (
     input  logic                        clk,
     input  logic                        rst_n,
@@ -36,42 +37,44 @@ module kernel_loader_ctrl #(
 );
 
   localparam int unsigned SIZE_SHIFT = $clog2(SIZE);
+  localparam int unsigned CNT_W = (COUNT_WIDTH < 1) ? 1 : COUNT_WIDTH;
+  typedef logic [CNT_W-1:0] count_t;
 
   typedef enum logic [1:0] {S_IDLE, S_INIT, S_RUN, S_DONE} state_t;
 
   state_t state;
 
-  logic [REG_WIDTH-1:0] tile_rows_total;
-  logic [REG_WIDTH-1:0] tile_cols_total;
-  logic [REG_WIDTH-1:0] l2_groups_total;
-  logic [REG_WIDTH-1:0] repeat_total;
-  logic [REG_WIDTH-1:0] current_group_width;
-  logic [REG_WIDTH-1:0] valid_n_rows;
-  logic [REG_WIDTH-1:0] valid_m_cols;
+  count_t tile_rows_total;
+  count_t tile_cols_total;
+  count_t l2_groups_total;
+  count_t repeat_total;
+  count_t current_group_width;
+  count_t valid_n_rows;
+  count_t valid_m_cols;
   logic [REG_WIDTH-1:0] elem_bytes;
-  logic [REG_WIDTH-1:0] w_reuse_norm;
-  logic [REG_WIDTH-1:0] ia_reuse_norm;
-  logic [REG_WIDTH-1:0] cfg_tile_rows_total;
-  logic [REG_WIDTH-1:0] cfg_tile_cols_total;
-  logic [REG_WIDTH-1:0] cfg_output_row_tiles_total;
-  logic [REG_WIDTH-1:0] cfg_l2_groups_total;
-  logic [REG_WIDTH-1:0] cfg_repeat_total;
-  logic [REG_WIDTH-1:0] last_n_rows;
-  logic [REG_WIDTH-1:0] last_m_cols;
-  logic [REG_WIDTH-1:0] cfg_last_n_rows;
-  logic [REG_WIDTH-1:0] cfg_last_m_cols;
-  logic [REG_WIDTH-1:0] cfg_group_tail_cols;
-  logic [REG_WIDTH-1:0] cfg_last_group_width;
-  logic [REG_WIDTH-1:0] first_group_width;
+  count_t w_reuse_norm;
+  count_t ia_reuse_norm;
+  count_t cfg_tile_rows_total;
+  count_t cfg_tile_cols_total;
+  count_t cfg_output_row_tiles_total;
+  count_t cfg_l2_groups_total;
+  count_t cfg_repeat_total;
+  count_t last_n_rows;
+  count_t last_m_cols;
+  count_t cfg_last_n_rows;
+  count_t cfg_last_m_cols;
+  count_t cfg_group_tail_cols;
+  count_t cfg_last_group_width;
+  count_t first_group_width;
 
-  logic [REG_WIDTH-1:0] load_tile_row;
-  logic [REG_WIDTH-1:0] load_repeat;
-  logic [REG_WIDTH-1:0] load_l2;
-  logic [REG_WIDTH-1:0] load_col_in_group;
-  logic [REG_WIDTH-1:0] group_base_col;
-  logic [REG_WIDTH-1:0] load_tile_col;
-  logic [REG_WIDTH-1:0] loaded_count;
-  logic [REG_WIDTH-1:0] sent_count;
+  count_t load_tile_row;
+  count_t load_repeat;
+  count_t load_l2;
+  count_t load_col_in_group;
+  count_t group_base_col;
+  count_t load_tile_col;
+  count_t loaded_count;
+  count_t sent_count;
   logic                 load_complete;
   logic                 all_loads_done;
   logic                 last_col_in_group;
@@ -80,8 +83,8 @@ module kernel_loader_ctrl #(
   logic                 last_repeat;
   logic                 final_load_done;
   logic                 load_complete_after;
-  logic [REG_WIDTH-1:0] loaded_count_after;
-  logic [REG_WIDTH-1:0] w_reuse_total;
+  count_t loaded_count_after;
+  count_t w_reuse_total;
   logic [REG_WIDTH-1:0] base_addr_reg;
   logic [REG_WIDTH-1:0] col_addr_step;
   logic [REG_WIDTH-1:0] row_addr_step;
@@ -92,123 +95,123 @@ module kernel_loader_ctrl #(
   logic [REG_WIDTH-1:0] cfg_col_addr_step;
   logic [REG_WIDTH-1:0] cfg_row_addr_step;
   logic [REG_WIDTH-1:0] cfg_group_addr_step;
-  logic [REG_WIDTH-1:0] last_group_width;
-  logic [REG_WIDTH-1:0] following_group_width;
+  count_t last_group_width;
+  count_t following_group_width;
 
-  function automatic logic [REG_WIDTH-1:0] ceil_div_pow2(input logic [REG_WIDTH-1:0] a,
-                                                         input logic [REG_WIDTH-1:0] pow2);
+  function automatic count_t ceil_div_pow2(input logic [REG_WIDTH-1:0] a,
+                                           input count_t pow2);
     logic [REG_WIDTH-1:0] biased;
     begin
-      biased = a + pow2 - REG_WIDTH'(1);
+      biased = a + REG_WIDTH'(pow2) - REG_WIDTH'(1);
       unique case (pow2)
-        REG_WIDTH'(1):    ceil_div_pow2 = biased;
-        REG_WIDTH'(2):    ceil_div_pow2 = biased >> 1;
-        REG_WIDTH'(4):    ceil_div_pow2 = biased >> 2;
-        REG_WIDTH'(8):    ceil_div_pow2 = biased >> 3;
-        REG_WIDTH'(16):   ceil_div_pow2 = biased >> 4;
-        REG_WIDTH'(32):   ceil_div_pow2 = biased >> 5;
-        REG_WIDTH'(64):   ceil_div_pow2 = biased >> 6;
-        REG_WIDTH'(128):  ceil_div_pow2 = biased >> 7;
-        REG_WIDTH'(256):  ceil_div_pow2 = biased >> 8;
-        REG_WIDTH'(512):  ceil_div_pow2 = biased >> 9;
-        REG_WIDTH'(1024): ceil_div_pow2 = biased >> 10;
-        default:          ceil_div_pow2 = biased;
+        count_t'(1):    ceil_div_pow2 = count_t'(biased);
+        count_t'(2):    ceil_div_pow2 = count_t'(biased >> 1);
+        count_t'(4):    ceil_div_pow2 = count_t'(biased >> 2);
+        count_t'(8):    ceil_div_pow2 = count_t'(biased >> 3);
+        count_t'(16):   ceil_div_pow2 = count_t'(biased >> 4);
+        count_t'(32):   ceil_div_pow2 = count_t'(biased >> 5);
+        count_t'(64):   ceil_div_pow2 = count_t'(biased >> 6);
+        count_t'(128):  ceil_div_pow2 = count_t'(biased >> 7);
+        count_t'(256):  ceil_div_pow2 = count_t'(biased >> 8);
+        count_t'(512):  ceil_div_pow2 = count_t'(biased >> 9);
+        count_t'(1024): ceil_div_pow2 = count_t'(biased >> 10);
+        default:        ceil_div_pow2 = count_t'(biased);
       endcase
     end
   endfunction
 
   always_comb begin
-    ia_reuse_norm = (cfg_ia_reuse_num == 0) ? REG_WIDTH'(1) : cfg_ia_reuse_num;
-    w_reuse_norm  = (cfg_w_reuse_num  == 0) ? REG_WIDTH'(1) : cfg_w_reuse_num;
+    ia_reuse_norm = (cfg_ia_reuse_num == 0) ? count_t'(1) : count_t'(cfg_ia_reuse_num);
+    w_reuse_norm  = (cfg_w_reuse_num  == 0) ? count_t'(1) : count_t'(cfg_w_reuse_num);
 
-    cfg_tile_rows_total        = ceil_div_pow2(cfg_n, REG_WIDTH'(SIZE));
-    cfg_tile_cols_total        = ceil_div_pow2(cfg_m, REG_WIDTH'(SIZE));
-    cfg_output_row_tiles_total = ceil_div_pow2(cfg_k, REG_WIDTH'(SIZE));
-    cfg_l2_groups_total        = ceil_div_pow2(cfg_tile_cols_total, w_reuse_norm);
-    cfg_repeat_total           = ceil_div_pow2(cfg_output_row_tiles_total, ia_reuse_norm);
-    if (cfg_tile_rows_total == 0) cfg_tile_rows_total = REG_WIDTH'(1);
-    if (cfg_tile_cols_total == 0) cfg_tile_cols_total = REG_WIDTH'(1);
-    if (cfg_l2_groups_total == 0) cfg_l2_groups_total = REG_WIDTH'(1);
-    if (cfg_repeat_total == 0) cfg_repeat_total = REG_WIDTH'(1);
+    cfg_tile_rows_total        = ceil_div_pow2(cfg_n, count_t'(SIZE));
+    cfg_tile_cols_total        = ceil_div_pow2(cfg_m, count_t'(SIZE));
+    cfg_output_row_tiles_total = ceil_div_pow2(cfg_k, count_t'(SIZE));
+    cfg_l2_groups_total        = ceil_div_pow2(REG_WIDTH'(cfg_tile_cols_total), w_reuse_norm);
+    cfg_repeat_total           = ceil_div_pow2(REG_WIDTH'(cfg_output_row_tiles_total), ia_reuse_norm);
+    if (cfg_tile_rows_total == 0) cfg_tile_rows_total = count_t'(1);
+    if (cfg_tile_cols_total == 0) cfg_tile_cols_total = count_t'(1);
+    if (cfg_l2_groups_total == 0) cfg_l2_groups_total = count_t'(1);
+    if (cfg_repeat_total == 0) cfg_repeat_total = count_t'(1);
 
-    cfg_last_n_rows = cfg_n & REG_WIDTH'(SIZE - 1);
-    cfg_last_m_cols = cfg_m & REG_WIDTH'(SIZE - 1);
-    if (cfg_last_n_rows == 0) cfg_last_n_rows = REG_WIDTH'(SIZE);
-    if (cfg_last_m_cols == 0) cfg_last_m_cols = REG_WIDTH'(SIZE);
+    cfg_last_n_rows = count_t'(cfg_n & REG_WIDTH'(SIZE - 1));
+    cfg_last_m_cols = count_t'(cfg_m & REG_WIDTH'(SIZE - 1));
+    if (cfg_last_n_rows == 0) cfg_last_n_rows = count_t'(SIZE);
+    if (cfg_last_m_cols == 0) cfg_last_m_cols = count_t'(SIZE);
 
     unique case (w_reuse_norm)
-      REG_WIDTH'(1):    cfg_group_tail_cols = REG_WIDTH'(0);
-      REG_WIDTH'(2):    cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(1);
-      REG_WIDTH'(4):    cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(3);
-      REG_WIDTH'(8):    cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(7);
-      REG_WIDTH'(16):   cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(15);
-      REG_WIDTH'(32):   cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(31);
-      REG_WIDTH'(64):   cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(63);
-      REG_WIDTH'(128):  cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(127);
-      REG_WIDTH'(256):  cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(255);
-      REG_WIDTH'(512):  cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(511);
-      REG_WIDTH'(1024): cfg_group_tail_cols = cfg_tile_cols_total & REG_WIDTH'(1023);
-      default:          cfg_group_tail_cols = REG_WIDTH'(0);
+      count_t'(1):    cfg_group_tail_cols = '0;
+      count_t'(2):    cfg_group_tail_cols = cfg_tile_cols_total & count_t'(1);
+      count_t'(4):    cfg_group_tail_cols = cfg_tile_cols_total & count_t'(3);
+      count_t'(8):    cfg_group_tail_cols = cfg_tile_cols_total & count_t'(7);
+      count_t'(16):   cfg_group_tail_cols = cfg_tile_cols_total & count_t'(15);
+      count_t'(32):   cfg_group_tail_cols = cfg_tile_cols_total & count_t'(31);
+      count_t'(64):   cfg_group_tail_cols = cfg_tile_cols_total & count_t'(63);
+      count_t'(128):  cfg_group_tail_cols = cfg_tile_cols_total & count_t'(127);
+      count_t'(256):  cfg_group_tail_cols = cfg_tile_cols_total & count_t'(255);
+      count_t'(512):  cfg_group_tail_cols = cfg_tile_cols_total & count_t'(511);
+      count_t'(1024): cfg_group_tail_cols = cfg_tile_cols_total & count_t'(1023);
+      default:        cfg_group_tail_cols = '0;
     endcase
-    if (cfg_l2_groups_total <= REG_WIDTH'(1)) begin
+    if (cfg_l2_groups_total <= count_t'(1)) begin
       cfg_last_group_width = cfg_tile_cols_total;
     end else if (cfg_group_tail_cols == 0) begin
       cfg_last_group_width = w_reuse_norm;
     end else begin
       cfg_last_group_width = cfg_group_tail_cols;
     end
-    if (cfg_last_group_width == 0) cfg_last_group_width = REG_WIDTH'(1);
+    if (cfg_last_group_width == 0) cfg_last_group_width = count_t'(1);
 
     if (tile_cols_total < w_reuse_total) begin
       first_group_width = tile_cols_total;
     end else begin
       first_group_width = w_reuse_total;
     end
-    if (first_group_width == 0) first_group_width = REG_WIDTH'(1);
+    if (first_group_width == 0) first_group_width = count_t'(1);
 
-    if ((load_l2 + REG_WIDTH'(2)) >= l2_groups_total) begin
+    if ((load_l2 + count_t'(2)) >= l2_groups_total) begin
       following_group_width = last_group_width;
     end else begin
       following_group_width = w_reuse_total;
     end
 
     load_tile_col = group_base_col + load_col_in_group;
-    valid_n_rows = (load_tile_row == tile_rows_total - 1) ? last_n_rows : REG_WIDTH'(SIZE);
-    valid_m_cols = (load_tile_col == tile_cols_total - 1) ? last_m_cols : REG_WIDTH'(SIZE);
-    if (valid_n_rows == 0) valid_n_rows = REG_WIDTH'(1);
-    if (valid_m_cols == 0) valid_m_cols = REG_WIDTH'(1);
+    valid_n_rows = (load_tile_row == tile_rows_total - count_t'(1)) ? last_n_rows : count_t'(SIZE);
+    valid_m_cols = (load_tile_col == tile_cols_total - count_t'(1)) ? last_m_cols : count_t'(SIZE);
+    if (valid_n_rows == 0) valid_n_rows = count_t'(1);
+    if (valid_m_cols == 0) valid_m_cols = count_t'(1);
     elem_bytes = cfg_use_16bits ? REG_WIDTH'(2) : REG_WIDTH'(1);
 
     cfg_col_addr_step = cfg_rhs_row_stride_b << SIZE_SHIFT;
     cfg_row_addr_step = cfg_use_16bits ? (REG_WIDTH'(SIZE) << 1) : REG_WIDTH'(SIZE);
     unique case (w_reuse_norm)
-      REG_WIDTH'(1):    cfg_group_addr_step = cfg_col_addr_step;
-      REG_WIDTH'(2):    cfg_group_addr_step = cfg_col_addr_step << 1;
-      REG_WIDTH'(4):    cfg_group_addr_step = cfg_col_addr_step << 2;
-      REG_WIDTH'(8):    cfg_group_addr_step = cfg_col_addr_step << 3;
-      REG_WIDTH'(16):   cfg_group_addr_step = cfg_col_addr_step << 4;
-      REG_WIDTH'(32):   cfg_group_addr_step = cfg_col_addr_step << 5;
-      REG_WIDTH'(64):   cfg_group_addr_step = cfg_col_addr_step << 6;
-      REG_WIDTH'(128):  cfg_group_addr_step = cfg_col_addr_step << 7;
-      REG_WIDTH'(256):  cfg_group_addr_step = cfg_col_addr_step << 8;
-      REG_WIDTH'(512):  cfg_group_addr_step = cfg_col_addr_step << 9;
-      REG_WIDTH'(1024): cfg_group_addr_step = cfg_col_addr_step << 10;
+      count_t'(1):    cfg_group_addr_step = cfg_col_addr_step;
+      count_t'(2):    cfg_group_addr_step = cfg_col_addr_step << 1;
+      count_t'(4):    cfg_group_addr_step = cfg_col_addr_step << 2;
+      count_t'(8):    cfg_group_addr_step = cfg_col_addr_step << 3;
+      count_t'(16):   cfg_group_addr_step = cfg_col_addr_step << 4;
+      count_t'(32):   cfg_group_addr_step = cfg_col_addr_step << 5;
+      count_t'(64):   cfg_group_addr_step = cfg_col_addr_step << 6;
+      count_t'(128):  cfg_group_addr_step = cfg_col_addr_step << 7;
+      count_t'(256):  cfg_group_addr_step = cfg_col_addr_step << 8;
+      count_t'(512):  cfg_group_addr_step = cfg_col_addr_step << 9;
+      count_t'(1024): cfg_group_addr_step = cfg_col_addr_step << 10;
       default:          cfg_group_addr_step = cfg_col_addr_step;
     endcase
 
-    last_col_in_group = (load_col_in_group + 1 >= current_group_width);
-    last_tile_row     = (load_tile_row + 1 >= tile_rows_total);
-    last_l2_group     = (load_l2 + 1 >= l2_groups_total);
-    last_repeat       = (load_repeat + 1 >= repeat_total);
+    last_col_in_group = (load_col_in_group + count_t'(1) >= current_group_width);
+    last_tile_row     = (load_tile_row + count_t'(1) >= tile_rows_total);
+    last_l2_group     = (load_l2 + count_t'(1) >= l2_groups_total);
+    last_repeat       = (load_repeat + count_t'(1) >= repeat_total);
     final_load_done   = load_done && last_col_in_group && last_tile_row && last_l2_group && last_repeat;
-    loaded_count_after = loaded_count + (load_done ? REG_WIDTH'(1) : REG_WIDTH'(0));
+    loaded_count_after = loaded_count + (load_done ? count_t'(1) : count_t'(0));
 
     load_complete = all_loads_done;
     load_complete_after = all_loads_done || final_load_done;
 
-    tile_row_dbg = load_tile_row;
-    tile_col_dbg = load_tile_col;
-    repeat_dbg   = load_repeat;
+    tile_row_dbg = REG_WIDTH'(load_tile_row);
+    tile_col_dbg = REG_WIDTH'(load_tile_col);
+    repeat_dbg   = REG_WIDTH'(load_repeat);
 
     load_weight_req = (state == S_RUN) && !load_complete && buf_load_ready;
     dma_start       = load_weight_req && load_weight_granted;
@@ -219,10 +222,10 @@ module kernel_loader_ctrl #(
     // W is column-flattened: each DMA "row" is one output column,
     // and each burst reads contiguous N/K elements from that column.
     dma_tile_base_addr = group_base_addr + row_addr_offset + col_addr_offset;
-    dma_rows_to_read   = valid_m_cols;
+    dma_rows_to_read   = REG_WIDTH'(valid_m_cols);
     dma_row_stride_b   = cfg_rhs_row_stride_b;
     dma_rhs_zp         = cfg_rhs_zp;
-    dma_valid_cols     = valid_n_rows;
+    dma_valid_cols     = REG_WIDTH'(valid_n_rows);
   end
 
   always_ff @(posedge clk or negedge rst_n) begin
@@ -235,15 +238,15 @@ module kernel_loader_ctrl #(
       loaded_count        <= '0;
       sent_count          <= '0;
       all_loads_done      <= 1'b0;
-      tile_rows_total     <= REG_WIDTH'(1);
-      tile_cols_total     <= REG_WIDTH'(1);
-      l2_groups_total     <= REG_WIDTH'(1);
-      repeat_total        <= REG_WIDTH'(1);
-      last_n_rows         <= REG_WIDTH'(SIZE);
-      last_m_cols         <= REG_WIDTH'(SIZE);
-      current_group_width <= REG_WIDTH'(1);
-      w_reuse_total       <= REG_WIDTH'(1);
-      last_group_width    <= REG_WIDTH'(SIZE);
+      tile_rows_total     <= count_t'(1);
+      tile_cols_total     <= count_t'(1);
+      l2_groups_total     <= count_t'(1);
+      repeat_total        <= count_t'(1);
+      last_n_rows         <= count_t'(SIZE);
+      last_m_cols         <= count_t'(SIZE);
+      current_group_width <= count_t'(1);
+      w_reuse_total       <= count_t'(1);
+      last_group_width    <= count_t'(SIZE);
       base_addr_reg       <= '0;
       col_addr_step       <= '0;
       row_addr_step       <= REG_WIDTH'(SIZE);
@@ -269,7 +272,7 @@ module kernel_loader_ctrl #(
             repeat_total        <= cfg_repeat_total;
             last_n_rows         <= cfg_last_n_rows;
             last_m_cols         <= cfg_last_m_cols;
-            current_group_width <= REG_WIDTH'(1);
+            current_group_width <= count_t'(1);
             w_reuse_total       <= w_reuse_norm;
             last_group_width    <= cfg_last_group_width;
             base_addr_reg       <= cfg_rhs_base;

@@ -3,6 +3,7 @@ module kernel_loader #(
 	    parameter int unsigned SIZE         = 4,
 	    parameter int unsigned BUS_WIDTH    = 32,
 	    parameter int unsigned REG_WIDTH    = 32,
+	    parameter int unsigned COUNT_WIDTH  = REG_WIDTH,
 	    parameter int unsigned CACHE_BLOCKS = 1
 	) (
     input  logic                        clk,
@@ -45,7 +46,7 @@ module kernel_loader #(
 
   typedef enum logic [1:0] {TOP_IDLE, TOP_INIT, TOP_RUN} top_state_t;
 
-  top_state_t top_state;
+  (* fsm_encoding = "sequential" *) top_state_t top_state;
 
   logic [REG_WIDTH-1:0] cfg_k, cfg_n, cfg_m;
   logic [REG_WIDTH-1:0] cfg_rhs_base, cfg_rhs_row_stride_b;
@@ -157,7 +158,8 @@ module kernel_loader #(
 
   kernel_loader_ctrl #(
     .SIZE      (SIZE),
-    .REG_WIDTH (REG_WIDTH)
+    .REG_WIDTH (REG_WIDTH),
+    .COUNT_WIDTH(COUNT_WIDTH)
   ) u_ctrl (
     .clk                   (clk),
     .rst_n                 (rst_n),

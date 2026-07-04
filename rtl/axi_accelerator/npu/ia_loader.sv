@@ -27,6 +27,7 @@ module ia_loader #(
     parameter int unsigned SIZE         = 16,
     parameter int unsigned BUS_WIDTH    = 32,
     parameter int unsigned REG_WIDTH    = 32,
+    parameter int unsigned COUNT_WIDTH  = REG_WIDTH,
     parameter int unsigned CACHE_BLOCKS = 4,
     parameter int unsigned PS_FRAME_COUNT = SIZE
 ) (
@@ -93,6 +94,7 @@ module ia_loader #(
     localparam int BYTE_PER_BEAT = BUS_WIDTH / 8;
     localparam int LOG2_SIZE = $clog2(SIZE);
     localparam int LOG2_BYTE_PER_BEAT = $clog2(BYTE_PER_BEAT);
+    localparam int ROW_CNT_W = $clog2(SIZE + 1);
 
     // =======================================================================
     // 状态机
@@ -103,7 +105,8 @@ module ia_loader #(
         RUN  = 2'b01
     } state_t;
 
-    state_t state, state_nxt;
+    (* fsm_encoding = "sequential" *) state_t state;
+    state_t state_nxt;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) state <= IDLE;
@@ -299,8 +302,7 @@ module ia_loader #(
 	    logic        [((CACHE_BLOCKS <= 1) ? 1 : $clog2(CACHE_BLOCKS))-1:0] cache_l1_slot_end;
     logic                                   cache_l1_is_init;
     logic                                   cache_l1_calc_done;
-    logic        [        CACHE_BLOCKS-1:0] cache_blk_valid;
-    logic        [           REG_WIDTH-1:0] cache_slot_rows     [ CACHE_BLOCKS];
+    logic        [           ROW_CNT_W-1:0] cache_slot_rows     [ CACHE_BLOCKS];
     logic                                   cache_tile_done;
     logic                                   cache_l1_done;
     logic                                   cache_l1_start_q;
@@ -340,6 +342,7 @@ module ia_loader #(
         .SIZE        (SIZE),
         .BUS_WIDTH   (BUS_WIDTH),
         .REG_WIDTH   (REG_WIDTH),
+        .COUNT_WIDTH (COUNT_WIDTH),
         .CACHE_BLOCKS(CACHE_BLOCKS),
         .PS_FRAME_COUNT(PS_FRAME_COUNT)
     ) u_ctrl (
@@ -398,7 +401,6 @@ module ia_loader #(
         .cache_l1_slot_end  (cache_l1_slot_end),
         .cache_l1_is_init   (cache_l1_is_init),
         .cache_l1_calc_done (cache_l1_calc_done),
-        .cache_blk_valid    (cache_blk_valid),
         .cache_slot_rows    (cache_slot_rows),
         .cache_tile_done    (cache_tile_done),
         .cache_l1_done      (cache_l1_done)
@@ -484,7 +486,6 @@ module ia_loader #(
         .l1_slot_end  (cache_l1_slot_end_q),
         .l1_is_init   (cache_l1_is_init_q),
         .l1_calc_done (cache_l1_calc_done_q),
-        .blk_valid_in (cache_blk_valid),
         .slot_rows    (cache_slot_rows),
         .tile_done    (cache_tile_done),
         .l1_done      (cache_l1_done),

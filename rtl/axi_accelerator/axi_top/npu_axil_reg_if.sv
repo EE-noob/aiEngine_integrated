@@ -1,8 +1,7 @@
 module npu_axil_reg_if #(
     parameter int unsigned AXIL_DATA_WIDTH = 32,
     parameter int unsigned AXIL_ADDR_WIDTH = 16,
-    parameter int unsigned REG_WIDTH       = 32,
-    parameter logic [31:0] IRQ_STATUS_MASK = 32'h0000_0004
+    parameter int unsigned REG_WIDTH       = 32
 ) (
     input  wire                         clk,
     input  wire                         rst_n,
@@ -53,12 +52,11 @@ module npu_axil_reg_if #(
     output logic signed [REG_WIDTH-1:0] act_max,
 
     input  wire                         npu_sa_ready,
-    input  wire                         npu_wb_valid,
-    output wire                         npu_wb_ready,
+    input  wire                         npu_done_valid,
+    output wire                         npu_done_ready,
     input  wire [1:0]                   npu_err_code,
 
-    output wire [31:0]                  irq,
-    input  wire [31:0]                  eoi,
+    output wire                         irq,
     output wire                         npu_busy,
     output wire [31:0]                  status_bits
 );
@@ -68,7 +66,6 @@ module npu_axil_reg_if #(
     localparam logic [11:0] REG_CTRL         = 12'h000; // 0x000
     localparam logic [11:0] REG_STATUS       = 12'h001; // 0x004
     localparam logic [11:0] REG_WB_DATA      = 12'h002; // 0x008
-    localparam logic [11:0] REG_WB_INFO      = 12'h003; // 0x00c
     localparam logic [11:0] REG_LHS_BASE     = 12'h004; // 0x010
     localparam logic [11:0] REG_RHS_BASE     = 12'h005; // 0x014
     localparam logic [11:0] REG_DST_BASE     = 12'h006; // 0x018
@@ -101,12 +98,10 @@ module npu_axil_reg_if #(
     logic [AXIL_DATA_WIDTH-1:0] rdata_q;
     logic                       rvalid_q;
 
-    logic [REG_WIDTH-1:0]       last_wb_data;
-    logic                       last_wb_valid;
+    logic [REG_WIDTH-1:0]       last_done_data;
+    logic                       irq_enable;
     logic                       done_sticky;
     logic                       npu_busy_q;
-    logic [31:0]                irq_req_q;
-    logic [31:0]                status_irq_bits_d;
 
     wire aw_accept = s_axil_awvalid && s_axil_awready;
     wire w_accept  = s_axil_wvalid  && s_axil_wready;
@@ -121,9 +116,6 @@ module npu_axil_reg_if #(
     wire [11:0] rd_word_addr = s_axil_araddr[13:2];
     wire ctrl_start_commit = write_commit && (wr_word_addr == REG_CTRL) && wr_strb[0] && wr_data[0];
 
-    wire [31:0] status_irq_bits = status_bits & IRQ_STATUS_MASK;
-    wire [31:0] status_irq_set  = status_irq_bits & ~status_irq_bits_d;
-
     logic [AXIL_DATA_WIDTH-1:0] read_data_next;
 
     assign s_axil_awready = !awvalid_q && !bvalid_q;
@@ -136,11 +128,11 @@ module npu_axil_reg_if #(
     assign s_axil_rresp   = 2'b00;
     assign s_axil_rvalid  = rvalid_q;
 
-    assign npu_wb_ready = 1'b1;
+    assign npu_done_ready = 1'b1;
     assign npu_busy = npu_busy_q;
-    assign irq = irq_req_q;
-    assign status_bits = {24'b0, 1'b1, 1'b0, npu_err_code,
-                          last_wb_valid, done_sticky, npu_busy_q, npu_sa_ready};
+    assign irq = done_sticky && irq_enable;
+    assign status_bits = {26'b0, 1'b1, npu_err_code,
+                          done_sticky, npu_busy_q, npu_sa_ready};
 
     function automatic [REG_WIDTH-1:0] apply_wstrb(
         input [REG_WIDTH-1:0] old_data,
@@ -162,11 +154,10 @@ module npu_axil_reg_if #(
         read_data_next = '0;
         case (rd_word_addr)
             REG_CTRL: begin
-                read_data_next[3:1] = {cfg_dataflow_mode, use_per_channel, cfg_16bits_ia};
+                read_data_next[4:1] = {irq_enable, cfg_dataflow_mode, use_per_channel, cfg_16bits_ia};
             end
             REG_STATUS:       read_data_next[7:0] = status_bits[7:0];
-            REG_WB_DATA:      read_data_next = last_wb_data;
-            REG_WB_INFO:      read_data_next[0] = last_wb_valid;
+            REG_WB_DATA:      read_data_next = last_done_data;
             REG_LHS_BASE:     read_data_next = lhs_base;
             REG_RHS_BASE:     read_data_next = rhs_base;
             REG_DST_BASE:     read_data_next = dst_base;
@@ -223,19 +214,15 @@ module npu_axil_reg_if #(
             cfg_16bits_ia       <= 1'b0;
             cfg_dataflow_mode   <= 1'b0;
             use_per_channel     <= 1'b0;
+            irq_enable          <= 1'b0;
             cfg_ia_reuse_num    <= '0;
             cfg_w_reuse_num     <= '0;
             calc_start          <= 1'b0;
             npu_busy_q          <= 1'b0;
             done_sticky         <= 1'b0;
-            last_wb_data        <= '0;
-            last_wb_valid       <= 1'b0;
-            irq_req_q           <= 32'b0;
-            status_irq_bits_d   <= 32'b0;
+            last_done_data      <= '0;
         end else begin
             calc_start <= 1'b0;
-            irq_req_q <= (irq_req_q | status_irq_set) & ~eoi;
-            status_irq_bits_d <= status_irq_bits;
 
             if (s_axil_bready && bvalid_q) begin
                 bvalid_q <= 1'b0;
@@ -263,17 +250,17 @@ module npu_axil_reg_if #(
                             cfg_16bits_ia     <= wr_data[1];
                             use_per_channel   <= wr_data[2];
                             cfg_dataflow_mode <= wr_data[3];
+                            irq_enable        <= wr_data[4];
                             if (wr_data[0]) begin
                                 calc_start    <= 1'b1;
                                 npu_busy_q    <= 1'b1;
-                                done_sticky   <= 1'b0;
-                                last_wb_valid <= 1'b0;
                             end
-                            if (wr_data[8] && !wr_data[0]) begin
+                        end
+                    end
+                    REG_STATUS: begin
+                        if (wr_strb[0]) begin
+                            if (wr_data[2]) begin
                                 done_sticky <= 1'b0;
-                            end
-                            if (wr_data[9] && !wr_data[0]) begin
-                                last_wb_valid <= 1'b0;
                             end
                         end
                     end
@@ -319,11 +306,10 @@ module npu_axil_reg_if #(
                 npu_busy_q <= 1'b1;
             end
 
-            if (npu_wb_valid && npu_wb_ready && !ctrl_start_commit) begin
+            if (npu_done_valid && npu_done_ready && !ctrl_start_commit) begin
                 npu_busy_q    <= 1'b0;
                 done_sticky   <= 1'b1;
-                last_wb_data  <= {{(REG_WIDTH-2){1'b0}}, npu_err_code};
-                last_wb_valid <= 1'b1;
+                last_done_data <= {{(REG_WIDTH-2){1'b0}}, npu_err_code};
             end
         end
     end

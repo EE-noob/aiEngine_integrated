@@ -10,10 +10,10 @@ module axil_top_with_ram #(
     parameter IA_CACHE_BLOCKS = 4,
     parameter PS_FRAME_COUNT  = SIZE,
     parameter AXI_READ_OUTSTANDING = 4,
+    parameter NPU_ENABLE_CLOCK_GATING = 1,
     parameter MEM_DP          = 512,
     parameter MEM_PATH        = "",
-    parameter MEM_INIT_EN     = 0,
-    parameter [31:0] IRQ_STATUS_MASK = 32'h0000_0004
+    parameter MEM_INIT_EN     = 0
 ) (
     input  wire clk,
     input  wire rst_n,
@@ -39,8 +39,7 @@ module axil_top_with_ram #(
     output wire                           s_axil_rvalid,
     input  wire                           s_axil_rready,
 
-    output wire [31:0]                    irq,
-    input  wire [31:0]                    eoi,
+    output wire                           irq,
 
     input  wire                           mem_reload_req,
     output wire                           npu_busy
@@ -95,7 +94,7 @@ module axil_top_with_ram #(
         .IA_CACHE_BLOCKS(IA_CACHE_BLOCKS),
         .PS_FRAME_COUNT(PS_FRAME_COUNT),
         .AXI_READ_OUTSTANDING(AXI_READ_OUTSTANDING),
-        .IRQ_STATUS_MASK(IRQ_STATUS_MASK)
+        .ENABLE_CLOCK_GATING(NPU_ENABLE_CLOCK_GATING)
     ) u_npu_axil_top (
         .clk(clk),
         .rst_n(rst_n),
@@ -156,7 +155,6 @@ module axil_top_with_ram #(
         .m_axi_bresp(m_axi_bresp),
 
         .irq(irq),
-        .eoi(eoi),
 
         .npu_busy(npu_busy)
     );

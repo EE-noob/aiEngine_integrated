@@ -14,7 +14,7 @@ module npu_axil_top #(
     parameter AXI_WRITE_OUTSTANDING = AXI_READ_OUTSTANDING,
     parameter ENABLE_IS_MODE = 1,
     parameter ENABLE_PER_CHANNEL = 1,
-    parameter [31:0] IRQ_STATUS_MASK = 32'h0000_0004
+    parameter ENABLE_CLOCK_GATING = 1
 ) (
     input  wire clk,
     input  wire rst_n,
@@ -75,8 +75,7 @@ module npu_axil_top #(
     output wire                         m_axi_bready,
     input  wire [1:0]                   m_axi_bresp,
 
-    output wire [31:0]                  irq,
-    input  wire [31:0]                  eoi,
+    output wire                         irq,
     output wire                         npu_busy
 );
 
@@ -104,12 +103,109 @@ module npu_axil_top #(
     wire [REG_WIDTH-1:0] cfg_w_reuse_num_reg;
     wire calc_start_pulse;
     wire npu_sa_ready;
-    wire npu_wb_valid;
-    wire npu_wb_ready;
+    wire npu_done_valid;
+    wire npu_done_ready;
     wire [1:0] npu_err_code;
     wire [31:0] status_bits;
     wire [NPU_ADDR_WIDTH-1:0] npu_m_axi_araddr;
     wire [NPU_ADDR_WIDTH-1:0] npu_m_axi_awaddr;
+    wire npu_core_clk;
+    logic [1:0] npu_clk_reset_warmup_q;
+    logic npu_clk_req_q;
+    logic npu_start_pending_q;
+    logic npu_start_warmup_q;
+    logic npu_done_seen_q;
+    wire npu_clk_gate_en;
+    wire npu_core_calc_start;
+    wire npu_done_fire;
+    wire npu_axi_idle;
+
+    assign npu_done_fire = npu_done_valid && npu_done_ready;
+    assign npu_axi_idle = !m_axi_arvalid && !m_axi_awvalid && !m_axi_wvalid &&
+                          !m_axi_rready && !m_axi_bready &&
+                          !m_axi_rvalid && !m_axi_bvalid;
+
+    generate
+        if (ENABLE_CLOCK_GATING != 0) begin : g_npu_clock_gate
+            assign npu_clk_gate_en = (|npu_clk_reset_warmup_q) ||
+                                     npu_clk_req_q ||
+                                     calc_start_pulse ||
+                                     npu_start_pending_q ||
+                                     npu_busy ||
+                                     !npu_axi_idle;
+`ifdef XILINX_FPGA
+            BUFGCE #(
+                .SIM_DEVICE("7SERIES")
+            ) u_npu_clk_bufgce (
+                .I (clk),
+                .CE(npu_clk_gate_en),
+                .O (npu_core_clk)
+            );
+`elsif XILINX_CLK_WIZ_IP
+            BUFGCE #(
+                .SIM_DEVICE("7SERIES")
+            ) u_npu_clk_bufgce (
+                .I (clk),
+                .CE(npu_clk_gate_en),
+                .O (npu_core_clk)
+            );
+`else
+            logic npu_clk_gate_latch;
+
+            always_latch begin
+                if (!rst_n) begin
+                    npu_clk_gate_latch <= 1'b1;
+                end else if (!clk) begin
+                    npu_clk_gate_latch <= npu_clk_gate_en;
+                end
+            end
+
+            assign npu_core_clk = clk & npu_clk_gate_latch;
+`endif
+        end else begin : g_npu_clock_direct
+            assign npu_clk_gate_en = 1'b1;
+            assign npu_core_clk = clk;
+        end
+    endgenerate
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            npu_clk_reset_warmup_q <= 2'b11;
+            npu_clk_req_q          <= 1'b0;
+            npu_start_pending_q    <= 1'b0;
+            npu_start_warmup_q     <= 1'b0;
+            npu_done_seen_q        <= 1'b0;
+        end else begin
+            npu_clk_reset_warmup_q <= {npu_clk_reset_warmup_q[0], 1'b0};
+
+            if (calc_start_pulse) begin
+                npu_clk_req_q       <= 1'b1;
+                npu_start_pending_q <= 1'b1;
+                npu_start_warmup_q  <= (ENABLE_CLOCK_GATING != 0);
+                npu_done_seen_q     <= 1'b0;
+            end else begin
+                if (npu_clk_req_q) begin
+                    npu_start_warmup_q <= 1'b0;
+                end
+                if (npu_core_calc_start) begin
+                    npu_start_pending_q <= 1'b0;
+                end
+                if (npu_done_fire) begin
+                    npu_done_seen_q <= 1'b1;
+                end
+                if (npu_done_seen_q && npu_sa_ready && !npu_done_valid && npu_axi_idle) begin
+                    npu_clk_req_q       <= 1'b0;
+                    npu_start_pending_q <= 1'b0;
+                    npu_start_warmup_q  <= 1'b0;
+                    npu_done_seen_q     <= 1'b0;
+                end
+            end
+        end
+    end
+
+    assign npu_core_calc_start = (ENABLE_CLOCK_GATING != 0)
+                               ? (npu_start_pending_q && !npu_start_warmup_q && npu_sa_ready)
+                               : calc_start_pulse;
 
     generate
         if (AXI_ADDR_WIDTH > NPU_ADDR_WIDTH) begin : g_extend_npu_addr
@@ -134,8 +230,7 @@ module npu_axil_top #(
     npu_axil_reg_if #(
         .AXIL_DATA_WIDTH(AXIL_DATA_WIDTH),
         .AXIL_ADDR_WIDTH(AXIL_ADDR_WIDTH),
-        .REG_WIDTH(REG_WIDTH),
-        .IRQ_STATUS_MASK(IRQ_STATUS_MASK)
+        .REG_WIDTH(REG_WIDTH)
     ) u_npu_axil_reg_if (
         .clk(clk),
         .rst_n(rst_n),
@@ -182,11 +277,10 @@ module npu_axil_top #(
         .act_min(act_min_reg),
         .act_max(act_max_reg),
         .npu_sa_ready(npu_sa_ready),
-        .npu_wb_valid(npu_wb_valid),
-        .npu_wb_ready(npu_wb_ready),
+        .npu_done_valid(npu_done_valid),
+        .npu_done_ready(npu_done_ready),
         .npu_err_code(npu_err_code),
         .irq(irq),
-        .eoi(eoi),
         .npu_busy(npu_busy),
         .status_bits(status_bits)
     );
@@ -205,16 +299,16 @@ module npu_axil_top #(
         .ENABLE_IS_MODE(ENABLE_IS_MODE),
         .ENABLE_PER_CHANNEL(ENABLE_PER_CHANNEL)
     ) u_npu_top (
-        .clk(clk),
+        .clk(npu_core_clk),
         .rst_n(rst_n),
-        .calc_start(calc_start_pulse),
+        .calc_start(npu_core_calc_start),
         .cfg_16bits_ia(cfg_16bits_ia_reg),
         .cfg_dataflow_mode(cfg_dataflow_mode_reg),
         .cfg_ia_reuse_num(cfg_ia_reuse_num_reg),
         .cfg_w_reuse_num(cfg_w_reuse_num_reg),
         .sa_ready(npu_sa_ready),
-        .wb_valid(npu_wb_valid),
-        .wb_ready(npu_wb_ready),
+        .done_valid(npu_done_valid),
+        .done_ready(npu_done_ready),
         .err_code(npu_err_code),
         .lhs_base(lhs_base_reg),
         .rhs_base(rhs_base_reg),

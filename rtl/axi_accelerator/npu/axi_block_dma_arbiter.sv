@@ -16,6 +16,7 @@ module axi_block_dma_arbiter #(
     parameter int unsigned BUS_WIDTH    = 32,
     parameter int unsigned REG_WIDTH    = 32,
     parameter int unsigned CACHE_BLOCKS = 4,
+    parameter int unsigned ENABLE_QUANT_CLIENT = 1,
     parameter int unsigned READ_OUTSTANDING = 4,
     parameter int unsigned WRITE_OUTSTANDING = READ_OUTSTANDING
 ) (
@@ -183,10 +184,11 @@ module axi_block_dma_arbiter #(
     logic wr_dma_busy;
     logic wr_dma_done;
     logic wr_src_wready;
+    wire quant_req_eff = (ENABLE_QUANT_CLIENT != 0) ? quant_req : 1'b0;
 
     always_comb begin
         if (kernel_req) rd_next_client = C_KERNEL;
-        else if (quant_req) rd_next_client = C_QUANT;
+        else if (quant_req_eff) rd_next_client = C_QUANT;
         else if (ia_req) rd_next_client = C_IA;
         else if (bias_req) rd_next_client = C_BIAS;
         else rd_next_client = C_NONE;
@@ -210,7 +212,7 @@ module axi_block_dma_arbiter #(
                 end else if ((rd_client == C_IA     && !ia_req) ||
                              (rd_client == C_KERNEL && !kernel_req) ||
                              (rd_client == C_BIAS   && !bias_req) ||
-                             (rd_client == C_QUANT  && !quant_req)) begin
+                             (rd_client == C_QUANT  && !quant_req_eff)) begin
                     rd_client  <= C_NONE;
                     rd_active  <= 1'b0;
                     rd_started <= 1'b0;
@@ -226,7 +228,7 @@ module axi_block_dma_arbiter #(
     assign ia_granted     = rd_active && (rd_client == C_IA);
     assign kernel_granted = rd_active && (rd_client == C_KERNEL);
     assign bias_granted   = rd_active && (rd_client == C_BIAS);
-    assign quant_granted  = rd_active && (rd_client == C_QUANT);
+    assign quant_granted  = (ENABLE_QUANT_CLIENT != 0) && rd_active && (rd_client == C_QUANT);
 
     assign ia_busy     = ia_granted && rd_dma_busy;
     assign kernel_busy = kernel_granted && rd_dma_busy;
@@ -286,16 +288,18 @@ module axi_block_dma_arbiter #(
                 rd_dma_lhs_zp           = bias_lhs_zp;
             end
             C_QUANT: begin
-                rd_dma_start            = quant_start && quant_granted && !rd_started;
-                rd_dma_linear_read_mode = quant_linear_read_mode;
-                rd_dma_base_addr        = quant_base_addr;
-                rd_dma_row_stride       = quant_row_stride;
-                rd_dma_rows_to_read     = quant_rows_to_read;
-                rd_dma_burst_len_m1     = quant_burst_len_m1;
-                rd_dma_slot_id          = '0;
-                rd_dma_slot_id[0]       = quant_slot_id;
-                rd_dma_use_16bits       = quant_use_16bits;
-                rd_dma_lhs_zp           = quant_lhs_zp;
+                if (ENABLE_QUANT_CLIENT != 0) begin
+                    rd_dma_start            = quant_start && quant_granted && !rd_started;
+                    rd_dma_linear_read_mode = quant_linear_read_mode;
+                    rd_dma_base_addr        = quant_base_addr;
+                    rd_dma_row_stride       = quant_row_stride;
+                    rd_dma_rows_to_read     = quant_rows_to_read;
+                    rd_dma_burst_len_m1     = quant_burst_len_m1;
+                    rd_dma_slot_id          = '0;
+                    rd_dma_slot_id[0]       = quant_slot_id;
+                    rd_dma_use_16bits       = quant_use_16bits;
+                    rd_dma_lhs_zp           = quant_lhs_zp;
+                end
             end
             default: ;
         endcase
@@ -353,7 +357,7 @@ module axi_block_dma_arbiter #(
     assign bias_wr_col_base   = dma_wr_col_base;
     assign bias_wr_use_16bits = dma_wr_use_16bits;
 
-    assign quant_raw_data  = dma_raw_data;
+    assign quant_raw_data  = (ENABLE_QUANT_CLIENT != 0) ? dma_raw_data : '0;
     assign quant_raw_valid = quant_granted && dma_raw_valid;
 
     axi_dual_block_dma #(

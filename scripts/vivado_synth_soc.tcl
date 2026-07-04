@@ -72,7 +72,7 @@ puts $xdc_fh "create_clock -name clk -period $clock_period_ns \[get_ports clk\]"
 close $xdc_fh
 
 set_property include_dirs $incdirs [current_fileset]
-set_property verilog_define {SYNTHESIS=1} [current_fileset]
+set_property verilog_define {SYNTHESIS=1 XILINX_FPGA=1} [current_fileset]
 
 read_verilog -sv $rtl_files
 read_xdc $xdc_file

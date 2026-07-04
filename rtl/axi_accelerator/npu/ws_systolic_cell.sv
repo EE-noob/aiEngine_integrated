@@ -19,7 +19,7 @@ module ws_systolic_cell #(
     reg signed  [ WEIGHT_WIDTH-1:0] weight_reg;
     reg signed  [    ACC_WIDTH-1:0] sum_reg;
 
-    wire signed [    ACC_WIDTH-1:0] mult_result;  // s16*s8 -> s24
+    (* use_dsp = "yes" *) wire signed [ACC_WIDTH-1:0] mult_result;
     wire signed [      ACC_WIDTH:0] sum_ext;
 
     assign mult_result = data_reg * weight_reg;

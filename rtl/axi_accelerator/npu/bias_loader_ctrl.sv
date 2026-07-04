@@ -12,7 +12,8 @@
 
 module bias_loader_ctrl #(
     parameter int unsigned SIZE      = 8,
-    parameter int unsigned REG_WIDTH = 32
+    parameter int unsigned REG_WIDTH = 32,
+    parameter int unsigned COUNT_WIDTH = REG_WIDTH
 ) (
     input  logic clk,
     input  logic rst_n,
@@ -37,15 +38,17 @@ module bias_loader_ctrl #(
     output logic [7:0]           dma_burst_len_m1,
     output logic                 load_bank,
 
-    output logic [REG_WIDTH-1:0] current_block_idx,
-    output logic [REG_WIDTH-1:0] load_block_idx,
-    output logic [REG_WIDTH-1:0] group_blocks_needed,
+    output logic [COUNT_WIDTH-1:0] current_block_idx,
+    output logic [COUNT_WIDTH-1:0] load_block_idx,
+    output logic [COUNT_WIDTH-1:0] group_blocks_needed,
     output logic                 active_bank,
     output logic                 switch_pending
 );
 
   localparam int unsigned SIZE_SHIFT = $clog2(SIZE);
   localparam int unsigned BLOCK_ADDR_SHIFT = SIZE_SHIFT + 2;
+  localparam int unsigned CNT_W = (COUNT_WIDTH < 1) ? 1 : COUNT_WIDTH;
+  typedef logic [CNT_W-1:0] count_t;
 
   typedef enum logic [3:0] {
     S_IDLE       = 4'd0,
@@ -62,15 +65,15 @@ module bias_loader_ctrl #(
     S_NEXT_GROUP = 4'd11
   } state_t;
 
-  state_t state;
+  (* fsm_encoding = "sequential" *) state_t state;
 
   logic [REG_WIDTH-1:0] cfg_bias_base;
-  logic [REG_WIDTH-1:0] cfg_m;
-  logic [REG_WIDTH-1:0] cfg_bias_step_blocks;
-  logic [REG_WIDTH-1:0] num_blocks;
-  logic [REG_WIDTH-1:0] last_block_elems;
-  logic [REG_WIDTH-1:0] step_blocks_eff;
-  logic [REG_WIDTH-1:0] last_group_start_idx;
+  count_t cfg_m;
+  count_t cfg_bias_step_blocks;
+  count_t num_blocks;
+  count_t last_block_elems;
+  count_t step_blocks_eff;
+  count_t last_group_start_idx;
   logic                 current_is_last_group;
   logic                 bias_switch_d;
 
@@ -84,7 +87,7 @@ module bias_loader_ctrl #(
       cfg_bias_step_blocks   <= '0;
       num_blocks             <= '0;
       last_block_elems       <= '0;
-      step_blocks_eff        <= REG_WIDTH'(1);
+      step_blocks_eff        <= count_t'(1);
       last_group_start_idx   <= '0;
       current_is_last_group  <= 1'b1;
       current_block_idx      <= '0;
@@ -105,11 +108,11 @@ module bias_loader_ctrl #(
 
       if (init_cfg) begin
         cfg_bias_base        <= bias_base;
-        cfg_m                <= m;
-        cfg_bias_step_blocks <= bias_step_blocks;
+        cfg_m                <= count_t'(m);
+        cfg_bias_step_blocks <= count_t'(bias_step_blocks);
         num_blocks           <= '0;
         last_block_elems     <= '0;
-        step_blocks_eff      <= REG_WIDTH'(1);
+        step_blocks_eff      <= count_t'(1);
         last_group_start_idx <= '0;
         current_is_last_group <= 1'b1;
         current_block_idx    <= '0;
@@ -132,12 +135,12 @@ module bias_loader_ctrl #(
 
           S_INIT_GEOM: begin
             num_blocks       <= (cfg_m == '0) ? '0 :
-                                ((cfg_m + REG_WIDTH'(SIZE - 1)) >> SIZE_SHIFT);
+                                ((cfg_m + count_t'(SIZE - 1)) >> SIZE_SHIFT);
             last_block_elems <= (cfg_m == '0) ? '0 :
-                                (((cfg_m & REG_WIDTH'(SIZE - 1)) == '0)
-                                  ? REG_WIDTH'(SIZE)
-                                  : (cfg_m & REG_WIDTH'(SIZE - 1)));
-            step_blocks_eff  <= (cfg_bias_step_blocks == '0) ? REG_WIDTH'(1) :
+                                (((cfg_m & count_t'(SIZE - 1)) == '0)
+                                  ? count_t'(SIZE)
+                                  : (cfg_m & count_t'(SIZE - 1)));
+            step_blocks_eff  <= (cfg_bias_step_blocks == '0) ? count_t'(1) :
                                 cfg_bias_step_blocks;
             state            <= S_INIT_LAST;
           end
@@ -167,11 +170,11 @@ module bias_loader_ctrl #(
           end
 
           S_CMD: begin
-            dma_base_addr    <= cfg_bias_base + (load_block_idx << BLOCK_ADDR_SHIFT);
-            dma_rows_to_read <= group_blocks_needed;
+            dma_base_addr    <= cfg_bias_base + (REG_WIDTH'(load_block_idx) << BLOCK_ADDR_SHIFT);
+            dma_rows_to_read <= REG_WIDTH'(group_blocks_needed);
             if (group_blocks_needed == '0) begin
               dma_burst_len_m1 <= 8'd0;
-            end else if ((group_blocks_needed == REG_WIDTH'(1)) &&
+            end else if ((group_blocks_needed == count_t'(1)) &&
                          current_is_last_group) begin
               dma_burst_len_m1 <= 8'(last_block_elems - REG_WIDTH'(1));
             end else begin

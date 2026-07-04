@@ -119,6 +119,11 @@ module axi_dual_block_dma #(
         (WRITE_OUTSTANDING < 1) ? 1 : WRITE_OUTSTANDING;
     localparam int unsigned WR_OUTS_W =
         (WR_OUTS_MAX < 2) ? 1 : $clog2(WR_OUTS_MAX + 1);
+    localparam int unsigned ROW_CNT_W = (SIZE <= 1) ? 1 : $clog2(SIZE + 1);
+    localparam int unsigned BEAT_CNT_W = 9;
+    localparam bit SUPPORT_16BIT = (DATA_WIDTH > 8);
+    typedef logic [ROW_CNT_W-1:0] row_count_t;
+    typedef logic [BEAT_CNT_W-1:0] beat_count_t;
 
     wire rd_ar_hs = m_axi_arvalid && m_axi_arready;
     wire rd_r_hs  = m_axi_rvalid && m_axi_rready;
@@ -139,7 +144,7 @@ module axi_dual_block_dma #(
     // ---------------------------------------------------------------------
     logic [REG_WIDTH-1:0] rd_cfg_base_addr;
     logic [REG_WIDTH-1:0] rd_cfg_row_stride;
-    logic [REG_WIDTH-1:0] rd_cfg_rows;
+    row_count_t rd_cfg_rows;
     logic [REG_WIDTH-1:0] rd_cfg_valid_cols;
     logic [7:0] rd_cfg_burst_len_m1;
     logic [((CACHE_BLOCKS <= 1) ? 1 : $clog2(CACHE_BLOCKS))-1:0] rd_cfg_slot;
@@ -147,14 +152,14 @@ module axi_dual_block_dma #(
     logic rd_cfg_use_16bits;
     logic signed [REG_WIDTH-1:0] rd_cfg_zp;
 
-    logic [REG_WIDTH-1:0] rd_cmd_row_cnt;
+    row_count_t rd_cmd_row_cnt;
     logic [REG_WIDTH-1:0] rd_cmd_row_addr;
-    logic [REG_WIDTH-1:0] rd_rsp_row_cnt;
+    row_count_t rd_rsp_row_cnt;
     logic [REG_WIDTH-1:0] rd_rsp_row_addr_cur;
-    logic [REG_WIDTH-1:0] rd_rsp_beat_cnt;
+    beat_count_t rd_rsp_beat_cnt;
     logic [BUS_WIDTH-1:0] rd_rsp_prev_data;
     logic [BUS_WIDTH-1:0] rd_rsp_data_r;
-    logic [REG_WIDTH-1:0] rd_rsp_row_r;
+    row_count_t rd_rsp_row_r;
     logic [$clog2(SIZE)-1:0] rd_rsp_col_base_r;
     logic rd_rsp_valid_r;
     logic [RD_OUTS_W-1:0] rd_outstanding_cnt;
@@ -174,7 +179,8 @@ module axi_dual_block_dma #(
     assign rd_busy = rd_active;
     assign rd_done = rd_done_r;
     assign rd_error = rd_error_r;
-    assign wr_use_16bits = rd_cfg_use_16bits;
+    wire rd_cfg_use_16bits_eff = SUPPORT_16BIT ? rd_cfg_use_16bits : 1'b0;
+    assign wr_use_16bits = rd_cfg_use_16bits_eff;
     assign wr_slot = rd_cfg_slot;
 
     assign m_axi_arsize  = 3'(AXI_SIZE_VALUE);
@@ -182,22 +188,22 @@ module axi_dual_block_dma #(
     assign m_axi_rready  = rd_active;
     assign rd_cmd_inflight = (rd_outstanding_cnt != '0);
 
-    wire [REG_WIDTH-1:0] rd_cfg_burst_len_ext = REG_WIDTH'(rd_cfg_burst_len_m1);
-    wire [REG_WIDTH-1:0] rd_logical_burst_len_ext =
-        rd_cfg_linear_read ? REG_WIDTH'(0) : rd_cfg_burst_len_ext;
+    wire [BEAT_CNT_W-1:0] rd_cfg_burst_len_ext = BEAT_CNT_W'(rd_cfg_burst_len_m1);
+    wire [BEAT_CNT_W-1:0] rd_logical_burst_len_ext =
+        rd_cfg_linear_read ? BEAT_CNT_W'(0) : rd_cfg_burst_len_ext;
     wire rd_unaligned_mode = (rd_cfg_base_addr[ADDR_LSB-1:0] != '0)
                           || (rd_cfg_row_stride[ADDR_LSB-1:0] != '0);
 
     wire [ADDR_LSB-1:0] rd_rsp_offset = rd_rsp_row_addr_cur[ADDR_LSB-1:0];
     wire rd_rsp_cross = rd_unaligned_mode && (rd_rsp_offset != '0);
-    wire [REG_WIDTH-1:0] rd_rsp_aligned_last_beat =
-        rd_logical_burst_len_ext + (rd_rsp_cross ? REG_WIDTH'(1) : REG_WIDTH'(0));
+    wire [BEAT_CNT_W-1:0] rd_rsp_aligned_last_beat =
+        rd_logical_burst_len_ext + (rd_rsp_cross ? BEAT_CNT_W'(1) : BEAT_CNT_W'(0));
     wire rd_rsp_emit = !rd_rsp_cross || (rd_rsp_beat_cnt != '0);
 
     wire rd_rsp_done = rd_r_hs
                     && ((rd_rsp_beat_cnt == rd_rsp_aligned_last_beat) || m_axi_rlast);
 
-    wire last_rd_rsp = rd_rsp_done && (rd_rsp_row_cnt == rd_cfg_rows - 1);
+    wire last_rd_rsp = rd_rsp_done && (rd_rsp_row_cnt == (rd_cfg_rows - row_count_t'(1)));
 
     always_ff @(posedge clk) begin
         if (!rst_n) begin
@@ -224,7 +230,7 @@ module axi_dual_block_dma #(
             rd_active           <= 1'b1;
             rd_cfg_base_addr    <= rd_base_addr;
             rd_cfg_row_stride   <= rd_row_stride;
-            rd_cfg_rows         <= rd_rows_to_read;
+            rd_cfg_rows         <= row_count_t'(rd_rows_to_read);
             rd_cfg_valid_cols   <= (rd_valid_cols == '0) ? REG_WIDTH'(SIZE) : rd_valid_cols;
             rd_cfg_burst_len_m1 <= rd_burst_len_m1;
             rd_cfg_slot         <= rd_slot_id;
@@ -278,7 +284,7 @@ module axi_dual_block_dma #(
                                    : rd_cmd_row_addr;
                     m_axi_arlen   <= (rd_cfg_linear_read ? 8'd0 : rd_cfg_burst_len_m1)
                                    + ((rd_unaligned_mode && (cmd_offset_cur != '0)) ? 8'd1 : 8'd0);
-                    rd_cmd_row_cnt <= rd_cmd_row_cnt + 1'b1;
+                    rd_cmd_row_cnt <= rd_cmd_row_cnt + row_count_t'(1);
                     rd_cmd_row_addr <= rd_cmd_row_addr + rd_cfg_row_stride;
                     rd_pending_cmd_cross <= rd_unaligned_mode && (cmd_offset_cur != '0);
                 end
@@ -331,7 +337,7 @@ module axi_dual_block_dma #(
                 $display("[AXI_DMA_TRACE] rd_done base=%08x stride=%0d rows=%0d len_m1=%0d linear=%0b use16=%0b unaligned=%0b ar=%0d ar_unaligned=%0d ar_cross=%0d r=%0d max_out=%0d",
                          rd_cfg_base_addr, rd_cfg_row_stride, rd_cfg_rows,
                          rd_cfg_burst_len_m1, rd_cfg_linear_read,
-                         rd_cfg_use_16bits, rd_unaligned_mode,
+                         rd_cfg_use_16bits_eff, rd_unaligned_mode,
                          rd_trace_ar_count, rd_trace_unaligned_ar_count,
                          rd_trace_cross_ar_count, rd_trace_r_count,
                          rd_trace_max_outs);
@@ -340,7 +346,7 @@ module axi_dual_block_dma #(
     end
 `endif
 
-    logic [REG_WIDTH-1:0] rd_rsp_logical_beat_comb;
+    beat_count_t rd_rsp_logical_beat_comb;
     logic [$clog2(SIZE)-1:0] rd_rsp_col_base_comb;
     logic [BUS_WIDTH-1:0] rd_rsp_aligned_data_comb;
     always_comb begin
@@ -348,12 +354,12 @@ module axi_dual_block_dma #(
         rd_rsp_aligned_data_comb = m_axi_rdata;
 
         if (rd_cfg_linear_read) begin
-            rd_rsp_logical_beat_comb = rd_rsp_row_cnt;
+            rd_rsp_logical_beat_comb = beat_count_t'(rd_rsp_row_cnt);
         end
 
         if (rd_rsp_cross) begin
             if (!rd_cfg_linear_read) begin
-                rd_rsp_logical_beat_comb = (rd_rsp_beat_cnt == '0) ? '0 : (rd_rsp_beat_cnt - 1'b1);
+                rd_rsp_logical_beat_comb = (rd_rsp_beat_cnt == '0) ? '0 : (rd_rsp_beat_cnt - beat_count_t'(1));
             end
             rd_rsp_aligned_data_comb =
                 (m_axi_rdata << ((BYTE_PER_BEAT - int'(rd_rsp_offset)) * 8)) |
@@ -361,7 +367,7 @@ module axi_dual_block_dma #(
         end
     end
 
-    assign rd_rsp_col_base_comb = rd_cfg_use_16bits
+    assign rd_rsp_col_base_comb = rd_cfg_use_16bits_eff
                                 ? rd_rsp_logical_beat_comb[$clog2(SIZE)-1:0] << $clog2(ELEM_PER_BEAT_S16)
                                 : rd_rsp_logical_beat_comb[$clog2(SIZE)-1:0] << $clog2(ELEM_PER_BEAT_S8);
 
@@ -391,15 +397,15 @@ module axi_dual_block_dma #(
 
                 if (rd_rsp_done) begin
                     rd_rsp_beat_cnt <= '0;
-                    if (rd_rsp_row_cnt == rd_cfg_rows - 1) begin
+                    if (rd_rsp_row_cnt == (rd_cfg_rows - row_count_t'(1))) begin
                         rd_rsp_row_cnt <= '0;
                         rd_rsp_row_addr_cur <= rd_cfg_base_addr;
                     end else begin
-                        rd_rsp_row_cnt <= rd_rsp_row_cnt + 1'b1;
+                        rd_rsp_row_cnt <= rd_rsp_row_cnt + row_count_t'(1);
                         rd_rsp_row_addr_cur <= rd_rsp_row_addr_cur + rd_cfg_row_stride;
                     end
                 end else begin
-                    rd_rsp_beat_cnt <= rd_rsp_beat_cnt + 1'b1;
+                    rd_rsp_beat_cnt <= rd_rsp_beat_cnt + beat_count_t'(1);
                 end
             end else begin
                 rd_rsp_valid_r <= 1'b0;
@@ -427,7 +433,7 @@ module axi_dual_block_dma #(
         end
 
         if (rd_rsp_valid_r) begin
-            if (rd_cfg_use_16bits) begin
+            if (rd_cfg_use_16bits_eff) begin
                 for (int i = 0; i < ELEM_PER_BEAT_S16; i++) begin
                     if ((REG_WIDTH'(rd_rsp_col_base_r) + REG_WIDTH'(i)) < REG_WIDTH'(SIZE)) begin
                         if (REG_WIDTH'(rd_rsp_col_base_r + i) < rd_cfg_valid_cols) begin
@@ -454,14 +460,14 @@ module axi_dual_block_dma #(
     // ---------------------------------------------------------------------
     logic [REG_WIDTH-1:0] wr_cfg_base_addr;
     logic [REG_WIDTH-1:0] wr_cfg_row_stride;
-    logic [REG_WIDTH-1:0] wr_cfg_rows;
+    row_count_t wr_cfg_rows;
     logic [7:0] wr_cfg_burst_len_m1;
-    logic [REG_WIDTH-1:0] wr_cmd_row_cnt;
+    row_count_t wr_cmd_row_cnt;
     logic [REG_WIDTH-1:0] wr_cmd_row_addr_cur;
-    logic [REG_WIDTH-1:0] wr_data_row_cnt;
+    row_count_t wr_data_row_cnt;
     logic [REG_WIDTH-1:0] wr_data_row_addr_cur;
-    logic [REG_WIDTH-1:0] wr_resp_row_cnt;
-    logic [REG_WIDTH-1:0] wr_beat_cnt;
+    row_count_t wr_resp_row_cnt;
+    beat_count_t wr_beat_cnt;
     logic [BUS_WIDTH-1:0] wr_tail_data;
     logic [BUS_WIDTH/8-1:0] wr_tail_mask;
     logic wr_active;
@@ -481,12 +487,12 @@ module axi_dual_block_dma #(
     assign wr_done  = wr_done_r;
     assign wr_error = wr_error_r;
 
-    wire [REG_WIDTH-1:0] wr_cfg_burst_len_ext = REG_WIDTH'(wr_cfg_burst_len_m1);
+    wire [BEAT_CNT_W-1:0] wr_cfg_burst_len_ext = BEAT_CNT_W'(wr_cfg_burst_len_m1);
     wire [ADDR_LSB-1:0] wr_cmd_row_offset = wr_cmd_row_addr_cur[ADDR_LSB-1:0];
     wire [ADDR_LSB-1:0] wr_row_offset = wr_data_row_addr_cur[ADDR_LSB-1:0];
     wire wr_row_cross = (wr_row_offset != '0);
-    wire [REG_WIDTH-1:0] wr_aligned_last_beat =
-        wr_cfg_burst_len_ext + (wr_row_cross ? REG_WIDTH'(1) : REG_WIDTH'(0));
+    wire [BEAT_CNT_W-1:0] wr_aligned_last_beat =
+        wr_cfg_burst_len_ext + (wr_row_cross ? BEAT_CNT_W'(1) : BEAT_CNT_W'(0));
     wire wr_tail_beat = wr_row_cross && (wr_beat_cnt == wr_aligned_last_beat);
     wire wr_need_src_beat = !wr_tail_beat;
     wire wr_can_issue_aw = wr_active &&
@@ -525,7 +531,7 @@ module axi_dual_block_dma #(
     assign src_wready    = wr_active && wr_data_active &&
                            wr_need_src_beat && m_axi_wready;
 
-    wire last_wr_b = wr_b_hs && (wr_resp_row_cnt == wr_cfg_rows - 1);
+    wire last_wr_b = wr_b_hs && (wr_resp_row_cnt == (wr_cfg_rows - row_count_t'(1)));
 
     always_ff @(posedge clk) begin
         if (!rst_n) begin
@@ -547,7 +553,7 @@ module axi_dual_block_dma #(
             wr_active           <= 1'b1;
             wr_cfg_base_addr    <= wr_base_addr;
             wr_cfg_row_stride   <= wr_row_stride;
-            wr_cfg_rows         <= wr_rows_to_write;
+            wr_cfg_rows         <= row_count_t'(wr_rows_to_write);
             wr_cfg_burst_len_m1 <= wr_burst_len_m1;
             wr_error_r          <= 1'b0;
         end else begin
@@ -596,7 +602,7 @@ module axi_dual_block_dma #(
             end else begin
                 if (wr_aw_hs) begin
                     m_axi_awvalid <= 1'b0;
-                    wr_cmd_row_cnt <= wr_cmd_row_cnt + 1'b1;
+                    wr_cmd_row_cnt <= wr_cmd_row_cnt + row_count_t'(1);
                     wr_cmd_row_addr_cur <= wr_cmd_row_addr_cur + wr_cfg_row_stride;
                     wr_pending_cmd_cross <= 1'b0;
                 end else if (!m_axi_awvalid && wr_can_issue_aw) begin
@@ -629,17 +635,17 @@ module axi_dual_block_dma #(
                     if (wr_beat_cnt == wr_aligned_last_beat) begin
                         wr_beat_cnt   <= '0;
                         wr_data_active <= 1'b0;
-                        wr_data_row_cnt <= wr_data_row_cnt + 1'b1;
+                        wr_data_row_cnt <= wr_data_row_cnt + row_count_t'(1);
                         wr_data_row_addr_cur <= wr_data_row_addr_cur + wr_cfg_row_stride;
                         wr_tail_data   <= '0;
                         wr_tail_mask   <= '0;
                     end else begin
-                        wr_beat_cnt <= wr_beat_cnt + 1'b1;
+                        wr_beat_cnt <= wr_beat_cnt + beat_count_t'(1);
                     end
                 end
 
                 if (wr_b_hs) begin
-                    if (wr_resp_row_cnt < wr_cfg_rows) wr_resp_row_cnt <= wr_resp_row_cnt + 1'b1;
+                    if (wr_resp_row_cnt < wr_cfg_rows) wr_resp_row_cnt <= wr_resp_row_cnt + row_count_t'(1);
                 end
             end
         end else begin

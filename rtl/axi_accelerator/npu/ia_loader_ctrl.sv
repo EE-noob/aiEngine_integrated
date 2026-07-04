@@ -24,6 +24,7 @@ module ia_loader_ctrl #(
     parameter int unsigned SIZE         = 16,
     parameter int unsigned BUS_WIDTH    = 32,
     parameter int unsigned REG_WIDTH    = 32,
+    parameter int unsigned COUNT_WIDTH  = REG_WIDTH,
     parameter int unsigned CACHE_BLOCKS = 4,
     parameter int unsigned PS_FRAME_COUNT = SIZE
 ) (
@@ -87,8 +88,7 @@ module ia_loader_ctrl #(
     output logic [((CACHE_BLOCKS <= 1) ? 1 : $clog2(CACHE_BLOCKS))-1:0]   cache_l1_slot_end,    // 终止 slot（含，支持回绕）
     output logic                              cache_l1_is_init,     // L1 组 is_init 标记
     output logic                              cache_l1_calc_done,   // L1 组 calc_done 标记
-    output logic [CACHE_BLOCKS-1:0]           cache_blk_valid,      // slot 有效状态总线
-    output logic [REG_WIDTH-1:0]              cache_slot_rows [CACHE_BLOCKS], // 每 slot 有效行数
+    output logic [$clog2(SIZE + 1)-1:0]       cache_slot_rows [CACHE_BLOCKS], // 每 slot 有效行数
     input  logic                              cache_tile_done,      // 单 tile 输出完成
     input  logic                              cache_l1_done         // L1 组全部输出完成
 );
@@ -102,6 +102,9 @@ module ia_loader_ctrl #(
   localparam int SLOT_W        = (CACHE_BLOCKS <= 1) ? 1 : $clog2(CACHE_BLOCKS);
   localparam int LOAD_CNT_W    = $clog2(CACHE_BLOCKS + 1);
   localparam int W_CNT_W       = (PS_FRAME_COUNT <= 1) ? 1 : ($clog2(PS_FRAME_COUNT) + 1);
+  localparam int ROW_CNT_W     = $clog2(SIZE + 1);
+  localparam int CNT_W         = (COUNT_WIDTH < 1) ? 1 : COUNT_WIDTH;
+  typedef logic [CNT_W-1:0] count_t;
 
   // =====================================================================
   // 状态机
@@ -114,7 +117,8 @@ module ia_loader_ctrl #(
     S_DONE    = 3'b100
   } state_t;
 
-  state_t state, state_nxt;
+  (* fsm_encoding = "sequential" *) state_t state;
+  state_t state_nxt;
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) state <= S_IDLE;
@@ -161,21 +165,24 @@ module ia_loader_ctrl #(
   // busy:  正在被发送使用中（不可覆写）
   logic blk_valid [CACHE_BLOCKS];
   logic blk_busy  [CACHE_BLOCKS];
+`ifndef SYNTHESIS
+  logic [CACHE_BLOCKS-1:0] cache_blk_valid;
+`endif
 
   // =====================================================================
   // 循环计数器
   // =====================================================================
-  logic [REG_WIDTH-1:0] l2_idx;
-  logic [REG_WIDTH-1:0] l1_idx;
-  logic [REG_WIDTH-1:0] w_group_idx;
-  logic [REG_WIDTH-1:0] w_cnt;
-  logic [REG_WIDTH-1:0] ia_idx;
+  count_t l2_idx;
+  count_t l1_idx;
+  count_t w_group_idx;
+  count_t w_cnt;
+  count_t ia_idx;
 
   // =====================================================================
   // 加载跟踪
   // =====================================================================
-  logic [REG_WIDTH-1:0] load_ia_cursor;    // 当前 L1 组中正在加载第几个 tile（0..r_cur-1）
-  logic [REG_WIDTH-1:0] load_tiles_done;   // 当前 L1 组中已加载完成的 tile 数
+  count_t load_ia_cursor;    // 当前 L1 组中正在加载第几个 tile（0..r_cur-1）
+  count_t load_tiles_done;   // 当前 L1 组中已加载完成的 tile 数
 
   // slot 分配
   logic [SLOT_W-1:0] wr_slot_ptr;          // 下一个写入slot
@@ -188,16 +195,16 @@ module ia_loader_ctrl #(
   logic is_last_l2_group;
   logic is_last_w_group;
   logic is_last_l1_group;
-  logic [REG_WIDTH-1:0] l2_group_last_idx;
-  logic [REG_WIDTH-1:0] w_group_last_idx;
-  logic [REG_WIDTH-1:0] l1_last_idx;
-  logic [REG_WIDTH-1:0] last_col_tile_idx;
+  count_t l2_group_last_idx;
+  count_t w_group_last_idx;
+  count_t l1_last_idx;
+  count_t last_col_tile_idx;
   logic [REG_WIDTH-1:0] last_col_valid_cols;
-  logic [REG_WIDTH-1:0] next_l1_idx;        // 下一 L1 组的列索引
-  logic [REG_WIDTH-1:0] next_w_group_idx;   // 下一输出列组索引
+  count_t next_l1_idx;        // 下一 L1 组的列索引
+  count_t next_w_group_idx;   // 下一输出列组索引
   logic                 next_group_advances_l2; // 下一 L1 组是否跨到新的 L2 行组
   logic                 next_group_is_last_l2;  // 下一 L1 组是否属于最后一个 L2 行组
-  logic [REG_WIDTH-1:0] next_r_cur;         // 下一组的 R 上界
+  count_t next_r_cur;         // 下一组的 R 上界
   logic [REG_WIDTH-1:0] next_l2_row_base;   // 下一组的 L2 行基地址
   logic [REG_WIDTH-1:0] pf_tile_col_byte_offset; // 下一组列字节偏移
   logic can_prefetch;                       // 预取条件成立（组合）
@@ -205,12 +212,12 @@ module ia_loader_ctrl #(
   logic prefetch_entering;                  // 预取进入脉冲
   logic can_overlap_prefetch;                // 当前配置下 cache 可同时容纳当前组和下一组
   logic [SLOT_W-1:0] pf_rd_slot_base;       // 下一组的读基地址
-  logic [REG_WIDTH-1:0] pf_r_target;         // 预取组的 R 上界，进入预取时锁存
+  count_t pf_r_target;         // 预取组的 R 上界，进入预取时锁存
   logic retirement_l1;                      // L1 组退休条件
-  logic [REG_WIDTH-1:0] load_r_target;      // 当前加载的 R 目标
-  logic [REG_WIDTH-1:0] w_cur_r;
-  logic [REG_WIDTH-1:0] first_w_group_width;
-  logic [REG_WIDTH-1:0] next_w_group_width;
+  count_t load_r_target;      // 当前加载的 R 目标
+  count_t w_cur_r;
+  count_t first_w_group_width;
+  count_t next_w_group_width;
   logic                 load_l2_is_last;     // 当前加载批次是否为最后一个 L2 行组
 
   // =====================================================================
@@ -223,14 +230,14 @@ module ia_loader_ctrl #(
   // 派生计算
   // =====================================================================
   // 当前 L2 组的 R 上界
-  logic [REG_WIDTH-1:0] r_cur;
-  assign r_cur = is_last_l2_group ? ia_reuse_num_act : cfg_ia_reuse_num;
+  count_t r_cur;
+  assign r_cur = is_last_l2_group ? count_t'(ia_reuse_num_act) : count_t'(cfg_ia_reuse_num);
 
   logic [LOG2_SIZE-1:0] cfg_n_tail_cols;
   assign cfg_n_tail_cols = cfg_n[LOG2_SIZE-1:0];
 
   // W 上界（最后一个输出列组可能不足 cfg_w_reuse_num）
-  logic [REG_WIDTH-1:0] w_cur;
+  count_t w_cur;
   assign w_cur = w_cur_r;
 
   logic ia_iter_last;
@@ -253,27 +260,27 @@ module ia_loader_ctrl #(
 
   always_comb begin
     first_w_group_width = (w_groups_total <= REG_WIDTH'(1))
-                        ? w_group_last_width
-                        : cfg_w_reuse_num;
+                        ? count_t'(w_group_last_width)
+                        : count_t'(cfg_w_reuse_num);
     if (first_w_group_width == '0)
-      first_w_group_width = REG_WIDTH'(1);
+      first_w_group_width = count_t'(1);
 
     if (is_last_w_group) begin
       next_w_group_width = (w_group_last_idx == '0)
-                         ? w_group_last_width
-                         : cfg_w_reuse_num;
-    end else if ((w_group_idx + REG_WIDTH'(1)) == w_group_last_idx) begin
-      next_w_group_width = w_group_last_width;
+                         ? count_t'(w_group_last_width)
+                         : count_t'(cfg_w_reuse_num);
+    end else if ((w_group_idx + count_t'(1)) == w_group_last_idx) begin
+      next_w_group_width = count_t'(w_group_last_width);
     end else begin
-      next_w_group_width = cfg_w_reuse_num;
+      next_w_group_width = count_t'(cfg_w_reuse_num);
     end
     if (next_w_group_width == '0)
-      next_w_group_width = REG_WIDTH'(1);
+      next_w_group_width = count_t'(1);
   end
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      w_cur_r <= REG_WIDTH'(1);
+      w_cur_r <= count_t'(1);
     end else if (state == S_IDLE && init_start) begin
       w_cur_r <= first_w_group_width;
     end else if ((state == S_SEND || state == S_LOAD) && cache_tile_done &&
@@ -296,10 +303,10 @@ module ia_loader_ctrl #(
       is_last_w_group   <= 1'b1;
       is_last_l1_group  <= 1'b1;
     end else if (state == S_IDLE && init_start) begin
-      l2_group_last_idx <= (l2_group_num <= REG_WIDTH'(1)) ? '0 : (l2_group_num - REG_WIDTH'(1));
-      w_group_last_idx  <= (w_groups_total <= REG_WIDTH'(1)) ? '0 : (w_groups_total - REG_WIDTH'(1));
-      l1_last_idx       <= (l1_per_l2 <= REG_WIDTH'(1)) ? '0 : (l1_per_l2 - REG_WIDTH'(1));
-      last_col_tile_idx <= (horizontal_tile_num <= REG_WIDTH'(1)) ? '0 : (horizontal_tile_num - REG_WIDTH'(1));
+      l2_group_last_idx <= (l2_group_num <= REG_WIDTH'(1)) ? '0 : count_t'(l2_group_num - REG_WIDTH'(1));
+      w_group_last_idx  <= (w_groups_total <= REG_WIDTH'(1)) ? '0 : count_t'(w_groups_total - REG_WIDTH'(1));
+      l1_last_idx       <= (l1_per_l2 <= REG_WIDTH'(1)) ? '0 : count_t'(l1_per_l2 - REG_WIDTH'(1));
+      last_col_tile_idx <= (horizontal_tile_num <= REG_WIDTH'(1)) ? '0 : count_t'(horizontal_tile_num - REG_WIDTH'(1));
       last_col_valid_cols <= (cfg_n_tail_cols == '0) ? REG_WIDTH'(SIZE) : REG_WIDTH'(cfg_n_tail_cols);
       is_last_l2_group  <= (l2_group_num <= REG_WIDTH'(1));
       is_last_w_group   <= (w_groups_total <= REG_WIDTH'(1));
@@ -311,15 +318,15 @@ module ia_loader_ctrl #(
     end else if ((state == S_SEND || state == S_LOAD) && cache_tile_done &&
                  ia_iter_last && w_iter_last) begin
       if (!is_last_l1_group) begin
-        is_last_l1_group <= ((l1_idx + REG_WIDTH'(1)) == l1_last_idx);
+          is_last_l1_group <= ((l1_idx + count_t'(1)) == l1_last_idx);
       end else begin
         is_last_l1_group <= (l1_last_idx == '0);
         if (!is_last_w_group) begin
-          is_last_w_group <= ((w_group_idx + REG_WIDTH'(1)) == w_group_last_idx);
+          is_last_w_group <= ((w_group_idx + count_t'(1)) == w_group_last_idx);
         end else begin
           is_last_w_group <= (w_group_last_idx == '0);
           if (!is_last_l2_group) begin
-            is_last_l2_group <= ((l2_idx + REG_WIDTH'(1)) == l2_group_last_idx);
+            is_last_l2_group <= ((l2_idx + count_t'(1)) == l2_group_last_idx);
           end
         end
       end
@@ -327,9 +334,9 @@ module ia_loader_ctrl #(
   end
 
   // tile 行列坐标
-  logic [REG_WIDTH-1:0] tile_row_idx;
-  logic [REG_WIDTH-1:0] tile_col_idx;
-  logic [REG_WIDTH-1:0] l2_tile_row_base;
+  count_t tile_row_idx;
+  count_t tile_col_idx;
+  count_t l2_tile_row_base;
   always_comb begin
     tile_row_idx = l2_tile_row_base + ia_idx;
     tile_col_idx = l1_idx;
@@ -337,7 +344,7 @@ module ia_loader_ctrl #(
 
   logic is_last_col_tile, is_last_row_tile, is_first_tile;
   assign is_last_col_tile = (tile_col_idx == last_col_tile_idx);
-  assign is_last_row_tile = (tile_row_idx == vertical_tile_num - 1);
+  assign is_last_row_tile = (tile_row_idx == count_t'(vertical_tile_num - REG_WIDTH'(1)));
   assign is_first_tile    = (l1_idx == 0);
 
   logic load_is_last_row_tile;
@@ -378,7 +385,7 @@ module ia_loader_ctrl #(
   assign next_rd_slot = (CACHE_BLOCKS <= 1) ? '0 : (rd_slot_base + SLOT_W'(ia_idx + 1));
 
   // slot_rows_reg: 存储每个 slot 的有效行数，在 tl_tile_done 时写入
-  logic [REG_WIDTH-1:0] slot_rows_reg [CACHE_BLOCKS];
+  logic [ROW_CNT_W-1:0] slot_rows_reg [CACHE_BLOCKS];
 
   // =====================================================================
   // L2 行基地址
@@ -401,16 +408,16 @@ module ia_loader_ctrl #(
       l2_tile_row_base <= '0;
     end else if (l2_group_retire) begin
       l2_row_base <= l2_row_base + l2_group_row_step_b;
-      l2_tile_row_base <= l2_tile_row_base + cfg_ia_reuse_num;
+      l2_tile_row_base <= l2_tile_row_base + count_t'(cfg_ia_reuse_num);
     end
   end
 
   // tile 基地址
   logic [REG_WIDTH-1:0] tile_col_byte_offset;
-  assign tile_col_byte_offset = tile_col_idx << (LOG2_SIZE + (cfg_use_16bits ? 1 : 0));
+  assign tile_col_byte_offset = REG_WIDTH'(tile_col_idx) << (LOG2_SIZE + (cfg_use_16bits ? 1 : 0));
 
   // prefetch 地址参数
-  assign pf_tile_col_byte_offset = next_l1_idx << (LOG2_SIZE + (cfg_use_16bits ? 1 : 0));
+  assign pf_tile_col_byte_offset = REG_WIDTH'(next_l1_idx) << (LOG2_SIZE + (cfg_use_16bits ? 1 : 0));
   always_comb begin
     if (next_group_advances_l2)
       next_l2_row_base = l2_row_base + l2_group_row_step_b;
@@ -431,7 +438,12 @@ module ia_loader_ctrl #(
 
   // 当前加载批次的所有 tile 都已加载完
   logic l1_load_complete;
+  logic l1_load_complete_event;
   assign l1_load_complete = (load_tiles_done_cnt == load_r_target_cnt);
+  assign l1_load_complete_event =
+      ((state == S_LOAD) || (state == S_SEND && prefetch_active)) &&
+      tl_tile_done &&
+      ((load_tiles_done_cnt + LOAD_CNT_W'(1)) == load_r_target_cnt);
 
   // 可以开始加载下一个 tile 的条件：
   //   1. tile_loader 空闲
@@ -458,16 +470,18 @@ module ia_loader_ctrl #(
   // 发送就绪逻辑
   // =====================================================================
   // 当前 ia_idx 要发送的 slot 是否 valid
-  logic send_slot_ready;
-  assign send_slot_ready = blk_valid[current_rd_slot];
+  logic send_group_ready_r;
 
-  logic send_group_ready;
-  always_comb begin
-    send_group_ready = 1'b1;
-    for (int gi = 0; gi < CACHE_BLOCKS; gi++) begin
-      if (REG_WIDTH'(gi) < r_cur) begin
-        send_group_ready &= blk_valid[(CACHE_BLOCKS <= 1) ? 0 : (rd_slot_base + SLOT_W'(gi))];
-      end
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      send_group_ready_r <= 1'b0;
+    end else if (state == S_INIT) begin
+      send_group_ready_r <= 1'b0;
+    end else if (retirement_l1) begin
+      send_group_ready_r <= prefetch_active &&
+                            (l1_load_complete || l1_load_complete_event);
+    end else if (!prefetch_active && (l1_load_complete || l1_load_complete_event)) begin
+      send_group_ready_r <= 1'b1;
     end
   end
 
@@ -482,11 +496,11 @@ module ia_loader_ctrl #(
   // 下一 L1 组的列/L2 索引
   always_comb begin
     if (!is_last_l1_group) begin
-      next_l1_idx = l1_idx + 1;
+      next_l1_idx = l1_idx + count_t'(1);
       next_w_group_idx = w_group_idx;
     end else if (!is_last_w_group) begin
       next_l1_idx = '0;
-      next_w_group_idx = w_group_idx + 1;
+      next_w_group_idx = w_group_idx + count_t'(1);
     end else begin
       next_l1_idx = '0;
       next_w_group_idx = '0;
@@ -496,9 +510,9 @@ module ia_loader_ctrl #(
   assign next_group_advances_l2 = is_last_l1_group && is_last_w_group;
   assign next_group_is_last_l2 = is_last_l2_group ? 1'b1 :
                                  (next_group_advances_l2 ?
-                                  ((l2_idx + REG_WIDTH'(1)) == l2_group_last_idx) :
+                                  ((l2_idx + count_t'(1)) == l2_group_last_idx) :
                                   1'b0);
-  assign next_r_cur = next_group_is_last_l2 ? ia_reuse_num_act : cfg_ia_reuse_num;
+  assign next_r_cur = next_group_is_last_l2 ? count_t'(ia_reuse_num_act) : count_t'(cfg_ia_reuse_num);
 
   // L1 组退休条件
   assign retirement_l1 = (state == S_SEND || state == S_LOAD) && cache_tile_done &&
@@ -547,9 +561,9 @@ module ia_loader_ctrl #(
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n)
-      pf_r_target <= REG_WIDTH'(1);
+      pf_r_target <= count_t'(1);
     else if (state == S_IDLE || state == S_INIT)
-      pf_r_target <= REG_WIDTH'(1);
+      pf_r_target <= count_t'(1);
     else if (prefetch_entering)
       pf_r_target <= next_r_cur;
   end
@@ -743,12 +757,9 @@ module ia_loader_ctrl #(
   end
 
   // slot_rows_reg: 每个 slot 的有效行数，在 tile 加载完成时写入
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      for (int i = 0; i < CACHE_BLOCKS; i++)
-        slot_rows_reg[i] <= REG_WIDTH'(SIZE);
-    end else if (tl_tile_done) begin
-      slot_rows_reg[wr_slot_ptr] <= tl_rows_to_read_r;
+  always_ff @(posedge clk) begin
+    if (tl_tile_done) begin
+      slot_rows_reg[wr_slot_ptr] <= ROW_CNT_W'(tl_rows_to_read_r);
     end
   end
 
@@ -848,8 +859,10 @@ module ia_loader_ctrl #(
   // 将内部状态暴露给 cache_mgr
   generate
     for (genvar gi = 0; gi < CACHE_BLOCKS; gi++) begin : g_cache_out
-      assign cache_blk_valid[gi] = blk_valid[gi];
       assign cache_slot_rows[gi] = slot_rows_reg[gi];
+`ifndef SYNTHESIS
+      assign cache_blk_valid[gi] = blk_valid[gi];
+`endif
     end
   endgenerate
 
@@ -860,7 +873,7 @@ module ia_loader_ctrl #(
   // 这样每个 reduction 阶段的同一组 IA 分块形态一致：要么整组连续输出，
   // 不会第一轮因只缓存到首块而 split、后一轮又变成 tall stream。
   assign ia_data_valid = (state == S_SEND || state == S_LOAD)
-                       && send_group_ready
+                       && send_group_ready_r
                        && !in_l1_output;
 
   // in_l1_output: send_ia_trigger 接受后置位，cache_l1_done 后清零

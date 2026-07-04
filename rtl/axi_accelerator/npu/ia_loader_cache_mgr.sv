@@ -39,8 +39,7 @@ module ia_loader_cache_mgr #(
     input  logic [((CACHE_BLOCKS <= 1) ? 1 : $clog2(CACHE_BLOCKS))-1:0]   l1_slot_end,     // 终止 slot（含，支持回绕）
     input  logic                              l1_is_init,      // L1组 is_init 标记
     input  logic                              l1_calc_done,    // L1组 calc_done 标记
-    input  logic [CACHE_BLOCKS-1:0]           blk_valid_in,    // ctrl 提供的 slot 有效状态
-    input  logic [REG_WIDTH-1:0]              slot_rows [CACHE_BLOCKS], // 每 slot 有效行数
+    input  logic [$clog2(SIZE + 1)-1:0]       slot_rows [CACHE_BLOCKS], // 每 slot 有效行数
     output logic                              tile_done,       // 单 tile 输出完成
     output logic                              l1_done,         // L1组全部输出完成
     output logic                              ia_tile_start,   // 单 tile 首行到达输出端

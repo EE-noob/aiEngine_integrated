@@ -1,7 +1,626 @@
 module vec_requant #(
     parameter int VLEN         = 16,
     parameter int REG_WIDTH    = 32,
-    parameter int MAX_IA_REUSE = 2
+    parameter int MAX_IA_REUSE = 2,
+    parameter int unsigned ENABLE_PER_CHANNEL = 1,
+    parameter int unsigned ENABLE_IS_MODE = 1
+) (
+    input logic clk,
+    input logic rst_n,
+
+    // 配置
+    input logic               init_cfg,
+    input logic               cfg_per_channel,
+    input logic               cfg_dataflow_mode,
+    input logic signed [31:0] activation_min_in,
+    input logic signed [31:0] activation_max_in,
+    input logic signed [31:0] dst_offset_in,
+    // per-tensor 常量；per-channel 下这两个做为“基地址”使用
+    input logic signed [31:0] multiplier_in,
+    input logic signed [31:0] shift_in,
+    input logic        [31:0] k,                  // 行数
+    input logic        [31:0] m,                  // 列数
+    input logic        [31:0] ia_reuse_num_in,    // 输出 tile 行复用顺序
+
+    // 量化参数装载握手（外部可用；TB里通常 grant=req）
+    output logic load_quant_req,
+    input  logic load_quant_granted,
+    output logic quant_params_valid,
+
+    // Native DMA read client for per-channel quant parameters.
+    output logic                        dma_start,
+    output logic                        dma_is_write,
+    output logic                        dma_linear_read_mode,
+    output logic [REG_WIDTH-1:0]        dma_base_addr,
+    output logic [REG_WIDTH-1:0]        dma_row_stride,
+    output logic [REG_WIDTH-1:0]        dma_rows_to_read,
+    output logic [7:0]                  dma_burst_len_m1,
+    output logic                        dma_slot_id,
+    output logic                        dma_use_16bits,
+    output logic signed [REG_WIDTH-1:0] dma_lhs_zp,
+    input  logic [REG_WIDTH-1:0]        dma_raw_data,
+    input  logic                        dma_raw_valid,
+
+    // 数据口
+    input  logic               in_valid,
+    input  logic               in_tile_done,
+    input  logic signed [31:0] in_vec_s32[VLEN],
+    output logic               out_valid,
+    output logic               out_tile_done,
+    output logic signed [ 7:0] out_vec_s8[VLEN]
+);
+
+  generate
+    if ((ENABLE_PER_CHANNEL == 0) && (ENABLE_IS_MODE == 0)) begin : g_tensor_ws
+      vec_requant_tensor_ws #(
+          .VLEN     (VLEN),
+          .REG_WIDTH(REG_WIDTH)
+      ) u_tensor_ws (
+          .clk               (clk),
+          .rst_n             (rst_n),
+          .init_cfg          (init_cfg),
+          .cfg_per_channel   (cfg_per_channel),
+          .cfg_dataflow_mode (cfg_dataflow_mode),
+          .activation_min_in (activation_min_in),
+          .activation_max_in (activation_max_in),
+          .dst_offset_in     (dst_offset_in),
+          .multiplier_in     (multiplier_in),
+          .shift_in          (shift_in),
+          .k                 (k),
+          .m                 (m),
+          .ia_reuse_num_in   (ia_reuse_num_in),
+          .load_quant_req    (load_quant_req),
+          .load_quant_granted(load_quant_granted),
+          .quant_params_valid(quant_params_valid),
+          .dma_start         (dma_start),
+          .dma_is_write      (dma_is_write),
+          .dma_linear_read_mode(dma_linear_read_mode),
+          .dma_base_addr     (dma_base_addr),
+          .dma_row_stride    (dma_row_stride),
+          .dma_rows_to_read  (dma_rows_to_read),
+          .dma_burst_len_m1  (dma_burst_len_m1),
+          .dma_slot_id       (dma_slot_id),
+          .dma_use_16bits    (dma_use_16bits),
+          .dma_lhs_zp        (dma_lhs_zp),
+          .dma_raw_data      (dma_raw_data),
+          .dma_raw_valid     (dma_raw_valid),
+          .in_valid          (in_valid),
+          .in_tile_done      (in_tile_done),
+          .in_vec_s32        (in_vec_s32),
+          .out_valid         (out_valid),
+          .out_tile_done     (out_tile_done),
+          .out_vec_s8        (out_vec_s8)
+      );
+    end else begin : g_full
+      vec_requant_full #(
+          .VLEN              (VLEN),
+          .REG_WIDTH         (REG_WIDTH),
+          .MAX_IA_REUSE      (MAX_IA_REUSE),
+          .ENABLE_PER_CHANNEL(ENABLE_PER_CHANNEL),
+          .ENABLE_IS_MODE    (ENABLE_IS_MODE)
+      ) u_full (
+          .clk               (clk),
+          .rst_n             (rst_n),
+          .init_cfg          (init_cfg),
+          .cfg_per_channel   (cfg_per_channel),
+          .cfg_dataflow_mode (cfg_dataflow_mode),
+          .activation_min_in (activation_min_in),
+          .activation_max_in (activation_max_in),
+          .dst_offset_in     (dst_offset_in),
+          .multiplier_in     (multiplier_in),
+          .shift_in          (shift_in),
+          .k                 (k),
+          .m                 (m),
+          .ia_reuse_num_in   (ia_reuse_num_in),
+          .load_quant_req    (load_quant_req),
+          .load_quant_granted(load_quant_granted),
+          .quant_params_valid(quant_params_valid),
+          .dma_start         (dma_start),
+          .dma_is_write      (dma_is_write),
+          .dma_linear_read_mode(dma_linear_read_mode),
+          .dma_base_addr     (dma_base_addr),
+          .dma_row_stride    (dma_row_stride),
+          .dma_rows_to_read  (dma_rows_to_read),
+          .dma_burst_len_m1  (dma_burst_len_m1),
+          .dma_slot_id       (dma_slot_id),
+          .dma_use_16bits    (dma_use_16bits),
+          .dma_lhs_zp        (dma_lhs_zp),
+          .dma_raw_data      (dma_raw_data),
+          .dma_raw_valid     (dma_raw_valid),
+          .in_valid          (in_valid),
+          .in_tile_done      (in_tile_done),
+          .in_vec_s32        (in_vec_s32),
+          .out_valid         (out_valid),
+          .out_tile_done     (out_tile_done),
+          .out_vec_s8        (out_vec_s8)
+      );
+    end
+  endgenerate
+
+endmodule
+
+module vec_requant_tensor_ws #(
+    parameter int VLEN      = 16,
+    parameter int REG_WIDTH = 32
+) (
+    input logic clk,
+    input logic rst_n,
+
+    input logic               init_cfg,
+    input logic               cfg_per_channel,
+    input logic               cfg_dataflow_mode,
+    input logic signed [31:0] activation_min_in,
+    input logic signed [31:0] activation_max_in,
+    input logic signed [31:0] dst_offset_in,
+    input logic signed [31:0] multiplier_in,
+    input logic signed [31:0] shift_in,
+    input logic        [31:0] k,
+    input logic        [31:0] m,
+    input logic        [31:0] ia_reuse_num_in,
+
+    output logic load_quant_req,
+    input  logic load_quant_granted,
+    output logic quant_params_valid,
+
+    output logic                        dma_start,
+    output logic                        dma_is_write,
+    output logic                        dma_linear_read_mode,
+    output logic [REG_WIDTH-1:0]        dma_base_addr,
+    output logic [REG_WIDTH-1:0]        dma_row_stride,
+    output logic [REG_WIDTH-1:0]        dma_rows_to_read,
+    output logic [7:0]                  dma_burst_len_m1,
+    output logic                        dma_slot_id,
+    output logic                        dma_use_16bits,
+    output logic signed [REG_WIDTH-1:0] dma_lhs_zp,
+    input  logic [REG_WIDTH-1:0]        dma_raw_data,
+    input  logic                        dma_raw_valid,
+
+    input  logic               in_valid,
+    input  logic               in_tile_done,
+    input  logic signed [31:0] in_vec_s32[VLEN],
+    output logic               out_valid,
+    output logic               out_tile_done,
+    output logic signed [ 7:0] out_vec_s8[VLEN]
+);
+
+  localparam int VLEN_SHIFT = $clog2(VLEN);
+  localparam int VLEN_CNT_W = (VLEN <= 1) ? 1 : $clog2(VLEN + 1);
+  localparam int TILE_CNT_W = (REG_WIDTH < 16) ? REG_WIDTH : 16;
+
+  typedef logic [TILE_CNT_W-1:0] tile_idx_t;
+
+  logic signed [31:0] pt_multiplier_r;
+  logic [5:0]         pt_lshift_r;
+  logic [5:0]         pt_rshift_r;
+  logic signed [31:0] activation_min_r;
+  logic signed [31:0] activation_max_r;
+  logic signed [31:0] dst_offset_r;
+  logic [31:0]        k_r;
+  logic [31:0]        m_r;
+  logic [31:0]        ia_reuse_num_r;
+  tile_idx_t          ia_reuse_mask_tile_r;
+  tile_idx_t          tile_row;
+  tile_idx_t          tile_col;
+  tile_idx_t          last_row_tile;
+  tile_idx_t          last_col_tile;
+
+  logic signed [31:0] pt_shift_abs_next;
+  logic [5:0]         pt_lshift_next;
+  logic [5:0]         pt_rshift_next;
+  tile_idx_t          num_row_tiles_next;
+  tile_idx_t          num_col_tiles_next;
+
+  logic [31:0] lane_start_cur;
+  logic [31:0] lane_remaining_cur;
+  logic [31:0] lane_need_cur;
+  tile_idx_t   reuse_group_base_row;
+  tile_idx_t   row_offset_in_group;
+  tile_idx_t   tile_row_inc;
+  tile_idx_t   tile_col_inc;
+  tile_idx_t   next_tile_row_cur;
+  tile_idx_t   next_tile_col_cur;
+  logic        cur_last_row_tile;
+  logic        cur_last_col_tile;
+  logic        cur_last_row_in_group;
+
+  logic stage0_valid;
+  logic stage1_valid;
+  logic stage2_valid;
+  logic stage3_valid;
+  logic stage4_valid;
+  logic stage5_valid;
+  logic stage6_valid;
+  logic stage7_valid;
+  logic stage8_valid;
+  logic stage9_valid;
+  logic stage10_valid;
+  logic stage11_valid;
+  logic stage0_tile_done;
+  logic stage1_tile_done;
+  logic stage2_tile_done;
+  logic stage3_tile_done;
+  logic stage4_tile_done;
+  logic stage5_tile_done;
+  logic stage6_tile_done;
+  logic stage7_tile_done;
+  logic stage8_tile_done;
+  logic stage9_tile_done;
+  logic stage10_tile_done;
+  logic stage11_tile_done;
+
+  logic signed [31:0] mult_s0;
+  logic signed [31:0] mult_s1;
+  logic [5:0]         lshift_s0;
+  logic [5:0]         lshift_s1;
+  logic [5:0]         lshift_s2;
+  logic [5:0]         lshift_s3;
+  logic [5:0]         lshift_s4;
+  logic [5:0]         lshift_s5;
+  logic [5:0]         rshift_s0;
+  logic [5:0]         rshift_s1;
+  logic [5:0]         rshift_s2;
+  logic [5:0]         rshift_s3;
+  logic [5:0]         rshift_s4;
+  logic [5:0]         rshift_s5;
+  logic [5:0]         rshift_s6;
+  logic [5:0]         rshift_s7;
+
+  assign load_quant_req       = 1'b0;
+  assign dma_start            = 1'b0;
+  assign dma_is_write         = 1'b0;
+  assign dma_linear_read_mode = 1'b0;
+  assign dma_base_addr        = '0;
+  assign dma_row_stride       = REG_WIDTH'(REG_WIDTH / 8);
+  assign dma_rows_to_read     = REG_WIDTH'(1);
+  assign dma_burst_len_m1     = 8'd0;
+  assign dma_slot_id          = 1'b0;
+  assign dma_use_16bits       = 1'b0;
+  assign dma_lhs_zp           = '0;
+  assign out_valid            = stage11_valid;
+  assign out_tile_done        = stage11_tile_done;
+
+  always_comb begin
+    pt_shift_abs_next = -shift_in;
+    pt_lshift_next = 6'd0;
+    pt_rshift_next = 6'd0;
+    if (shift_in > 32'sd0) begin
+      pt_lshift_next = shift_in[5:0];
+    end else if (shift_in < 32'sd0) begin
+      pt_rshift_next = (pt_shift_abs_next > 32'sd63) ? 6'd63 : pt_shift_abs_next[5:0];
+    end
+  end
+
+  assign num_row_tiles_next = (k == 0) ? '0 : tile_idx_t'((k + VLEN - 1) >> VLEN_SHIFT);
+  assign num_col_tiles_next = (m == 0) ? '0 : tile_idx_t'((m + VLEN - 1) >> VLEN_SHIFT);
+
+  always_comb begin
+    lane_start_cur = REG_WIDTH'(tile_col) << VLEN_SHIFT;
+    lane_remaining_cur = (m_r > lane_start_cur) ? (m_r - lane_start_cur) : 32'd0;
+    lane_need_cur = (lane_remaining_cur >= REG_WIDTH'(VLEN))
+                  ? REG_WIDTH'(VLEN)
+                  : lane_remaining_cur;
+
+    reuse_group_base_row = tile_row & ~ia_reuse_mask_tile_r;
+    row_offset_in_group = tile_row & ia_reuse_mask_tile_r;
+    tile_row_inc = tile_row + tile_idx_t'(1);
+    tile_col_inc = tile_col + tile_idx_t'(1);
+    cur_last_row_tile = (tile_row == last_row_tile);
+    cur_last_col_tile = (tile_col == last_col_tile);
+    cur_last_row_in_group = cur_last_row_tile ||
+                            (row_offset_in_group == ia_reuse_mask_tile_r);
+
+    if (!cur_last_row_in_group) begin
+      next_tile_row_cur = tile_row_inc;
+      next_tile_col_cur = tile_col;
+    end else if (!cur_last_col_tile) begin
+      next_tile_row_cur = reuse_group_base_row;
+      next_tile_col_cur = tile_col_inc;
+    end else if (!cur_last_row_tile) begin
+      next_tile_row_cur = reuse_group_base_row + tile_idx_t'(ia_reuse_num_r);
+      next_tile_col_cur = '0;
+    end else begin
+      next_tile_row_cur = '0;
+      next_tile_col_cur = '0;
+    end
+  end
+
+  always_ff @(posedge clk) begin
+    if (!rst_n) begin
+      pt_multiplier_r      <= '0;
+      pt_lshift_r          <= 6'd0;
+      pt_rshift_r          <= 6'd0;
+      activation_min_r     <= '0;
+      activation_max_r     <= '0;
+      dst_offset_r         <= '0;
+      k_r                  <= '0;
+      m_r                  <= '0;
+      ia_reuse_num_r       <= 32'd1;
+      ia_reuse_mask_tile_r <= '0;
+      tile_row             <= '0;
+      tile_col             <= '0;
+      last_row_tile        <= '0;
+      last_col_tile        <= '0;
+      quant_params_valid   <= 1'b0;
+    end else if (init_cfg) begin
+      pt_multiplier_r      <= multiplier_in;
+      pt_lshift_r          <= pt_lshift_next;
+      pt_rshift_r          <= pt_rshift_next;
+      activation_min_r     <= activation_min_in;
+      activation_max_r     <= activation_max_in;
+      dst_offset_r         <= dst_offset_in;
+      k_r                  <= k;
+      m_r                  <= m;
+      ia_reuse_num_r       <= (ia_reuse_num_in == 32'd0) ? 32'd1 : ia_reuse_num_in;
+      ia_reuse_mask_tile_r <= (ia_reuse_num_in <= 32'd1) ? '0 : tile_idx_t'(ia_reuse_num_in - 32'd1);
+      tile_row             <= '0;
+      tile_col             <= '0;
+      last_row_tile        <= (num_row_tiles_next == '0) ? '0 : (num_row_tiles_next - tile_idx_t'(1));
+      last_col_tile        <= (num_col_tiles_next == '0) ? '0 : (num_col_tiles_next - tile_idx_t'(1));
+      quant_params_valid   <= 1'b1;
+    end else if (in_valid && in_tile_done) begin
+      tile_row <= next_tile_row_cur;
+      tile_col <= next_tile_col_cur;
+    end
+  end
+
+  always_ff @(posedge clk) begin
+    if (!rst_n) begin
+      stage0_valid      <= 1'b0;
+      stage1_valid      <= 1'b0;
+      stage2_valid      <= 1'b0;
+      stage3_valid      <= 1'b0;
+      stage4_valid      <= 1'b0;
+      stage5_valid      <= 1'b0;
+      stage6_valid      <= 1'b0;
+      stage7_valid      <= 1'b0;
+      stage8_valid      <= 1'b0;
+      stage9_valid      <= 1'b0;
+      stage10_valid     <= 1'b0;
+      stage11_valid     <= 1'b0;
+      stage0_tile_done  <= 1'b0;
+      stage1_tile_done  <= 1'b0;
+      stage2_tile_done  <= 1'b0;
+      stage3_tile_done  <= 1'b0;
+      stage4_tile_done  <= 1'b0;
+      stage5_tile_done  <= 1'b0;
+      stage6_tile_done  <= 1'b0;
+      stage7_tile_done  <= 1'b0;
+      stage8_tile_done  <= 1'b0;
+      stage9_tile_done  <= 1'b0;
+      stage10_tile_done <= 1'b0;
+      stage11_tile_done <= 1'b0;
+    end else if (init_cfg) begin
+      stage0_valid      <= 1'b0;
+      stage1_valid      <= 1'b0;
+      stage2_valid      <= 1'b0;
+      stage3_valid      <= 1'b0;
+      stage4_valid      <= 1'b0;
+      stage5_valid      <= 1'b0;
+      stage6_valid      <= 1'b0;
+      stage7_valid      <= 1'b0;
+      stage8_valid      <= 1'b0;
+      stage9_valid      <= 1'b0;
+      stage10_valid     <= 1'b0;
+      stage11_valid     <= 1'b0;
+      stage0_tile_done  <= 1'b0;
+      stage1_tile_done  <= 1'b0;
+      stage2_tile_done  <= 1'b0;
+      stage3_tile_done  <= 1'b0;
+      stage4_tile_done  <= 1'b0;
+      stage5_tile_done  <= 1'b0;
+      stage6_tile_done  <= 1'b0;
+      stage7_tile_done  <= 1'b0;
+      stage8_tile_done  <= 1'b0;
+      stage9_tile_done  <= 1'b0;
+      stage10_tile_done <= 1'b0;
+      stage11_tile_done <= 1'b0;
+    end else begin
+      stage0_valid      <= in_valid;
+      stage1_valid      <= stage0_valid;
+      stage2_valid      <= stage1_valid;
+      stage3_valid      <= stage2_valid;
+      stage4_valid      <= stage3_valid;
+      stage5_valid      <= stage4_valid;
+      stage6_valid      <= stage5_valid;
+      stage7_valid      <= stage6_valid;
+      stage8_valid      <= stage7_valid;
+      stage9_valid      <= stage8_valid;
+      stage10_valid     <= stage9_valid;
+      stage11_valid     <= stage10_valid;
+      stage0_tile_done  <= in_valid && in_tile_done;
+      stage1_tile_done  <= stage0_tile_done;
+      stage2_tile_done  <= stage1_tile_done;
+      stage3_tile_done  <= stage2_tile_done;
+      stage4_tile_done  <= stage3_tile_done;
+      stage5_tile_done  <= stage4_tile_done;
+      stage6_tile_done  <= stage5_tile_done;
+      stage7_tile_done  <= stage6_tile_done;
+      stage8_tile_done  <= stage7_tile_done;
+      stage9_tile_done  <= stage8_tile_done;
+      stage10_tile_done <= stage9_tile_done;
+      stage11_tile_done <= stage10_tile_done;
+    end
+  end
+
+  always_ff @(posedge clk) begin
+    if (init_cfg) begin
+      mult_s0   <= '0;
+      mult_s1   <= '0;
+      lshift_s0 <= 6'd0;
+      lshift_s1 <= 6'd0;
+      lshift_s2 <= 6'd0;
+      lshift_s3 <= 6'd0;
+      lshift_s4 <= 6'd0;
+      lshift_s5 <= 6'd0;
+      rshift_s0 <= 6'd0;
+      rshift_s1 <= 6'd0;
+      rshift_s2 <= 6'd0;
+      rshift_s3 <= 6'd0;
+      rshift_s4 <= 6'd0;
+      rshift_s5 <= 6'd0;
+      rshift_s6 <= 6'd0;
+      rshift_s7 <= 6'd0;
+    end else begin
+      mult_s0   <= pt_multiplier_r;
+      mult_s1   <= mult_s0;
+      lshift_s0 <= pt_lshift_r;
+      lshift_s1 <= lshift_s0;
+      lshift_s2 <= lshift_s1;
+      lshift_s3 <= lshift_s2;
+      lshift_s4 <= lshift_s3;
+      lshift_s5 <= lshift_s4;
+      rshift_s0 <= pt_rshift_r;
+      rshift_s1 <= rshift_s0;
+      rshift_s2 <= rshift_s1;
+      rshift_s3 <= rshift_s2;
+      rshift_s4 <= rshift_s3;
+      rshift_s5 <= rshift_s4;
+      rshift_s6 <= rshift_s5;
+      rshift_s7 <= rshift_s6;
+    end
+  end
+
+  genvar j;
+  generate
+    for (j = 0; j < VLEN; j++) begin : LANE
+      logic signed [31:0] acc_s0;
+      logic signed [31:0] acc_s1;
+      (* use_dsp = "yes" *) logic signed [63:0] prod_s2;
+      logic signed [63:0] prod_s3;
+      logic signed [63:0] prod_s4;
+      logic signed [63:0] prod_s5;
+      logic signed [63:0] prod_shifted_s6;
+      logic signed [31:0] high_s7;
+      logic signed [31:0] shifted_next_s7;
+      logic signed [31:0] remainder_next_s7;
+      logic signed [31:0] threshold_next_s7;
+      logic               has_rshift_next_s7;
+      logic signed [31:0] shifted_s8;
+      logic signed [31:0] remainder_s8;
+      logic signed [31:0] threshold_s8;
+      logic               has_rshift_s8;
+      logic signed [31:0] shifted_s9;
+      logic               round_up_s9;
+      logic signed [31:0] rounded_s10;
+      logic               lane_en_s0;
+      logic               lane_en_s1;
+      logic               lane_en_s2;
+      logic               lane_en_s3;
+      logic               lane_en_s4;
+      logic               lane_en_s5;
+      logic               lane_en_s6;
+      logic               lane_en_s7;
+      logic               lane_en_s8;
+      logic               lane_en_s9;
+      logic               lane_en_s10;
+
+      always_comb begin
+        logic [4:0]         rshift_amt;
+        logic signed [31:0] mask;
+
+        rshift_amt = 5'd0;
+        mask = 32'sd0;
+        if (rshift_s7 == 6'd0) begin
+          shifted_next_s7    = high_s7;
+          remainder_next_s7  = 32'sd0;
+          threshold_next_s7  = 32'sd0;
+          has_rshift_next_s7 = 1'b0;
+        end else begin
+          rshift_amt = (rshift_s7 > 6'd31) ? 5'd31 : rshift_s7[4:0];
+          mask       = (32'sd1 <<< rshift_amt) - 32'sd1;
+          shifted_next_s7    = high_s7 >>> rshift_amt;
+          remainder_next_s7  = high_s7 & mask;
+          threshold_next_s7  = (mask >>> 1) + (high_s7[31] ? 32'sd1 : 32'sd0);
+          has_rshift_next_s7 = 1'b1;
+        end
+      end
+
+      always_ff @(posedge clk) begin
+        if (!rst_n) begin
+          lane_en_s0    <= 1'b0;
+          lane_en_s1    <= 1'b0;
+          lane_en_s2    <= 1'b0;
+          lane_en_s3    <= 1'b0;
+          lane_en_s4    <= 1'b0;
+          lane_en_s5    <= 1'b0;
+          lane_en_s6    <= 1'b0;
+          lane_en_s7    <= 1'b0;
+          lane_en_s8    <= 1'b0;
+          lane_en_s9    <= 1'b0;
+          lane_en_s10   <= 1'b0;
+          out_vec_s8[j] <= '0;
+        end else if (init_cfg) begin
+          lane_en_s0    <= 1'b0;
+          lane_en_s1    <= 1'b0;
+          lane_en_s2    <= 1'b0;
+          lane_en_s3    <= 1'b0;
+          lane_en_s4    <= 1'b0;
+          lane_en_s5    <= 1'b0;
+          lane_en_s6    <= 1'b0;
+          lane_en_s7    <= 1'b0;
+          lane_en_s8    <= 1'b0;
+          lane_en_s9    <= 1'b0;
+          lane_en_s10   <= 1'b0;
+          out_vec_s8[j] <= '0;
+        end else begin
+          lane_en_s0  <= in_valid && (j < lane_need_cur);
+          lane_en_s1  <= lane_en_s0;
+          lane_en_s2  <= lane_en_s1;
+          lane_en_s3  <= lane_en_s2;
+          lane_en_s4  <= lane_en_s3;
+          lane_en_s5  <= lane_en_s4;
+          lane_en_s6  <= lane_en_s5;
+          lane_en_s7  <= lane_en_s6;
+          lane_en_s8  <= lane_en_s7;
+          lane_en_s9  <= lane_en_s8;
+          lane_en_s10 <= lane_en_s9;
+
+          if (!lane_en_s10) begin
+            out_vec_s8[j] <= 8'sd0;
+          end else if (rounded_s10 < activation_min_r) begin
+            out_vec_s8[j] <= activation_min_r[7:0];
+          end else if (rounded_s10 > activation_max_r) begin
+            out_vec_s8[j] <= activation_max_r[7:0];
+          end else if (rounded_s10 > 32'sd127) begin
+            out_vec_s8[j] <= 8'sd127;
+          end else if (rounded_s10 < -32'sd128) begin
+            out_vec_s8[j] <= -8'sd128;
+          end else begin
+            out_vec_s8[j] <= rounded_s10[7:0];
+          end
+        end
+      end
+
+      always_ff @(posedge clk) begin
+        if (!init_cfg) begin
+          acc_s0 <= in_vec_s32[j];
+          acc_s1 <= acc_s0;
+          prod_s2 <= acc_s1 * mult_s1;
+          prod_s3 <= prod_s2;
+          prod_s4 <= prod_s3;
+          prod_s5 <= prod_s4;
+          prod_shifted_s6 <= prod_s5 <<< lshift_s5;
+          high_s7 <= 32'((prod_shifted_s6 + (64'sd1 <<< 30)) >>> 31);
+          shifted_s8 <= shifted_next_s7;
+          remainder_s8 <= remainder_next_s7;
+          threshold_s8 <= threshold_next_s7;
+          has_rshift_s8 <= has_rshift_next_s7;
+          shifted_s9 <= shifted_s8;
+          round_up_s9 <= has_rshift_s8 && (remainder_s8 > threshold_s8);
+          rounded_s10 <= shifted_s9 + dst_offset_r + (round_up_s9 ? 32'sd1 : 32'sd0);
+        end
+      end
+    end
+  endgenerate
+
+endmodule
+
+module vec_requant_full #(
+    parameter int VLEN         = 16,
+    parameter int REG_WIDTH    = 32,
+    parameter int MAX_IA_REUSE = 2,
+    parameter int unsigned ENABLE_PER_CHANNEL = 1,
+    parameter int unsigned ENABLE_IS_MODE = 1
 ) (
     input logic clk,
     input logic rst_n,
@@ -122,11 +741,17 @@ module vec_requant #(
   localparam bit requant_trace_en = 1'b0;
 `endif
 
+  wire cfg_per_channel_eff = (ENABLE_PER_CHANNEL != 0) ? cfg_per_channel : 1'b0;
+  wire cfg_dataflow_mode_eff = (ENABLE_IS_MODE != 0) ? cfg_dataflow_mode : 1'b0;
+
   // ----------------------------
   // 配置寄存
   // ----------------------------
   logic signed [31:0] pt_multiplier_r;  // per-tensor 常量
   logic [5:0]         pt_lshift_r, pt_rshift_r;
+  logic signed [31:0] activation_min_r;
+  logic signed [31:0] activation_max_r;
+  logic signed [31:0] dst_offset_r;
   logic [31:0] k_r, m_r;  // 锁存的尺寸
   logic [31:0] ia_reuse_num_r;
   logic        has_tiles_r;
@@ -153,6 +778,9 @@ module vec_requant #(
       pt_multiplier_r  <= '0;
       pt_lshift_r      <= 6'd0;
       pt_rshift_r      <= 6'd0;
+      activation_min_r  <= '0;
+      activation_max_r  <= '0;
+      dst_offset_r      <= '0;
       k_r              <= '0;
       m_r              <= '0;
       ia_reuse_num_r   <= 32'd1;
@@ -167,6 +795,9 @@ module vec_requant #(
       pt_multiplier_r  <= multiplier_in;
       pt_lshift_r      <= pt_lshift_next;
       pt_rshift_r      <= pt_rshift_next;
+      activation_min_r  <= activation_min_in;
+      activation_max_r  <= activation_max_in;
+      dst_offset_r      <= dst_offset_in;
       k_r              <= k;
       m_r              <= m;
       ia_reuse_num_r   <= (ia_reuse_num_in == 32'd0) ? 32'd1 : ia_reuse_num_in;
@@ -175,7 +806,7 @@ module vec_requant #(
       // per-channel 基地址（接口复用 multiplier_in/shift_in）
       mul_base_r       <= multiplier_in;
       sh_base_r        <= shift_in;
-      is_mode_r        <= cfg_dataflow_mode;
+      is_mode_r        <= cfg_dataflow_mode_eff;
       last_row_tile    <= (num_row_tiles_next == '0) ? '0 : (num_row_tiles_next - tile_idx_t'(1));
       last_col_tile    <= (num_col_tiles_next == '0) ? '0 : (num_col_tiles_next - tile_idx_t'(1));
     end
@@ -275,7 +906,7 @@ module vec_requant #(
       lane_need_q <= '0;
     end else begin
       // per-tensor 模式也要跟随当前列 tile，避免尾列把无效 lane 写出。
-      if (!cfg_per_channel) begin
+      if (!cfg_per_channel_eff) begin
         lane_need_q <= lane_need_cur;
       end  // per-channel 模式下：在 quant_params_valid 时锁存当前需要的 lanes
       else if (quant_params_valid) begin
@@ -319,13 +950,18 @@ module vec_requant #(
   // ----------------------------
   // per-channel 参数缓冲
   // ----------------------------
-  logic signed [31:0] ch_multiplier_r[QBUF_DEPTH];
-  logic [5:0]         ch_lshift_r    [QBUF_DEPTH];
-  logic [5:0]         ch_rshift_r    [QBUF_DEPTH];
+  localparam int VLEN_IDX_W = (VLEN <= 1) ? 1 : $clog2(VLEN);
+  logic signed [31:0] ch_multiplier_lane_r[VLEN];
+  logic [5:0]         ch_lshift_lane_r    [VLEN];
+  logic [5:0]         ch_rshift_lane_r    [VLEN];
+  (* ram_style = "distributed" *) logic signed [31:0] ch_multiplier_is_r[QBUF_DEPTH];
+  (* ram_style = "distributed" *) logic [5:0]         ch_lshift_is_r    [QBUF_DEPTH];
+  (* ram_style = "distributed" *) logic [5:0]         ch_rshift_is_r    [QBUF_DEPTH];
   logic signed [31:0] quant_rsp_shift_signed;
   logic signed [31:0] quant_rsp_shift_abs;
   logic [5:0]         quant_rsp_lshift;
   logic [5:0]         quant_rsp_rshift;
+  wire [VLEN_IDX_W-1:0] quant_rsp_lane_idx = VLEN_IDX_W'(quant_rsp_idx);
 
   always_comb begin
     quant_rsp_shift_signed = $signed(dma_raw_data);
@@ -341,11 +977,20 @@ module vec_requant #(
 
   always_ff @(posedge clk) begin
     if (rsp_hskd) begin
-      if (load_phase == PH_MUL) begin
-        ch_multiplier_r[quant_rsp_idx] <= dma_raw_data;
+      if (is_mode_r) begin
+        if (load_phase == PH_MUL) begin
+          ch_multiplier_is_r[quant_rsp_idx] <= dma_raw_data;
+        end else begin
+          ch_lshift_is_r[quant_rsp_idx] <= quant_rsp_lshift;
+          ch_rshift_is_r[quant_rsp_idx] <= quant_rsp_rshift;
+        end
       end else begin
-        ch_lshift_r[quant_rsp_idx] <= quant_rsp_lshift;
-        ch_rshift_r[quant_rsp_idx] <= quant_rsp_rshift;
+        if (load_phase == PH_MUL) begin
+          ch_multiplier_lane_r[quant_rsp_lane_idx] <= dma_raw_data;
+        end else begin
+          ch_lshift_lane_r[quant_rsp_lane_idx] <= quant_rsp_lshift;
+          ch_rshift_lane_r[quant_rsp_lane_idx] <= quant_rsp_rshift;
+        end
       end
     end
   end
@@ -384,7 +1029,7 @@ module vec_requant #(
       // handle init_cfg (single-cycle reset of per-tile counters)
       if (init_cfg) begin
         state              <= IDLE;
-        quant_params_valid <= (cfg_per_channel ? 1'b0 : 1'b1);
+        quant_params_valid <= (cfg_per_channel_eff ? 1'b0 : 1'b1);
 	        row_in_tile_cnt    <= '0;
 	        rd_beats_cnt       <= '0;
 	        cmd_busy           <= 1'b0;
@@ -401,7 +1046,7 @@ module vec_requant #(
         all_tiles_done     <= 1'b0;  // clear done on re-config
         if (requant_trace_en) begin
           $display("[%0t] REQ init per_ch=%0d is=%0d k=%0d m=%0d reuse=%0d mul=%08x sh=%08x",
-                   $time, cfg_per_channel, cfg_dataflow_mode, k, m,
+                   $time, cfg_per_channel_eff, cfg_dataflow_mode_eff, k, m,
                    ia_reuse_num_in, multiplier_in, shift_in);
         end
       end else begin
@@ -420,7 +1065,7 @@ module vec_requant #(
               // remain idle
             end else begin
               // 保持请求直到 grant（避免单拍丢失）
-              if (cfg_per_channel && has_tiles_r && !quant_params_valid) begin
+              if (cfg_per_channel_eff && has_tiles_r && !quant_params_valid) begin
                 load_quant_req <= 1'b1;
                 if (load_quant_granted) begin
                   load_phase     <= PH_MUL;
@@ -437,7 +1082,7 @@ module vec_requant #(
               end
 
               // per-tensor 或 已有参数: 直接响应输入
-              if (!cfg_per_channel || quant_params_valid) begin
+              if (!cfg_per_channel_eff || quant_params_valid) begin
                 if (in_valid) begin
                   if (in_tile_done) begin
                     row_in_tile_cnt <= '0;
@@ -447,13 +1092,13 @@ module vec_requant #(
                       tile_row <= '0;
                       tile_col <= '0;
                       load_quant_req <= 1'b0;
-                      quant_params_valid <= cfg_per_channel ? 1'b0 : 1'b1;
+                      quant_params_valid <= cfg_per_channel_eff ? 1'b0 : 1'b1;
                       state <= IDLE;
                     end else begin
                       tile_row <= next_tile_row_cur;
                       tile_col <= next_tile_col_cur;
 
-                      if (!cfg_per_channel) begin
+                      if (!cfg_per_channel_eff) begin
                         state <= COMPUTE;
                       end else if (next_same_quant_group_cur) begin
                         load_quant_req <= 1'b0;
@@ -610,13 +1255,13 @@ module vec_requant #(
                   tile_row <= '0;
                   tile_col <= '0;
                   load_quant_req <= 1'b0;
-                  quant_params_valid <= cfg_per_channel ? 1'b0 : 1'b1;
+                          quant_params_valid <= cfg_per_channel_eff ? 1'b0 : 1'b1;
                   state <= IDLE;
                 end else begin
                   tile_row <= next_tile_row_cur;
                   tile_col <= next_tile_col_cur;
 
-                  if (!cfg_per_channel) begin
+                  if (!cfg_per_channel_eff) begin
                     state <= COMPUTE;
                   end else if (next_same_quant_group_cur) begin
                     load_quant_req <= 1'b0;
@@ -678,7 +1323,7 @@ module vec_requant #(
   logic stage10_tile_done;
   logic stage11_tile_done;
 
-  assign accept_valid = in_valid && ((!cfg_per_channel) || quant_params_valid);
+  assign accept_valid = in_valid && ((!cfg_per_channel_eff) || quant_params_valid);
   assign out_valid = stage11_valid;
   assign out_tile_done = stage11_tile_done;
 
@@ -763,10 +1408,16 @@ module vec_requant #(
 
   logic [VLEN_CNT_W-1:0] input_row_idx_cur;
   logic [QBUF_IDX_W-1:0] input_group_idx_cur;
+  logic signed [31:0] ch_multiplier_is_sel;
+  logic [5:0]         ch_lshift_is_sel;
+  logic [5:0]         ch_rshift_is_sel;
   always_comb begin
     input_row_idx_cur = row_in_tile_cnt;
     input_group_idx_cur = QBUF_IDX_W'((REG_WIDTH'(row_offset_in_group) << VLEN_SHIFT) +
                                       REG_WIDTH'(input_row_idx_cur));
+    ch_multiplier_is_sel = ch_multiplier_is_r[input_group_idx_cur];
+    ch_lshift_is_sel = ch_lshift_is_r[input_group_idx_cur];
+    ch_rshift_is_sel = ch_rshift_is_r[input_group_idx_cur];
   end
 
   // 做一行（VLEN lane），尾块屏蔽。该流水每拍都能接收一行，只增加固定延迟。
@@ -775,9 +1426,6 @@ module vec_requant #(
     logic signed [31:0] mult_sel;
     logic [5:0]         lshift_sel;
     logic [5:0]         rshift_sel;
-    logic signed [31:0] activation_min_lane_r;
-    logic signed [31:0] activation_max_lane_r;
-    logic signed [31:0] dst_offset_lane_r;
 
     logic signed [31:0] acc_s0;
     logic signed [31:0] mult_s0;
@@ -791,23 +1439,17 @@ module vec_requant #(
     logic [5:0]         rshift_s1;
     logic               lane_en_s1;
 
-    (* use_dsp = "yes" *) logic signed [31:0] pp_hh_s2;
-    (* use_dsp = "yes" *) logic signed [32:0] pp_hl_s2;
-    (* use_dsp = "yes" *) logic signed [32:0] pp_lh_s2;
-    (* use_dsp = "yes" *) logic [31:0] pp_ll_s2;
+    (* use_dsp = "yes" *) logic signed [63:0] prod_s2;
     logic [5:0]         lshift_s2;
     logic [5:0]         rshift_s2;
     logic               lane_en_s2;
 
-    logic signed [31:0] pp_hh_s3;
-    logic signed [33:0] pp_mid_s3;
-    logic [31:0]        pp_ll_s3;
+    logic signed [63:0] prod_s3;
     logic [5:0]         lshift_s3;
     logic [5:0]         rshift_s3;
     logic               lane_en_s3;
 
-    logic signed [63:0] prod_hi_mid_s4;
-    logic [31:0]        pp_ll_s4;
+    logic signed [63:0] prod_s4;
     logic [5:0]         lshift_s4;
     logic [5:0]         rshift_s4;
     logic               lane_en_s4;
@@ -843,10 +1485,10 @@ module vec_requant #(
     logic               lane_en_s10;
 
     always_comb begin
-      if (cfg_per_channel) begin
-        mult_sel   = is_mode_r ? ch_multiplier_r[input_group_idx_cur] : ch_multiplier_r[j];
-        lshift_sel = is_mode_r ? ch_lshift_r[input_group_idx_cur] : ch_lshift_r[j];
-        rshift_sel = is_mode_r ? ch_rshift_r[input_group_idx_cur] : ch_rshift_r[j];
+      if (cfg_per_channel_eff) begin
+        mult_sel   = is_mode_r ? ch_multiplier_is_sel : ch_multiplier_lane_r[j];
+        lshift_sel = is_mode_r ? ch_lshift_is_sel : ch_lshift_lane_r[j];
+        rshift_sel = is_mode_r ? ch_rshift_is_sel : ch_rshift_lane_r[j];
       end else begin
         mult_sel   = pt_multiplier_r;
         lshift_sel = pt_lshift_r;
@@ -889,9 +1531,6 @@ module vec_requant #(
         lane_en_s9    <= 1'b0;
         lane_en_s10   <= 1'b0;
         out_vec_s8[j] <= '0;
-        activation_min_lane_r <= '0;
-        activation_max_lane_r <= '0;
-        dst_offset_lane_r     <= '0;
       end else if (init_cfg) begin
         lane_en_s0    <= 1'b0;
         lane_en_s1    <= 1'b0;
@@ -905,11 +1544,8 @@ module vec_requant #(
         lane_en_s9    <= 1'b0;
         lane_en_s10   <= 1'b0;
         out_vec_s8[j] <= '0;
-        activation_min_lane_r <= activation_min_in;
-        activation_max_lane_r <= activation_max_in;
-        dst_offset_lane_r     <= dst_offset_in;
       end else begin
-        lane_en_s0  <= accept_valid && (j < (cfg_per_channel ? lane_need_q : lane_need_cur));
+        lane_en_s0  <= accept_valid && (j < (cfg_per_channel_eff ? lane_need_q : lane_need_cur));
         lane_en_s1  <= lane_en_s0;
         lane_en_s2  <= lane_en_s1;
         lane_en_s3  <= lane_en_s2;
@@ -923,10 +1559,10 @@ module vec_requant #(
 
         if (!lane_en_s10) begin
           out_vec_s8[j] <= 8'sd0;
-        end else if (rounded_s10 < activation_min_lane_r) begin
-          out_vec_s8[j] <= activation_min_lane_r[7:0];
-        end else if (rounded_s10 > activation_max_lane_r) begin
-          out_vec_s8[j] <= activation_max_lane_r[7:0];
+        end else if (rounded_s10 < activation_min_r) begin
+          out_vec_s8[j] <= activation_min_r[7:0];
+        end else if (rounded_s10 > activation_max_r) begin
+          out_vec_s8[j] <= activation_max_r[7:0];
         end else if (rounded_s10 > 32'sd127) begin
           out_vec_s8[j] <= 8'sd127;
         end else if (rounded_s10 < -32'sd128) begin
@@ -949,27 +1585,19 @@ module vec_requant #(
         lshift_s1  <= lshift_s0;
         rshift_s1  <= rshift_s0;
 
-        pp_hh_s2  <= $signed(acc_s1[31:16]) * $signed(mult_s1[31:16]);
-        pp_hl_s2  <= $signed(acc_s1[31:16]) * $signed({1'b0, mult_s1[15:0]});
-        pp_lh_s2  <= $signed(mult_s1[31:16]) * $signed({1'b0, acc_s1[15:0]});
-        pp_ll_s2  <= acc_s1[15:0] * mult_s1[15:0];
+        prod_s2   <= acc_s1 * mult_s1;
         lshift_s2 <= lshift_s1;
         rshift_s2 <= rshift_s1;
 
-        pp_hh_s3  <= pp_hh_s2;
-        pp_mid_s3 <= $signed({pp_hl_s2[32], pp_hl_s2}) +
-                     $signed({pp_lh_s2[32], pp_lh_s2});
-        pp_ll_s3  <= pp_ll_s2;
+        prod_s3   <= prod_s2;
         lshift_s3 <= lshift_s2;
         rshift_s3 <= rshift_s2;
 
-        prod_hi_mid_s4 <= ($signed({{32{pp_hh_s3[31]}}, pp_hh_s3}) <<< 32) +
-                          ($signed({{30{pp_mid_s3[33]}}, pp_mid_s3}) <<< 16);
-        pp_ll_s4  <= pp_ll_s3;
+        prod_s4   <= prod_s3;
         lshift_s4 <= lshift_s3;
         rshift_s4 <= rshift_s3;
 
-        prod_s5   <= prod_hi_mid_s4 + $signed({32'd0, pp_ll_s4});
+        prod_s5   <= prod_s4;
         lshift_s5 <= lshift_s4;
         rshift_s5 <= rshift_s4;
 
@@ -987,7 +1615,7 @@ module vec_requant #(
         shifted_s9 <= shifted_s8;
         round_up_s9 <= has_rshift_s8 && (remainder_s8 > threshold_s8);
 
-        rounded_s10 <= shifted_s9 + dst_offset_lane_r + (round_up_s9 ? 32'sd1 : 32'sd0);
+        rounded_s10 <= shifted_s9 + dst_offset_r + (round_up_s9 ? 32'sd1 : 32'sd0);
       end
     end
   end
