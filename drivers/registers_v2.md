@@ -6,10 +6,9 @@
 
 | Byte offset | Word offset | Name | Access | Description |
 |---:|---:|---|---|---|
-| `0x000` | `0x000` | `NPU_REG_CTRL` | RW | 启动、数据位宽、量化模式和 dataflow 控制 |
-| `0x004` | `0x001` | `NPU_REG_STATUS` | RO | ready/busy/done/error 状态 |
+| `0x000` | `0x000` | `NPU_REG_CTRL` | RW | 启动、数据位宽、量化模式、数据流和中断使能控制 |
+| `0x004` | `0x001` | `NPU_REG_STATUS` | RO/WC | ready/busy/done/error 状态，done 使用写清除 |
 | `0x008` | `0x002` | `NPU_REG_WB_DATA` | RO | 最近一次完成状态写回 |
-| `0x00c` | `0x003` | `NPU_REG_WB_INFO` | RO | bit0 表示写回数据有效 |
 | `0x010` | `0x004` | `NPU_REG_LHS_BASE` | RW | LHS/IA 基地址 |
 | `0x014` | `0x005` | `NPU_REG_RHS_BASE` | RW | RHS/W 基地址 |
 | `0x018` | `0x006` | `NPU_REG_DST_BASE` | RW | 输出基地址 |
@@ -40,8 +39,7 @@
 | 1 | `NPU_CTRL_CFG_16BITS_IA` | LHS/IA 使用 int16 |
 | 2 | `NPU_CTRL_PER_CHANNEL` | 量化参数按 channel 读取 |
 | 3 | `NPU_CTRL_DATAFLOW_IS` | `1=IS`，`0=WS` |
-| 8 | `NPU_CTRL_CLEAR_DONE` | 清除 done sticky |
-| 9 | `NPU_CTRL_CLEAR_WB_VALID` | 清除 writeback valid |
+| 4 | `NPU_CTRL_IRQ_ENABLE` | `1` 表示任务完成后允许 `irq` 拉高 |
 
 ## STATUS 位定义
 
@@ -49,10 +47,9 @@
 |---:|---|---|
 | 0 | `SA_READY` | NPU 计算阵列 ready |
 | 1 | `BUSY` | NPU 正在执行 |
-| 2 | `NPU_STATUS_DONE` | 本次任务完成 |
-| 3 | `WB_VALID` | `NPU_REG_WB_DATA` 有效 |
-| 5:4 | `NPU_STATUS_ERR_MASK` | `00=正常`，`01=配置错误`，`10=资源缺失` |
-| 7 | `REG_READY` | AXI-Lite 寄存器通路 ready |
+| 2 | `NPU_STATUS_DONE` | 本次任务完成，写 1 清除 |
+| 4:3 | `NPU_STATUS_ERR_MASK` | `00=正常`，`01=配置错误`，`10=资源缺失` |
+| 5 | `REG_READY` | AXI-Lite 寄存器通路 ready |
 
 ## 软件访问示例
 
@@ -64,9 +61,11 @@ dsa_reg_write(NPU_REG_K, k);
 dsa_reg_write(NPU_REG_N, n);
 dsa_reg_write(NPU_REG_M, m);
 
-uint32_t ctrl = NPU_CTRL_START | NPU_CTRL_CLEAR_DONE | NPU_CTRL_CLEAR_WB_VALID;
-dsa_reg_write(NPU_REG_CTRL, ctrl);
+dsa_reg_write(NPU_REG_STATUS, NPU_STATUS_DONE);
+dsa_reg_write(NPU_REG_CTRL, NPU_CTRL_START | NPU_CTRL_IRQ_ENABLE);
 
 while ((dsa_reg_read(NPU_REG_STATUS) & NPU_STATUS_DONE) == 0u) {
 }
+
+dsa_reg_write(NPU_REG_STATUS, NPU_STATUS_DONE);
 ```

@@ -14,7 +14,6 @@ extern "C" {
 #define NPU_REG_CTRL         0x000u
 #define NPU_REG_STATUS       0x004u
 #define NPU_REG_WB_DATA      0x008u
-#define NPU_REG_WB_INFO      0x00Cu
 #define NPU_REG_LHS_BASE     0x010u
 #define NPU_REG_RHS_BASE     0x014u
 #define NPU_REG_DST_BASE     0x018u
@@ -40,7 +39,6 @@ extern "C" {
 #define DSA_REG_CTRL     NPU_REG_CTRL
 #define DSA_REG_STATUS   NPU_REG_STATUS
 #define DSA_REG_WB_DATA  NPU_REG_WB_DATA
-#define DSA_REG_WB_INFO  NPU_REG_WB_INFO
 #define DSA_REG_IA_REUSE NPU_REG_IA_REUSE
 #define DSA_REG_W_REUSE  NPU_REG_W_REUSE
 
@@ -48,11 +46,10 @@ extern "C" {
 #define DSA_CTRL_CFG_16BITS_IA  (1u << 1)
 #define DSA_CTRL_PER_CHANNEL    (1u << 2)
 #define DSA_CTRL_DATAFLOW_IS    (1u << 3)
-#define DSA_CTRL_CLEAR_DONE     (1u << 8)
-#define DSA_CTRL_CLEAR_WB_VALID (1u << 9)
+#define DSA_CTRL_IRQ_ENABLE     (1u << 4)
 
 #define DSA_STATUS_DONE      (1u << 2)
-#define DSA_STATUS_ERR_SHIFT 4u
+#define DSA_STATUS_ERR_SHIFT 3u
 #define DSA_STATUS_ERR_MASK  (3u << DSA_STATUS_ERR_SHIFT)
 
 #ifndef DSA_TILE_SIZE

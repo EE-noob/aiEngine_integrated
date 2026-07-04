@@ -261,6 +261,7 @@ uint32_t dsa_matmul_execute(const dsa_matmul_config_t *config) {
     uint32_t timeout = DSA_MATMUL_TIMEOUT;
     uint32_t ia_reuse_num;
     uint32_t w_reuse_num;
+    uint32_t result;
 
     if (config == 0) {
         return DSA_ERR_NULL_PTR;
@@ -280,7 +281,9 @@ uint32_t dsa_matmul_execute(const dsa_matmul_config_t *config) {
     cfg_word = dsa_build_cfg_word(config);
     (void)cfg_word;
 
-    ctrl = NPU_CTRL_START | NPU_CTRL_CLEAR_DONE | NPU_CTRL_CLEAR_WB_VALID;
+    dsa_reg_write(NPU_REG_STATUS, NPU_STATUS_DONE);
+
+    ctrl = NPU_CTRL_START | NPU_CTRL_IRQ_ENABLE;
     if (config->lhs_dtype == DSA_DTYPE_S16) {
         ctrl |= NPU_CTRL_CFG_16BITS_IA;
     }
@@ -301,13 +304,18 @@ uint32_t dsa_matmul_execute(const dsa_matmul_config_t *config) {
     } while (--timeout != 0u);
 
     if (timeout == 0u) {
+        dsa_reg_write(NPU_REG_STATUS, NPU_STATUS_DONE);
         return 0x80000001u;
     }
 
     if (status & NPU_STATUS_ERR_MASK) {
+        dsa_reg_write(NPU_REG_STATUS, NPU_STATUS_DONE);
         return (status & NPU_STATUS_ERR_MASK) >> NPU_STATUS_ERR_SHIFT;
     }
 
     dsa_memory_barrier();
-    return dsa_reg_read(NPU_REG_WB_DATA);
+    result = dsa_reg_read(NPU_REG_WB_DATA);
+    dsa_reg_write(NPU_REG_STATUS, NPU_STATUS_DONE);
+    dsa_memory_barrier();
+    return result;
 }
