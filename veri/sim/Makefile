@@ -367,11 +367,11 @@ MMA_PARAM_OPTS = -pvalue+tb_top.DUT_SIZE=$(MMA_SIZE) \
 SIM_OPTS   ?=
 VERDI_OPTS ?=
 
-VCS_FILELISTS_L1 := $(shell awk '$$1 == "-f" { print $$2 }' $(FILELIST) 2>/dev/null)
-VCS_FILELISTS_L2 := $(shell awk '$$1 == "-f" { print $$2 }' $(VCS_FILELISTS_L1) 2>/dev/null)
-VCS_FILELISTS_L3 := $(shell awk '$$1 == "-f" { print $$2 }' $(VCS_FILELISTS_L2) 2>/dev/null)
+VCS_FILELISTS_L1 := $(shell awk '$$1 == "-f" { print $$2 }' $(if $(FILELIST),$(FILELIST),/dev/null) 2>/dev/null)
+VCS_FILELISTS_L2 := $(shell awk '$$1 == "-f" { print $$2 }' $(if $(VCS_FILELISTS_L1),$(VCS_FILELISTS_L1),/dev/null) 2>/dev/null)
+VCS_FILELISTS_L3 := $(shell awk '$$1 == "-f" { print $$2 }' $(if $(VCS_FILELISTS_L2),$(VCS_FILELISTS_L2),/dev/null) 2>/dev/null)
 VCS_FILELISTS := $(sort $(FILELIST) $(VCS_FILELISTS_L1) $(VCS_FILELISTS_L2) $(VCS_FILELISTS_L3))
-VCS_SRC_DEPS := $(shell awk '{ sub(/\/\/.*/, ""); if ($$1 != "" && $$1 != "-f" && $$1 !~ /^\+/) print $$1 }' $(VCS_FILELISTS) 2>/dev/null)
+VCS_SRC_DEPS := $(shell awk '{ sub(/\/\/.*/, ""); if ($$1 != "" && $$1 != "-f" && $$1 !~ /^\+/) print $$1 }' $(if $(VCS_FILELISTS),$(VCS_FILELISTS),/dev/null) 2>/dev/null)
 
 run: sim
 

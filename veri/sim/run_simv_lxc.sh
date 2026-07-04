@@ -9,6 +9,15 @@ fi
 SIMV="$1"
 shift
 
+VCS_BIN="${VCS:-vcs}"
+if command -v "${VCS_BIN}" >/dev/null 2>&1; then
+    VCS_PATH=$(readlink -f "$(command -v "${VCS_BIN}")" 2>/dev/null || command -v "${VCS_BIN}")
+    VCS_KIND=$(file -b "${VCS_PATH}" 2>/dev/null || true)
+    if [[ "${VCS_KIND}" == *"ELF"* ]]; then
+        exec "${SIMV}" "$@"
+    fi
+fi
+
 CONTAINER_NAME="${VCS_LXC_CONTAINER:-almalinux8}"
 CONTAINER_USER="${VCS_LXC_USER:-yusen}"
 
