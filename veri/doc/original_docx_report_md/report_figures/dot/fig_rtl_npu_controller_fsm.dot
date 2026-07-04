@@ -1,0 +1,67 @@
+digraph rtl_npu_controller_fsm {
+  graph [
+    rankdir=LR,
+    bgcolor="white",
+    pad=0.14,
+    nodesep=0.26,
+    ranksep=0.42,
+    splines=ortho,
+    dpi=150,
+    fontname="Noto Sans CJK SC",
+    label="npu_controller 任务状态机",
+    labelloc=t,
+    fontsize=32
+  ];
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Noto Sans CJK SC",
+    fontsize=19,
+    margin="0.12,0.08",
+    color="#455A64",
+    penwidth=2.0
+  ];
+  edge [
+    fontname="Noto Sans CJK SC",
+    fontsize=15,
+    color="#455A64",
+    arrowsize=0.86,
+    penwidth=1.7
+  ];
+
+  reset [label="复位\ncurrent_state <= IDLE\n输出脉冲清零", fillcolor="#ECEFF1", color="#455A64"];
+  idle [label="IDLE\nsa_ready = 1\n等待 calc_start\n清除 err_code", fillcolor="#E3F2FD", color="#1565C0"];
+  init [label="INIT\n发出 init_cfg_ia / weight / bias\ninit_cfg_requant / init_cfg_oa\n锁存 use_16bits", fillcolor="#FFF8E1", color="#F9A825"];
+  wstart [label="WEIGHT_START\n检查 weight_safe_to_send\n满足 issue_weight_now 时\nsend_weight_trigger 单拍", fillcolor="#E8F5E9", color="#2E7D32"];
+  wwait [label="WEIGHT_WAIT\n等待 weight_sending_done\n完成后准备 IA 发送", fillcolor="#E8F5E9", color="#2E7D32"];
+  istart [label="IA_START\n检查 ia_data_valid、bias_ready\nquant_params_valid、FIFO 未满\n满足 issue_ia_now 时触发 IA", fillcolor="#FFEBEE", color="#C62828"];
+  iwait [label="IA_WAIT\n等待 ia_sending_done\n完成后进入下一权重组\n或检查输出写回完成", fillcolor="#FFEBEE", color="#C62828"];
+  waitwb [label="WAIT_WB\nwb_valid 保持有效\n等待 wb_ready", fillcolor="#EDE7F6", color="#5E35B1"];
+  error [label="ERROR\n配置检查失败\nerr_code <= error_type\nwb_valid 有效", fillcolor="#FCE4EC", color="#AD1457"];
+  done [label="完成条件\noa_calc_over = 1\n若 wb_ready = 1 返回 IDLE\n否则进入 WAIT_WB", fillcolor="#ECEFF1", color="#455A64"];
+
+  reset -> idle [label="rst_n 释放", color="#455A64"];
+  idle -> init [label="calc_start && 配置有效", color="#1565C0"];
+  idle -> error [label="calc_start && 配置非法", color="#AD1457"];
+  init -> wstart [label="下一周期", color="#F9A825"];
+
+  wstart -> wwait [label="issue_weight_now", color="#2E7D32"];
+  wwait -> iwait [label="weight_sending_done && issue_ia_now\n旁路触发 IA", color="#2E7D32"];
+  wwait -> istart [label="weight_sending_done && !issue_ia_now", color="#2E7D32"];
+  istart -> iwait [label="issue_ia_now", color="#C62828"];
+  iwait -> wwait [label="ia_sending_done && issue_weight_now\n旁路触发权重", color="#C62828"];
+  iwait -> wstart [label="ia_sending_done && !issue_weight_now", color="#C62828"];
+
+  wstart -> done [label="oa_calc_over", color="#6C43B6"];
+  wwait -> done [label="oa_calc_over", color="#6C43B6"];
+  iwait -> done [label="ia_sending_done && oa_calc_over", color="#6C43B6"];
+  done -> idle [label="wb_ready = 1", color="#6C43B6"];
+  done -> waitwb [label="wb_ready = 0", color="#6C43B6"];
+  waitwb -> idle [label="wb_ready = 1", color="#5E35B1"];
+  error -> idle [label="wb_ready = 1", color="#AD1457"];
+
+  idle -> idle [label="无启动", color="#90A4AE", style=dashed];
+  wstart -> wstart [label="等待权重安全条件或权重数据", color="#90A4AE", style=dashed];
+  istart -> istart [label="等待 IA、偏置、量化参数或 FIFO 空间", color="#90A4AE", style=dashed];
+  waitwb -> waitwb [label="wb_ready = 0", color="#90A4AE", style=dashed];
+}

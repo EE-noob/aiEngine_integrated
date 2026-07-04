@@ -1,0 +1,114 @@
+digraph rtl_npu_top_connect {
+  graph [
+    rankdir=LR,
+    bgcolor="white",
+    pad=0.16,
+    nodesep=0.24,
+    ranksep=0.42,
+    splines=ortho,
+    dpi=160,
+    fontname="Noto Sans CJK SC",
+    label="npu_top 代码实现连接关系",
+    labelloc=t,
+    fontsize=30
+  ];
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Noto Sans CJK SC",
+    fontsize=17,
+    margin="0.09,0.06",
+    color="#455A64",
+    penwidth=1.8
+  ];
+  edge [
+    fontname="Noto Sans CJK SC",
+    fontsize=14,
+    color="#455A64",
+    arrowsize=0.80,
+    penwidth=1.55
+  ];
+
+  subgraph cluster_cfg {
+    label="配置入口与三级锁存";
+    color="#F9A825";
+    fontsize=20;
+    style="rounded";
+    calc_start [label="calc_start && sa_ready\n形成 cfg_start_event", fillcolor="#FFF8E1", color="#F9A825"];
+    cfg_pipe [label="cfg_stage0/1/2\n锁存模式、K/N/M、数据宽度\n裁剪 ia_reuse_num 与 w_reuse_num\n生成 run_* 配置", fillcolor="#FFF8E1", color="#F9A825"];
+    ctrl [label="u_npu_controller\n任务状态机\n产生 init_cfg_* 与 trigger\n监测各级 done/valid/full", fillcolor="#FFF4D6", color="#B88300"];
+  }
+
+  subgraph cluster_dma {
+    label="分块 DMA 与仲裁";
+    color="#00838F";
+    fontsize=20;
+    style="rounded";
+    arb [label="u_block_dma_arbiter\n读客户端优先级：kernel > quant > IA > bias\nOA 独占写客户端", fillcolor="#E0F7FA", color="#00838F"];
+    dma [label="u_dma\naxi_dual_block_dma\n二维读写、非对齐拼接\n未完成事务计数\nAXI4 AR/R/AW/W/B", fillcolor="#E0F7FA", color="#00838F"];
+    axi [label="m_axi_* 到 SoC 互连\nAR/R 读通道\nAW/W/B 写通道", fillcolor="#ECEFF1", color="#455A64"];
+  }
+
+  subgraph cluster_load {
+    label="加载与片上缓存";
+    color="#2E7D32";
+    fontsize=20;
+    style="rounded";
+    ia [label="u_ia_loader\nia_loader_ctrl + ia_loader_cache_mgr\n读 LHS 或 IS 模式下 RHS\n缓存槽位、L1/L2 复用、对角化输出", fillcolor="#E8F5E9", color="#2E7D32"];
+    kern [label="u_kernel_loader\nkernel_loader_ctrl + kernel_loader_buffer\n读 RHS 或 IS 模式下 LHS\n行数据拼接、权重装载请求", fillcolor="#E8F5E9", color="#2E7D32"];
+    bias [label="u_bias_loader\nbias_loader_ctrl + bias_loader_buffer\n按输出组读取 int32 偏置\n双 bank 与 group_data_out", fillcolor="#E8F5E9", color="#2E7D32"];
+  }
+
+  subgraph cluster_compute {
+    label="计算、部分和与输出转换";
+    color="#C62828";
+    fontsize=20;
+    style="rounded";
+    bias_hold [label="bias_data_hold / compute_bias_latched\nWS 模式下在 ia_tile_start 锁存偏置\nIS 模式下偏置在重量化前相加", fillcolor="#FCE4EC", color="#AD1457"];
+    compute [label="u_compute_core\nbias_mux + ws_systolic_array + ps_buffer\n权重固定阵列、部分和保存/回灌\n输出 acc_data_out[SIZE]", fillcolor="#FFEBEE", color="#C62828"];
+    req [label="u_vec_requant\n按张量或按通道重量化\nmult/shift、dst_offset、激活钳位\n输出 int8 向量", fillcolor="#FCE4EC", color="#AD1457"];
+    fifo [label="u_vec_s8_to_fifo\nBANKS=OA_FIFO_BANKS\n16 路 int8 向量写入 bank\n按 4 字节生成 output_data/mask\n支持 transpose_mode", fillcolor="#EAF7EA", color="#3B873E"];
+    oaw [label="u_oa_writer\n输出分块坐标与 DST 地址生成\nvec_valid_num_row/col\n写数据拍、字节写掩码、B 响应完成", fillcolor="#E0F7FA", color="#00838F"];
+  }
+
+  calc_start -> cfg_pipe [label="cfg_start_event", color="#F9A825"];
+  cfg_pipe -> ctrl [label="ctrl_calc_start\nrun_k/run_n/run_m\nrun_is_mode/use16", color="#F9A825"];
+  ctrl -> cfg_pipe [label="ctrl_sa_ready\n决定 sa_ready", color="#6C43B6", style=dashed];
+
+  ctrl -> ia [label="init_cfg_ia\nsend_ia_trigger", color="#1565C0"];
+  ctrl -> kern [label="init_cfg_weight\nsend_weight_trigger", color="#1565C0"];
+  ctrl -> bias [label="init_cfg_bias\nbias_sleep / bias_switch 参与调度", color="#1565C0"];
+  ctrl -> req [label="init_cfg_requant", color="#1565C0"];
+  ctrl -> oaw [label="init_cfg_oa", color="#1565C0"];
+
+  ia -> arb [label="load_ia_req / ia_start\nbase、stride、rows、slot、use16、zero point", color="#00838F"];
+  arb -> ia [label="ia_wr_slot,row,col_base\ndata[BUS_WIDTH/8],valid,use16\nia_busy / ia_done", color="#2E7D32"];
+  kern -> arb [label="load_weight_req / kernel_start\nbase、stride、rows、valid_cols、zero point", color="#00838F"];
+  arb -> kern [label="kernel_wr_row,col_base,data,valid\nkernel_busy / kernel_done", color="#2E7D32"];
+  bias -> arb [label="load_bias_req / bias_start\nbias_base、rows、load_bank", color="#00838F"];
+  arb -> bias [label="bias_wr_slot,row,col_base,data,valid\nbias_busy / bias_done", color="#2E7D32"];
+  req -> arb [label="load_quant_req / quant_start\nmult 基址或 shift 基址\nrows、burst_len", color="#00838F"];
+  arb -> req [label="quant_raw_data / quant_raw_valid\nquant_busy / quant_done", color="#2E7D32"];
+  oaw -> arb [label="write_oa_req / oa_start\nDST base、stride、rows、len\nwdata、wmask、wvalid", color="#C62828"];
+  arb -> oaw [label="oa_granted / oa_src_wready\noa_busy / oa_done", color="#00838F"];
+  arb -> dma [label="rd_client / wr_active\n统一转换为块 DMA 命令", color="#00838F"];
+  dma -> axi [label="AXI4 主接口\narvalid/rvalid/awvalid/wvalid/bvalid", color="#00838F"];
+
+  ia -> compute [label="ia_out[SIZE]\nia_row_valid / ia_tile_start\nia_is_init_data / ia_calc_done\nia_l1_switch / ia_sending_done", color="#2E7D32"];
+  kern -> compute [label="weight_out[SIZE]\nstore_weight_req\nweight_data_valid", color="#2E7D32"];
+  bias -> bias_hold [label="bias_data_out[SIZE]\nbias_group_valid\ngroup_data_out[IA_REUSE*SIZE]", color="#AD1457"];
+  bias_hold -> compute [label="compute_bias_in[SIZE]\nWS 模式", color="#AD1457"];
+  compute -> req [label="acc_data_out[SIZE]\nacc_data_valid\ntile_calc_over", color="#C62828"];
+  bias_hold -> req [label="IS 模式下\nacc_data_out + is_bias_scalar", color="#AD1457", style=dashed];
+  req -> fifo [label="requant_out[SIZE]\nrequant_out_valid\nrequant_out_tile_done", color="#AD1457"];
+  fifo -> oaw [label="fifo_output_valid\noutput_data[31:0]\noutput_mask[3:0]\noutput_row_switch\nfifo_output_req", color="#3B873E"];
+  oaw -> fifo [label="fifo_output_ready\n反压只返回 FIFO", color="#607D8B", style=dashed];
+
+  compute -> ctrl [label="partial_sum_calc_over\ntile_calc_over", color="#6C43B6", style=dashed];
+  ia -> ctrl [label="ia_data_valid\nia_sending_done", color="#6C43B6", style=dashed];
+  kern -> ctrl [label="weight_data_valid\nweight_sending_done", color="#6C43B6", style=dashed];
+  bias -> ctrl [label="bias_group_valid", color="#6C43B6", style=dashed];
+  req -> ctrl [label="quant_params_valid", color="#6C43B6", style=dashed];
+  fifo -> ctrl [label="fifo_full_flag", color="#6C43B6", style=dashed];
+  oaw -> ctrl [label="oa_calc_over", color="#6C43B6", style=dashed];
+}

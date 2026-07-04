@@ -1,0 +1,53 @@
+digraph rtl_vec_requant_fsm {
+  graph [
+    rankdir=LR,
+    bgcolor="white",
+    pad=0.14,
+    nodesep=0.34,
+    ranksep=0.52,
+    splines=ortho,
+    dpi=150,
+    fontname="Noto Sans CJK SC",
+    label="vec_requant 重量化与 per-channel 参数加载状态机",
+    labelloc=t,
+    fontsize=32
+  ];
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Noto Sans CJK SC",
+    fontsize=19,
+    margin="0.12,0.08",
+    color="#455A64",
+    penwidth=2.0
+  ];
+  edge [
+    fontname="Noto Sans CJK SC",
+    fontsize=15,
+    color="#455A64",
+    arrowsize=0.86,
+    penwidth=1.7
+  ];
+
+  reset [label="复位或 init_cfg\nstate <= IDLE\n参数有效标志与游标清零", fillcolor="#ECEFF1", color="#455A64"];
+  idle  [label="IDLE\n等待输入向量或参数加载\nper-tensor 模式参数默认有效", fillcolor="#E3F2FD", color="#1565C0"];
+  load  [label="LOAD\n保持 load_quant_req\n发起量化参数读 DMA\n接收乘法系数和移位参数", fillcolor="#FFF8E1", color="#F9A825"];
+  compute [label="COMPUTE\n接收 int32 累加向量\n推进重量化流水\n更新 tile 行列游标", fillcolor="#E8F5E9", color="#2E7D32"];
+  ph_mul [label="PH_MUL\n读取 per-channel 乘法系数", fillcolor="#FFF3E0", color="#EF6C00"];
+  ph_shift [label="PH_SHIFT\n读取 per-channel 移位参数\n写入左右移位缓存", fillcolor="#FFF3E0", color="#EF6C00"];
+
+  reset -> idle [label="rst_n 释放或重新初始化"];
+  idle -> load [label="per-channel 且参数无效\nload_quant_granted"];
+  idle -> compute [label="参数有效且 in_valid\n首拍输入被采样"];
+  idle -> idle [label="等待输入或 grant", style=dashed, color="#90A4AE"];
+  load -> ph_mul [label="进入 LOAD\nload_phase = PH_MUL", color="#EF6C00"];
+  ph_mul -> ph_mul [label="乘法系数分片未收完", style=dashed, color="#EF6C00"];
+  ph_mul -> ph_shift [label="乘法系数收完"];
+  ph_shift -> ph_shift [label="移位参数分片未收完", style=dashed, color="#EF6C00"];
+  ph_shift -> idle [label="移位参数收完\n且 in_valid = 0"];
+  ph_shift -> compute [label="移位参数收完\n且 in_valid = 1"];
+  load -> load [label="等待 DMA grant 或响应拍", style=dashed, color="#F9A825"];
+  compute -> compute [label="当前 tile 未完成\n或下一 tile 复用参数", style=dashed, color="#2E7D32"];
+  compute -> load [label="下一 tile 需要新参数"];
+  compute -> idle [label="最后 tile 完成"];
+}

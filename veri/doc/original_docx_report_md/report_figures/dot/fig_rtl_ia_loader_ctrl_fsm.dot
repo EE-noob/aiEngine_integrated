@@ -1,0 +1,50 @@
+digraph rtl_ia_loader_ctrl_fsm {
+  graph [
+    rankdir=LR,
+    bgcolor="white",
+    pad=0.14,
+    nodesep=0.30,
+    ranksep=0.46,
+    splines=ortho,
+    dpi=150,
+    fontname="Noto Sans CJK SC",
+    label="ia_loader_ctrl 输入激活加载与发送状态机",
+    labelloc=t,
+    fontsize=32
+  ];
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Noto Sans CJK SC",
+    fontsize=19,
+    margin="0.12,0.08",
+    color="#455A64",
+    penwidth=2.0
+  ];
+  edge [
+    fontname="Noto Sans CJK SC",
+    fontsize=15,
+    color="#455A64",
+    arrowsize=0.86,
+    penwidth=1.7
+  ];
+
+  reset [label="复位\nstate <= S_IDLE\n计数器与请求寄存器清零", fillcolor="#ECEFF1", color="#455A64"];
+  idle  [label="S_IDLE\n等待 init_start\n锁存任务配置入口", fillcolor="#E3F2FD", color="#1565C0"];
+  init  [label="S_INIT\n计算分块几何\n锁存行跨度、复用步长\n请求读 DMA grant", fillcolor="#FFF8E1", color="#F9A825"];
+  load  [label="S_LOAD\n选择空闲 IA cache 槽位\n发起输入分块读请求\n跟踪 load_tiles_done", fillcolor="#E0F7FA", color="#00838F"];
+  send  [label="S_SEND\n按 IA 复用与权重复用顺序\n驱动缓存读出和阵列输入\n可触发下一组预取", fillcolor="#FFEBEE", color="#C62828"];
+  done  [label="S_DONE\nall_done 有效\n通知控制器本次 IA 发送完成", fillcolor="#FCE4EC", color="#AD1457"];
+
+  reset -> idle [label="rst_n 释放"];
+  idle -> init [label="init_start"];
+  idle -> idle [label="未启动", style=dashed, color="#90A4AE"];
+  init -> load [label="load_ia_granted"];
+  init -> init [label="等待 DMA 仲裁", style=dashed, color="#90A4AE"];
+  load -> send [label="l1_load_complete"];
+  load -> load [label="继续装载当前 L1 组", style=dashed, color="#00838F"];
+  send -> done [label="cache_tile_done && last_send"];
+  send -> load [label="L1 组完成\n且下一组未预取完成"];
+  send -> send [label="组内继续发送\n或预取完成后直接发送下一组", style=dashed, color="#C62828"];
+  done -> idle [label="下一周期"];
+}

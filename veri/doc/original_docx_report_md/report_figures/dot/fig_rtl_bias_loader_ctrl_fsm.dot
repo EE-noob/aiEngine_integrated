@@ -1,0 +1,66 @@
+digraph rtl_bias_loader_ctrl_fsm {
+  graph [
+    rankdir=TB,
+    bgcolor="white",
+    pad=0.14,
+    nodesep=0.22,
+    ranksep=0.34,
+    splines=ortho,
+    dpi=150,
+    fontname="Noto Sans CJK SC",
+    label="bias_loader_ctrl 偏置组加载状态机",
+    labelloc=t,
+    fontsize=32
+  ];
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Noto Sans CJK SC",
+    fontsize=20,
+    margin="0.10,0.07",
+    color="#455A64",
+    penwidth=2.0
+  ];
+  edge [
+    fontname="Noto Sans CJK SC",
+    fontsize=15,
+    color="#455A64",
+    arrowsize=0.82,
+    penwidth=1.55
+  ];
+
+  reset [label="复位\nstate <= S_IDLE\nbank 与请求寄存器清零", fillcolor="#ECEFF1", color="#455A64"];
+  any   [label="任意状态\n采样 init_cfg\n重新锁存 bias 配置", fillcolor="#F5F5F5", color="#616161"];
+  idle  [label="S_IDLE\n等待初始化\nload_bias_req = 0", fillcolor="#E3F2FD", color="#1565C0"];
+  geom  [label="S_INIT_GEOM\n计算偏置块数\n计算最后块元素数\n确定组步长", fillcolor="#FFF8E1", color="#F9A825"];
+  last  [label="S_INIT_LAST\n计算最后一组起始块索引", fillcolor="#FFF8E1", color="#F9A825"];
+  mark  [label="S_INIT_MARK\n初始化当前块索引\n选择 active/load bank", fillcolor="#FFF8E1", color="#F9A825"];
+  group [label="S_INIT_GROUP\n计算当前组需要读取的块数", fillcolor="#FFF8E1", color="#F9A825"];
+  cmd   [label="S_CMD\n生成 DMA 基址、行数\n和突发长度\n置 switch_pending", fillcolor="#E0F7FA", color="#00838F"];
+  req   [label="S_REQ\n保持 load_bias_req\n等待 load_bias_granted", fillcolor="#E0F7FA", color="#00838F"];
+  load  [label="S_LOAD\n等待 DMA done\n更新 active_bank", fillcolor="#E8F5E9", color="#2E7D32"];
+  wait  [label="S_WAIT\n等待 bias_switch 上升沿\n决定继续读取或结束", fillcolor="#FFEBEE", color="#C62828"];
+  nidx  [label="S_NEXT_IDX\n计算下一组 load_block_idx", fillcolor="#EDE7F6", color="#5E35B1"];
+  nmark [label="S_NEXT_MARK\n更新 current_block_idx\n判断是否为末组", fillcolor="#EDE7F6", color="#5E35B1"];
+  ngroup[label="S_NEXT_GROUP\n计算下一组读取块数", fillcolor="#EDE7F6", color="#5E35B1"];
+
+  reset -> idle [label="rst_n 释放"];
+  any -> geom [label="init_cfg", color="#1565C0"];
+  idle -> idle [label="等待 init_cfg", style=dashed, color="#90A4AE"];
+  geom -> last [label="下一周期"];
+  last -> mark [label="下一周期"];
+  mark -> group [label="下一周期"];
+  group -> cmd [label="下一周期"];
+  cmd -> idle [label="group_blocks_needed = 0"];
+  cmd -> req [label="group_blocks_needed != 0"];
+  req -> load [label="load_bias_granted"];
+  req -> req [label="等待 grant", style=dashed, color="#90A4AE"];
+  load -> wait [label="dma_done"];
+  load -> load [label="等待 DMA 完成", style=dashed, color="#90A4AE"];
+  wait -> idle [label="bias_switch_rise\n且末组末次循环"];
+  wait -> nidx [label="bias_switch_rise\n且仍需下一组"];
+  wait -> wait [label="等待 bias_switch_rise", style=dashed, color="#90A4AE"];
+  nidx -> nmark [label="下一周期"];
+  nmark -> ngroup [label="下一周期"];
+  ngroup -> cmd [label="下一周期"];
+}

@@ -1,0 +1,86 @@
+digraph rtl_dma_arbiter_detail {
+  graph [
+    rankdir=LR,
+    bgcolor="white",
+    pad=0.16,
+    nodesep=0.25,
+    ranksep=0.44,
+    splines=ortho,
+    dpi=160,
+    fontname="Noto Sans CJK SC",
+    label="axi_block_dma_arbiter 与 axi_dual_block_dma 连接关系",
+    labelloc=t,
+    fontsize=30
+  ];
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Noto Sans CJK SC",
+    fontsize=17,
+    margin="0.09,0.06",
+    color="#455A64",
+    penwidth=1.8
+  ];
+  edge [
+    fontname="Noto Sans CJK SC",
+    fontsize=14,
+    color="#455A64",
+    arrowsize=0.80,
+    penwidth=1.55
+  ];
+
+  ia_req [label="IA 读客户端\nia_req / ia_start\nbase、row_stride、rows\nslot_id、use_16bits、lhs_zp", fillcolor="#E8F5E9", color="#2E7D32"];
+  kernel_req [label="权重读客户端\nkernel_req / kernel_start\nbase、row_stride、rows\nuse_16bits、rhs_zp", fillcolor="#E8F5E9", color="#2E7D32"];
+  bias_req [label="偏置读客户端\nbias_req / bias_start\nbase、row_stride、rows\nload_bank", fillcolor="#E8F5E9", color="#2E7D32"];
+  quant_req [label="量化参数读客户端\nquant_req / quant_start\nmult 或 shift 参数地址\nraw_data 返回", fillcolor="#FCE4EC", color="#AD1457"];
+  oa_req [label="输出写客户端\nwrite_oa_req / oa_start\nDST base、stride、rows\nwdata、wmask、wvalid", fillcolor="#FFEBEE", color="#C62828"];
+
+  rd_prio [label="读仲裁组合选择\n优先级：kernel > quant > IA > bias\n生成 rd_next_client", fillcolor="#E0F7FA", color="#00838F"];
+  rd_state [label="读侧状态寄存\nrd_client / rd_active / rd_started\n发放 client_granted\n等待 rd_dma_done 释放", fillcolor="#E0F7FA", color="#00838F"];
+  rd_mux [label="读命令多路选择\nrd_dma_start、base、stride、rows\nburst_len_m1、slot、use16、zero point", fillcolor="#E0F7FA", color="#00838F"];
+  wr_state [label="写侧状态寄存\nwr_active / wr_started\nOA 独占写引擎\n等待 wr_dma_done 释放", fillcolor="#FFECEC", color="#B64B4B"];
+
+  dma_rd [label="axi_dual_block_dma 读引擎\nAR 命令行计数\n未完成事务计数\n非对齐读数据拼接\ns8/s16 符号扩展并加 zero point", fillcolor="#E0F7FA", color="#00838F"];
+  dma_wr [label="axi_dual_block_dma 写引擎\nAW 行地址生成\nW 数据拍与 WSTRB\n等待 B 响应后 wr_done", fillcolor="#FFECEC", color="#B64B4B"];
+  axi_ar [label="AXI4 读地址通道\nm_axi_arvalid/arready\naraddr、arlen、arsize、arburst=INCR", fillcolor="#ECEFF1", color="#455A64"];
+  axi_r [label="AXI4 读数据通道\nm_axi_rvalid/rready\nrdata、rlast、rresp", fillcolor="#ECEFF1", color="#455A64"];
+  axi_aw [label="AXI4 写地址通道\nm_axi_awvalid/awready\nawaddr、awlen、awsize、awburst=INCR", fillcolor="#ECEFF1", color="#455A64"];
+  axi_w [label="AXI4 写数据通道\nm_axi_wvalid/wready\nwdata、wstrb、wlast", fillcolor="#ECEFF1", color="#455A64"];
+  axi_b [label="AXI4 写响应通道\nm_axi_bvalid/bready\nbresp", fillcolor="#ECEFF1", color="#455A64"];
+
+  ia_out [label="返回 IA loader\nia_wr_slot,row,col_base\nia_wr_data[BUS_WIDTH/8]\nia_wr_valid、ia_busy、ia_done", fillcolor="#E8F5E9", color="#2E7D32"];
+  kernel_out [label="返回 kernel_loader\nkernel_wr_row,col_base\nkernel_wr_data、valid\nkernel_busy、kernel_done", fillcolor="#E8F5E9", color="#2E7D32"];
+  bias_out [label="返回 bias_loader\nbias_wr_slot,row,col_base\nbias_wr_data、valid\nbias_busy、bias_done", fillcolor="#E8F5E9", color="#2E7D32"];
+  quant_out [label="返回 vec_requant\nquant_raw_data\nquant_raw_valid\nquant_busy、quant_done", fillcolor="#FCE4EC", color="#AD1457"];
+  oa_back [label="返回 oa_writer\noa_granted\noa_src_wready\noa_busy、oa_done", fillcolor="#FFEBEE", color="#C62828"];
+
+  kernel_req -> rd_prio [label="kernel_req", color="#2E7D32"];
+  quant_req -> rd_prio [label="quant_req", color="#AD1457"];
+  ia_req -> rd_prio [label="ia_req", color="#2E7D32"];
+  bias_req -> rd_prio [label="bias_req", color="#2E7D32"];
+  rd_prio -> rd_state [label="rd_next_client", color="#00838F"];
+  rd_state -> rd_mux [label="rd_client / client_granted", color="#00838F"];
+  ia_req -> rd_mux [label="IA 命令字段", color="#2E7D32"];
+  kernel_req -> rd_mux [label="权重命令字段", color="#2E7D32"];
+  bias_req -> rd_mux [label="偏置命令字段", color="#2E7D32"];
+  quant_req -> rd_mux [label="量化命令字段", color="#AD1457"];
+  rd_mux -> dma_rd [label="rd_start 与读配置", color="#00838F"];
+  dma_rd -> rd_state [label="rd_dma_busy / rd_dma_done", color="#00838F", style=dashed];
+
+  oa_req -> wr_state [label="oa_req / oa_start", color="#C62828"];
+  wr_state -> dma_wr [label="wr_start 与写配置", color="#B64B4B"];
+  dma_wr -> wr_state [label="wr_dma_busy / wr_dma_done", color="#B64B4B", style=dashed];
+  wr_state -> oa_back [label="grant、ready、busy、done", color="#B64B4B"];
+
+  dma_rd -> axi_ar [label="读地址", color="#00838F"];
+  axi_r -> dma_rd [label="读数据", color="#00838F"];
+  dma_wr -> axi_aw [label="写地址", color="#B64B4B"];
+  oa_req -> dma_wr [label="src_wdata / src_wmask / src_wvalid", color="#C62828"];
+  dma_wr -> axi_w [label="写数据与掩码", color="#B64B4B"];
+  axi_b -> dma_wr [label="写响应", color="#B64B4B"];
+
+  dma_rd -> ia_out [label="client 为 IA 时有效", color="#2E7D32"];
+  dma_rd -> kernel_out [label="client 为 kernel 时有效", color="#2E7D32"];
+  dma_rd -> bias_out [label="client 为 bias 时有效", color="#2E7D32"];
+  dma_rd -> quant_out [label="client 为 quant 时 raw_valid", color="#AD1457"];
+}

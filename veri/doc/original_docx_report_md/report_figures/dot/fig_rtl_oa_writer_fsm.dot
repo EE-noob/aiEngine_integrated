@@ -1,0 +1,50 @@
+digraph rtl_oa_writer_fsm {
+  graph [
+    rankdir=LR,
+    bgcolor="white",
+    pad=0.14,
+    nodesep=0.32,
+    ranksep=0.48,
+    splines=ortho,
+    dpi=150,
+    fontname="Noto Sans CJK SC",
+    label="oa_writer 输出写回状态机",
+    labelloc=t,
+    fontsize=32
+  ];
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Noto Sans CJK SC",
+    fontsize=19,
+    margin="0.12,0.08",
+    color="#455A64",
+    penwidth=2.0
+  ];
+  edge [
+    fontname="Noto Sans CJK SC",
+    fontsize=15,
+    color="#455A64",
+    arrowsize=0.86,
+    penwidth=1.7
+  ];
+
+  reset [label="复位或 init_cfg\nstate <= S_IDLE\n输出坐标和计数清零", fillcolor="#ECEFF1", color="#455A64"];
+  idle  [label="S_IDLE\n等待输出 FIFO 请求\n或已存在 output_valid\n更新有效行列数", fillcolor="#E3F2FD", color="#1565C0"];
+  req   [label="S_REQ\n保持 write_oa_req\n等待写 DMA grant\n锁存当前 tile 几何", fillcolor="#FFF8E1", color="#F9A825"];
+  start [label="S_START\n发出 dma_start\n保持基址、行步长\n行数和突发长度", fillcolor="#E0F7FA", color="#00838F"];
+  write [label="S_WRITE\n按 output_valid/output_ready\n读取 FIFO 数据拍\n跟踪行内 beat 计数", fillcolor="#E8F5E9", color="#2E7D32"];
+  done  [label="S_DONE\noa_calc_over 已产生\n保持完成状态到下一次初始化", fillcolor="#FCE4EC", color="#AD1457"];
+
+  reset -> idle [label="rst_n 释放或 init_cfg"];
+  idle -> req [label="cfg_has_tiles\n且 oa_fifo_req 或 output_valid"];
+  idle -> idle [label="等待输出数据", style=dashed, color="#90A4AE"];
+  req -> start [label="write_oa_granted"];
+  req -> req [label="等待 grant", style=dashed, color="#90A4AE"];
+  start -> write [label="dma_start"];
+  start -> start [label="等待写 DMA 接受", style=dashed, color="#90A4AE"];
+  write -> write [label="继续写当前 tile\n或等待 FIFO/AXI ready", style=dashed, color="#2E7D32"];
+  write -> idle [label="write_done\n且仍有下一 tile"];
+  write -> done [label="write_done\n且输出全部完成"];
+  done -> done [label="等待 init_cfg", style=dashed, color="#90A4AE"];
+}

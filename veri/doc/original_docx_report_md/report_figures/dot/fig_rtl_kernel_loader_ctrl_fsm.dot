@@ -1,0 +1,46 @@
+digraph rtl_kernel_loader_ctrl_fsm {
+  graph [
+    rankdir=LR,
+    bgcolor="white",
+    pad=0.14,
+    nodesep=0.34,
+    ranksep=0.50,
+    splines=ortho,
+    dpi=150,
+    fontname="Noto Sans CJK SC",
+    label="kernel_loader_ctrl 权重加载与发送状态机",
+    labelloc=t,
+    fontsize=32
+  ];
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Noto Sans CJK SC",
+    fontsize=19,
+    margin="0.12,0.08",
+    color="#455A64",
+    penwidth=2.0
+  ];
+  edge [
+    fontname="Noto Sans CJK SC",
+    fontsize=15,
+    color="#455A64",
+    arrowsize=0.86,
+    penwidth=1.7
+  ];
+
+  reset [label="复位\nstate <= S_IDLE\n加载与发送计数清零", fillcolor="#ECEFF1", color="#455A64"];
+  idle  [label="S_IDLE\n等待 cfg_valid\n锁存 RHS 基址、维度、步长", fillcolor="#E3F2FD", color="#1565C0"];
+  init  [label="S_INIT\n计算首个权重组宽度\n初始化 group_base_addr\n准备进入运行", fillcolor="#FFF8E1", color="#F9A825"];
+  run   [label="S_RUN\n在 buffer 可写时发读请求\nload_done 更新加载游标\nsend_weight_trigger 驱动发送", fillcolor="#E8F5E9", color="#2E7D32"];
+  done  [label="S_DONE\nctrl_all_done 有效\n等待 cfg_valid 清除", fillcolor="#FCE4EC", color="#AD1457"];
+
+  reset -> idle [label="rst_n 释放"];
+  idle -> init [label="cfg_valid"];
+  idle -> idle [label="cfg_valid = 0", style=dashed, color="#90A4AE"];
+  init -> run [label="下一周期"];
+  run -> run [label="继续加载或发送\n更新 loaded_count / sent_count", style=dashed, color="#2E7D32"];
+  run -> done [label="最后权重分块发送完成"];
+  done -> idle [label="cfg_valid = 0"];
+  done -> done [label="cfg_valid = 1", style=dashed, color="#90A4AE"];
+}

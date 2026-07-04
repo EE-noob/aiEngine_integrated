@@ -1,0 +1,62 @@
+digraph rtl_npu_axil_reg_connect {
+  graph [
+    rankdir=LR,
+    bgcolor="white",
+    pad=0.14,
+    nodesep=0.24,
+    ranksep=0.42,
+    splines=ortho,
+    dpi=150,
+    fontname="Noto Sans CJK SC",
+    label="NPU AXI-Lite 寄存器组与 npu_top 连接关系",
+    labelloc=t,
+    fontsize=32
+  ];
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Noto Sans CJK SC",
+    fontsize=19,
+    margin="0.10,0.07",
+    color="#455A64",
+    penwidth=1.9
+  ];
+  edge [
+    fontname="Noto Sans CJK SC",
+    fontsize=15,
+    color="#455A64",
+    arrowsize=0.84,
+    penwidth=1.65
+  ];
+
+  cpu [label="PicoRV32 load/store\n经 pico_native_to_axi\n形成 CPU AXI 主设备访问", fillcolor="#E3F2FD", color="#1565C0"];
+  ic [label="soc_axi_interconnect\n地址译码到 NPU 外设窗口\nNPU_AXIL_BASE = 0x1000_0000", fillcolor="#EDE7F6", color="#5E35B1"];
+  buf [label="u_npu_axil_pingpong\nAXI-Lite 时序缓冲\nAW/W/B 与 AR/R", fillcolor="#FFF8E1", color="#F9A825"];
+  top [label="u_npu_axil_top\nAXI-Lite 外设封装\n连接寄存器组与 npu_top\n输出 irq 和 npu_busy", fillcolor="#FFEBEE", color="#C62828"];
+
+  regif [label="u_npu_axil_reg_if\n标准 AXI-Lite 寄存器组\n锁存 AW/W 后提交写入\nAR 握手后返回读数据", fillcolor="#FFF8E1", color="#F9A825"];
+  ctrl [label="控制与状态寄存器\nNPU_REG_CTRL / STATUS\nWB_DATA / WB_INFO / ID\nstart、clear、done、error", fillcolor="#FFF8E1", color="#F9A825"];
+  cfg [label="任务配置寄存器\nLHS/RHS/DST/BIAS base\nK/N/M、stride、zero point\nQ_MULT/Q_SHIFT、ACT_MIN/MAX", fillcolor="#FFF8E1", color="#F9A825"];
+  reuse [label="复用和模式寄存器\nNPU_REG_IA_REUSE\nNPU_REG_W_REUSE\nNPU_REG_DATAFLOW", fillcolor="#FFF8E1", color="#F9A825"];
+
+  npu [label="u_npu_top\n加载、DMA、控制器、阵列\n重量化、FIFO 与写回", fillcolor="#FFEBEE", color="#C62828"];
+  axi [label="NPU AXI4 主设备\nm_axi_ar/r/aw/w/b\n访问共享 RAM", fillcolor="#E0F7FA", color="#00838F"];
+  status [label="状态返回\nnpu_sa_ready\nnpu_wb_valid / npu_err_code\nnpu_busy / irq", fillcolor="#ECEFF1", color="#455A64"];
+
+  cpu -> ic [label="CPU AXI 访问", color="#1565C0"];
+  ic -> buf [label="m_npu AXI-Lite", color="#5E35B1"];
+  buf -> top [label="npu_core_axil_*", color="#F9A825"];
+  top -> regif [label="s_axil_*", color="#F9A825"];
+
+  regif -> ctrl [label="地址 0x000~0x00c\n0x0fc", color="#F9A825"];
+  regif -> cfg [label="地址 0x010~0x050", color="#F9A825"];
+  regif -> reuse [label="地址 0x054~0x05c", color="#F9A825"];
+
+  ctrl -> npu [label="calc_start\ncfg_16bits_ia\nuse_per_channel", color="#1565C0"];
+  cfg -> npu [label="base、K/N/M\nstride、zero point\n量化和激活范围", color="#1565C0"];
+  reuse -> npu [label="复用深度与 WS/IS 模式", color="#1565C0"];
+  npu -> axi [label="分块 DMA 读写", color="#00838F"];
+  npu -> status [label="done、busy、error\nwriteback valid", color="#6C43B6"];
+  status -> regif [label="status_bits\nlast_wb_data", color="#6C43B6", style=dashed];
+  top -> ic [label="npu_irq / npu_busy 返回 SoC", color="#6C43B6", style=dashed];
+}

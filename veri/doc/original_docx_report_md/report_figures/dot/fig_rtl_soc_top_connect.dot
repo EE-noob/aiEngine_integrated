@@ -1,0 +1,98 @@
+digraph rtl_soc_top_connect {
+  graph [
+    rankdir=LR,
+    bgcolor="white",
+    pad=0.18,
+    nodesep=0.28,
+    ranksep=0.46,
+    splines=ortho,
+    dpi=160,
+    fontname="Noto Sans CJK SC",
+    label="soc_top 代码实现连接关系",
+    labelloc=t,
+    fontsize=30
+  ];
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Noto Sans CJK SC",
+    fontsize=18,
+    margin="0.10,0.06",
+    color="#455A64",
+    penwidth=1.8
+  ];
+  edge [
+    fontname="Noto Sans CJK SC",
+    fontsize=15,
+    color="#455A64",
+    arrowsize=0.82,
+    penwidth=1.6
+  ];
+
+  subgraph cluster_cpu {
+    label="CPU 主设备路径";
+    color="#1565C0";
+    penwidth=1.8;
+    fontsize=20;
+    style="rounded";
+    cpu [label="u_picorv32\nPicoRV32\nmem_valid / mem_addr\nmem_wdata / mem_wstrb\nmem_ready / mem_rdata", fillcolor="#E3F2FD", color="#1565C0"];
+    bridge [label="u_pico_axi_bridge\npico_native_to_axi\n原生接口转 AXI4\n可选指令缓存", fillcolor="#E3F2FD", color="#1565C0"];
+    cpu_rd_buf [label="u_cpu_axi_read_pingpong\nCPU 读通道时序缓冲\nAR / R", fillcolor="#E8F1FF", color="#2F5DA8"];
+    cpu_wr_buf [label="u_cpu_axi_write_pingpong\nCPU 写通道时序缓冲\nAW / W / B", fillcolor="#E8F1FF", color="#2F5DA8"];
+  }
+
+  subgraph cluster_interconnect {
+    label="共享 AXI 互连";
+    color="#5E35B1";
+    penwidth=1.8;
+    fontsize=20;
+    style="rounded";
+    ic [label="u_axi_interconnect\nsoc_axi_interconnect\ns0=CPU AXI 主设备\ns1=NPU AXI 主设备\n地址译码、RAM 仲裁、外设转发", fillcolor="#EDE7F6", color="#5E35B1"];
+  }
+
+  subgraph cluster_npu {
+    label="NPU 控制与数据主设备";
+    color="#C62828";
+    penwidth=1.8;
+    fontsize=20;
+    style="rounded";
+    npu_axil_buf [label="u_npu_axil_pingpong\nNPU AXI-Lite 时序缓冲\nAW/W/B 与 AR/R", fillcolor="#FFF8E1", color="#F9A825"];
+    npu_top_axil [label="u_npu_axil_top\nAXI-Lite 标准寄存器组 + npu_top\nNPU_REG_*、start、status、irq\n内部产生 NPU AXI4 主接口", fillcolor="#FFEBEE", color="#C62828"];
+    npu_axi_buf [label="u_npu_axi_pingpong\nNPU AXI4 时序缓冲\nAR/R 与 AW/W/B", fillcolor="#E0F7FA", color="#00838F"];
+  }
+
+  subgraph cluster_slaves {
+    label="从设备与存储";
+    color="#2E7D32";
+    penwidth=1.8;
+    fontsize=20;
+    style="rounded";
+    ram_wr_buf [label="u_ram_axi_write_pingpong\nRAM 写通道缓冲\n默认配置下读直连、写缓冲", fillcolor="#E0F2F1", color="#00838F"];
+    ram [label="u_axi_sim_ram\nsoc_axi_ram\n共享 AXI RAM\n模型参数、输入、输出、软件镜像", fillcolor="#E8F5E9", color="#2E7D32"];
+    uart_buf [label="u_uart_axil_pingpong\nUART AXI-Lite 缓冲", fillcolor="#FFF8E1", color="#F9A825"];
+    uart [label="u_soc_uart\nsoc_axil_simpleuart\nuart_tx / uart_rx", fillcolor="#FFF8E1", color="#F9A825"];
+    ctrl [label="u_soc_ctrl\nsoc_axil_ctrl\nsoc_finish / soc_status\ncpu_trap / progress", fillcolor="#FFF8E1", color="#F9A825"];
+  }
+
+  cpu -> bridge [label="PicoRV32 原生访存接口", color="#1565C0"];
+  bridge -> cpu_rd_buf [label="AXI4 AR/R\ncpu_axi_*", color="#1565C0"];
+  bridge -> cpu_wr_buf [label="AXI4 AW/W/B\ncpu_axi_*", color="#1565C0"];
+  cpu_rd_buf -> ic [label="s0 读通道\ncpu_bus_axi_ar/r", color="#5E35B1"];
+  cpu_wr_buf -> ic [label="s0 写通道\ncpu_bus_axi_aw/w/b", color="#5E35B1"];
+
+  ic -> npu_axil_buf [label="m_npu AXI-Lite\nCPU 配置 NPU", color="#F9A825"];
+  npu_axil_buf -> npu_top_axil [label="npu_core_axil_*", color="#F9A825"];
+  npu_top_axil -> npu_axi_buf [label="m_axi_* 来自 NPU DMA\n32 bit AXI4", color="#00838F"];
+  npu_axi_buf -> ic [label="s1 AXI4 主设备\nnpu_axi_*", color="#00838F"];
+
+  ic -> ram [label="RAM 读通道\nm_ram_ar/r", color="#2E7D32"];
+  ic -> ram_wr_buf [label="RAM 写通道\nm_ram_aw/w/b", color="#2E7D32"];
+  ram_wr_buf -> ram [label="ram_buf_axi_aw/w/b", color="#2E7D32"];
+  ic -> uart_buf [label="m_uart AXI-Lite", color="#F9A825"];
+  uart_buf -> uart [label="uart_core_axil_*", color="#F9A825"];
+  ic -> ctrl [label="m_ctrl AXI-Lite", color="#F9A825"];
+
+  npu_top_axil -> cpu [label="npu_irq[31:0]\neoi 固定为 0", color="#6C43B6", style=dashed];
+  npu_top_axil -> ctrl [label="npu_busy 作为系统状态", color="#6C43B6", style=dashed];
+  ram -> cpu [label="mem_reload_req 支持镜像重载", color="#607D8B", style=dashed];
+}

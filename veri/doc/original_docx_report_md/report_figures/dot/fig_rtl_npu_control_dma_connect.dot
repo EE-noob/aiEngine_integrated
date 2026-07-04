@@ -1,0 +1,113 @@
+digraph rtl_npu_control_dma_connect {
+  graph [
+    rankdir=LR,
+    bgcolor="white",
+    pad=0.12,
+    nodesep=0.22,
+    ranksep=0.36,
+    splines=ortho,
+    dpi=140,
+    fontname="Noto Sans CJK SC",
+    label="npu_top 配置控制与 DMA 访问关系",
+    labelloc=t,
+    fontsize=34
+  ];
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Noto Sans CJK SC",
+    fontsize=21,
+    margin="0.10,0.07",
+    color="#455A64",
+    penwidth=2.0
+  ];
+  edge [
+    fontname="Noto Sans CJK SC",
+    fontsize=17,
+    color="#455A64",
+    arrowsize=0.88,
+    penwidth=1.8
+  ];
+
+  subgraph cluster_cfg {
+    label="配置锁存";
+    color="#F9A825";
+    fontsize=24;
+    style="rounded";
+    start [label="启动采样\ncalc_start && sa_ready\n生成 cfg_start_event", fillcolor="#FFF8E1", color="#F9A825"];
+    pipe0 [label="cfg_stage0\n锁存 NPU_REG_* 输入\n模式、维度、基址、步长", fillcolor="#FFF8E1", color="#F9A825"];
+    pipe1 [label="cfg_stage1\n形成有效运行参数\n裁剪 IA 与权重复用次数", fillcolor="#FFF8E1", color="#F9A825"];
+    pipe2 [label="cfg_stage2\n输出 run_k / run_n / run_m\nrun_is_mode / run_use16", fillcolor="#FFF8E1", color="#F9A825"];
+  }
+
+  subgraph cluster_ctrl {
+    label="任务控制";
+    color="#1565C0";
+    fontsize=24;
+    style="rounded";
+    ctrl [label="u_npu_controller\n任务状态机\n发出初始化与发送触发\n接收完成和等待状态", fillcolor="#E3F2FD", color="#1565C0"];
+    stat [label="顶层状态输出\nnpu_busy / wb_valid\nerr_code / sa_ready\nstatus_bits", fillcolor="#ECEFF1", color="#455A64"];
+  }
+
+  subgraph cluster_clients {
+    label="DMA 客户端";
+    color="#2E7D32";
+    fontsize=24;
+    style="rounded";
+    ia [label="u_ia_loader\n输入激活读客户端\nload_ia_req / ia_start\nbase / stride / rows / slot / use16 / zero point", fillcolor="#E8F5E9", color="#2E7D32"];
+    kern [label="u_kernel_loader\n权重读客户端\nload_weight_req / kernel_start\nbase / stride / rows / valid_cols / zero point", fillcolor="#E8F5E9", color="#2E7D32"];
+    bias [label="u_bias_loader\n偏置读客户端\nload_bias_req / bias_start\nbias_base / rows / load_bank", fillcolor="#E8F5E9", color="#2E7D32"];
+    quant [label="u_vec_requant\n量化参数读客户端\nload_quant_req / quant_start\nmult 或 shift 参数地址", fillcolor="#FCE4EC", color="#AD1457"];
+    oaw [label="u_oa_writer\n输出写客户端\nwrite_oa_req / oa_start\nDST base / stride / rows / len\nwdata / wmask / wvalid", fillcolor="#FFEBEE", color="#C62828"];
+  }
+
+  subgraph cluster_dma {
+    label="仲裁与块 DMA";
+    color="#00838F";
+    fontsize=24;
+    style="rounded";
+    arb [label="u_block_dma_arbiter\n读优先级：kernel > quant > IA > bias\nOA 独占写事务\n发放 granted / busy / done", fillcolor="#E0F7FA", color="#00838F"];
+    rdsel [label="读命令选择\nbase / stride / rows / burst\nslot / use16 / zero point\nrd_client 保持到 done", fillcolor="#E0F7FA", color="#00838F"];
+    wrsel [label="写命令保持\nDST 行地址与长度\n写数据和字节写掩码\n等待 B 响应完成", fillcolor="#FFECEC", color="#B64B4B"];
+    dma [label="axi_dual_block_dma\n二维分块读写\n非对齐读数据拼接\nAR/R 与 AW/W/B", fillcolor="#E0F7FA", color="#00838F"];
+    axi [label="m_axi_* 到 SoC 互连\n32 bit AXI4\n读写突发传输", fillcolor="#ECEFF1", color="#455A64"];
+  }
+
+  start -> pipe0 [label="cfg_start_event", color="#F9A825"];
+  pipe0 -> pipe1 [label="stage0_fire", color="#F9A825"];
+  pipe1 -> pipe2 [label="stage1_fire", color="#F9A825"];
+  pipe2 -> ctrl [label="ctrl_calc_start\nrun_* 配置", color="#F9A825"];
+  ctrl -> stat [label="任务状态更新", color="#1565C0"];
+  ctrl -> start [label="ctrl_sa_ready", color="#6C43B6", style=dashed];
+
+  ctrl -> ia [label="init_cfg_ia\nsend_ia_trigger", color="#1565C0"];
+  ctrl -> kern [label="init_cfg_weight\nsend_weight_trigger", color="#1565C0"];
+  ctrl -> bias [label="init_cfg_bias\nbias_sleep / bias_switch", color="#1565C0"];
+  ctrl -> quant [label="init_cfg_requant", color="#1565C0"];
+  ctrl -> oaw [label="init_cfg_oa", color="#1565C0"];
+
+  ia -> arb [label="IA 读请求", color="#2E7D32"];
+  kern -> arb [label="权重读请求", color="#2E7D32"];
+  bias -> arb [label="偏置读请求", color="#2E7D32"];
+  quant -> arb [label="量化参数读请求", color="#AD1457"];
+  oaw -> arb [label="输出写请求", color="#C62828"];
+
+  arb -> rdsel [label="rd_client / rd_active", color="#00838F"];
+  arb -> wrsel [label="wr_active / wr_started", color="#B64B4B"];
+  rdsel -> dma [label="rd_start 与读配置", color="#00838F"];
+  wrsel -> dma [label="wr_start 与写配置", color="#B64B4B"];
+  oaw -> dma [label="src_wdata / src_wmask / src_wvalid", color="#C62828"];
+  dma -> axi [label="AR/R/AW/W/B", color="#00838F"];
+
+  arb -> ia [label="ia_granted\nia_busy / ia_done", color="#6C43B6", style=dashed];
+  arb -> kern [label="kernel_granted\nkernel_busy / kernel_done", color="#6C43B6", style=dashed];
+  arb -> bias [label="bias_granted\nbias_busy / bias_done", color="#6C43B6", style=dashed];
+  arb -> quant [label="quant_granted\nquant_busy / quant_done", color="#6C43B6", style=dashed];
+  arb -> oaw [label="oa_granted\noa_src_wready / oa_done", color="#6C43B6", style=dashed];
+
+  ia -> ctrl [label="ia_data_valid\nia_sending_done", color="#6C43B6", style=dashed];
+  kern -> ctrl [label="weight_data_valid\nweight_sending_done", color="#6C43B6", style=dashed];
+  bias -> ctrl [label="bias_group_valid", color="#6C43B6", style=dashed];
+  quant -> ctrl [label="quant_params_valid", color="#6C43B6", style=dashed];
+  oaw -> ctrl [label="oa_calc_over", color="#6C43B6", style=dashed];
+}

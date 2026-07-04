@@ -1,0 +1,86 @@
+digraph rtl_npu_compute_output_connect {
+  graph [
+    rankdir=TB,
+    bgcolor="white",
+    pad=0.12,
+    nodesep=0.22,
+    ranksep=0.36,
+    splines=ortho,
+    newrank=true,
+    dpi=140,
+    fontname="Noto Sans CJK SC",
+    label="npu_top 加载计算与输出写回关系",
+    labelloc=t,
+    fontsize=34
+  ];
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Noto Sans CJK SC",
+    fontsize=21,
+    margin="0.10,0.07",
+    color="#455A64",
+    penwidth=2.0
+  ];
+  edge [
+    fontname="Noto Sans CJK SC",
+    fontsize=17,
+    color="#455A64",
+    arrowsize=0.88,
+    penwidth=1.8
+  ];
+
+  subgraph cluster_loaders {
+    label="加载单元与片上存储";
+    color="#2E7D32";
+    fontsize=24;
+    style="rounded";
+    ia [label="u_ia_loader\nia_loader_ctrl\n+ ia_loader_cache_mgr\n缓存槽位、L1/L2 复用\n对角化输出输入激活", fillcolor="#E8F5E9", color="#2E7D32"];
+    kern [label="u_kernel_loader\nkernel_loader_ctrl\n+ kernel_loader_buffer\n权重行数据拼接\nstore_weight_req", fillcolor="#E8F5E9", color="#2E7D32"];
+    bias [label="u_bias_loader\nbias_loader_ctrl\n+ bias_loader_buffer\nint32 偏置组读取\n双 bank 与 group_data_out", fillcolor="#E8F5E9", color="#2E7D32"];
+  }
+
+  subgraph cluster_compute {
+    label="计算核心";
+    color="#C62828";
+    fontsize=24;
+    style="rounded";
+    hold [label="bias_data_hold\ncompute_bias_latched\nWS 模式在 ia_tile_start 锁存\nIS 模式保留重量化前相加值", fillcolor="#FCE4EC", color="#AD1457"];
+    mux [label="bias_mux\n选择偏置或部分和回灌值\n形成 sum_in[SIZE]", fillcolor="#FFEBEE", color="#C62828"];
+    array [label="ws_systolic_array\n阵列规模参数 SIZE x SIZE\n接收输入激活向量与权重向量\n输出 int32 累加结果", fillcolor="#FFEBEE", color="#C62828"];
+    ps [label="ps_buffer\n保存归约未完成的部分和\n根据 ia_is_init_data 与 ia_calc_done\n输出 ps_acc_out[SIZE]", fillcolor="#E8F5E9", color="#2E7D32"];
+  }
+
+  subgraph cluster_out {
+    label="重量化、打包与写回";
+    color="#AD1457";
+    fontsize=24;
+    style="rounded";
+    req [label="u_vec_requant\n按张量或按通道重量化\nmult / shift / dst_offset\n激活钳位与 int8 饱和", fillcolor="#FCE4EC", color="#AD1457"];
+    fifo [label="u_vec_s8_to_fifo\n16 路 int8 向量写入 bank\n按 4 字节形成 output_data\n生成 output_mask[3:0]", fillcolor="#EAF7EA", color="#3B873E"];
+    oaw [label="u_oa_writer\n输出分块坐标\nDST 地址和行步长\n尾列字节写掩码\n等待 B 响应后完成", fillcolor="#E0F7FA", color="#00838F"];
+    dma [label="u_block_dma_arbiter\n+ axi_dual_block_dma 写侧\nAW / W / B", fillcolor="#E0F7FA", color="#00838F"];
+  }
+
+  { rank=same; ia; kern; bias; }
+  { rank=same; hold; mux; array; ps; }
+  { rank=same; req; fifo; oaw; dma; }
+
+  ia -> array [label="ia_out[SIZE]\nia_row_valid\nia_tile_start\nia_is_init_data / ia_calc_done\nia_l1_switch", color="#2E7D32"];
+  kern -> array [label="weight_out[SIZE]\nstore_weight_req\nweight_data_valid", color="#2E7D32"];
+  bias -> hold [label="bias_data_out[SIZE]\nbias_group_valid\ngroup_data_out", color="#AD1457"];
+  hold -> mux [label="compute_bias_in[SIZE]", color="#AD1457"];
+  ps -> mux [label="回灌部分和", color="#2E7D32"];
+  mux -> array [label="sum_in[SIZE]", color="#C62828"];
+  array -> ps [label="systolic_sum\nvalid 延迟对齐", color="#C62828"];
+  ps -> req [label="acc_data_out[SIZE]\nacc_data_valid\ntile_calc_over", color="#C62828"];
+  hold -> req [label="IS 模式\nacc_data_out + is_bias_scalar", color="#AD1457", style=dashed];
+  req -> fifo [label="requant_out[SIZE]\nrequant_out_valid\nrequant_out_tile_done", color="#AD1457"];
+  fifo -> oaw [label="fifo_output_valid\noutput_data[31:0]\noutput_mask[3:0]\noutput_row_switch", color="#3B873E"];
+  oaw -> fifo [label="fifo_output_ready\n局部反压", color="#607D8B", style=dashed];
+  oaw -> dma [label="write_oa_req / oa_start\nsrc_wdata / src_wmask / src_wvalid", color="#00838F"];
+  dma -> oaw [label="oa_granted\noa_src_wready\noa_busy / oa_done", color="#6C43B6", style=dashed];
+
+  ia -> req [label="ia_calc_done 控制最终输出阶段", color="#6C43B6", style=dashed];
+  fifo -> req [label="FIFO 可接收条件", color="#607D8B", style=dashed];
+}
