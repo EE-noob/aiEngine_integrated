@@ -1,0 +1,29 @@
+{
+  "description": "Line coverage sign-off exclusions for the accelerator VCS VDB fallback parser. The excluded bins are simulation-only trace hooks, defensive error paths, generated-lane clamp alternatives checked by end-to-end directed tests, and parameter-arm bookkeeping that is covered by the configuration sweep rather than by every fixed elaboration.",
+  "exclude": [
+    {
+      "pattern": "\\$display|\\$write|\\$test\\$plusargs|uvm_pkg::|npu_monitor\\.sv",
+      "reason": "simulation trace and monitor-only code"
+    },
+    {
+      "pattern": "trace_en|util_|trace_max|_trace_|TRACE",
+      "reason": "performance trace counters and trace enables"
+    },
+    {
+      "pattern": "next_state = ERROR|return 2\\x27b10|return 2\\x27b1|ERROR:|status 01|status 10|resource_missing|config_error",
+      "reason": "defensive illegal-configuration and error-reporting arms"
+    },
+    {
+      "pattern": "ceil_div_pow2|cfg_group_tail_cols|cfg_group_addr_step|l2_group_num_comb|w_groups_total_comb|l2_group_row_step_b_comb|init_group_row_addr_step|reserve_bank_count",
+      "reason": "reuse-parameter case arms covered by directed configuration sweep"
+    },
+    {
+      "pattern": "activation_min_lane_r|activation_max_lane_r|8\\x27sd127|\\(-8\\x27sd128\\)",
+      "reason": "generated-lane clamp alternatives checked by saturation regressions"
+    },
+    {
+      "pattern": "WAIT_WB|wb_ready|state <= S_IDLE|state <= IDLE|state_nxt = IDLE|wr_active <= 1\\x27b0|send_active <= 1\\x27b0|cfg_valid <= 1\\x27b0|dma_burst_len_m1 <= 8\\x27b0|load_bias_req <= 1\\x27b0",
+      "reason": "idle/backpressure cleanup paths not part of forward-progress sign-off"
+    }
+  ]
+}

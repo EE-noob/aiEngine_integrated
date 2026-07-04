@@ -14,7 +14,7 @@ from pathlib import Path
 DEFAULT_SOC_CPU_MEM_DP = int(os.environ.get("SOC_CPU_MEM_DP", "65536"), 0)
 PASS_RE = re.compile(r"\[TEST_RESULT\]\s+TEST PASS")
 CYCLES_RE = re.compile(r"soc_finish asserted after\s+(\d+)\s+cycles")
-UTIL_LINE_RE = re.compile(r"\[(MMA_UTIL|MMA_CTRL_UTIL|MMA_UTIL_SUMMARY|MMA_CTRL_UTIL_SUMMARY)\]\s+(.*)")
+UTIL_LINE_RE = re.compile(r"\[((?:MMA|NPU)_UTIL|(?:MMA|NPU)_CTRL_UTIL|(?:MMA|NPU)_UTIL_SUMMARY|(?:MMA|NPU)_CTRL_UTIL_SUMMARY)\]\s+(.*)")
 UTIL_KV_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)=(-?\d+)")
 SOC_AXI_RE = re.compile(r"\[SOC_AXI_STATS\]\s+(.*)")
 SOC_CPU_AXI_RE = re.compile(r"\[SOC_CPU_AXI_STATS\]\s+(.*)")
@@ -182,10 +182,12 @@ def build_sim_args(args):
     if args.sim_args:
         parts.append(args.sim_args)
     if args.ddr_rand_lat:
-        parts.append("+DDR_RAND_LAT=1")
-        parts.append(f"+DDR_CMD_MAX_LAT={args.ddr_cmd_max_lat}")
-        parts.append(f"+DDR_W_MAX_LAT={args.ddr_w_max_lat}")
-        parts.append(f"+DDR_RSP_MAX_LAT={args.ddr_rsp_max_lat}")
+        parts.append("+RAM_RAND_LAT=1")
+        parts.append(f"+RAM_CMD_MAX_LAT={args.ddr_cmd_max_lat}")
+        parts.append(f"+RAM_W_MAX_LAT={args.ddr_w_max_lat}")
+        parts.append(f"+RAM_RSP_MAX_LAT={args.ddr_rsp_max_lat}")
+    if args.ram_fixed_lat is not None:
+        parts.append(f"+RAM_FIXED_LAT={args.ram_fixed_lat}")
     return " ".join(parts)
 
 
@@ -219,7 +221,8 @@ def run_command(cmd, cwd, log_path, timeout):
 
 def make_vars(seed, case_name, case_dir, size, cache_blocks, ps_frame_count,
               dims, dataflow_mode, lhs_dtype, quant_mode, ia_reuse, w_reuse,
-              sim_args, soc_cpu_mem_dp, soc_timeout_cycles=0):
+              sim_args, soc_cpu_mem_dp, soc_timeout_cycles=0,
+              soc_cpu_enable_icache=None):
     k, n, m = dims
     vars_for_make = [
         "DUT_MODE=axi_soc",
@@ -245,6 +248,8 @@ def make_vars(seed, case_name, case_dir, size, cache_blocks, ps_frame_count,
         f"SOC_CPU_MEM_DP={soc_cpu_mem_dp}",
         "DUMPOPTS=0",
     ]
+    if soc_cpu_enable_icache is not None:
+        vars_for_make.append(f"SOC_CPU_ENABLE_ICACHE={soc_cpu_enable_icache}")
     if sim_args:
         vars_for_make.append(f"SIM_ARGS={sim_args}")
     if soc_timeout_cycles:
@@ -275,7 +280,7 @@ def parse_util_trace(output):
     for match in UTIL_LINE_RE.finditer(output):
         kind, payload = match.groups()
         values = {key: int(value) for key, value in UTIL_KV_RE.findall(payload)}
-        if kind == "MMA_CTRL_UTIL_SUMMARY":
+        if kind in ("MMA_CTRL_UTIL_SUMMARY", "NPU_CTRL_UTIL_SUMMARY"):
             ctrl_ops = values.get("ops", ctrl_ops)
             prefix = "ctrl_"
             for key, value in values.items():
@@ -285,7 +290,7 @@ def parse_util_trace(output):
                 if field in parsed:
                     sums[field] = value
             continue
-        if kind == "MMA_UTIL_SUMMARY":
+        if kind in ("MMA_UTIL_SUMMARY", "NPU_UTIL_SUMMARY"):
             mma_ops = values.get("ops", mma_ops)
             prefix = "mma_"
             for key, value in values.items():
@@ -295,7 +300,7 @@ def parse_util_trace(output):
                 if field in parsed:
                     sums[field] = value
             continue
-        if kind == "MMA_CTRL_UTIL":
+        if kind in ("MMA_CTRL_UTIL", "NPU_CTRL_UTIL"):
             ctrl_ops += 1
             prefix = "ctrl_"
         else:
@@ -322,9 +327,9 @@ def parse_soc_axi_stats(output):
     for match in SOC_AXI_RE.finditer(output):
         values = {key: int(value) for key, value in UTIL_KV_RE.findall(match.group(1))}
         parsed["soc_cpu_ar_wait"] = values.get("cpu_ar_wait", "")
-        parsed["soc_mma_ar_wait"] = values.get("mma_ar_wait", "")
+        parsed["soc_mma_ar_wait"] = values.get("mma_ar_wait", values.get("npu_ar_wait", ""))
         parsed["soc_cpu_aw_wait"] = values.get("cpu_aw_wait", "")
-        parsed["soc_mma_aw_wait"] = values.get("mma_aw_wait", "")
+        parsed["soc_mma_aw_wait"] = values.get("mma_aw_wait", values.get("npu_aw_wait", ""))
         parsed["soc_rd_yield"] = values.get("rd_yield", "")
         parsed["soc_wr_yield"] = values.get("wr_yield", "")
     for match in SOC_CPU_AXI_RE.finditer(output):
@@ -373,7 +378,8 @@ def run_perf_job(job, sim_dir, log_root, exception_root, timeout):
         job["seed"], case_name, case_dir, job["size"], job["cache_blocks"],
         job["ps_frame_count"], job["dims"], job["dataflow"], job["lhs_dtype"],
         job["quant_mode"], job["ia_reuse"], job["w_reuse"], job["sim_args"],
-        job["soc_cpu_mem_dp"], job["soc_timeout_cycles"])
+        job["soc_cpu_mem_dp"], job["soc_timeout_cycles"],
+        job.get("soc_cpu_enable_icache"))
     vars_for_make.append(f"OUT_DIR={out_dir}")
     code, output = run_command(
         ["make", "sim", *vars_for_make], sim_dir, log_path, timeout)
@@ -421,6 +427,8 @@ def main():
                         help="0 keeps the testbench default SOC_TIMEOUT_CYCLES")
     parser.add_argument("--soc-cpu-mem-dp", type=int, default=DEFAULT_SOC_CPU_MEM_DP,
                         help="CPU RAM depth in 32-bit words; default matches FPGA CPU_MEM_DP")
+    parser.add_argument("--soc-cpu-enable-icache", type=int, choices=[0, 1], default=None,
+                        help="override SOC_CPU_ENABLE_ICACHE when compiling/running the SoC simulation")
     parser.add_argument("--log-root", type=Path, default=Path("runs/axi_soc_perf_sweep"))
     parser.add_argument("--seed", type=int, default=80000)
     parser.add_argument("--sizes", default="16")
@@ -449,6 +457,8 @@ def main():
     parser.add_argument("--ddr-cmd-max-lat", type=int, default=3)
     parser.add_argument("--ddr-w-max-lat", type=int, default=2)
     parser.add_argument("--ddr-rsp-max-lat", type=int, default=8)
+    parser.add_argument("--ram-fixed-lat", type=int, default=None,
+                        help="fixed RAM response latency in cycles; burst data remains continuous")
     args = parser.parse_args()
 
     sim_dir = Path(__file__).resolve().parent
@@ -493,7 +503,13 @@ def main():
                 size_cache_iter, dataflow_modes, lhs_dtypes, quant_modes, dims_list):
             ps_values = ps_frame_counts if ps_frame_counts else [size]
             for ps_frame_count in ps_values:
-                compile_key = (size, cache_blocks, ps_frame_count)
+                compile_key = (
+                    size,
+                    cache_blocks,
+                    ps_frame_count,
+                    args.soc_cpu_mem_dp,
+                    args.soc_cpu_enable_icache,
+                )
                 if compile_key not in compiled:
                     combo_name = f"perf_compile_S{size}_C{cache_blocks}_P{ps_frame_count}"
                     build_log = log_root / f"{combo_name}.log"
@@ -501,7 +517,8 @@ def main():
                         args.seed, combo_name, f"../tb/{combo_name}",
                         size, cache_blocks, ps_frame_count, dims,
                         dataflow, lhs_dtype, quant_mode, 0, 0, sim_args,
-                        args.soc_cpu_mem_dp, args.soc_timeout_cycles)
+                        args.soc_cpu_mem_dp, args.soc_timeout_cycles,
+                        args.soc_cpu_enable_icache)
                     print(f"compile: S{size}_C{cache_blocks}_P{ps_frame_count}")
                     compile_target = "force_com" if args.force_compile else "com"
                     code, _ = run_command(
@@ -553,6 +570,7 @@ def main():
                         "w_reuse_eff": w_eff,
                         "sim_args": sim_args,
                         "soc_cpu_mem_dp": args.soc_cpu_mem_dp,
+                        "soc_cpu_enable_icache": args.soc_cpu_enable_icache,
                         "soc_timeout_cycles": args.soc_timeout_cycles,
                     })
 

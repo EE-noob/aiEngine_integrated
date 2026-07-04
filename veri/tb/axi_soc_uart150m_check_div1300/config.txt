@@ -1,0 +1,40 @@
+# Human-readable config file
+seed = 1
+K = 16
+N = 16
+M = 16
+lhs_dtype = 1  # 1: S8, 2: S16
+quant_mode = 0  # 0: per-tensor, 1: per-channel
+
+# Addresses in data.mem (bytes)
+lhs_addr = 32
+rhs_addr = 288
+bias_addr = 544
+output_base_addr = 608
+
+# Sizes (bytes)
+lhs_size = 256
+rhs_size = 256
+bias_size = 64
+output_size = 256
+expected_dst_size = 256
+
+# Config struct fields
+K = 16
+N = 16
+M = 16
+lhs_row_stride = 16
+rhs_row_stride = 16
+dst_row_stride = 16
+lhs_dtype = DSA_DTYPE_S8
+rhs_dtype = DSA_DTYPE_S8
+bias_dtype = DSA_DTYPE_S32
+out_dtype = DSA_DTYPE_S8
+quant_mode = 0
+lhs_offset = 0
+rhs_offset = 0
+dst_offset = 0
+dst_mult = 1255150260
+dst_shift = -8
+act_min = -128
+act_max = 127

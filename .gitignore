@@ -10,6 +10,13 @@ veri/work/*
 !veri/sim/run_axi_soc_c_regression.py
 !veri/sim/run_axi_soc_perf_sweep.py
 !veri/sim/gen_cache_perf_report.py
+!veri/sim/coverage_plan.json
+!veri/sim/run_coverage_plan.py
+!veri/sim/coverage_summary.py
+!veri/sim/coverage_line_exclude.json
+!veri/sim/coverage_accel_axil.hier
+!veri/sim/coverage_accel_axi_soc.hier
+!veri/sim/coverage_soc_axi_soc.hier
 
 # Local E203 SoC reference workspace
 e203_soc/

@@ -54,7 +54,7 @@ SOC_AXI_WRITE_OUTSTANDING ?= $(SOC_AXI_READ_OUTSTANDING)
 SOC_CPU_ENABLE_ICACHE ?= 0
 SOC_BYPASS_RAM_PINGPONG ?= 1
 SOC_RAM_WRITE_TIMING_BUFFER ?= 1
-SIMV     ?= simv_$(DUT_MODE)_S$(MMA_SIZE)_C$(MMA_IA_CACHE_BLOCKS)_P$(MMA_PS_FRAME_COUNT)_RO$(SOC_AXI_READ_OUTSTANDING)_WO$(SOC_AXI_WRITE_OUTSTANDING)_IC$(SOC_CPU_ENABLE_ICACHE)_BP$(SOC_BYPASS_RAM_PINGPONG)_WT$(SOC_RAM_WRITE_TIMING_BUFFER)
+SIMV     ?= simv_$(DUT_MODE)_S$(MMA_SIZE)_C$(MMA_IA_CACHE_BLOCKS)_P$(MMA_PS_FRAME_COUNT)_D$(SOC_CPU_MEM_DP)_RO$(SOC_AXI_READ_OUTSTANDING)_WO$(SOC_AXI_WRITE_OUTSTANDING)_IC$(SOC_CPU_ENABLE_ICACHE)_BP$(SOC_BYPASS_RAM_PINGPONG)_WT$(SOC_RAM_WRITE_TIMING_BUFFER)
 SOC_TIMEOUT_CYCLES ?=
 SOC_C_SRC ?= ../soc_csrc/soc_main.c
 SOC_RUNTIME_C_SRC ?= ../soc_csrc/soc_runtime_main.c
@@ -116,9 +116,13 @@ SOC_PERF_DDR_RAND_LAT ?= 0
 SOC_PERF_DDR_CMD_MAX_LAT ?= 3
 SOC_PERF_DDR_W_MAX_LAT ?= 2
 SOC_PERF_DDR_RSP_MAX_LAT ?= 8
+SOC_PERF_RAM_FIXED_LAT ?=
 SOC_RUNTIME_BASE_WORD ?= $(shell python3 -c 'print(int("$(SOC_CPU_MEM_DP)", 0) // 2)')
 SOC_RUNTIME_BASE_ADDR ?= $(shell python3 -c 'print(hex((int("$(SOC_CPU_MEM_DP)", 0) // 2) * 4))')
-SOC_RUNTIME_BUILD_DIR ?= ../tb/axi_soc_runtime_build_S$(MMA_SIZE)_C$(MMA_IA_CACHE_BLOCKS)_P$(MMA_PS_FRAME_COUNT)
+# Runtime firmware embeds SOC_RUNTIME_CASE_BASE, which is derived from
+# SOC_CPU_MEM_DP. Keep the memory depth in the build directory name so cached
+# cpu.mem images cannot be reused with a stale runtime data base address.
+SOC_RUNTIME_BUILD_DIR ?= ../tb/axi_soc_runtime_build_S$(MMA_SIZE)_C$(MMA_IA_CACHE_BLOCKS)_P$(MMA_PS_FRAME_COUNT)_D$(SOC_CPU_MEM_DP)
 SOC_RUNTIME_CPU_MEM ?= $(SOC_RUNTIME_BUILD_DIR)/cpu.mem
 TFLM_DIR ?= ../../drivers/tflm/my_tflm
 TFLM_ROOT ?= $(TFLM_DIR)/tflite-micro
@@ -277,10 +281,21 @@ COV_VDB_MERGE_MODE ?= instance
 COV_LINE_EXCLUDE_FILE ?= ./coverage_line_exclude.json
 COV_CODE_REPORT_ROOT ?= $(COV_ROOT)/urg_code_by_design
 COV_MODULE_ROOT ?= runs/coverage_module
-COV_MODULE_PLAN_ARGS ?= --only axil_mem_gen_smoke --only axil_ral_mem_gen_start --only axil_csr_directed --only soc_runtime_ws_s8 --only soc_runtime_is_s16 --only soc_runtime_per_channel_s8 --only soc_reuse_ws_s8 --only soc_reuse_is_s16 --only soc_reuse_wide_ws_s8 --only soc_reuse_wide_is_s16 --only soc_saturation_clamp_ws_s8 --only soc_saturation_clamp_is_s8 --only soc_tail_ws_s8 --only soc_tail_is_s16 --only soc_tail_per_channel_s16 --only soc_unaligned_randlat_ws_s8
+COV_MODULE_PLAN_ARGS ?= --only axil_mem_gen_smoke --only axil_ral_mem_gen_start --only axil_reg_directed \
+	--only soc_runtime_ws_int8 --only soc_runtime_is_int16 --only soc_runtime_per_channel_int8 \
+	--only soc_reuse_ws_int8 --only soc_reuse_is_int16 --only soc_reuse_wide_ws_int8 --only soc_reuse_wide_is_int16 \
+	--only soc_saturation_clamp_ws_int8 --only soc_saturation_clamp_is_int8 --only soc_tail_ws_int8 --only soc_tail_is_int16 \
+	--only soc_tail_per_channel_int16 --only soc_unaligned_randlat_ws_int8 --only soc_runtime_per_channel_ws_int16 \
+	--only soc_runtime_per_channel_is_int8 --only soc_min_tile_ws_int8 --only soc_offset_activation_ws_int8 \
+	--only soc_randlat_is_int8 --only soc_min_tile_is_int16 --only soc_offset_activation_is_int16 --only soc_tail_per_channel_is_int8
 COV_SOC_ROOT ?= runs/coverage_soc
 COV_SOC_HIER_FILE ?= ./coverage_accel_axi_soc.hier
-COV_SOC_PLAN_ARGS ?= --only soc_runtime_ws_s8 --only soc_runtime_is_s16 --only soc_runtime_per_channel_s8 --only soc_reuse_ws_s8 --only soc_reuse_is_s16 --only soc_reuse_wide_ws_s8 --only soc_reuse_wide_is_s16 --only soc_saturation_clamp_ws_s8 --only soc_saturation_clamp_is_s8 --only soc_tail_ws_s8 --only soc_tail_is_s16 --only soc_tail_per_channel_s16 --only soc_unaligned_randlat_ws_s8
+COV_SOC_PLAN_ARGS ?= --only soc_runtime_ws_int8 --only soc_runtime_is_int16 --only soc_runtime_per_channel_int8 \
+	--only soc_reuse_ws_int8 --only soc_reuse_is_int16 --only soc_reuse_wide_ws_int8 --only soc_reuse_wide_is_int16 \
+	--only soc_saturation_clamp_ws_int8 --only soc_saturation_clamp_is_int8 --only soc_tail_ws_int8 --only soc_tail_is_int16 \
+	--only soc_tail_per_channel_int16 --only soc_unaligned_randlat_ws_int8 --only soc_runtime_per_channel_ws_int16 \
+	--only soc_runtime_per_channel_is_int8 --only soc_min_tile_ws_int8 --only soc_offset_activation_ws_int8 \
+	--only soc_randlat_is_int8 --only soc_min_tile_is_int16 --only soc_offset_activation_is_int16 --only soc_tail_per_channel_is_int8
 COV_COMPILE_OPTS = $(if $(filter 1 yes true TRUE,$(COV)),-cm $(COV_TYPES) -cm_dir $(COV_COMPILE_DB) $(if $(strip $(COV_HIER_FILE)),-cm_hier $(COV_HIER_FILE),),)
 COV_SIM_OPTS = $(if $(filter 1 yes true TRUE,$(COV)),-cm $(COV_TYPES) -cm_dir $(COV_DB) -cm_name $(COV_NAME),)
 
@@ -515,7 +530,7 @@ soc_regress:
 > @python3 ./run_axi_soc_c_regression.py --iterations $(SOC_REGRESS_ITERS) --start-seed $(SOC_REGRESS_START_SEED) --timeout $(SOC_REGRESS_TIMEOUT) --log-root $(SOC_REGRESS_LOG_ROOT) --sizes "$(SOC_SIZE_LIST)" --cache-blocks "$(SOC_CACHE_BLOCKS_LIST)" --ps-frame-counts "$(SOC_PS_FRAME_COUNT_LIST)" --dataflow-modes "$(SOC_DATAFLOW_MODE_LIST)" --lhs-dtypes "$(SOC_REGRESS_LHS_DTYPE_LIST)" --quant-modes "$(SOC_REGRESS_QUANT_MODE_LIST)" --dim-multiple $(SOC_REGRESS_DIM_MULTIPLE) --sim-args "$(SOC_REGRESS_SIM_ARGS)" --ddr-cmd-max-lat $(SOC_REGRESS_DDR_CMD_MAX_LAT) --ddr-w-max-lat $(SOC_REGRESS_DDR_W_MAX_LAT) --ddr-rsp-max-lat $(SOC_REGRESS_DDR_RSP_MAX_LAT) $(if $(SOC_REGRESS_SOC_TIMEOUT_CYCLES),--soc-timeout-cycles $(SOC_REGRESS_SOC_TIMEOUT_CYCLES),) $(if $(filter 1 yes true TRUE,$(SOC_REGRESS_DDR_RAND_LAT)),--ddr-rand-lat,) $(if $(filter 1 yes true TRUE,$(SOC_REGRESS_UNALIGNED_LAYOUT)),--unaligned-layout,) $(if $(SOC_MIN_DIM),--min-dim $(SOC_MIN_DIM),) $(if $(SOC_MAX_DIM),--max-dim $(SOC_MAX_DIM),)
 
 soc_perf_sweep:
-> @python3 ./run_axi_soc_perf_sweep.py --seed $(SOC_PERF_SEED) --timeout $(SOC_PERF_TIMEOUT) --log-root $(SOC_PERF_LOG_ROOT) --dims "$(SOC_PERF_DIMS)" --sizes "$(SOC_PERF_SIZE_LIST)" --cache-blocks "$(SOC_PERF_CACHE_BLOCKS_LIST)" --ps-frame-counts "$(SOC_PERF_PS_FRAME_COUNT_LIST)" --dataflow-modes "$(SOC_PERF_DATAFLOW_MODE_LIST)" --lhs-dtypes "$(SOC_PERF_LHS_DTYPE_LIST)" --quant-modes "$(SOC_PERF_QUANT_MODE_LIST)" --ia-reuse-list "$(SOC_PERF_IA_REUSE_LIST)" --w-reuse-list "$(SOC_PERF_W_REUSE_LIST)" --jobs $(SOC_PERF_JOBS) --sim-args "$(SOC_PERF_SIM_ARGS)" --ddr-cmd-max-lat $(SOC_PERF_DDR_CMD_MAX_LAT) --ddr-w-max-lat $(SOC_PERF_DDR_W_MAX_LAT) --ddr-rsp-max-lat $(SOC_PERF_DDR_RSP_MAX_LAT) $(if $(SOC_PERF_SOC_TIMEOUT_CYCLES),--soc-timeout-cycles $(SOC_PERF_SOC_TIMEOUT_CYCLES),) $(if $(filter 1 yes true TRUE,$(SOC_PERF_INCLUDE_AUTO)),--include-auto,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_KEEP_GOING)),--keep-going,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_FORCE_COMPILE)),--force-compile,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_DDR_RAND_LAT)),--ddr-rand-lat,)
+> @python3 ./run_axi_soc_perf_sweep.py --seed $(SOC_PERF_SEED) --timeout $(SOC_PERF_TIMEOUT) --log-root $(SOC_PERF_LOG_ROOT) --dims "$(SOC_PERF_DIMS)" --sizes "$(SOC_PERF_SIZE_LIST)" --cache-blocks "$(SOC_PERF_CACHE_BLOCKS_LIST)" --ps-frame-counts "$(SOC_PERF_PS_FRAME_COUNT_LIST)" --dataflow-modes "$(SOC_PERF_DATAFLOW_MODE_LIST)" --lhs-dtypes "$(SOC_PERF_LHS_DTYPE_LIST)" --quant-modes "$(SOC_PERF_QUANT_MODE_LIST)" --ia-reuse-list "$(SOC_PERF_IA_REUSE_LIST)" --w-reuse-list "$(SOC_PERF_W_REUSE_LIST)" --jobs $(SOC_PERF_JOBS) --sim-args "$(SOC_PERF_SIM_ARGS)" --ddr-cmd-max-lat $(SOC_PERF_DDR_CMD_MAX_LAT) --ddr-w-max-lat $(SOC_PERF_DDR_W_MAX_LAT) --ddr-rsp-max-lat $(SOC_PERF_DDR_RSP_MAX_LAT) $(if $(SOC_PERF_SOC_TIMEOUT_CYCLES),--soc-timeout-cycles $(SOC_PERF_SOC_TIMEOUT_CYCLES),) $(if $(SOC_PERF_RAM_FIXED_LAT),--ram-fixed-lat $(SOC_PERF_RAM_FIXED_LAT),) $(if $(filter 1 yes true TRUE,$(SOC_PERF_INCLUDE_AUTO)),--include-auto,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_KEEP_GOING)),--keep-going,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_FORCE_COMPILE)),--force-compile,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_DDR_RAND_LAT)),--ddr-rand-lat,)
 
 tflm_my_model_run:
 > $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm SOC_CASE=axi_soc_tflm case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MY_MODEL_TIMEOUT_CYCLES))
