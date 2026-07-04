@@ -7,10 +7,13 @@ module npu_axil_top #(
     parameter BUS_WIDTH       = 32,
     parameter REG_WIDTH       = 32,
     parameter AXI_ADDR_WIDTH  = 32,
+    parameter NPU_ADDR_WIDTH  = AXI_ADDR_WIDTH,
     parameter IA_CACHE_BLOCKS = 4,
     parameter PS_FRAME_COUNT  = SIZE,
     parameter AXI_READ_OUTSTANDING = 4,
     parameter AXI_WRITE_OUTSTANDING = AXI_READ_OUTSTANDING,
+    parameter ENABLE_IS_MODE = 1,
+    parameter ENABLE_PER_CHANNEL = 1,
     parameter [31:0] IRQ_STATUS_MASK = 32'h0000_0004
 ) (
     input  wire clk,
@@ -105,6 +108,21 @@ module npu_axil_top #(
     wire npu_wb_ready;
     wire [1:0] npu_err_code;
     wire [31:0] status_bits;
+    wire [NPU_ADDR_WIDTH-1:0] npu_m_axi_araddr;
+    wire [NPU_ADDR_WIDTH-1:0] npu_m_axi_awaddr;
+
+    generate
+        if (AXI_ADDR_WIDTH > NPU_ADDR_WIDTH) begin : g_extend_npu_addr
+            assign m_axi_araddr = {{(AXI_ADDR_WIDTH - NPU_ADDR_WIDTH){1'b0}}, npu_m_axi_araddr};
+            assign m_axi_awaddr = {{(AXI_ADDR_WIDTH - NPU_ADDR_WIDTH){1'b0}}, npu_m_axi_awaddr};
+        end else if (AXI_ADDR_WIDTH == NPU_ADDR_WIDTH) begin : g_direct_npu_addr
+            assign m_axi_araddr = npu_m_axi_araddr;
+            assign m_axi_awaddr = npu_m_axi_awaddr;
+        end else begin : g_truncate_npu_addr
+            assign m_axi_araddr = npu_m_axi_araddr[AXI_ADDR_WIDTH-1:0];
+            assign m_axi_awaddr = npu_m_axi_awaddr[AXI_ADDR_WIDTH-1:0];
+        end
+    endgenerate
 
     assign m_axi_arcache = 4'b0011;
     assign m_axi_arprot  = 3'b000;
@@ -179,11 +197,13 @@ module npu_axil_top #(
         .SIZE(SIZE),
         .BUS_WIDTH(BUS_WIDTH),
         .REG_WIDTH(REG_WIDTH),
-        .ADDR_WIDTH(AXI_ADDR_WIDTH),
+        .ADDR_WIDTH(NPU_ADDR_WIDTH),
         .IA_CACHE_BLOCKS(IA_CACHE_BLOCKS),
         .PS_FRAME_COUNT(PS_FRAME_COUNT),
         .AXI_READ_OUTSTANDING(AXI_READ_OUTSTANDING),
-        .AXI_WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING)
+        .AXI_WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING),
+        .ENABLE_IS_MODE(ENABLE_IS_MODE),
+        .ENABLE_PER_CHANNEL(ENABLE_PER_CHANNEL)
     ) u_npu_top (
         .clk(clk),
         .rst_n(rst_n),
@@ -216,7 +236,7 @@ module npu_axil_top #(
         .act_max(act_max_reg),
         .m_axi_arvalid(m_axi_arvalid),
         .m_axi_arready(m_axi_arready),
-        .m_axi_araddr(m_axi_araddr),
+        .m_axi_araddr(npu_m_axi_araddr),
         .m_axi_arlen(m_axi_arlen),
         .m_axi_arsize(m_axi_arsize),
         .m_axi_arburst(m_axi_arburst),
@@ -227,7 +247,7 @@ module npu_axil_top #(
         .m_axi_rlast(m_axi_rlast),
         .m_axi_awvalid(m_axi_awvalid),
         .m_axi_awready(m_axi_awready),
-        .m_axi_awaddr(m_axi_awaddr),
+        .m_axi_awaddr(npu_m_axi_awaddr),
         .m_axi_awlen(m_axi_awlen),
         .m_axi_awsize(m_axi_awsize),
         .m_axi_awburst(m_axi_awburst),

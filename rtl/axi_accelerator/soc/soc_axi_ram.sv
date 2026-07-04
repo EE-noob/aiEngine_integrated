@@ -107,6 +107,7 @@ module soc_axi_ram #(
     integer ddr_cmd_max_lat;
     integer ddr_w_max_lat;
     integer ddr_rsp_max_lat;
+    integer ram_fixed_lat;
     integer data_mem_base_word_q;
     string mem_path_q;
     string data_mem_path_q;
@@ -134,19 +135,22 @@ module soc_axi_ram #(
         else inc_wr_ptr = ptr + 1'b1;
     endfunction
 
-    function automatic [7:0] random_ddr_delay(input integer max_lat);
+    function automatic [7:0] ram_response_delay(input integer max_lat);
 `ifndef SYNTHESIS
         integer value;
         begin
-            if ((ddr_rand_lat_en == 0) || (max_lat <= 0)) begin
-                random_ddr_delay = 8'd0;
+            if (ram_fixed_lat >= 0) begin
+                value = ram_fixed_lat;
+                ram_response_delay = (value > 255) ? 8'hff : value[7:0];
+            end else if ((ddr_rand_lat_en == 0) || (max_lat <= 0)) begin
+                ram_response_delay = 8'd0;
             end else begin
                 value = $urandom_range(max_lat, 0);
-                random_ddr_delay = (value > 255) ? 8'hff : value[7:0];
+                ram_response_delay = (value > 255) ? 8'hff : value[7:0];
             end
         end
 `else
-        random_ddr_delay = 8'd0;
+        ram_response_delay = 8'd0;
 `endif
     endfunction
 
@@ -163,20 +167,22 @@ module soc_axi_ram #(
     endfunction
 
 `ifndef SYNTHESIS
-    wire rd_pipe_rsp_mode = (ddr_rand_lat_en == 0) || (ddr_rsp_max_lat == 0);
+    wire ram_rsp_delay_enabled = (ram_fixed_lat > 0) ||
+                                 ((ddr_rand_lat_en != 0) && (ddr_rsp_max_lat > 0));
+    wire rd_pipe_cmd_mode = !ram_rsp_delay_enabled;
     wire ar_ready_delay_clear = (ar_ready_delay_q == 8'd0);
     wire r_rsp_delay_clear = (r_rsp_delay_q == 8'd0);
     wire aw_ready_delay_clear = (aw_ready_delay_q == 8'd0);
     wire w_ready_delay_clear = (w_ready_delay_q == 8'd0);
 `else
-    wire rd_pipe_rsp_mode = 1'b1;
+    wire rd_pipe_cmd_mode = 1'b1;
     wire ar_ready_delay_clear = 1'b1;
     wire r_rsp_delay_clear = 1'b1;
     wire aw_ready_delay_clear = 1'b1;
     wire w_ready_delay_clear = 1'b1;
 `endif
-    wire rd_pipe_beat = rd_pipe_rsp_mode && s_axi_rvalid && s_axi_rready && !s_axi_rlast;
-    wire rd_pipe_cmd_base = rd_pipe_rsp_mode && s_axi_rvalid && s_axi_rready && s_axi_rlast;
+    wire rd_pipe_beat = s_axi_rvalid && s_axi_rready && !s_axi_rlast;
+    wire rd_pipe_cmd_base = rd_pipe_cmd_mode && s_axi_rvalid && s_axi_rready && s_axi_rlast;
     wire rd_pipe_cmd_from_queue = rd_pipe_cmd_base && (rd_count_q != '0);
     wire rd_pipe_cmd_from_ar = rd_pipe_cmd_base && (rd_count_q == '0) && ar_fire;
     wire rd_pipe_cmd = rd_pipe_cmd_from_queue || rd_pipe_cmd_from_ar;
@@ -199,7 +205,11 @@ module soc_axi_ram #(
     wire rd_issue_last = (rd_issue_beat == rd_issue_len);
     wire [1:0] rd_issue_resp =
         ((rd_pipe_cmd ? 1'b0 : rd_error_accum_q) || rd_issue_oob) ? 2'b10 : 2'b00;
-    wire mem_rd_en = rd_issue_any && !rd_issue_oob;
+    // Always enable the physical BRAM read when an AXI read beat is issued.
+    // Out-of-range accesses are reported with SLVERR and zeroed at the R channel,
+    // so the physical address can safely wrap to the implemented depth. Keeping
+    // OOB decode off the BRAM EN path avoids a long address/carry chain.
+    wire mem_rd_en = rd_issue_any;
     wire [ADDR_BITS-1:0] mem_rd_addr = rd_issue_word_addr[ADDR_BITS-1:0];
 
     wire [RD_USED_W-1:0] rd_slots_used =
@@ -279,7 +289,7 @@ module soc_axi_ram #(
                     rd_len_q[rd_wr_ptr_q]  <= s_axi_arlen;
                     rd_wr_ptr_q <= inc_rd_ptr(rd_wr_ptr_q);
                 end
-                ar_ready_delay_q <= random_ddr_delay(ddr_cmd_max_lat);
+                ar_ready_delay_q <= ram_response_delay(ddr_cmd_max_lat);
             end else if (ar_ready_delay_q != 8'd0) begin
                 ar_ready_delay_q <= ar_ready_delay_q - 8'd1;
             end
@@ -318,7 +328,7 @@ module soc_axi_ram #(
                     rd_beat_q      <= rd_beat_q + 8'd1;
                     rd_word_addr_q <= rd_word_addr_q + WORD_ADDR_BITS'(1);
 `ifndef SYNTHESIS
-                    r_rsp_delay_q  <= random_ddr_delay(ddr_rsp_max_lat);
+                    r_rsp_delay_q  <= 8'd0;
 `endif
                 end
             end
@@ -329,6 +339,9 @@ module soc_axi_ram #(
 `endif
 
             if (rd_cmd_load_from_queue) begin
+`ifndef SYNTHESIS
+                r_rsp_delay_q    <= ram_response_delay(ddr_rsp_max_lat);
+`endif
                 rd_cmd_valid_q  <= 1'b1;
                 rd_word_addr_q  <= rd_addr_q[rd_rd_ptr_q][AW-1:ADDR_LSB];
                 rd_len_active_q <= rd_len_q[rd_rd_ptr_q];
@@ -336,6 +349,9 @@ module soc_axi_ram #(
                 rd_error_accum_q <= rd_pipe_cmd ? rd_issue_oob : 1'b0;
                 rd_rd_ptr_q <= inc_rd_ptr(rd_rd_ptr_q);
             end else if (rd_cmd_load_from_ar) begin
+`ifndef SYNTHESIS
+                r_rsp_delay_q    <= ram_response_delay(ddr_rsp_max_lat);
+`endif
                 rd_cmd_valid_q  <= 1'b1;
                 rd_word_addr_q  <= s_axi_araddr[AW-1:ADDR_LSB];
                 rd_len_active_q <= s_axi_arlen;
@@ -390,7 +406,7 @@ module soc_axi_ram #(
                     wr_len_q[wr_aw_wr_ptr_q]  <= s_axi_awlen;
                     wr_aw_wr_ptr_q <= inc_wr_ptr(wr_aw_wr_ptr_q);
                 end
-                aw_ready_delay_q <= random_ddr_delay(ddr_cmd_max_lat);
+                aw_ready_delay_q <= ram_response_delay(ddr_cmd_max_lat);
             end else if (aw_ready_delay_q != 8'd0) begin
                 aw_ready_delay_q <= aw_ready_delay_q - 8'd1;
             end
@@ -420,9 +436,6 @@ module soc_axi_ram #(
                     wr_word_addr_q <= wr_word_addr_q + WORD_ADDR_BITS'(1);
                     wr_error_accum_q <= wr_error_next;
                 end
-`ifndef SYNTHESIS
-                w_ready_delay_q <= random_ddr_delay(ddr_w_max_lat);
-`endif
             end
 `ifndef SYNTHESIS
             else if (w_ready_delay_q != 8'd0) begin
@@ -437,6 +450,9 @@ module soc_axi_ram #(
             endcase
 
             if (wr_cmd_load_from_queue) begin
+`ifndef SYNTHESIS
+                w_ready_delay_q  <= ram_response_delay(ddr_w_max_lat);
+`endif
                 wr_cmd_valid_q  <= 1'b1;
                 wr_word_addr_q  <= wr_addr_q[wr_aw_rd_ptr_q][AW-1:ADDR_LSB];
                 wr_len_active_q <= wr_len_q[wr_aw_rd_ptr_q];
@@ -444,6 +460,9 @@ module soc_axi_ram #(
                 wr_error_accum_q <= 1'b0;
                 wr_aw_rd_ptr_q <= inc_wr_ptr(wr_aw_rd_ptr_q);
             end else if (wr_cmd_load_from_aw) begin
+`ifndef SYNTHESIS
+                w_ready_delay_q  <= ram_response_delay(ddr_w_max_lat);
+`endif
                 wr_cmd_valid_q  <= 1'b1;
                 wr_word_addr_q  <= s_axi_awaddr[AW-1:ADDR_LSB];
                 wr_len_active_q <= s_axi_awlen;
@@ -473,7 +492,7 @@ module soc_axi_ram #(
             if (wr_b_push) begin
                 wr_b_resp_q[wr_b_wr_ptr_q] <= wr_b_push_resp;
 `ifndef SYNTHESIS
-                wr_b_delay_q[wr_b_wr_ptr_q] <= random_ddr_delay(ddr_rsp_max_lat);
+                wr_b_delay_q[wr_b_wr_ptr_q] <= ram_response_delay(ddr_rsp_max_lat);
 `endif
                 wr_b_wr_ptr_q <= inc_wr_ptr(wr_b_wr_ptr_q);
             end
@@ -488,7 +507,7 @@ module soc_axi_ram #(
 
 `ifndef SYNTHESIS
     task automatic load_initial_mem();
-        if (INIT_EN && mem_path_q != "") begin
+        if ((INIT_EN != 0) && mem_path_q != "") begin
             $display("soc_axi_ram: loading memory from %s", mem_path_q);
             $readmemh(mem_path_q, mem_r);
         end
@@ -504,6 +523,7 @@ module soc_axi_ram #(
         ddr_cmd_max_lat = 0;
         ddr_w_max_lat = 0;
         ddr_rsp_max_lat = 0;
+        ram_fixed_lat = -1;
         data_mem_base_word_q = 0;
         mem_path_q = MEM_PATH;
         data_mem_path_q = "";
@@ -516,9 +536,17 @@ module soc_axi_ram #(
         void'($value$plusargs("DDR_CMD_MAX_LAT=%d", ddr_cmd_max_lat));
         void'($value$plusargs("DDR_W_MAX_LAT=%d", ddr_w_max_lat));
         void'($value$plusargs("DDR_RSP_MAX_LAT=%d", ddr_rsp_max_lat));
+        void'($value$plusargs("RAM_RAND_LAT=%d", ddr_rand_lat_en));
+        void'($value$plusargs("RAM_CMD_MAX_LAT=%d", ddr_cmd_max_lat));
+        void'($value$plusargs("RAM_W_MAX_LAT=%d", ddr_w_max_lat));
+        void'($value$plusargs("RAM_RSP_MAX_LAT=%d", ddr_rsp_max_lat));
+        void'($value$plusargs("RAM_FIXED_LAT=%d", ram_fixed_lat));
 
-        if (ddr_rand_lat_en != 0) begin
-            $display("soc_axi_ram: DDR random latency enabled cmd_max=%0d w_max=%0d rsp_max=%0d",
+        if (ram_fixed_lat >= 0) begin
+            $display("soc_axi_ram: RAM fixed response latency enabled fixed=%0d cycles",
+                     ram_fixed_lat);
+        end else if (ddr_rand_lat_en != 0) begin
+            $display("soc_axi_ram: RAM random response latency enabled cmd_max=%0d w_max=%0d rsp_max=%0d",
                      ddr_cmd_max_lat, ddr_w_max_lat, ddr_rsp_max_lat);
         end
         load_initial_mem();

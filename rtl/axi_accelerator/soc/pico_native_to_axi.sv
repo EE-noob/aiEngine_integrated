@@ -85,6 +85,8 @@ module pico_native_to_axi #(
     logic [IC_LINE_WORD_BITS-1:0] ic_fill_req_word_q;
     logic [DATA_WIDTH-1:0]        ic_fill_req_data_q;
     logic                    ic_req_q;
+    logic                    rsp_valid_q;
+    logic [DATA_WIDTH-1:0]   rsp_data_q;
     logic [ADDR_WIDTH-1:0]   ic_req_line_addr_q;
     logic [IC_INDEX_BITS-1:0]     ic_req_index_q;
     logic [IC_TAG_WIDTH-1:0]      ic_req_tag_q;
@@ -100,7 +102,7 @@ module pico_native_to_axi #(
     logic [IC_TAG_WIDTH-1:0] ic_tag_q [0:ICACHE_LINES-1];
     logic ic_valid_q [0:ICACHE_LINES-1];
 
-    wire bridge_idle   = !read_busy_q && !write_busy_q && !ic_req_q;
+    wire bridge_idle   = !read_busy_q && !write_busy_q && !ic_req_q && !rsp_valid_q;
     wire mem_write_req = mem_valid && (mem_wstrb != '0);
     wire mem_read_req  = mem_valid && (mem_wstrb == '0);
     wire new_read_req  = bridge_idle && mem_read_req;
@@ -158,8 +160,8 @@ module pico_native_to_axi #(
 
     assign m_axi_rready = read_busy_q;
     assign m_axi_bready = write_busy_q || new_write_req;
-    assign mem_ready = icache_hit || read_done_fire || b_fire;
-    assign mem_rdata = icache_hit      ? ic_lookup_data_q :
+    assign mem_ready = rsp_valid_q || read_done_fire || b_fire;
+    assign mem_rdata = rsp_valid_q     ? rsp_data_q :
                        read_done_fire  ? (ic_fill_q ? ic_fill_rsp_data : m_axi_rdata) :
                                          '0;
 
@@ -183,6 +185,8 @@ module pico_native_to_axi #(
             ic_fill_req_word_q <= '0;
             ic_fill_req_data_q <= '0;
             ic_req_q <= 1'b0;
+            rsp_valid_q <= 1'b0;
+            rsp_data_q <= '0;
             ic_req_line_addr_q <= '0;
             ic_req_index_q <= '0;
             ic_req_tag_q <= '0;
@@ -193,6 +197,8 @@ module pico_native_to_axi #(
             aw_pending_q <= 1'b0;
             w_pending_q  <= 1'b0;
         end else begin
+            rsp_valid_q <= 1'b0;
+
             if (new_ic_read_req) begin
                 ic_req_q <= 1'b1;
                 ic_req_line_addr_q <= mem_ic_line_addr;
@@ -207,6 +213,8 @@ module pico_native_to_axi #(
             end else if (ic_req_q) begin
                 if (icache_hit) begin
                     ic_req_q <= 1'b0;
+                    rsp_valid_q <= 1'b1;
+                    rsp_data_q <= ic_lookup_data_q;
                     read_busy_q  <= 1'b0;
                     ar_pending_q <= 1'b0;
                     ic_fill_q    <= 1'b0;

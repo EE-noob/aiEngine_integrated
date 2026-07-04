@@ -7,10 +7,13 @@ module soc_top #(
     parameter BUS_WIDTH       = 32,
     parameter REG_WIDTH       = 32,
     parameter AXI_ADDR_WIDTH  = 32,
+    parameter NPU_ADDR_WIDTH  = AXI_ADDR_WIDTH,
     parameter IA_CACHE_BLOCKS = 4,
     parameter PS_FRAME_COUNT  = SIZE,
     parameter AXI_READ_OUTSTANDING  = 4,
     parameter AXI_WRITE_OUTSTANDING = AXI_READ_OUTSTANDING,
+    parameter NPU_ENABLE_IS_MODE = 1,
+    parameter NPU_ENABLE_PER_CHANNEL = 1,
     parameter CPU_MEM_DP      = 524288,
     parameter CPU_MEM_PATH    = "../tb/axi_soc_case/cpu.mem",
     parameter CPU_MEM_INIT_EN = 1,
@@ -775,10 +778,13 @@ module soc_top #(
         .BUS_WIDTH(BUS_WIDTH),
         .REG_WIDTH(REG_WIDTH),
         .AXI_ADDR_WIDTH(AXI_ADDR_WIDTH),
+        .NPU_ADDR_WIDTH(NPU_ADDR_WIDTH),
         .IA_CACHE_BLOCKS(IA_CACHE_BLOCKS),
         .PS_FRAME_COUNT(PS_FRAME_COUNT),
         .AXI_READ_OUTSTANDING(AXI_READ_OUTSTANDING),
-        .AXI_WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING)
+        .AXI_WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING),
+        .ENABLE_IS_MODE(NPU_ENABLE_IS_MODE),
+        .ENABLE_PER_CHANNEL(NPU_ENABLE_PER_CHANNEL)
     ) u_npu_axil_top (
         .clk(clk),
         .rst_n(rst_n),

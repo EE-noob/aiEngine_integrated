@@ -33,6 +33,7 @@ module vec_s8_to_fifo #(
   reg [COUNT_WIDTH-1:0] bank_count [0:BANKS-1];
   reg [BANKS-1:0] bank_ready;
   reg [BANK_COUNT_WIDTH-1:0] ready_bank_count_q;
+  reg [COUNT_WIDTH-1:0] active_read_count_q;
 
   reg [BANK_WIDTH-1:0]  write_bank;
   reg [BANK_WIDTH-1:0]  read_bank;
@@ -75,7 +76,7 @@ module vec_s8_to_fifo #(
   wire finish_write_bank = in_valid && in_tile_done;
   wire [COUNT_WIDTH-1:0] write_rows_next =
       in_valid ? (COUNT_WIDTH'(write_ptr) + COUNT_WIDTH'(1)) : COUNT_WIDTH'(write_ptr);
-  wire [COUNT_WIDTH-1:0] active_read_count = bank_count[read_bank];
+  wire [COUNT_WIDTH-1:0] active_read_count = active_read_count_q;
   wire [COUNT_WIDTH-1:0] output_row_count =
       transpose_mode_tmp ? (COUNT_WIDTH'(vec_valid_num_row_tmp) + COUNT_WIDTH'(1))
                          : active_read_count;
@@ -146,7 +147,7 @@ module vec_s8_to_fifo #(
     int wr_group;
     int wr_addr_i;
 
-    wr_group = int'(COUNT_WIDTH'(write_ptr) >> 2);
+    wr_group = int'(write_ptr) >> 2;
     wr_addr_i = (int'(write_bank) * ROW_BEATS) + wr_group;
     ram_wr_addr = MEM_ADDR_W'(wr_addr_i);
 
@@ -154,8 +155,8 @@ module vec_s8_to_fifo #(
       int rd_group;
       int rd_addr_i;
 
-      rd_group = issue_transpose_mode ? int'(COUNT_WIDTH'(issue_beat_idx))
-                                      : int'(COUNT_WIDTH'(issue_read_ptr) >> 2);
+      rd_group = issue_transpose_mode ? int'(issue_beat_idx)
+                                      : (int'(issue_read_ptr) >> 2);
       rd_addr_i = (int'(read_bank) * ROW_BEATS) + rd_group;
       ram_rd_addr[rb] = MEM_ADDR_W'(rd_addr_i);
     end
@@ -204,6 +205,7 @@ module vec_s8_to_fifo #(
       oa_fifo_req  <= 1'b0;
       bank_ready   <= '0;
       ready_bank_count_q <= '0;
+      active_read_count_q <= '0;
       for (int bank_idx = 0; bank_idx < BANKS; bank_idx++) begin
         bank_count[bank_idx] <= '0;
       end
@@ -232,6 +234,7 @@ module vec_s8_to_fifo #(
         data_valid    <= 1'b1;
         beat_idx      <= '0;
         read_ptr      <= '0;
+        active_read_count_q <= bank_count[read_bank];
         vec_valid_num_col_tmp <= vec_valid_num_col;
         vec_valid_num_row_tmp <= vec_valid_num_row;
         transpose_mode_tmp <= transpose_mode;
@@ -250,6 +253,7 @@ module vec_s8_to_fifo #(
           data_valid    <= 1'b0;
           read_ptr      <= '0;
           beat_idx      <= '0;
+          active_read_count_q <= '0;
           bank_ready[read_bank] <= 1'b0;
           bank_count[read_bank] <= '0;
           read_bank <= next_bank(read_bank);

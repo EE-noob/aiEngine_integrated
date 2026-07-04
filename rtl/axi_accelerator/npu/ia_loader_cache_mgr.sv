@@ -192,7 +192,7 @@ module ia_loader_cache_mgr #(
   logic [SLOT_W-1:0] next_issue_slot;
   assign next_issue_slot = (CACHE_BLOCKS <= 1) ? '0 : (issue_slot_r + SLOT_W'(1));
 
-  always_ff @(posedge clk or negedge rst_n) begin
+  always_ff @(posedge clk) begin
     if (!rst_n) begin
       l1_issue_active <= 1'b0;
       issue_slot_r    <= '0;
@@ -298,7 +298,7 @@ module ia_loader_cache_mgr #(
   // 输出数据：RAM 读出数据直接作为 ia_out（RAM 寄存器输出，延迟 1 拍）
   // =====================================================================
   logic ram_rd_en_d1 [SIZE];
-  always_ff @(posedge clk or negedge rst_n) begin
+  always_ff @(posedge clk) begin
     if (!rst_n) begin
       for (int j = 0; j < SIZE; j++)
         ram_rd_en_d1[j] <= 1'b0;

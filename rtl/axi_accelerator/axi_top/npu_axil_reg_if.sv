@@ -112,10 +112,10 @@ module npu_axil_reg_if #(
     wire w_accept  = s_axil_wvalid  && s_axil_wready;
     wire ar_accept = s_axil_arvalid && s_axil_arready;
 
-    wire [AXIL_ADDR_WIDTH-1:0] wr_addr = awvalid_q ? awaddr_q : s_axil_awaddr;
-    wire [AXIL_DATA_WIDTH-1:0] wr_data = wvalid_q  ? wdata_q  : s_axil_wdata;
-    wire [STRB_WIDTH-1:0]      wr_strb = wvalid_q  ? wstrb_q  : s_axil_wstrb;
-    wire write_commit = !bvalid_q && (awvalid_q || aw_accept) && (wvalid_q || w_accept);
+    wire [AXIL_ADDR_WIDTH-1:0] wr_addr = awaddr_q;
+    wire [AXIL_DATA_WIDTH-1:0] wr_data = wdata_q;
+    wire [STRB_WIDTH-1:0]      wr_strb = wstrb_q;
+    wire write_commit = !bvalid_q && awvalid_q && wvalid_q;
 
     wire [11:0] wr_word_addr = wr_addr[13:2];
     wire [11:0] rd_word_addr = s_axil_araddr[13:2];

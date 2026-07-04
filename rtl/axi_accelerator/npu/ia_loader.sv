@@ -303,6 +303,11 @@ module ia_loader #(
     logic        [           REG_WIDTH-1:0] cache_slot_rows     [ CACHE_BLOCKS];
     logic                                   cache_tile_done;
     logic                                   cache_l1_done;
+    logic                                   cache_l1_start_q;
+    logic        [((CACHE_BLOCKS <= 1) ? 1 : $clog2(CACHE_BLOCKS))-1:0] cache_l1_slot_start_q;
+    logic        [((CACHE_BLOCKS <= 1) ? 1 : $clog2(CACHE_BLOCKS))-1:0] cache_l1_slot_end_q;
+    logic                                   cache_l1_is_init_q;
+    logic                                   cache_l1_calc_done_q;
 
     // ---- tile_loader ↔ cache_mgr（写端口）----
 	    logic        [((CACHE_BLOCKS <= 1) ? 1 : $clog2(CACHE_BLOCKS))-1:0] tl_wr_slot;
@@ -399,6 +404,27 @@ module ia_loader #(
         .cache_l1_done      (cache_l1_done)
     );
 
+    // Stage the L1 launch command between ctrl and cache_mgr.  The command is
+    // not throughput-critical (one pulse per L1 group), and this breaks a long
+    // blk_valid/send_ready -> diagonalizer start path at high cache counts.
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            cache_l1_start_q      <= 1'b0;
+            cache_l1_slot_start_q <= '0;
+            cache_l1_slot_end_q   <= '0;
+            cache_l1_is_init_q    <= 1'b0;
+            cache_l1_calc_done_q  <= 1'b0;
+        end else begin
+            cache_l1_start_q <= cache_l1_start;
+            if (cache_l1_start) begin
+                cache_l1_slot_start_q <= cache_l1_slot_start;
+                cache_l1_slot_end_q   <= cache_l1_slot_end;
+                cache_l1_is_init_q    <= cache_l1_is_init;
+                cache_l1_calc_done_q  <= cache_l1_calc_done;
+            end
+        end
+    end
+
     // =======================================================================
     // DMA 接入：通过 npu_top 的共享 AXI block_dma 写入本地 cache
     // =======================================================================
@@ -453,11 +479,11 @@ module ia_loader #(
         .wr_use_16bits(tl_wr_use_16bits),
 
         // ---- L1组发送控制（来自 ctrl）----
-        .l1_start     (cache_l1_start),
-        .l1_slot_start(cache_l1_slot_start),
-        .l1_slot_end  (cache_l1_slot_end),
-        .l1_is_init   (cache_l1_is_init),
-        .l1_calc_done (cache_l1_calc_done),
+        .l1_start     (cache_l1_start_q),
+        .l1_slot_start(cache_l1_slot_start_q),
+        .l1_slot_end  (cache_l1_slot_end_q),
+        .l1_is_init   (cache_l1_is_init_q),
+        .l1_calc_done (cache_l1_calc_done_q),
         .blk_valid_in (cache_blk_valid),
         .slot_rows    (cache_slot_rows),
         .tile_done    (cache_tile_done),

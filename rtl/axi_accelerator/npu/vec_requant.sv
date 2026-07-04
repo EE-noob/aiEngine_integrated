@@ -533,13 +533,13 @@ module vec_requant #(
             if (rsp_hskd && cmd_busy) begin
               // 防护断言（仿真）
 `ifndef SYNTHESIS
-              if (beats_expect > VLEN) begin
+              if (int'(beats_expect) > VLEN) begin
                 $display("[%0t] ERROR: beats_expect (%0d) > VLEN", $time, beats_expect);
                 $fatal;
               end
-              if ((load_offset + rd_beats_cnt) >= QBUF_DEPTH) begin
+              if ((load_offset + 32'(rd_beats_cnt)) >= QBUF_DEPTH) begin
                 $display("[%0t] ERROR: quant buffer index (%0d) >= QBUF_DEPTH (%0d)",
-                         $time, load_offset + rd_beats_cnt, QBUF_DEPTH);
+                         $time, load_offset + 32'(rd_beats_cnt), QBUF_DEPTH);
                 $fatal;
               end
 `endif

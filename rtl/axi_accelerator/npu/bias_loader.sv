@@ -161,35 +161,16 @@ module bias_loader #(
         .group_data_out    (buffer_group_data_out)
     );
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            bias_valid       <= 1'b0;
-            bias_group_valid <= 1'b0;
-            for (int i = 0; i < SIZE; i++) begin
-                data_out[i] <= '0;
-            end
-            for (int gi = 0; gi < GROUP_BLOCKS_MAX * SIZE; gi++) begin
-                group_data_out[gi] <= '0;
-            end
-        end else if (init_cfg) begin
-            bias_valid       <= 1'b0;
-            bias_group_valid <= 1'b0;
-            for (int i = 0; i < SIZE; i++) begin
-                data_out[i] <= '0;
-            end
-            for (int gi = 0; gi < GROUP_BLOCKS_MAX * SIZE; gi++) begin
-                group_data_out[gi] <= '0;
-            end
-        end else begin
-            bias_valid       <= buffer_bias_valid;
-            bias_group_valid <= buffer_bias_valid && !ctrl_switch_pending;
-            for (int i = 0; i < SIZE; i++) begin
-                data_out[i] <= buffer_data_out[i];
-            end
-            for (int gi = 0; gi < GROUP_BLOCKS_MAX * SIZE; gi++) begin
-                group_data_out[gi] <= buffer_group_data_out[gi];
-            end
+    assign bias_valid       = buffer_bias_valid;
+    assign bias_group_valid = buffer_bias_valid && !ctrl_switch_pending;
+
+    generate
+        for (genvar out_i = 0; out_i < SIZE; out_i++) begin : gen_data_out
+            assign data_out[out_i] = buffer_data_out[out_i];
         end
-    end
+        for (genvar out_gi = 0; out_gi < GROUP_BLOCKS_MAX * SIZE; out_gi++) begin : gen_group_data_out
+            assign group_data_out[out_gi] = buffer_group_data_out[out_gi];
+        end
+    endgenerate
 
 endmodule
