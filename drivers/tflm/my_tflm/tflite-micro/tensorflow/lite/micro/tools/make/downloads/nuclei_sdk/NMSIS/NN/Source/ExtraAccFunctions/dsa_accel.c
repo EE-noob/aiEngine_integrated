@@ -178,37 +178,37 @@ static uint32_t configure_mmio_registers(const dsa_matmul_config_t *config,
         }
     }
 
-    dsa_reg_write(CSR_MULT_LHS_PTR, (uint32_t)(uintptr_t)config->lhs_ptr);
-    dsa_reg_write(CSR_MULT_RHS_PTR, (uint32_t)(uintptr_t)config->rhs_ptr);
-    dsa_reg_write(CSR_MULT_DST_PTR, (uint32_t)(uintptr_t)config->dst_ptr);
-    dsa_reg_write(CSR_MULT_BIAS_PTR, (uint32_t)(uintptr_t)config->bias_ptr);
+    dsa_reg_write(NPU_REG_LHS_BASE, (uint32_t)(uintptr_t)config->lhs_ptr);
+    dsa_reg_write(NPU_REG_RHS_BASE, (uint32_t)(uintptr_t)config->rhs_ptr);
+    dsa_reg_write(NPU_REG_DST_BASE, (uint32_t)(uintptr_t)config->dst_ptr);
+    dsa_reg_write(NPU_REG_BIAS_BASE, (uint32_t)(uintptr_t)config->bias_ptr);
 
-    dsa_reg_write(CSR_MULT_LHS_ROWS, config->K);
-    dsa_reg_write(CSR_MULT_RHS_COLS, config->N);
-    dsa_reg_write(CSR_MULT_RHS_ROWS, config->M);
+    dsa_reg_write(NPU_REG_K, config->K);
+    dsa_reg_write(NPU_REG_N, config->N);
+    dsa_reg_write(NPU_REG_M, config->M);
 
-    dsa_reg_write(CSR_MULT_LHS_COLS_OFFSET, config->lhs_row_stride);
-    dsa_reg_write(CSR_MULT_RHS_ROW_STRIDE, config->rhs_row_stride);
-    dsa_reg_write(CSR_MULT_ROW_ADDR_OFFSET, config->dst_row_stride);
+    dsa_reg_write(NPU_REG_LHS_STRIDE_B, config->lhs_row_stride);
+    dsa_reg_write(NPU_REG_RHS_STRIDE_B, config->rhs_row_stride);
+    dsa_reg_write(NPU_REG_DST_STRIDE_B, config->dst_row_stride);
 
-    dsa_reg_write(CSR_MULT_LHS_OFFSET, (uint32_t)config->lhs_offset);
-    dsa_reg_write(CSR_MULT_RHS_OFFSET, (uint32_t)config->rhs_offset);
-    dsa_reg_write(CSR_MULT_DST_OFFSET, (uint32_t)config->dst_offset);
+    dsa_reg_write(NPU_REG_LHS_ZP, (uint32_t)config->lhs_offset);
+    dsa_reg_write(NPU_REG_RHS_ZP, (uint32_t)config->rhs_offset);
+    dsa_reg_write(NPU_REG_DST_ZP, (uint32_t)config->dst_offset);
 
     if (config->quant_mode == DSA_QUANT_PER_TENSOR) {
-        dsa_reg_write(CSR_MULT_DST_MULT, (uint32_t)config->dst_mult);
-        dsa_reg_write(CSR_MULT_DST_SHIFT, (uint32_t)config->dst_shift);
+        dsa_reg_write(NPU_REG_Q_MULT, (uint32_t)config->dst_mult);
+        dsa_reg_write(NPU_REG_Q_SHIFT, (uint32_t)config->dst_shift);
     } else {
-        dsa_reg_write(CSR_MULT_DST_MULT,
+        dsa_reg_write(NPU_REG_Q_MULT,
                       (uint32_t)(uintptr_t)config->dst_mult_ptr);
-        dsa_reg_write(CSR_MULT_DST_SHIFT,
+        dsa_reg_write(NPU_REG_Q_SHIFT,
                       (uint32_t)(uintptr_t)config->dst_shift_ptr);
     }
 
-    dsa_reg_write(CSR_MULT_ACT_MIN, (uint32_t)config->act_min);
-    dsa_reg_write(CSR_MULT_ACT_MAX, (uint32_t)config->act_max);
-    dsa_reg_write(DSA_REG_IA_REUSE, ia_reuse_num);
-    dsa_reg_write(DSA_REG_W_REUSE, w_reuse_num);
+    dsa_reg_write(NPU_REG_ACT_MIN, (uint32_t)config->act_min);
+    dsa_reg_write(NPU_REG_ACT_MAX, (uint32_t)config->act_max);
+    dsa_reg_write(NPU_REG_IA_REUSE, ia_reuse_num);
+    dsa_reg_write(NPU_REG_W_REUSE, w_reuse_num);
 
     return DSA_SUCCESS;
 }
@@ -269,10 +269,10 @@ uint32_t dsa_matmul_execute(const dsa_matmul_config_t *config)
     }
 
     dsa_memory_barrier();
-    dsa_reg_write(DSA_REG_CTRL, ctrl);
+    dsa_reg_write(NPU_REG_CTRL, ctrl);
 
     do {
-        status = dsa_reg_read(DSA_REG_STATUS);
+        status = dsa_reg_read(NPU_REG_STATUS);
         if ((status & DSA_STATUS_DONE) != 0u) {
             break;
         }
@@ -287,5 +287,5 @@ uint32_t dsa_matmul_execute(const dsa_matmul_config_t *config)
     }
 
     dsa_memory_barrier();
-    return dsa_reg_read(DSA_REG_WB_DATA);
+    return dsa_reg_read(NPU_REG_WB_DATA);
 }

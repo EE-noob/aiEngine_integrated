@@ -11,12 +11,38 @@ extern "C" {
 /* axi_soc maps the accelerator AXI-Lite window at 0x1000_0000. */
 #define DSA_MMIO_BASE 0x10000000u
 
-#define DSA_REG_CTRL     0x000u
-#define DSA_REG_STATUS   0x001u
-#define DSA_REG_WB_DATA  0x002u
-#define DSA_REG_WB_INFO  0x003u
-#define DSA_REG_IA_REUSE 0x004u
-#define DSA_REG_W_REUSE  0x005u
+#define NPU_REG_CTRL         0x000u
+#define NPU_REG_STATUS       0x004u
+#define NPU_REG_WB_DATA      0x008u
+#define NPU_REG_WB_INFO      0x00Cu
+#define NPU_REG_LHS_BASE     0x010u
+#define NPU_REG_RHS_BASE     0x014u
+#define NPU_REG_DST_BASE     0x018u
+#define NPU_REG_BIAS_BASE    0x01Cu
+#define NPU_REG_K            0x020u
+#define NPU_REG_N            0x024u
+#define NPU_REG_M            0x028u
+#define NPU_REG_LHS_STRIDE_B 0x02Cu
+#define NPU_REG_RHS_STRIDE_B 0x030u
+#define NPU_REG_DST_STRIDE_B 0x034u
+#define NPU_REG_LHS_ZP       0x038u
+#define NPU_REG_RHS_ZP       0x03Cu
+#define NPU_REG_DST_ZP       0x040u
+#define NPU_REG_Q_MULT       0x044u
+#define NPU_REG_Q_SHIFT      0x048u
+#define NPU_REG_ACT_MIN      0x04Cu
+#define NPU_REG_ACT_MAX      0x050u
+#define NPU_REG_IA_REUSE     0x054u
+#define NPU_REG_W_REUSE      0x058u
+#define NPU_REG_DATAFLOW     0x05Cu
+#define NPU_REG_ID           0x0FCu
+
+#define DSA_REG_CTRL     NPU_REG_CTRL
+#define DSA_REG_STATUS   NPU_REG_STATUS
+#define DSA_REG_WB_DATA  NPU_REG_WB_DATA
+#define DSA_REG_WB_INFO  NPU_REG_WB_INFO
+#define DSA_REG_IA_REUSE NPU_REG_IA_REUSE
+#define DSA_REG_W_REUSE  NPU_REG_W_REUSE
 
 #define DSA_CTRL_START          (1u << 0)
 #define DSA_CTRL_CFG_16BITS_IA  (1u << 1)
@@ -51,14 +77,14 @@ static inline uint32_t dsa_mmio_read(uint32_t addr)
     return *(volatile uint32_t *)(uintptr_t)addr;
 }
 
-static inline void dsa_reg_write(uint32_t word_addr, uint32_t data)
+static inline void dsa_reg_write(uint32_t byte_offset, uint32_t data)
 {
-    dsa_mmio_write(DSA_MMIO_BASE + (word_addr << 2), data);
+    dsa_mmio_write(DSA_MMIO_BASE + byte_offset, data);
 }
 
-static inline uint32_t dsa_reg_read(uint32_t word_addr)
+static inline uint32_t dsa_reg_read(uint32_t byte_offset)
 {
-    return dsa_mmio_read(DSA_MMIO_BASE + (word_addr << 2));
+    return dsa_mmio_read(DSA_MMIO_BASE + byte_offset);
 }
 
 #define DSA_CSRWR(csr, val) \
@@ -66,32 +92,31 @@ static inline uint32_t dsa_reg_read(uint32_t word_addr)
 #define DSA_CSRRD(csr, out_var) \
     do { (out_var) = dsa_reg_read((uint32_t)(csr)); } while (0)
 
-#define CSR_MULT_LHS_PTR  0x7C0u
-#define CSR_MULT_RHS_PTR  0x7C1u
-#define CSR_MULT_DST_PTR  0x7C2u
-#define CSR_MULT_BIAS_PTR 0x7C3u
+/* Compatibility aliases for old ExtraAccFunctions call sites. */
+#define CSR_MULT_LHS_PTR  NPU_REG_LHS_BASE
+#define CSR_MULT_RHS_PTR  NPU_REG_RHS_BASE
+#define CSR_MULT_DST_PTR  NPU_REG_DST_BASE
+#define CSR_MULT_BIAS_PTR NPU_REG_BIAS_BASE
 
-#define CSR_MULT_LHS_ROWS       0x7C4u
-#define CSR_MULT_RHS_COLS       0x7C5u
-#define CSR_MULT_RHS_ROWS       0x7C6u
-#define CSR_MULT_DST_ROW_STRIDE 0x7C7u
-#define CSR_MULT_LHS_ROW_STRIDE 0x7C8u
-#define CSR_MULT_RHS_COL_STRIDE 0x7C9u
+#define CSR_MULT_LHS_ROWS       NPU_REG_K
+#define CSR_MULT_RHS_COLS       NPU_REG_N
+#define CSR_MULT_RHS_ROWS       NPU_REG_M
+#define CSR_MULT_DST_ROW_STRIDE NPU_REG_DST_STRIDE_B
+#define CSR_MULT_LHS_ROW_STRIDE NPU_REG_LHS_STRIDE_B
+#define CSR_MULT_RHS_COL_STRIDE NPU_REG_RHS_STRIDE_B
 #define CSR_MULT_ROW_ADDR_OFFSET CSR_MULT_DST_ROW_STRIDE
 #define CSR_MULT_LHS_COLS_OFFSET CSR_MULT_LHS_ROW_STRIDE
 #define CSR_MULT_RHS_ROW_STRIDE  CSR_MULT_RHS_COL_STRIDE
 
-#define CSR_MULT_LHS_OFFSET 0x7CAu
-#define CSR_MULT_RHS_OFFSET 0x7CBu
-#define CSR_MULT_DST_OFFSET 0x7CCu
-#define CSR_MULT_DST_MULT   0x7CDu
-#define CSR_MULT_DST_SHIFT  0x7CEu
-#define CSR_MULT_ACT_MIN    0x7CFu
-#define CSR_MULT_ACT_MAX    0x7D0u
-
-/* Compatibility aliases for old ExtraAccFunctions call sites. */
-#define CSR_MULT_IA_REUSE DSA_REG_IA_REUSE
-#define CSR_MULT_W_REUSE  DSA_REG_W_REUSE
+#define CSR_MULT_LHS_OFFSET NPU_REG_LHS_ZP
+#define CSR_MULT_RHS_OFFSET NPU_REG_RHS_ZP
+#define CSR_MULT_DST_OFFSET NPU_REG_DST_ZP
+#define CSR_MULT_DST_MULT   NPU_REG_Q_MULT
+#define CSR_MULT_DST_SHIFT  NPU_REG_Q_SHIFT
+#define CSR_MULT_ACT_MIN    NPU_REG_ACT_MIN
+#define CSR_MULT_ACT_MAX    NPU_REG_ACT_MAX
+#define CSR_MULT_IA_REUSE   NPU_REG_IA_REUSE
+#define CSR_MULT_W_REUSE    NPU_REG_W_REUSE
 
 #define CFG_OUT_W_S4  0x0u
 #define CFG_OUT_W_S8  0x1u
