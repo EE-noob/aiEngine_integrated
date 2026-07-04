@@ -131,30 +131,30 @@ class ai_axil_monitor extends uvm_monitor;
         timeout = timeout_max;
         poll_cnt = 0;
 
-        while ((timeout > 0) && (axil_vif.mon_cb.npu_irq[2] !== 1'b1)) begin
+        while ((timeout > 0) && (axil_vif.mon_cb.npu_irq !== 1'b1)) begin
             @(axil_vif.mon_cb);
             timeout--;
             poll_cnt++;
             if ((poll_cnt % 10000) == 0) begin
-                `uvm_info("AXIL_WAIT", $sformatf("Waiting NPU irq[2]... polls=%0d/%0d irq=0x%08h status=0x%08h",
+                `uvm_info("AXIL_WAIT", $sformatf("Waiting NPU irq... polls=%0d/%0d irq=%0b status=0x%08h",
                     poll_cnt, timeout_max, axil_vif.mon_cb.npu_irq, axil_vif.mon_cb.npu_status), UVM_LOW)
             end
         end
 
         status = axil_vif.mon_cb.npu_status;
-        if (axil_vif.mon_cb.npu_irq[2] !== 1'b1) begin
-            `uvm_error("AXIL_TIMEOUT", $sformatf("Timeout waiting NPU irq[2]; polls=%0d status=0x%08h", poll_cnt, status))
+        if (axil_vif.mon_cb.npu_irq !== 1'b1) begin
+            `uvm_error("AXIL_TIMEOUT", $sformatf("Timeout waiting NPU irq; polls=%0d status=0x%08h", poll_cnt, status))
             return;
         end
 
         if (!status[2]) begin
-            `uvm_error("AXIL_DONE", $sformatf("irq[2] asserted but REG_STATUS[2] is low, status=0x%08h", status))
+            `uvm_error("AXIL_DONE", $sformatf("irq asserted but REG_STATUS[2] is low, status=0x%08h", status))
             return;
         end
 
-        case (status[5:4])
+        case (status[4:3])
             2'b00: begin
-                `uvm_info("AXIL_DONE", $sformatf("NPU done by irq[2] after %0d polls, status=0x%08h err=00", poll_cnt, status), UVM_LOW)
+                `uvm_info("AXIL_DONE", $sformatf("NPU done by irq after %0d polls, status=0x%08h err=00", poll_cnt, status), UVM_LOW)
                 tr = npu_seq_item::type_id::create("axil_mon_rsp_tr", this);
                 tr.cmd_kind = NPU_TRIGGER;
                 tr.reg_data = status;
@@ -162,7 +162,7 @@ class ai_axil_monitor extends uvm_monitor;
             end
             2'b01: `uvm_error("AXIL_DONE", $sformatf("NPU done but err=01(config error), status=0x%08h", status))
             2'b10: `uvm_error("AXIL_DONE", $sformatf("NPU done but err=10(resource missing), status=0x%08h", status))
-            default: `uvm_error("AXIL_DONE", $sformatf("NPU done but err=%b(unknown), status=0x%08h", status[5:4], status))
+            default: `uvm_error("AXIL_DONE", $sformatf("NPU done but err=%b(unknown), status=0x%08h", status[4:3], status))
         endcase
     endtask
 
@@ -198,13 +198,13 @@ class ai_axil_monitor extends uvm_monitor;
 
             if (tb_ctrl_vif.mon_cb.npu_calc_start_toggle != prev_calc_tog) begin
                 prev_calc_tog = tb_ctrl_vif.mon_cb.npu_calc_start_toggle;
-                phase.raise_objection(this, "wait AXIL irq[2]");
+                phase.raise_objection(this, "wait AXIL irq");
                 `uvm_info(get_type_name(), "calc_start detected in AXIL monitor", UVM_LOW)
                 if (enable_mem_gen_on_calc_start) begin
                     generate_mem_from_ral_mirror();
                 end
                 wait_irq_and_trigger_scb();
-                phase.drop_objection(this, "AXIL irq[2] completed");
+                phase.drop_objection(this, "AXIL irq completed");
             end
         end
     endtask

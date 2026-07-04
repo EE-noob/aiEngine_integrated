@@ -8,8 +8,8 @@ module npu_monitor (
     input logic       clk,
     input logic       rst_n,
     input logic       calc_start,
-    input logic       wb_valid,
-    input logic       wb_ready,
+    input logic       done_valid,
+    input logic       done_ready,
     input logic [1:0] err_code
 );
   logic calc_start_d;
@@ -24,15 +24,15 @@ module npu_monitor (
         $root.tb_top.tb_ctrl_vif.npu_calc_start_toggle = ~$root.tb_top.tb_ctrl_vif.npu_calc_start_toggle;
         fork
           begin
-            wait (wb_valid && wb_ready);
+            wait (done_valid && done_ready);
             $root.tb_top.tb_ctrl_vif.npu_err_code = err_code;
-            $root.tb_top.tb_ctrl_vif.npu_wb_handshake_toggle = ~$root.tb_top.tb_ctrl_vif.npu_wb_handshake_toggle;
+            $root.tb_top.tb_ctrl_vif.npu_done_handshake_toggle = ~$root.tb_top.tb_ctrl_vif.npu_done_handshake_toggle;
 
             case (err_code)
-              2'b00: `uvm_info("npu_monitor", "writeback handshake ok, status 00=normal", UVM_HIGH)
-              2'b01: `uvm_error("npu_monitor", "writeback handshake ok, status 01=config_error")
-              2'b10: `uvm_error("npu_monitor", "writeback handshake ok, status 10=resource_missing")
-              default: `uvm_error("npu_monitor", $sformatf("writeback handshake ok, status %b=unknown", err_code))
+              2'b00: `uvm_info("npu_monitor", "completion handshake ok, status 00=normal", UVM_HIGH)
+              2'b01: `uvm_error("npu_monitor", "completion handshake ok, status 01=config_error")
+              2'b10: `uvm_error("npu_monitor", "completion handshake ok, status 10=resource_missing")
+              default: `uvm_error("npu_monitor", $sformatf("completion handshake ok, status %b=unknown", err_code))
             endcase
           end
         join_none

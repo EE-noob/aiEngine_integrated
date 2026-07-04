@@ -22,7 +22,7 @@
       "reason": "generated-lane clamp alternatives checked by saturation regressions"
     },
     {
-      "pattern": "WAIT_WB|wb_ready|state <= S_IDLE|state <= IDLE|state_nxt = IDLE|wr_active <= 1\\x27b0|send_active <= 1\\x27b0|cfg_valid <= 1\\x27b0|dma_burst_len_m1 <= 8\\x27b0|load_bias_req <= 1\\x27b0",
+      "pattern": "WAIT_DONE|done_ready|state <= S_IDLE|state <= IDLE|state_nxt = IDLE|wr_active <= 1\\x27b0|send_active <= 1\\x27b0|cfg_valid <= 1\\x27b0|dma_burst_len_m1 <= 8\\x27b0|load_bias_req <= 1\\x27b0",
       "reason": "idle/backpressure cleanup paths not part of forward-progress sign-off"
     }
   ]

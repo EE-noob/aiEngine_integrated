@@ -7,6 +7,7 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(npu_seq_item);
     `uvm_object_utils(ai_mem_gen_smoke_seq)
 
     virtual tb_ctrl_if tb_ctrl_vif;
+    virtual axil_if axil_vif;
 
     function new(string name = "ai_mem_gen_smoke_seq");
         super.new(name);
@@ -153,6 +154,7 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(npu_seq_item);
         int dst_shift;
         int act_min;
         int act_max;
+        int irq_wait;
 
         `uvm_info(get_type_name(), "Start ai_mem_gen_smoke_seq", UVM_MEDIUM)
 
@@ -199,6 +201,9 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(npu_seq_item);
 
         if (!uvm_config_db#(virtual tb_ctrl_if)::get(null, "*", "tb_ctrl_vif", tb_ctrl_vif)) begin
             `uvm_fatal("NOVIF", "Failed to get tb_ctrl_if from uvm_config_db in sequence")
+        end
+        if (!uvm_config_db#(virtual axil_if)::get(null, "*", "axil_vif", axil_vif)) begin
+            `uvm_fatal("NOVIF", "Failed to get axil_if from uvm_config_db in sequence")
         end
 
         @(posedge tb_ctrl_vif.clk);
@@ -270,6 +275,25 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(npu_seq_item);
             bias_w == 2;
             out_w == 1;
         })
+
+        irq_wait = 0;
+        while ((axil_vif.npu_irq !== 1'b1) && (irq_wait < 200000)) begin
+            @(posedge tb_ctrl_vif.clk);
+            irq_wait++;
+        end
+        if (axil_vif.npu_irq !== 1'b1) begin
+            `uvm_error("STATUS_WC", $sformatf("Timeout waiting NPU irq before STATUS write-clear, status=0x%08h", axil_vif.npu_status))
+        end else begin
+            repeat (128) @(posedge tb_ctrl_vif.clk);
+            write_reg(`ADDR_NPU_STATUS, 32'h0000_0004);
+            repeat (4) @(posedge tb_ctrl_vif.clk);
+            if ((axil_vif.npu_irq !== 1'b0) || (axil_vif.npu_status[2] != 1'b0)) begin
+                `uvm_error("STATUS_WC", $sformatf("STATUS write-clear failed: irq=%0b status=0x%08h",
+                    axil_vif.npu_irq, axil_vif.npu_status))
+            end else begin
+                `uvm_info("STATUS_WC", "STATUS[2] write-clear verified and irq deasserted", UVM_LOW)
+            end
+        end
 
         `uvm_info(get_type_name(), "End ai_mem_gen_smoke_seq", UVM_MEDIUM)
     endtask

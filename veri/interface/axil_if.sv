@@ -34,7 +34,7 @@ interface axil_if #(
     logic                       rready;
 
     // Passive NPU completion sideband for AXIL monitor.
-    logic [31:0]                npu_irq;
+    logic                       npu_irq;
     logic [31:0]                npu_status;
 
     clocking drv_cb @(posedge clk);

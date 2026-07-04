@@ -66,12 +66,11 @@ class ai_axil_reg_directed_seq extends uvm_sequence#(npu_seq_item);
         end
 
         // Exercise local AXI-Lite control/status decode without starting NPU.
-        reg_write_read(`ADDR_NPU_CTRL, 32'h0000_000E);
+        reg_write_read(`ADDR_NPU_CTRL, 32'h0000_001E);
         reg_write_read(`ADDR_NPU_IA_REUSE, 32'd5);
         reg_write_read(`ADDR_NPU_W_REUSE, 32'd7);
         reg_read(`ADDR_NPU_STATUS, 32'h0, 1'b0);
         reg_read(`ADDR_NPU_WB_DATA, 32'h0, 1'b0);
-        reg_read(`ADDR_NPU_WB_INFO, 32'h0, 1'b0);
 
         // Clear readable control bits and check default readback on an unmapped word address.
         reg_write_read(`ADDR_NPU_CTRL, 32'h0000_0000);

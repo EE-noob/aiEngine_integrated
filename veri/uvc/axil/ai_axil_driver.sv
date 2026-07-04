@@ -172,7 +172,6 @@ class ai_axil_driver extends uvm_driver #(npu_seq_item);
             `ADDR_NPU_CTRL:      return "NPU_CTRL";
             `ADDR_NPU_STATUS:    return "NPU_STATUS";
             `ADDR_NPU_WB_DATA:   return "NPU_WB_DATA";
-            `ADDR_NPU_WB_INFO:   return "NPU_WB_INFO";
             `ADDR_NPU_IA_REUSE:  return "NPU_IA_REUSE";
             `ADDR_NPU_W_REUSE:   return "NPU_W_REUSE";
             `ADDR_NPU_LHS_BASE:       return "NPU_LHS_BASE";
@@ -433,6 +432,7 @@ class ai_axil_driver extends uvm_driver #(npu_seq_item);
         ctrl[2] = req.per_ch;
         ctrl[1] = (req.a_w == 2);
         ctrl[3] = cfg_dataflow_mode[0];
+        ctrl[4] = 1'b1;
         ctrl[0] = 1'b1;
 
         // Trigger NPU through AXIL special CTRL register (bit0=start pulse).

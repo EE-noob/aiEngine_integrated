@@ -256,6 +256,7 @@ static uint32_t configure_mmio_registers(const dsa_matmul_config_t *config,
 
 uint32_t dsa_matmul_execute(const dsa_matmul_config_t *config) {
     uint32_t status;
+    uint32_t result;
     uint32_t ctrl;
     uint32_t cfg_word;
     uint32_t timeout = DSA_MATMUL_TIMEOUT;
@@ -280,7 +281,9 @@ uint32_t dsa_matmul_execute(const dsa_matmul_config_t *config) {
     cfg_word = dsa_build_cfg_word(config);
     (void)cfg_word;
 
-    ctrl = NPU_CTRL_START | NPU_CTRL_CLEAR_DONE | NPU_CTRL_CLEAR_WB_VALID;
+    dsa_reg_write(NPU_REG_STATUS, NPU_STATUS_DONE);
+
+    ctrl = NPU_CTRL_START | NPU_CTRL_IRQ_ENABLE;
     if (config->lhs_dtype == DSA_DTYPE_S16) {
         ctrl |= NPU_CTRL_CFG_16BITS_IA;
     }
@@ -305,11 +308,15 @@ uint32_t dsa_matmul_execute(const dsa_matmul_config_t *config) {
     }
 
     if (status & NPU_STATUS_ERR_MASK) {
+        dsa_reg_write(NPU_REG_STATUS, NPU_STATUS_DONE);
         return (status & NPU_STATUS_ERR_MASK) >> NPU_STATUS_ERR_SHIFT;
     }
 
     dsa_memory_barrier();
-    return dsa_reg_read(NPU_REG_WB_DATA);
+    result = dsa_reg_read(NPU_REG_WB_DATA);
+    dsa_reg_write(NPU_REG_STATUS, NPU_STATUS_DONE);
+    dsa_memory_barrier();
+    return result;
 }
 
 void soc_finish(uint32_t status) {

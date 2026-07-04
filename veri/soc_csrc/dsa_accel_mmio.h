@@ -10,7 +10,6 @@
 #define NPU_REG_CTRL         0x000u
 #define NPU_REG_STATUS       0x004u
 #define NPU_REG_WB_DATA      0x008u
-#define NPU_REG_WB_INFO      0x00Cu
 #define NPU_REG_LHS_BASE     0x010u
 #define NPU_REG_RHS_BASE     0x014u
 #define NPU_REG_DST_BASE     0x018u
@@ -37,11 +36,10 @@
 #define NPU_CTRL_CFG_16BITS_IA  (1u << 1)
 #define NPU_CTRL_PER_CHANNEL    (1u << 2)
 #define NPU_CTRL_DATAFLOW_IS    (1u << 3)
-#define NPU_CTRL_CLEAR_DONE     (1u << 8)
-#define NPU_CTRL_CLEAR_WB_VALID (1u << 9)
+#define NPU_CTRL_IRQ_ENABLE     (1u << 4)
 
 #define NPU_STATUS_DONE      (1u << 2)
-#define NPU_STATUS_ERR_SHIFT 4u
+#define NPU_STATUS_ERR_SHIFT 3u
 #define NPU_STATUS_ERR_MASK  (3u << NPU_STATUS_ERR_SHIFT)
 
 #ifndef DSA_TILE_SIZE

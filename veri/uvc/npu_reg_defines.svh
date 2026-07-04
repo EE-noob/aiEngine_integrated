@@ -32,6 +32,5 @@
 `define ADDR_NPU_CTRL       12'h000
 `define ADDR_NPU_STATUS     12'h001
 `define ADDR_NPU_WB_DATA    12'h002
-`define ADDR_NPU_WB_INFO    12'h003
 
 `endif

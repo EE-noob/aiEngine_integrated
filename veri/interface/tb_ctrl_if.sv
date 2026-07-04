@@ -9,7 +9,7 @@ interface tb_ctrl_if (
     // Testbench-side controls and NPU monitor synchronization.
     logic       mem_reload_req;
     logic       npu_calc_start_toggle;
-    logic       npu_wb_handshake_toggle;
+    logic       npu_done_handshake_toggle;
     logic [1:0] npu_err_code;
 
     clocking drv_cb @(posedge clk);
@@ -21,7 +21,7 @@ interface tb_ctrl_if (
         default input #1step output #1step;
         input mem_reload_req;
         input npu_calc_start_toggle;
-        input npu_wb_handshake_toggle;
+        input npu_done_handshake_toggle;
         input npu_err_code;
     endclocking
 

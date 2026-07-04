@@ -26,7 +26,7 @@ UTIL_FIELDNAMES = [
     "ctrl_weight_wait",
     "ctrl_ia_start",
     "ctrl_ia_wait",
-    "ctrl_wait_wb",
+    "ctrl_wait_done",
     "ctrl_weight_tail_stall",
     "ctrl_weight_data_stall",
     "ctrl_weight_done_wait",
