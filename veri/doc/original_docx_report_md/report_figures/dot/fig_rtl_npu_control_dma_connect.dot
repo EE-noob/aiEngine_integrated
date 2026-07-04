@@ -46,7 +46,7 @@ digraph rtl_npu_control_dma_connect {
     fontsize=24;
     style="rounded";
     ctrl [label="u_npu_controller\n任务状态机\n发出初始化与发送触发\n接收完成和等待状态", fillcolor="#E3F2FD", color="#1565C0"];
-    stat [label="顶层状态输出\nnpu_busy / wb_valid\nerr_code / sa_ready\nstatus_bits", fillcolor="#ECEFF1", color="#455A64"];
+    stat [label="顶层状态输出\nnpu_busy / done_valid\nerr_code / sa_ready\nstatus_bits", fillcolor="#ECEFF1", color="#455A64"];
   }
 
   subgraph cluster_clients {

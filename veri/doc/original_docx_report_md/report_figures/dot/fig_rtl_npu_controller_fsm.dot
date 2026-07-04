@@ -36,9 +36,9 @@ digraph rtl_npu_controller_fsm {
   wwait [label="WEIGHT_WAIT\n等待 weight_sending_done\n完成后准备 IA 发送", fillcolor="#E8F5E9", color="#2E7D32"];
   istart [label="IA_START\n检查 ia_data_valid、bias_ready\nquant_params_valid、FIFO 未满\n满足 issue_ia_now 时触发 IA", fillcolor="#FFEBEE", color="#C62828"];
   iwait [label="IA_WAIT\n等待 ia_sending_done\n完成后进入下一权重组\n或检查输出写回完成", fillcolor="#FFEBEE", color="#C62828"];
-  waitwb [label="WAIT_WB\nwb_valid 保持有效\n等待 wb_ready", fillcolor="#EDE7F6", color="#5E35B1"];
-  error [label="ERROR\n配置检查失败\nerr_code <= error_type\nwb_valid 有效", fillcolor="#FCE4EC", color="#AD1457"];
-  done [label="完成条件\noa_calc_over = 1\n若 wb_ready = 1 返回 IDLE\n否则进入 WAIT_WB", fillcolor="#ECEFF1", color="#455A64"];
+  waitdone [label="WAIT_DONE\ndone_valid 保持有效\n等待 done_ready", fillcolor="#EDE7F6", color="#5E35B1"];
+  error [label="ERROR\n配置检查失败\nerr_code <= error_type\ndone_valid 有效", fillcolor="#FCE4EC", color="#AD1457"];
+  done [label="完成条件\noa_calc_over = 1\n若 done_ready = 1 返回 IDLE\n否则进入 WAIT_DONE", fillcolor="#ECEFF1", color="#455A64"];
 
   reset -> idle [label="rst_n 释放", color="#455A64"];
   idle -> init [label="calc_start && 配置有效", color="#1565C0"];
@@ -55,13 +55,13 @@ digraph rtl_npu_controller_fsm {
   wstart -> done [label="oa_calc_over", color="#6C43B6"];
   wwait -> done [label="oa_calc_over", color="#6C43B6"];
   iwait -> done [label="ia_sending_done && oa_calc_over", color="#6C43B6"];
-  done -> idle [label="wb_ready = 1", color="#6C43B6"];
-  done -> waitwb [label="wb_ready = 0", color="#6C43B6"];
-  waitwb -> idle [label="wb_ready = 1", color="#5E35B1"];
-  error -> idle [label="wb_ready = 1", color="#AD1457"];
+  done -> idle [label="done_ready = 1", color="#6C43B6"];
+  done -> waitdone [label="done_ready = 0", color="#6C43B6"];
+  waitdone -> idle [label="done_ready = 1", color="#5E35B1"];
+  error -> idle [label="done_ready = 1", color="#AD1457"];
 
   idle -> idle [label="无启动", color="#90A4AE", style=dashed];
   wstart -> wstart [label="等待权重安全条件或权重数据", color="#90A4AE", style=dashed];
   istart -> istart [label="等待 IA、偏置、量化参数或 FIFO 空间", color="#90A4AE", style=dashed];
-  waitwb -> waitwb [label="wb_ready = 0", color="#90A4AE", style=dashed];
+  waitdone -> waitdone [label="done_ready = 0", color="#90A4AE", style=dashed];
 }

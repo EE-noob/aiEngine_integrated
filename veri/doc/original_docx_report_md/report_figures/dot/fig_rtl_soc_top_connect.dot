@@ -92,7 +92,7 @@ digraph rtl_soc_top_connect {
   uart_buf -> uart [label="uart_core_axil_*", color="#F9A825"];
   ic -> ctrl [label="m_ctrl AXI-Lite", color="#F9A825"];
 
-  npu_top_axil -> cpu [label="npu_irq[31:0]\neoi 固定为 0", color="#6C43B6", style=dashed];
+  npu_top_axil -> cpu [label="npu_irq", color="#6C43B6", style=dashed];
   npu_top_axil -> ctrl [label="npu_busy 作为系统状态", color="#6C43B6", style=dashed];
   ram -> cpu [label="mem_reload_req 支持镜像重载", color="#607D8B", style=dashed];
 }

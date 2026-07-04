@@ -159,7 +159,7 @@ C[i : i+R-1, j : j+W-1] += A[i : i+R-1, r] x B[r, j : j+W-1]
 10. `vec_requant` 完成 per-tensor/per-channel 重量化和 s8 裁剪。
 11. `vec_s8_to_fifo` 打包 s8 结果；IS 模式下 FIFO/写回路径处理转置顺序。
 12. `oa_writer` 生成 DMA 写回地址、mask 和数据流。
-13. 所有 tile 写回完成后，`wb_valid` 与 `sa_ready` 标识任务完成。
+13. 所有 tile 写回完成后，`done_valid` 与 `sa_ready` 标识任务完成。
 
 ---
 

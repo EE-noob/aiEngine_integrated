@@ -20,7 +20,7 @@ flowchart LR
     寄存器组 -->|cfg start clear| NPU
     NPU -->|dma request data mask| DMA
     DMA -->|AXI read write burst| IC
-    NPU -->|done busy error writeback_valid| 寄存器组
+    NPU -->|done busy error irq| 寄存器组
 
     classDef cpu fill:#E8F1FF,stroke:#2F5DA8,stroke-width:1px,color:#111;
     classDef bus fill:#FFF4D6,stroke:#B88300,stroke-width:1px,color:#111;

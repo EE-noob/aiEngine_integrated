@@ -2,7 +2,7 @@ flowchart TD
     S([CPU 进入算子入口])
     PREP[写入输入、权重、bias 与量化参数]
     REG0[写寄存器: 基地址、步长、K/N/M、数据类型、量化、复用]
-    START[写 NPU_REG_CTRL.start]
+    START[写 NPU_REG_CTRL<br/>start 与 irq_enable]
     LATCH[NPU 锁存配置并置 busy]
     LOAD[加载单元发起 DMA 读请求]
     COMPUTE[脉动阵列执行分块乘加]
@@ -10,9 +10,9 @@ flowchart TD
     FINAL{是否最后归约分块}
     REQ[重量化、打包、输出地址生成]
     WRITE[DMA 写回 DST 并等待 B 响应]
-    DONE[NPU 置 done 与 writeback_valid]
+    DONE[NPU 置 done 状态]
     POLL[CPU 轮询 status 或响应中断]
-    CLR[CPU 清除 done/writeback_valid]
+    CLR[CPU 清除 done 状态]
     END([返回上层算子])
     ERR{error 或响应错误}
     FALLBACK[返回错误码或进入软件执行路径]

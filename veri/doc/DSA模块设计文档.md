@@ -51,7 +51,7 @@ CSR/calc_start
   -> vec_requant
   -> vec_s8_to_fifo
   -> oa_writer DMA 写回
-  -> wb_valid / sa_ready
+  -> done_valid / sa_ready
 ```
 
 ---
@@ -85,7 +85,7 @@ CSR/calc_start
 | `cfg_ia_reuse_num` | In | IA cache group 深度。0 表示使用硬件默认派生 |
 | `cfg_w_reuse_num` | In | W 侧复用窗口。0 表示使用硬件默认派生 |
 | `sa_ready` | Out | 顶层可接受下一任务 |
-| `wb_valid/wb_ready/err_code` | Out/In | 任务完成与状态返回 |
+| `done_valid/done_ready/err_code` | Out/In | 任务完成与状态返回 |
 | `lhs_base/rhs_base/dst_base/bias_base` | In | LHS/RHS/DST/Bias 字节基址 |
 | `lhs_zp/rhs_zp/dst_zp` | In | zero point / output offset |
 | `q_mult_pt/q_shift_pt/use_per_channel` | In | per-tensor 或 per-channel 量化配置 |
@@ -130,7 +130,7 @@ cfg_*_reuse_num = 0 时使用对应容量上限
 - 下发 `init_cfg_ia/init_cfg_weight/init_cfg_bias/init_cfg_requant/init_cfg_oa`。
 - 根据 `ia_data_valid`、`weight_data_valid`、`bias_group_valid`、`quant_params_valid`、`fifo_full_flag`、`oa_calc_over` 推进状态。
 - 产生 `send_ia_trigger` 和 `send_weight_trigger`。
-- 通过 `wb_valid/wb_ready/err_code` 上报任务完成。
+- 通过 `done_valid/done_ready/err_code` 上报任务完成。
 
 当前访存仲裁不再由控制器的 `icb_sel` 完成，而是由 `axi_block_dma_arbiter` 负责。控制器仍保留“先加载、后触发、写回完成再推进”的上层语义。
 

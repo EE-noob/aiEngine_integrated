@@ -359,7 +359,7 @@ CNN 小样本对照：
 | 输入配置 | seed 41000：`K=5,N=7,M=7,mode=WS,R=2,W=2`；seed 41001：`K=8,N=2,M=5,mode=WS,R=1,W=2` |
 | 输入数据来源 | `/tmp/tflm_ai_dsa_report_s4/init.mem`、`golden.mem`、`config.mem` |
 | 激励步骤 | TB 加载 mem，复位释放后写入配置，`calc_start triggered at time 95000`，等待 `sa_ready` 变低再变高 |
-| 关键观察信号 | `calc_start`、`sa_ready`、`wb_valid`、`err_code`、TB PASS/FAIL |
+| 关键观察信号 | `calc_start`、`sa_ready`、`done_valid`、`err_code`、TB PASS/FAIL |
 | 预期行为 | `calc_start` 后控制器离开 idle，计算完成后 `sa_ready=1`，无错误码，输出 memory 与 golden 一致 |
 | 实际行为 | seed 41000 在 time 4735000 完成并 PASS；seed 41001 在 time 4075000 完成并 PASS |
 | 波形或日志证据 | `/tmp/tflm_ai_dsa_report_s4/random_41000.log`、`random_41001.log` |
