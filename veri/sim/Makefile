@@ -117,6 +117,15 @@ SOC_PERF_DDR_CMD_MAX_LAT ?= 3
 SOC_PERF_DDR_W_MAX_LAT ?= 2
 SOC_PERF_DDR_RSP_MAX_LAT ?= 8
 SOC_PERF_RAM_FIXED_LAT ?=
+TOP_REGRESS_SIZE ?= 4
+TOP_REGRESS_IA_CACHE_BLOCKS ?= 4
+TOP_REGRESS_PS_FRAME_COUNT ?= 8
+TOP_REGRESS_AXI_READ_OUTSTANDING ?= 4
+TOP_REGRESS_COUNT ?= 20
+TOP_REGRESS_SEED ?= 1000
+TOP_REGRESS_RANDOM_GEN_ARGS ?= --random --random_quant --lhs_dtype 0 --min_dim 1 --max_dim 32
+TOP_REGRESS_SIM_ARGS ?= +DDR_RAND_LAT=1 +DDR_CMD_MAX_LAT=3 +DDR_W_MAX_LAT=2 +DDR_RSP_MAX_LAT=8
+TOP_REGRESS_TRACE ?= 0
 SOC_RUNTIME_BASE_WORD ?= $(shell python3 -c 'print(int("$(SOC_CPU_MEM_DP)", 0) // 2)')
 SOC_RUNTIME_BASE_ADDR ?= $(shell python3 -c 'print(hex((int("$(SOC_CPU_MEM_DP)", 0) // 2) * 4))')
 # Runtime firmware embeds SOC_RUNTIME_CASE_BASE, which is derived from
@@ -532,6 +541,9 @@ soc_regress:
 soc_perf_sweep:
 > @python3 ./run_axi_soc_perf_sweep.py --seed $(SOC_PERF_SEED) --timeout $(SOC_PERF_TIMEOUT) --log-root $(SOC_PERF_LOG_ROOT) --dims "$(SOC_PERF_DIMS)" --sizes "$(SOC_PERF_SIZE_LIST)" --cache-blocks "$(SOC_PERF_CACHE_BLOCKS_LIST)" --ps-frame-counts "$(SOC_PERF_PS_FRAME_COUNT_LIST)" --dataflow-modes "$(SOC_PERF_DATAFLOW_MODE_LIST)" --lhs-dtypes "$(SOC_PERF_LHS_DTYPE_LIST)" --quant-modes "$(SOC_PERF_QUANT_MODE_LIST)" --ia-reuse-list "$(SOC_PERF_IA_REUSE_LIST)" --w-reuse-list "$(SOC_PERF_W_REUSE_LIST)" --jobs $(SOC_PERF_JOBS) --sim-args "$(SOC_PERF_SIM_ARGS)" --ddr-cmd-max-lat $(SOC_PERF_DDR_CMD_MAX_LAT) --ddr-w-max-lat $(SOC_PERF_DDR_W_MAX_LAT) --ddr-rsp-max-lat $(SOC_PERF_DDR_RSP_MAX_LAT) $(if $(SOC_PERF_SOC_TIMEOUT_CYCLES),--soc-timeout-cycles $(SOC_PERF_SOC_TIMEOUT_CYCLES),) $(if $(SOC_PERF_RAM_FIXED_LAT),--ram-fixed-lat $(SOC_PERF_RAM_FIXED_LAT),) $(if $(filter 1 yes true TRUE,$(SOC_PERF_INCLUDE_AUTO)),--include-auto,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_KEEP_GOING)),--keep-going,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_FORCE_COMPILE)),--force-compile,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_DDR_RAND_LAT)),--ddr-rand-lat,)
 
+npu_top_regress:
+> $(MAKE) -C ../top_regression run_random SIZE=$(TOP_REGRESS_SIZE) IA_CACHE_BLOCKS=$(TOP_REGRESS_IA_CACHE_BLOCKS) PS_FRAME_COUNT=$(TOP_REGRESS_PS_FRAME_COUNT) AXI_READ_OUTSTANDING=$(TOP_REGRESS_AXI_READ_OUTSTANDING) COUNT=$(TOP_REGRESS_COUNT) SEED=$(TOP_REGRESS_SEED) TRACE=$(TOP_REGRESS_TRACE) RANDOM_GEN_ARGS='$(TOP_REGRESS_RANDOM_GEN_ARGS)' SIM_ARGS='$(TOP_REGRESS_SIM_ARGS)'
+
 tflm_my_model_run:
 > $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm SOC_CASE=axi_soc_tflm case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MY_MODEL_TIMEOUT_CYCLES))
 
@@ -575,6 +587,7 @@ help:
 > @echo "                   [SOC_SIZE_LIST='8 16'] [SOC_CACHE_BLOCKS_LIST='2 4'] [SOC_REGRESS_DDR_RAND_LAT=1] [SOC_REGRESS_UNALIGNED_LAYOUT=1]"
 > @echo "  make soc_perf_sweep [SOC_PERF_DIMS='32x32x32'] [SOC_PERF_SIZE_LIST='8 16'] [SOC_PERF_CACHE_BLOCKS_LIST='2 4']"
 > @echo "                      [SOC_PERF_INCLUDE_AUTO=1] [SOC_PERF_FORCE_COMPILE=1] [SOC_PERF_JOBS=4] [SOC_PERF_DDR_RAND_LAT=1]"
+> @echo "  make npu_top_regress [TOP_REGRESS_SIZE=4] [TOP_REGRESS_IA_CACHE_BLOCKS=4] [TOP_REGRESS_COUNT=20]"
 > @echo "  make run COV=1 DUT_MODE=axil case=ai_mem_gen_smoke_test seed=1  # collect VCS code coverage"
 > @echo "  make coverage COVERAGE_GOAL=95                                 # clean, run curated suite, and sign off VCS code coverage"
 > @echo "             [COV_ACCEL_SCOPE=1] limits coverage to the accelerator hierarchy"
