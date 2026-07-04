@@ -570,6 +570,7 @@ tflm_run: tflm_hello_world_run
 vd:
 > @echo "[VERDI] case=$(case) seed=$(seed) FSDB=$(FSDB)"
 > @if [ ! -f "$(FSDB)" ]; then echo "[ERROR] FSDB not found: $(FSDB)"; echo "        Please run: make run DUT_MODE=$(DUT_MODE) case=$(case) seed=$(seed)"; exit 1; fi
+> @echo "[VERDI] DUT_MODE=$(DUT_MODE) FILELIST=$(FILELIST)"
 > $(VERDI) -sv $(INCDIRS:%=-y %) $(DEFINES:%=+define+%) $(MODE_DEFINES:%=+define+%) -f $(FILELIST) +incdir+$(UVM_HOME)/src -top $(TOP) $(VERDI_OPTS) -ssf $(FSDB) &
 
 clean:
