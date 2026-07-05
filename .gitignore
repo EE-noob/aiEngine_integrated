@@ -45,6 +45,7 @@ Thumbs.db
 *.bak
 .vscode/
 .idea/
+*.code-workspace
 
 # C/C++ and Make build artifacts
 *.o
