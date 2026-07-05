@@ -19,6 +19,7 @@ extern "C" uint32_t soc_get_cycle(void);
 namespace {
 
 constexpr uintptr_t kSocProgressAddr = 0x2000000cu;
+constexpr uintptr_t kSocStatusAddr = 0x20000000u;
 
 #ifndef TFLM_MNIST_MLP_ARENA_SIZE
 #define TFLM_MNIST_MLP_ARENA_SIZE (16 * 1024)
@@ -32,6 +33,13 @@ alignas(16) uint8_t g_tensor_arena[TFLM_MNIST_MLP_ARENA_SIZE];
 
 void WriteProgress(uint32_t value) {
   *reinterpret_cast<volatile uint32_t*>(kSocProgressAddr) = value;
+}
+
+[[noreturn]] void HaltWithStatus(uint32_t status) {
+  *reinterpret_cast<volatile uint32_t*>(kSocStatusAddr) = status;
+  while (1) {
+    __asm__ volatile("nop" ::: "memory");
+  }
 }
 
 uint32_t EncodeError(uint32_t major, uint32_t detail) {
@@ -188,5 +196,5 @@ uint32_t RunMnistMlpTest() {
 
 extern "C" int main(void) {
   picosoc_uart_init();
-  return static_cast<int>(RunMnistMlpTest());
+  HaltWithStatus(RunMnistMlpTest());
 }
