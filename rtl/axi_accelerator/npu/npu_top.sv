@@ -91,12 +91,17 @@ module npu_top #(
     input  logic [            1:0] m_axi_bresp
 );
 
-	    //========================================
-	    // 内部信号定义
-	    //========================================
-	    localparam int unsigned BIAS_DMA_SIZE = SIZE * 4;
-	    localparam int unsigned SHARED_DMA_SIZE =
-	        (BIAS_DMA_SIZE > SIZE) ? BIAS_DMA_SIZE : SIZE;
+    //========================================
+    // 内部信号定义
+    //========================================
+    localparam int unsigned BIAS_DMA_SIZE = SIZE * 4;
+    localparam int unsigned SHARED_DMA_SIZE =
+        (BIAS_DMA_SIZE > SIZE) ? BIAS_DMA_SIZE : SIZE;
+    // int8 activations plus zero-point need more than 8 signed bits.
+    localparam int unsigned IA_DATA_WIDTH =
+        (DATA_WIDTH < 16) ? 16 : DATA_WIDTH;
+    localparam int unsigned KERNEL_DATA_WIDTH =
+        (WEIGHT_WIDTH < 16) ? 16 : WEIGHT_WIDTH;
 
     // IA Loader 内部信号
     wire load_ia_req;
@@ -108,7 +113,7 @@ module npu_top #(
     wire ia_is_init_data;
     wire ia_calc_done;
     wire partial_sum_calc_over;
-    wire signed [DATA_WIDTH-1:0] ia_out[SIZE];
+    wire signed [IA_DATA_WIDTH-1:0] ia_out[SIZE];
     wire ia_data_valid;
     wire ia_l1_switch;
     wire bias_sleep;
@@ -122,7 +127,7 @@ module npu_top #(
     wire weight_sending_done;
     wire load_weight_done;
     wire store_weight_req;
-    wire signed [WEIGHT_WIDTH-1:0] weight_out[SIZE];
+    wire signed [KERNEL_DATA_WIDTH-1:0] weight_out[SIZE];
     wire weight_data_valid;
 
     // Bias Loader 内部信号
@@ -157,62 +162,62 @@ module npu_top #(
     wire [31:0] fifo_output_data;
     wire fifo_full_flag;
 
-	    // OA Writer 内部信号
-	    wire write_oa_req;
-	    wire write_oa_granted;
-	    wire write_done;
-	    wire oa_calc_over;
+    // OA Writer 内部信号
+    wire write_oa_req;
+    wire write_oa_granted;
+    wire write_done;
+    wire oa_calc_over;
 
-	    // Shared block_dma client signals
-	    logic ia_dma_start, ia_dma_linear_read_mode;
-	    logic [REG_WIDTH-1:0] ia_dma_base_addr, ia_dma_row_stride, ia_dma_rows_to_read;
-	    logic [7:0] ia_dma_burst_len_m1;
-	    localparam int unsigned IA_CACHE_SLOT_W = (IA_CACHE_BLOCKS <= 1) ? 1 : $clog2(IA_CACHE_BLOCKS);
-	    logic [IA_CACHE_SLOT_W-1:0] ia_dma_slot_id;
-	    logic ia_dma_use_16bits;
-	    logic signed [REG_WIDTH-1:0] ia_dma_lhs_zp;
-	    logic ia_dma_busy, ia_dma_done;
-	    logic [IA_CACHE_SLOT_W-1:0] ia_dma_wr_slot;
-	    logic [$clog2(SIZE)-1:0] ia_dma_wr_row, ia_dma_wr_col_base;
-	    logic signed [DATA_WIDTH-1:0] ia_dma_wr_data[BUS_WIDTH/8];
-	    logic ia_dma_wr_valid[BUS_WIDTH/8];
-	    logic ia_dma_wr_use_16bits;
+    // Shared block_dma client signals
+    logic ia_dma_start, ia_dma_linear_read_mode;
+    logic [REG_WIDTH-1:0] ia_dma_base_addr, ia_dma_row_stride, ia_dma_rows_to_read;
+    logic [7:0] ia_dma_burst_len_m1;
+    localparam int unsigned IA_CACHE_SLOT_W = (IA_CACHE_BLOCKS <= 1) ? 1 : $clog2(IA_CACHE_BLOCKS);
+    logic [IA_CACHE_SLOT_W-1:0] ia_dma_slot_id;
+    logic ia_dma_use_16bits;
+    logic signed [REG_WIDTH-1:0] ia_dma_lhs_zp;
+    logic ia_dma_busy, ia_dma_done;
+    logic [IA_CACHE_SLOT_W-1:0] ia_dma_wr_slot;
+    logic [$clog2(SIZE)-1:0] ia_dma_wr_row, ia_dma_wr_col_base;
+    logic signed [IA_DATA_WIDTH-1:0] ia_dma_wr_data[BUS_WIDTH/8];
+    logic ia_dma_wr_valid[BUS_WIDTH/8];
+    logic ia_dma_wr_use_16bits;
 
-	    logic kernel_dma_start, kernel_dma_linear_read_mode;
-	    logic [REG_WIDTH-1:0] kernel_dma_base_addr, kernel_dma_row_stride, kernel_dma_rows_to_read;
-	    logic [7:0] kernel_dma_burst_len_m1;
-	    logic kernel_dma_slot_id, kernel_dma_use_16bits;
-	    logic signed [REG_WIDTH-1:0] kernel_dma_lhs_zp;
-	    logic kernel_dma_busy, kernel_dma_done;
-	    logic [$clog2(SIZE)-1:0] kernel_dma_wr_row, kernel_dma_wr_col_base;
-	    logic signed [WEIGHT_WIDTH-1:0] kernel_dma_wr_data[BUS_WIDTH/8];
-	    logic kernel_dma_wr_valid[BUS_WIDTH/8];
+    logic kernel_dma_start, kernel_dma_linear_read_mode;
+    logic [REG_WIDTH-1:0] kernel_dma_base_addr, kernel_dma_row_stride, kernel_dma_rows_to_read;
+    logic [7:0] kernel_dma_burst_len_m1;
+    logic kernel_dma_slot_id, kernel_dma_use_16bits;
+    logic signed [REG_WIDTH-1:0] kernel_dma_lhs_zp;
+    logic kernel_dma_busy, kernel_dma_done;
+    logic [$clog2(SIZE)-1:0] kernel_dma_wr_row, kernel_dma_wr_col_base;
+    logic signed [KERNEL_DATA_WIDTH-1:0] kernel_dma_wr_data[BUS_WIDTH/8];
+    logic kernel_dma_wr_valid[BUS_WIDTH/8];
 
-	    logic bias_dma_start, bias_dma_linear_read_mode;
-	    logic [REG_WIDTH-1:0] bias_dma_base_addr, bias_dma_row_stride, bias_dma_rows_to_read;
-	    logic [7:0] bias_dma_burst_len_m1;
-	    logic bias_dma_slot_id, bias_dma_use_16bits;
-	    logic signed [REG_WIDTH-1:0] bias_dma_lhs_zp;
-	    logic bias_dma_busy, bias_dma_done, bias_dma_wr_slot, bias_dma_wr_use_16bits;
-	    logic [$clog2(BIAS_DMA_SIZE)-1:0] bias_dma_wr_row, bias_dma_wr_col_base;
-	    logic signed [7:0] bias_dma_wr_data[BUS_WIDTH/8];
-	    logic bias_dma_wr_valid[BUS_WIDTH/8];
+    logic bias_dma_start, bias_dma_linear_read_mode;
+    logic [REG_WIDTH-1:0] bias_dma_base_addr, bias_dma_row_stride, bias_dma_rows_to_read;
+    logic [7:0] bias_dma_burst_len_m1;
+    logic bias_dma_slot_id, bias_dma_use_16bits;
+    logic signed [REG_WIDTH-1:0] bias_dma_lhs_zp;
+    logic bias_dma_busy, bias_dma_done, bias_dma_wr_slot, bias_dma_wr_use_16bits;
+    logic [$clog2(BIAS_DMA_SIZE)-1:0] bias_dma_wr_row, bias_dma_wr_col_base;
+    logic signed [7:0] bias_dma_wr_data[BUS_WIDTH/8];
+    logic bias_dma_wr_valid[BUS_WIDTH/8];
 
-	    logic quant_dma_start, quant_dma_linear_read_mode;
-	    logic [REG_WIDTH-1:0] quant_dma_base_addr, quant_dma_row_stride, quant_dma_rows_to_read;
-	    logic [7:0] quant_dma_burst_len_m1;
-	    logic quant_dma_slot_id, quant_dma_use_16bits;
-	    logic signed [REG_WIDTH-1:0] quant_dma_lhs_zp;
-	    logic quant_dma_busy, quant_dma_done;
-	    logic [BUS_WIDTH-1:0] quant_dma_raw_data;
-	    logic quant_dma_raw_valid;
+    logic quant_dma_start, quant_dma_linear_read_mode;
+    logic [REG_WIDTH-1:0] quant_dma_base_addr, quant_dma_row_stride, quant_dma_rows_to_read;
+    logic [7:0] quant_dma_burst_len_m1;
+    logic quant_dma_slot_id, quant_dma_use_16bits;
+    logic signed [REG_WIDTH-1:0] quant_dma_lhs_zp;
+    logic quant_dma_busy, quant_dma_done;
+    logic [BUS_WIDTH-1:0] quant_dma_raw_data;
+    logic quant_dma_raw_valid;
 
-	    logic oa_dma_start;
-	    logic [REG_WIDTH-1:0] oa_dma_base_addr, oa_dma_row_stride, oa_dma_rows_to_read;
-	    logic [7:0] oa_dma_burst_len_m1;
-	    logic [BUS_WIDTH-1:0] oa_dma_src_wdata;
-	    logic [BUS_WIDTH/8-1:0] oa_dma_src_wmask;
-	    logic oa_dma_src_wvalid, oa_dma_src_wready, oa_dma_busy, oa_dma_done;
+    logic oa_dma_start;
+    logic [REG_WIDTH-1:0] oa_dma_base_addr, oa_dma_row_stride, oa_dma_rows_to_read;
+    logic [7:0] oa_dma_burst_len_m1;
+    logic [BUS_WIDTH-1:0] oa_dma_src_wdata;
+    logic [BUS_WIDTH/8-1:0] oa_dma_src_wmask;
+    logic oa_dma_src_wvalid, oa_dma_src_wready, oa_dma_busy, oa_dma_done;
 
     // 添加缺少的内部信号
     // per-submodule init_cfg signals (由npu_controller产生的单拍脉冲)
@@ -223,411 +228,411 @@ module npu_top #(
     wire init_cfg_oa;
     wire use_16bits;  // 16位数据指示信号
     wire [REG_WIDTH-1:0] tile_count;  // 分块计数信号
-	    localparam int unsigned IA_REUSE_NUM_MAX =
-	        (IA_CACHE_BLOCKS < 2) ? 1 : (IA_CACHE_BLOCKS / 2);
-	    localparam int unsigned SIZE_SHIFT = $clog2(SIZE);
-	    localparam int unsigned DIM_COUNT_WIDTH =
-	        (ADDR_WIDTH <= SIZE_SHIFT) ? 1 :
-	        (((ADDR_WIDTH - SIZE_SHIFT + 1) > REG_WIDTH) ? REG_WIDTH :
-	         (ADDR_WIDTH - SIZE_SHIFT + 1));
-	    localparam int unsigned W_REUSE_NUM_MAX =
-	        (PS_FRAME_COUNT < 1) ? 1 : PS_FRAME_COUNT;
-	    localparam int unsigned IA_REUSE_W =
-	        (IA_REUSE_NUM_MAX <= 1) ? 1 : ($clog2(IA_REUSE_NUM_MAX) + 1);
-	    localparam int unsigned W_REUSE_W =
-	        (W_REUSE_NUM_MAX <= 1) ? 1 : ($clog2(W_REUSE_NUM_MAX) + 1);
-	    localparam int unsigned OA_FIFO_BANKS_RAW = PS_FRAME_COUNT * IA_REUSE_NUM_MAX;
-	    localparam int unsigned OA_FIFO_BANKS =
-	        (OA_FIFO_BANKS_RAW <= OA_FIFO_BANKS_MAX) ? OA_FIFO_BANKS_RAW : OA_FIFO_BANKS_MAX;
-				    localparam int unsigned BIAS_GROUP_BLOCKS_MAX =
-				        (ENABLE_IS_MODE != 0) ? IA_REUSE_NUM_MAX : 1;
-				    localparam int unsigned REQUANT_MAX_IA_REUSE =
-				        ((ENABLE_IS_MODE != 0) && (ENABLE_PER_CHANNEL != 0)) ? IA_REUSE_NUM_MAX : 1;
-				    localparam int unsigned IS_BIAS_ROWS = BIAS_GROUP_BLOCKS_MAX * SIZE;
-				    localparam int unsigned IS_BIAS_ROW_W = (IS_BIAS_ROWS <= 1) ? 1 : $clog2(IS_BIAS_ROWS);
-				    localparam int unsigned IS_BIAS_VALID_W =
-				        (IS_BIAS_ROWS <= 1) ? 1 : ($clog2(IS_BIAS_ROWS) + 1);
-				    logic [IS_BIAS_ROW_W-1:0] is_bias_row_idx;
-				    wire signed [31:0] bias_group_scalar;
-	    wire cfg_dataflow_mode_eff = (ENABLE_IS_MODE != 0) ? cfg_dataflow_mode : 1'b0;
-	    wire use_per_channel_eff = (ENABLE_PER_CHANNEL != 0) ? use_per_channel : 1'b0;
-	    wire cfg_16bits_ia_eff = (DATA_WIDTH > 8) ? cfg_16bits_ia : 1'b0;
+        localparam int unsigned IA_REUSE_NUM_MAX =
+            (IA_CACHE_BLOCKS < 2) ? 1 : (IA_CACHE_BLOCKS / 2);
+        localparam int unsigned SIZE_SHIFT = $clog2(SIZE);
+        localparam int unsigned DIM_COUNT_WIDTH =
+            (ADDR_WIDTH <= SIZE_SHIFT) ? 1 :
+            (((ADDR_WIDTH - SIZE_SHIFT + 1) > REG_WIDTH) ? REG_WIDTH :
+                (ADDR_WIDTH - SIZE_SHIFT + 1));
+        localparam int unsigned W_REUSE_NUM_MAX =
+            (PS_FRAME_COUNT < 1) ? 1 : PS_FRAME_COUNT;
+        localparam int unsigned IA_REUSE_W =
+            (IA_REUSE_NUM_MAX <= 1) ? 1 : ($clog2(IA_REUSE_NUM_MAX) + 1);
+        localparam int unsigned W_REUSE_W =
+            (W_REUSE_NUM_MAX <= 1) ? 1 : ($clog2(W_REUSE_NUM_MAX) + 1);
+        localparam int unsigned OA_FIFO_BANKS_RAW = PS_FRAME_COUNT * IA_REUSE_NUM_MAX;
+        localparam int unsigned OA_FIFO_BANKS =
+            (OA_FIFO_BANKS_RAW <= OA_FIFO_BANKS_MAX) ? OA_FIFO_BANKS_RAW : OA_FIFO_BANKS_MAX;
+        localparam int unsigned BIAS_GROUP_BLOCKS_MAX =
+            (ENABLE_IS_MODE != 0) ? IA_REUSE_NUM_MAX : 1;
+        localparam int unsigned REQUANT_MAX_IA_REUSE =
+            ((ENABLE_IS_MODE != 0) && (ENABLE_PER_CHANNEL != 0)) ? IA_REUSE_NUM_MAX : 1;
+        localparam int unsigned IS_BIAS_ROWS = BIAS_GROUP_BLOCKS_MAX * SIZE;
+        localparam int unsigned IS_BIAS_ROW_W = (IS_BIAS_ROWS <= 1) ? 1 : $clog2(IS_BIAS_ROWS);
+        localparam int unsigned IS_BIAS_VALID_W =
+            (IS_BIAS_ROWS <= 1) ? 1 : ($clog2(IS_BIAS_ROWS) + 1);
+        logic [IS_BIAS_ROW_W-1:0] is_bias_row_idx;
+        wire signed [31:0] bias_group_scalar;
+        wire cfg_dataflow_mode_eff = (ENABLE_IS_MODE != 0) ? cfg_dataflow_mode : 1'b0;
+        wire use_per_channel_eff = (ENABLE_PER_CHANNEL != 0) ? use_per_channel : 1'b0;
+        wire cfg_16bits_ia_eff = (IA_DATA_WIDTH > 8) ? cfg_16bits_ia : 1'b0;
 
-	    function automatic logic [REG_WIDTH-1:0] floor_pow2_ia(input logic [IA_REUSE_W-1:0] value);
-	        logic [REG_WIDTH-1:0] out;
-	        begin
-	            out = REG_WIDTH'(1);
-	            for (int bit_i = 1; bit_i < IA_REUSE_W; bit_i++) begin
-	                if (value >= (IA_REUSE_W'(1) << bit_i)) begin
-	                    out = (REG_WIDTH'(1) << bit_i);
-	                end
-	            end
-	            floor_pow2_ia = out;
-	        end
-	    endfunction
+        function automatic logic [REG_WIDTH-1:0] floor_pow2_ia(input logic [IA_REUSE_W-1:0] value);
+            logic [REG_WIDTH-1:0] out;
+            begin
+                out = REG_WIDTH'(1);
+                for (int bit_i = 1; bit_i < IA_REUSE_W; bit_i++) begin
+                    if (value >= (IA_REUSE_W'(1) << bit_i)) begin
+                        out = (REG_WIDTH'(1) << bit_i);
+                    end
+                end
+                floor_pow2_ia = out;
+            end
+        endfunction
 
-	    function automatic logic [REG_WIDTH-1:0] floor_pow2_w(input logic [W_REUSE_W-1:0] value);
-	        logic [REG_WIDTH-1:0] out;
-	        begin
-	            out = REG_WIDTH'(1);
-	            for (int bit_i = 1; bit_i < W_REUSE_W; bit_i++) begin
-	                if (value >= (W_REUSE_W'(1) << bit_i)) begin
-	                    out = (REG_WIDTH'(1) << bit_i);
-	                end
-	            end
-	            floor_pow2_w = out;
-	        end
-	    endfunction
+        function automatic logic [REG_WIDTH-1:0] floor_pow2_w(input logic [W_REUSE_W-1:0] value);
+            logic [REG_WIDTH-1:0] out;
+            begin
+                out = REG_WIDTH'(1);
+                for (int bit_i = 1; bit_i < W_REUSE_W; bit_i++) begin
+                    if (value >= (W_REUSE_W'(1) << bit_i)) begin
+                        out = (REG_WIDTH'(1) << bit_i);
+                    end
+                end
+                floor_pow2_w = out;
+            end
+        endfunction
 
-	    wire ctrl_sa_ready;
-	    logic cfg_stage0_valid;
-	    logic cfg_stage1_valid;
-	    logic cfg_stage2_valid;
-	    logic cfg_mode_s0;
-	    logic cfg_use16_s0;
-	    logic [REG_WIDTH-1:0] cfg_k_s0;
-	    logic [REG_WIDTH-1:0] cfg_m_s0;
-	    logic [REG_WIDTH-1:0] cfg_n_s0;
-	    logic [REG_WIDTH-1:0] cfg_stream_k_s0;
-	    logic [REG_WIDTH-1:0] cfg_stream_m_s0;
-	    logic [REG_WIDTH-1:0] cfg_ia_req_s0;
-	    logic [REG_WIDTH-1:0] cfg_w_req_s0;
-	    logic cfg_mode_s1;
-	    logic cfg_use16_s1;
-	    logic [REG_WIDTH-1:0] cfg_k_s1;
-	    logic [REG_WIDTH-1:0] cfg_m_s1;
-	    logic [REG_WIDTH-1:0] cfg_n_s1;
-	    logic [REG_WIDTH-1:0] cfg_stream_k_s1;
-	    logic [REG_WIDTH-1:0] cfg_stream_m_s1;
-	    logic [REG_WIDTH-1:0] cfg_ia_req_s1;
-	    logic [REG_WIDTH-1:0] cfg_w_req_s1;
-	    logic [REG_WIDTH-1:0] cfg_ia_cap_raw_s1;
-	    logic [REG_WIDTH-1:0] cfg_w_cap_raw_s1;
-	    logic cfg_mode_s2;
-	    logic cfg_use16_s2;
-	    logic [REG_WIDTH-1:0] cfg_k_s2;
-	    logic [REG_WIDTH-1:0] cfg_m_s2;
-	    logic [REG_WIDTH-1:0] cfg_n_s2;
-	    logic [REG_WIDTH-1:0] cfg_stream_k_s2;
-	    logic [REG_WIDTH-1:0] cfg_stream_m_s2;
-	    logic [REG_WIDTH-1:0] cfg_ia_reuse_eff_s2;
-	    logic [REG_WIDTH-1:0] cfg_w_reuse_eff_s2;
-	    logic [IS_BIAS_VALID_W-1:0] cfg_bias_rows_target_s2;
+        wire ctrl_sa_ready;
+        logic cfg_stage0_valid;
+        logic cfg_stage1_valid;
+        logic cfg_stage2_valid;
+        logic cfg_mode_s0;
+        logic cfg_use16_s0;
+        logic [REG_WIDTH-1:0] cfg_k_s0;
+        logic [REG_WIDTH-1:0] cfg_m_s0;
+        logic [REG_WIDTH-1:0] cfg_n_s0;
+        logic [REG_WIDTH-1:0] cfg_stream_k_s0;
+        logic [REG_WIDTH-1:0] cfg_stream_m_s0;
+        logic [REG_WIDTH-1:0] cfg_ia_req_s0;
+        logic [REG_WIDTH-1:0] cfg_w_req_s0;
+        logic cfg_mode_s1;
+        logic cfg_use16_s1;
+        logic [REG_WIDTH-1:0] cfg_k_s1;
+        logic [REG_WIDTH-1:0] cfg_m_s1;
+        logic [REG_WIDTH-1:0] cfg_n_s1;
+        logic [REG_WIDTH-1:0] cfg_stream_k_s1;
+        logic [REG_WIDTH-1:0] cfg_stream_m_s1;
+        logic [REG_WIDTH-1:0] cfg_ia_req_s1;
+        logic [REG_WIDTH-1:0] cfg_w_req_s1;
+        logic [REG_WIDTH-1:0] cfg_ia_cap_raw_s1;
+        logic [REG_WIDTH-1:0] cfg_w_cap_raw_s1;
+        logic cfg_mode_s2;
+        logic cfg_use16_s2;
+        logic [REG_WIDTH-1:0] cfg_k_s2;
+        logic [REG_WIDTH-1:0] cfg_m_s2;
+        logic [REG_WIDTH-1:0] cfg_n_s2;
+        logic [REG_WIDTH-1:0] cfg_stream_k_s2;
+        logic [REG_WIDTH-1:0] cfg_stream_m_s2;
+        logic [REG_WIDTH-1:0] cfg_ia_reuse_eff_s2;
+        logic [REG_WIDTH-1:0] cfg_w_reuse_eff_s2;
+        logic [IS_BIAS_VALID_W-1:0] cfg_bias_rows_target_s2;
 
-	    wire cfg_start_event = calc_start && sa_ready;
-	    wire cfg_stage2_fire = cfg_stage2_valid && ctrl_sa_ready;
-	    wire ctrl_calc_start = cfg_stage2_fire;
-	    assign sa_ready = ctrl_sa_ready && !cfg_stage0_valid && !cfg_stage1_valid && !cfg_stage2_valid;
+        wire cfg_start_event = calc_start && sa_ready;
+        wire cfg_stage2_fire = cfg_stage2_valid && ctrl_sa_ready;
+        wire ctrl_calc_start = cfg_stage2_fire;
+        assign sa_ready = ctrl_sa_ready && !cfg_stage0_valid && !cfg_stage1_valid && !cfg_stage2_valid;
 
-	    wire cfg_is_mode_pre = cfg_mode_s0;
-	    wire [REG_WIDTH-1:0] cfg_stream_k_pre = cfg_stream_k_s0;
-	    wire [REG_WIDTH-1:0] cfg_stream_m_pre = cfg_stream_m_s0;
-	    wire [REG_WIDTH-1:0] output_row_tile_num_pre =
-	        (cfg_stream_k_pre + REG_WIDTH'(SIZE - 1)) >> SIZE_SHIFT;
-	    wire [REG_WIDTH-1:0] output_col_tile_num_pre =
-	        (cfg_stream_m_pre + REG_WIDTH'(SIZE - 1)) >> SIZE_SHIFT;
-	    wire [REG_WIDTH-1:0] ia_reuse_capacity_limit_raw_pre =
-	        ((output_row_tile_num_pre != '0) &&
-	         (output_row_tile_num_pre < REG_WIDTH'(IA_REUSE_NUM_MAX)))
-	            ? output_row_tile_num_pre
-	            : REG_WIDTH'(IA_REUSE_NUM_MAX);
-	    wire [REG_WIDTH-1:0] w_reuse_capacity_limit_raw_pre =
-	        ((output_col_tile_num_pre != '0) &&
-	         (output_col_tile_num_pre < REG_WIDTH'(W_REUSE_NUM_MAX)))
-	            ? output_col_tile_num_pre
-	            : REG_WIDTH'(W_REUSE_NUM_MAX);
-	    wire [REG_WIDTH-1:0] ia_reuse_capacity_limit_s1 =
-	        floor_pow2_ia(cfg_ia_cap_raw_s1[IA_REUSE_W-1:0]);
-	    wire [REG_WIDTH-1:0] w_reuse_capacity_limit_s1 =
-	        floor_pow2_w(cfg_w_cap_raw_s1[W_REUSE_W-1:0]);
-	    wire [IA_REUSE_W-1:0] ia_reuse_cfg_small_s1 =
-	        (cfg_ia_req_s1 == '0) ? ia_reuse_capacity_limit_s1[IA_REUSE_W-1:0] :
-	        (cfg_ia_req_s1 >= ia_reuse_capacity_limit_s1)
-	            ? ia_reuse_capacity_limit_s1[IA_REUSE_W-1:0]
-	            : cfg_ia_req_s1[IA_REUSE_W-1:0];
-	    wire [W_REUSE_W-1:0] w_reuse_cfg_small_s1 =
-	        (cfg_w_req_s1 == '0) ? w_reuse_capacity_limit_s1[W_REUSE_W-1:0] :
-	        (cfg_w_req_s1 >= w_reuse_capacity_limit_s1)
-	            ? w_reuse_capacity_limit_s1[W_REUSE_W-1:0]
-	            : cfg_w_req_s1[W_REUSE_W-1:0];
-	    wire [REG_WIDTH-1:0] ia_reuse_num_eff_ws_s1 = floor_pow2_ia(ia_reuse_cfg_small_s1);
-	    wire [REG_WIDTH-1:0] w_reuse_num_clamped_max_s1 = floor_pow2_w(w_reuse_cfg_small_s1);
-	    wire [REG_WIDTH-1:0] ia_reuse_num_eff_s1 =
-	        (cfg_mode_s1 && (ia_reuse_num_eff_ws_s1 > w_reuse_capacity_limit_s1))
-	            ? w_reuse_capacity_limit_s1
-	            : ia_reuse_num_eff_ws_s1;
-	    wire [REG_WIDTH-1:0] w_reuse_num_eff_s1 =
-	        (cfg_mode_s1 && (w_reuse_num_clamped_max_s1 < ia_reuse_num_eff_s1) &&
-	         (cfg_w_cap_raw_s1 >= ia_reuse_num_eff_s1))
-	            ? ia_reuse_num_eff_s1
-	            : w_reuse_num_clamped_max_s1;
+        wire cfg_is_mode_pre = cfg_mode_s0;
+        wire [REG_WIDTH-1:0] cfg_stream_k_pre = cfg_stream_k_s0;
+        wire [REG_WIDTH-1:0] cfg_stream_m_pre = cfg_stream_m_s0;
+        wire [REG_WIDTH-1:0] output_row_tile_num_pre =
+            (cfg_stream_k_pre + REG_WIDTH'(SIZE - 1)) >> SIZE_SHIFT;
+        wire [REG_WIDTH-1:0] output_col_tile_num_pre =
+            (cfg_stream_m_pre + REG_WIDTH'(SIZE - 1)) >> SIZE_SHIFT;
+        wire [REG_WIDTH-1:0] ia_reuse_capacity_limit_raw_pre =
+            ((output_row_tile_num_pre != '0) &&
+             (output_row_tile_num_pre < REG_WIDTH'(IA_REUSE_NUM_MAX)))
+                ? output_row_tile_num_pre
+                : REG_WIDTH'(IA_REUSE_NUM_MAX);
+        wire [REG_WIDTH-1:0] w_reuse_capacity_limit_raw_pre =
+            ((output_col_tile_num_pre != '0) &&
+             (output_col_tile_num_pre < REG_WIDTH'(W_REUSE_NUM_MAX)))
+                ? output_col_tile_num_pre
+                : REG_WIDTH'(W_REUSE_NUM_MAX);
+        wire [REG_WIDTH-1:0] ia_reuse_capacity_limit_s1 =
+            floor_pow2_ia(cfg_ia_cap_raw_s1[IA_REUSE_W-1:0]);
+        wire [REG_WIDTH-1:0] w_reuse_capacity_limit_s1 =
+            floor_pow2_w(cfg_w_cap_raw_s1[W_REUSE_W-1:0]);
+        wire [IA_REUSE_W-1:0] ia_reuse_cfg_small_s1 =
+            (cfg_ia_req_s1 == '0) ? ia_reuse_capacity_limit_s1[IA_REUSE_W-1:0] :
+            (cfg_ia_req_s1 >= ia_reuse_capacity_limit_s1)
+                ? ia_reuse_capacity_limit_s1[IA_REUSE_W-1:0]
+                : cfg_ia_req_s1[IA_REUSE_W-1:0];
+        wire [W_REUSE_W-1:0] w_reuse_cfg_small_s1 =
+            (cfg_w_req_s1 == '0) ? w_reuse_capacity_limit_s1[W_REUSE_W-1:0] :
+            (cfg_w_req_s1 >= w_reuse_capacity_limit_s1)
+                ? w_reuse_capacity_limit_s1[W_REUSE_W-1:0]
+                : cfg_w_req_s1[W_REUSE_W-1:0];
+        wire [REG_WIDTH-1:0] ia_reuse_num_eff_ws_s1 = floor_pow2_ia(ia_reuse_cfg_small_s1);
+        wire [REG_WIDTH-1:0] w_reuse_num_clamped_max_s1 = floor_pow2_w(w_reuse_cfg_small_s1);
+        wire [REG_WIDTH-1:0] ia_reuse_num_eff_s1 =
+            (cfg_mode_s1 && (ia_reuse_num_eff_ws_s1 > w_reuse_capacity_limit_s1))
+                ? w_reuse_capacity_limit_s1
+                : ia_reuse_num_eff_ws_s1;
+        wire [REG_WIDTH-1:0] w_reuse_num_eff_s1 =
+            (cfg_mode_s1 && (w_reuse_num_clamped_max_s1 < ia_reuse_num_eff_s1) &&
+             (cfg_w_cap_raw_s1 >= ia_reuse_num_eff_s1))
+                ? ia_reuse_num_eff_s1
+                : w_reuse_num_clamped_max_s1;
 
-	    always_ff @(posedge clk or negedge rst_n) begin
-	        if (!rst_n) begin
-		            cfg_stage0_valid <= 1'b0;
-		            cfg_stage1_valid <= 1'b0;
-		            cfg_stage2_valid <= 1'b0;
-		            cfg_mode_s0 <= 1'b0;
-		            cfg_use16_s0 <= 1'b0;
-		            cfg_k_s0 <= '0;
-		            cfg_m_s0 <= '0;
-		            cfg_n_s0 <= '0;
-		            cfg_stream_k_s0 <= '0;
-		            cfg_stream_m_s0 <= '0;
-		            cfg_ia_req_s0 <= '0;
-		            cfg_w_req_s0 <= '0;
-		            cfg_mode_s1 <= 1'b0;
-		            cfg_use16_s1 <= 1'b0;
-		            cfg_k_s1 <= '0;
-		            cfg_m_s1 <= '0;
-		            cfg_n_s1 <= '0;
-		            cfg_stream_k_s1 <= '0;
-		            cfg_stream_m_s1 <= '0;
-		            cfg_ia_req_s1 <= '0;
-		            cfg_w_req_s1 <= '0;
-		            cfg_ia_cap_raw_s1 <= REG_WIDTH'(1);
-		            cfg_w_cap_raw_s1 <= REG_WIDTH'(1);
-		            cfg_mode_s2 <= 1'b0;
-		            cfg_use16_s2 <= 1'b0;
-		            cfg_k_s2 <= '0;
-		            cfg_m_s2 <= '0;
-		            cfg_n_s2 <= '0;
-		            cfg_stream_k_s2 <= '0;
-		            cfg_stream_m_s2 <= '0;
-		            cfg_ia_reuse_eff_s2 <= REG_WIDTH'(1);
-		            cfg_w_reuse_eff_s2 <= REG_WIDTH'(1);
-		            cfg_bias_rows_target_s2 <= IS_BIAS_VALID_W'(SIZE);
-		        end else begin
-		            if (cfg_stage2_fire) begin
-		                cfg_stage2_valid <= 1'b0;
-		            end
+        always_ff @(posedge clk or negedge rst_n) begin
+            if (!rst_n) begin
+                    cfg_stage0_valid <= 1'b0;
+                    cfg_stage1_valid <= 1'b0;
+                    cfg_stage2_valid <= 1'b0;
+                    cfg_mode_s0 <= 1'b0;
+                    cfg_use16_s0 <= 1'b0;
+                    cfg_k_s0 <= '0;
+                    cfg_m_s0 <= '0;
+                    cfg_n_s0 <= '0;
+                    cfg_stream_k_s0 <= '0;
+                    cfg_stream_m_s0 <= '0;
+                    cfg_ia_req_s0 <= '0;
+                    cfg_w_req_s0 <= '0;
+                    cfg_mode_s1 <= 1'b0;
+                    cfg_use16_s1 <= 1'b0;
+                    cfg_k_s1 <= '0;
+                    cfg_m_s1 <= '0;
+                    cfg_n_s1 <= '0;
+                    cfg_stream_k_s1 <= '0;
+                    cfg_stream_m_s1 <= '0;
+                    cfg_ia_req_s1 <= '0;
+                    cfg_w_req_s1 <= '0;
+                    cfg_ia_cap_raw_s1 <= REG_WIDTH'(1);
+                    cfg_w_cap_raw_s1 <= REG_WIDTH'(1);
+                    cfg_mode_s2 <= 1'b0;
+                    cfg_use16_s2 <= 1'b0;
+                    cfg_k_s2 <= '0;
+                    cfg_m_s2 <= '0;
+                    cfg_n_s2 <= '0;
+                    cfg_stream_k_s2 <= '0;
+                    cfg_stream_m_s2 <= '0;
+                    cfg_ia_reuse_eff_s2 <= REG_WIDTH'(1);
+                    cfg_w_reuse_eff_s2 <= REG_WIDTH'(1);
+                    cfg_bias_rows_target_s2 <= IS_BIAS_VALID_W'(SIZE);
+                end else begin
+                    if (cfg_stage2_fire) begin
+                        cfg_stage2_valid <= 1'b0;
+                    end
 
-		            if (cfg_stage1_valid && !cfg_stage2_valid) begin
-		                cfg_stage2_valid <= 1'b1;
-		                cfg_stage1_valid <= 1'b0;
-		                cfg_mode_s2 <= cfg_mode_s1;
-		                cfg_use16_s2 <= cfg_use16_s1;
-		                cfg_k_s2 <= cfg_k_s1;
-		                cfg_m_s2 <= cfg_m_s1;
-		                cfg_n_s2 <= cfg_n_s1;
-		                cfg_stream_k_s2 <= cfg_stream_k_s1;
-		                cfg_stream_m_s2 <= cfg_stream_m_s1;
-		                cfg_ia_reuse_eff_s2 <= ia_reuse_num_eff_s1;
-		                cfg_w_reuse_eff_s2 <= w_reuse_num_eff_s1;
-		                cfg_bias_rows_target_s2 <= IS_BIAS_VALID_W'(ia_reuse_num_eff_s1 << SIZE_SHIFT);
-		            end
+                    if (cfg_stage1_valid && !cfg_stage2_valid) begin
+                        cfg_stage2_valid <= 1'b1;
+                        cfg_stage1_valid <= 1'b0;
+                        cfg_mode_s2 <= cfg_mode_s1;
+                        cfg_use16_s2 <= cfg_use16_s1;
+                        cfg_k_s2 <= cfg_k_s1;
+                        cfg_m_s2 <= cfg_m_s1;
+                        cfg_n_s2 <= cfg_n_s1;
+                        cfg_stream_k_s2 <= cfg_stream_k_s1;
+                        cfg_stream_m_s2 <= cfg_stream_m_s1;
+                        cfg_ia_reuse_eff_s2 <= ia_reuse_num_eff_s1;
+                        cfg_w_reuse_eff_s2 <= w_reuse_num_eff_s1;
+                        cfg_bias_rows_target_s2 <= IS_BIAS_VALID_W'(ia_reuse_num_eff_s1 << SIZE_SHIFT);
+                    end
 
-		            if (cfg_stage0_valid && !cfg_stage1_valid) begin
-		                cfg_stage1_valid <= 1'b1;
-		                cfg_stage0_valid <= 1'b0;
-	                cfg_mode_s1 <= cfg_mode_s0;
-	                cfg_use16_s1 <= cfg_use16_s0;
-	                cfg_k_s1 <= cfg_k_s0;
-	                cfg_m_s1 <= cfg_m_s0;
-		                cfg_n_s1 <= cfg_n_s0;
-		                cfg_stream_k_s1 <= cfg_stream_k_s0;
-		                cfg_stream_m_s1 <= cfg_stream_m_s0;
-		                cfg_ia_req_s1 <= cfg_ia_req_s0;
-		                cfg_w_req_s1 <= cfg_w_req_s0;
-		                cfg_ia_cap_raw_s1 <= ia_reuse_capacity_limit_raw_pre;
-		                cfg_w_cap_raw_s1 <= w_reuse_capacity_limit_raw_pre;
-		            end
+                    if (cfg_stage0_valid && !cfg_stage1_valid) begin
+                        cfg_stage1_valid <= 1'b1;
+                        cfg_stage0_valid <= 1'b0;
+                    cfg_mode_s1 <= cfg_mode_s0;
+                    cfg_use16_s1 <= cfg_use16_s0;
+                    cfg_k_s1 <= cfg_k_s0;
+                    cfg_m_s1 <= cfg_m_s0;
+                        cfg_n_s1 <= cfg_n_s0;
+                        cfg_stream_k_s1 <= cfg_stream_k_s0;
+                        cfg_stream_m_s1 <= cfg_stream_m_s0;
+                        cfg_ia_req_s1 <= cfg_ia_req_s0;
+                        cfg_w_req_s1 <= cfg_w_req_s0;
+                        cfg_ia_cap_raw_s1 <= ia_reuse_capacity_limit_raw_pre;
+                        cfg_w_cap_raw_s1 <= w_reuse_capacity_limit_raw_pre;
+                    end
 
-		            if (cfg_start_event) begin
-		                cfg_stage0_valid <= 1'b1;
-	                cfg_mode_s0 <= cfg_dataflow_mode_eff;
-	                cfg_use16_s0 <= cfg_16bits_ia_eff;
-	                cfg_k_s0 <= k;
-	                cfg_m_s0 <= m;
-		                cfg_n_s0 <= n;
-		                cfg_stream_k_s0 <= cfg_dataflow_mode_eff ? m : k;
-		                cfg_stream_m_s0 <= cfg_dataflow_mode_eff ? k : m;
-		                cfg_ia_req_s0 <= cfg_ia_reuse_num;
-		                cfg_w_req_s0 <= cfg_w_reuse_num;
-		            end
-		        end
-		    end
+                    if (cfg_start_event) begin
+                        cfg_stage0_valid <= 1'b1;
+                    cfg_mode_s0 <= cfg_dataflow_mode_eff;
+                    cfg_use16_s0 <= cfg_16bits_ia_eff;
+                    cfg_k_s0 <= k;
+                    cfg_m_s0 <= m;
+                        cfg_n_s0 <= n;
+                        cfg_stream_k_s0 <= cfg_dataflow_mode_eff ? m : k;
+                        cfg_stream_m_s0 <= cfg_dataflow_mode_eff ? k : m;
+                        cfg_ia_req_s0 <= cfg_ia_reuse_num;
+                        cfg_w_req_s0 <= cfg_w_reuse_num;
+                    end
+                end
+            end
 
-	    logic run_is_mode;
-	    logic run_use_16bits;
-	    logic [REG_WIDTH-1:0] run_k;
-	    logic [REG_WIDTH-1:0] run_m;
-	    logic [REG_WIDTH-1:0] run_n;
-	    logic [REG_WIDTH-1:0] stream_k;
-	    logic [REG_WIDTH-1:0] stream_m;
-	    logic [REG_WIDTH-1:0] ia_reuse_num_eff;
-	    logic [REG_WIDTH-1:0] w_reuse_num_eff;
-	    logic [IS_BIAS_VALID_W-1:0] is_bias_group_rows_target;
+        logic run_is_mode;
+        logic run_use_16bits;
+        logic [REG_WIDTH-1:0] run_k;
+        logic [REG_WIDTH-1:0] run_m;
+        logic [REG_WIDTH-1:0] run_n;
+        logic [REG_WIDTH-1:0] stream_k;
+        logic [REG_WIDTH-1:0] stream_m;
+        logic [REG_WIDTH-1:0] ia_reuse_num_eff;
+        logic [REG_WIDTH-1:0] w_reuse_num_eff;
+        logic [IS_BIAS_VALID_W-1:0] is_bias_group_rows_target;
 
-	    always_ff @(posedge clk or negedge rst_n) begin
-	        if (!rst_n) begin
-	            run_is_mode <= 1'b0;
-	            run_use_16bits <= 1'b0;
-	            run_k <= '0;
-	            run_m <= '0;
-	            run_n <= '0;
-	            stream_k <= '0;
-	            stream_m <= '0;
-	            ia_reuse_num_eff <= REG_WIDTH'(1);
-	            w_reuse_num_eff <= REG_WIDTH'(1);
-	            is_bias_group_rows_target <= IS_BIAS_VALID_W'(SIZE);
-	        end else if (cfg_stage2_fire) begin
-	            run_is_mode <= cfg_mode_s2;
-	            run_use_16bits <= cfg_use16_s2;
-	            run_k <= cfg_k_s2;
-	            run_m <= cfg_m_s2;
-	            run_n <= cfg_n_s2;
-	            stream_k <= cfg_stream_k_s2;
-	            stream_m <= cfg_stream_m_s2;
-	            ia_reuse_num_eff <= cfg_ia_reuse_eff_s2;
-	            w_reuse_num_eff <= cfg_w_reuse_eff_s2;
-	            is_bias_group_rows_target <= cfg_bias_rows_target_s2;
-	        end
-	    end
+        always_ff @(posedge clk or negedge rst_n) begin
+            if (!rst_n) begin
+                run_is_mode <= 1'b0;
+                run_use_16bits <= 1'b0;
+                run_k <= '0;
+                run_m <= '0;
+                run_n <= '0;
+                stream_k <= '0;
+                stream_m <= '0;
+                ia_reuse_num_eff <= REG_WIDTH'(1);
+                w_reuse_num_eff <= REG_WIDTH'(1);
+                is_bias_group_rows_target <= IS_BIAS_VALID_W'(SIZE);
+            end else if (cfg_stage2_fire) begin
+                run_is_mode <= cfg_mode_s2;
+                run_use_16bits <= cfg_use16_s2;
+                run_k <= cfg_k_s2;
+                run_m <= cfg_m_s2;
+                run_n <= cfg_n_s2;
+                stream_k <= cfg_stream_k_s2;
+                stream_m <= cfg_stream_m_s2;
+                ia_reuse_num_eff <= cfg_ia_reuse_eff_s2;
+                w_reuse_num_eff <= cfg_w_reuse_eff_s2;
+                is_bias_group_rows_target <= cfg_bias_rows_target_s2;
+            end
+        end
 
-	    wire is_mode = (ENABLE_IS_MODE != 0) ? run_is_mode : 1'b0;
-	    wire [REG_WIDTH-1:0] ia_base_eff = is_mode ? rhs_base : lhs_base;
-	    wire [REG_WIDTH-1:0] ia_stride_eff = is_mode ? rhs_col_stride_b : lhs_row_stride_b;
-	    wire signed [REG_WIDTH-1:0] ia_zp_eff = is_mode ? rhs_zp : lhs_zp;
-	    wire ia_use_16bits_eff = ((DATA_WIDTH > 8) && !is_mode) ? run_use_16bits : 1'b0;
-	    wire [REG_WIDTH-1:0] weight_base_eff = is_mode ? lhs_base : rhs_base;
-	    wire [REG_WIDTH-1:0] weight_stride_eff = is_mode ? lhs_row_stride_b : rhs_col_stride_b;
-	    wire signed [REG_WIDTH-1:0] weight_zp_eff = is_mode ? lhs_zp : rhs_zp;
-	    wire weight_use_16bits_eff = ((WEIGHT_WIDTH > 8) && is_mode) ? run_use_16bits : 1'b0;
-	    wire compute_bias_sleep = bias_sleep;
+        wire is_mode = (ENABLE_IS_MODE != 0) ? run_is_mode : 1'b0;
+        wire [REG_WIDTH-1:0] ia_base_eff = is_mode ? rhs_base : lhs_base;
+        wire [REG_WIDTH-1:0] ia_stride_eff = is_mode ? rhs_col_stride_b : lhs_row_stride_b;
+        wire signed [REG_WIDTH-1:0] ia_zp_eff = is_mode ? rhs_zp : lhs_zp;
+        wire ia_use_16bits_eff = ((IA_DATA_WIDTH > 8) && !is_mode) ? run_use_16bits : 1'b0;
+        wire [REG_WIDTH-1:0] weight_base_eff = is_mode ? lhs_base : rhs_base;
+        wire [REG_WIDTH-1:0] weight_stride_eff = is_mode ? lhs_row_stride_b : rhs_col_stride_b;
+        wire signed [REG_WIDTH-1:0] weight_zp_eff = is_mode ? lhs_zp : rhs_zp;
+        wire weight_use_16bits_eff = ((KERNEL_DATA_WIDTH > 8) && is_mode) ? run_use_16bits : 1'b0;
+        wire compute_bias_sleep = bias_sleep;
 
-	    axi_block_dma_arbiter #(
-	        .DATA_WIDTH  (DATA_WIDTH),
-	        .KERNEL_WIDTH(WEIGHT_WIDTH),
-	        .SIZE        (SIZE),
-	        .DMA_SIZE    (SHARED_DMA_SIZE),
-	        .BUS_WIDTH   (BUS_WIDTH),
-	        .REG_WIDTH   (REG_WIDTH),
-	        .CACHE_BLOCKS(IA_CACHE_BLOCKS),
-	        .ENABLE_QUANT_CLIENT(ENABLE_PER_CHANNEL),
-	        .READ_OUTSTANDING(AXI_READ_OUTSTANDING),
-	        .WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING)
-	    ) u_block_dma_arbiter (
-	        .clk                     (clk),
-	        .rst_n                   (rst_n),
-		        .ia_req                  (load_ia_req),
-		        .ia_granted              (load_ia_granted),
-		        .ia_start                (ia_dma_start),
-		        .ia_linear_read_mode     (ia_dma_linear_read_mode),
-	        .ia_base_addr            (ia_dma_base_addr),
-	        .ia_row_stride           (ia_dma_row_stride),
-	        .ia_rows_to_read         (ia_dma_rows_to_read),
-	        .ia_burst_len_m1         (ia_dma_burst_len_m1),
-	        .ia_slot_id              (ia_dma_slot_id),
-	        .ia_use_16bits           (ia_dma_use_16bits),
-	        .ia_lhs_zp               (ia_dma_lhs_zp),
-	        .ia_busy                 (ia_dma_busy),
-	        .ia_done                 (ia_dma_done),
-	        .ia_wr_slot              (ia_dma_wr_slot),
-	        .ia_wr_row               (ia_dma_wr_row),
-	        .ia_wr_col_base          (ia_dma_wr_col_base),
-	        .ia_wr_data              (ia_dma_wr_data),
-	        .ia_wr_valid             (ia_dma_wr_valid),
-	        .ia_wr_use_16bits        (ia_dma_wr_use_16bits),
-		        .kernel_req              (load_weight_req),
-		        .kernel_granted          (load_weight_granted),
-		        .kernel_start            (kernel_dma_start),
-		        .kernel_linear_read_mode (kernel_dma_linear_read_mode),
-	        .kernel_base_addr        (kernel_dma_base_addr),
-	        .kernel_row_stride       (kernel_dma_row_stride),
-	        .kernel_rows_to_read     (kernel_dma_rows_to_read),
-	        .kernel_burst_len_m1     (kernel_dma_burst_len_m1),
-	        .kernel_slot_id          (kernel_dma_slot_id),
-	        .kernel_use_16bits       (kernel_dma_use_16bits),
-	        .kernel_lhs_zp           (kernel_dma_lhs_zp),
-	        .kernel_busy             (kernel_dma_busy),
-	        .kernel_done             (kernel_dma_done),
-	        .kernel_wr_row           (kernel_dma_wr_row),
-	        .kernel_wr_col_base      (kernel_dma_wr_col_base),
-	        .kernel_wr_data          (kernel_dma_wr_data),
-	        .kernel_wr_valid         (kernel_dma_wr_valid),
-		        .bias_req                (load_bias_req),
-		        .bias_granted            (load_bias_granted),
-		        .bias_start              (bias_dma_start),
-		        .bias_linear_read_mode   (bias_dma_linear_read_mode),
-	        .bias_base_addr          (bias_dma_base_addr),
-	        .bias_row_stride         (bias_dma_row_stride),
-	        .bias_rows_to_read       (bias_dma_rows_to_read),
-	        .bias_burst_len_m1       (bias_dma_burst_len_m1),
-	        .bias_slot_id            (bias_dma_slot_id),
-	        .bias_use_16bits         (bias_dma_use_16bits),
-	        .bias_lhs_zp             (bias_dma_lhs_zp),
-	        .bias_busy               (bias_dma_busy),
-	        .bias_done               (bias_dma_done),
-	        .bias_wr_slot            (bias_dma_wr_slot),
-	        .bias_wr_row             (bias_dma_wr_row),
-	        .bias_wr_col_base        (bias_dma_wr_col_base),
-	        .bias_wr_data            (bias_dma_wr_data),
-	        .bias_wr_valid           (bias_dma_wr_valid),
-	        .bias_wr_use_16bits      (bias_dma_wr_use_16bits),
-		        .quant_req               (load_quant_req),
-		        .quant_granted           (load_quant_granted),
-		        .quant_start             (quant_dma_start),
-		        .quant_linear_read_mode  (quant_dma_linear_read_mode),
-	        .quant_base_addr         (quant_dma_base_addr),
-	        .quant_row_stride        (quant_dma_row_stride),
-	        .quant_rows_to_read      (quant_dma_rows_to_read),
-	        .quant_burst_len_m1      (quant_dma_burst_len_m1),
-	        .quant_slot_id           (quant_dma_slot_id),
-	        .quant_use_16bits        (quant_dma_use_16bits),
-	        .quant_lhs_zp            (quant_dma_lhs_zp),
-	        .quant_busy              (quant_dma_busy),
-	        .quant_done              (quant_dma_done),
-	        .quant_raw_data          (quant_dma_raw_data),
-	        .quant_raw_valid         (quant_dma_raw_valid),
-		        .oa_req                  (write_oa_req),
-		        .oa_granted              (write_oa_granted),
-		        .oa_start                (oa_dma_start),
-		        .oa_base_addr            (oa_dma_base_addr),
-		        .oa_row_stride           (oa_dma_row_stride),
-		        .oa_rows_to_read         (oa_dma_rows_to_read),
-		        .oa_burst_len_m1         (oa_dma_burst_len_m1),
-		        .oa_src_wdata            (oa_dma_src_wdata),
-	        .oa_src_wmask            (oa_dma_src_wmask),
-	        .oa_src_wvalid           (oa_dma_src_wvalid),
-	        .oa_src_wready           (oa_dma_src_wready),
-	        .oa_busy                 (oa_dma_busy),
-	        .oa_done                 (oa_dma_done),
-	        .m_axi_arvalid           (m_axi_arvalid),
-	        .m_axi_arready           (m_axi_arready),
-	        .m_axi_araddr            (m_axi_araddr),
-	        .m_axi_arlen             (m_axi_arlen),
-	        .m_axi_arsize            (m_axi_arsize),
-	        .m_axi_arburst           (m_axi_arburst),
-	        .m_axi_rvalid            (m_axi_rvalid),
-	        .m_axi_rready            (m_axi_rready),
-	        .m_axi_rdata             (m_axi_rdata),
-	        .m_axi_rresp             (m_axi_rresp),
-	        .m_axi_rlast             (m_axi_rlast),
-	        .m_axi_awvalid           (m_axi_awvalid),
-	        .m_axi_awready           (m_axi_awready),
-	        .m_axi_awaddr            (m_axi_awaddr),
-	        .m_axi_awlen             (m_axi_awlen),
-	        .m_axi_awsize            (m_axi_awsize),
-	        .m_axi_awburst           (m_axi_awburst),
-	        .m_axi_wvalid            (m_axi_wvalid),
-	        .m_axi_wready            (m_axi_wready),
-	        .m_axi_wdata             (m_axi_wdata),
-	        .m_axi_wstrb             (m_axi_wstrb),
-	        .m_axi_wlast             (m_axi_wlast),
-	        .m_axi_bvalid            (m_axi_bvalid),
-	        .m_axi_bready            (m_axi_bready),
-	        .m_axi_bresp             (m_axi_bresp)
-	    );
+        axi_block_dma_arbiter #(
+            .DATA_WIDTH  (IA_DATA_WIDTH),
+            .KERNEL_WIDTH(KERNEL_DATA_WIDTH),
+            .SIZE        (SIZE),
+            .DMA_SIZE    (SHARED_DMA_SIZE),
+            .BUS_WIDTH   (BUS_WIDTH),
+            .REG_WIDTH   (REG_WIDTH),
+            .CACHE_BLOCKS(IA_CACHE_BLOCKS),
+            .ENABLE_QUANT_CLIENT(ENABLE_PER_CHANNEL),
+            .READ_OUTSTANDING(AXI_READ_OUTSTANDING),
+            .WRITE_OUTSTANDING(AXI_WRITE_OUTSTANDING)
+        ) u_block_dma_arbiter (
+            .clk                     (clk),
+            .rst_n                   (rst_n),
+                .ia_req                  (load_ia_req),
+                .ia_granted              (load_ia_granted),
+                .ia_start                (ia_dma_start),
+                .ia_linear_read_mode     (ia_dma_linear_read_mode),
+            .ia_base_addr            (ia_dma_base_addr),
+            .ia_row_stride           (ia_dma_row_stride),
+            .ia_rows_to_read         (ia_dma_rows_to_read),
+            .ia_burst_len_m1         (ia_dma_burst_len_m1),
+            .ia_slot_id              (ia_dma_slot_id),
+            .ia_use_16bits           (ia_dma_use_16bits),
+            .ia_lhs_zp               (ia_dma_lhs_zp),
+            .ia_busy                 (ia_dma_busy),
+            .ia_done                 (ia_dma_done),
+            .ia_wr_slot              (ia_dma_wr_slot),
+            .ia_wr_row               (ia_dma_wr_row),
+            .ia_wr_col_base          (ia_dma_wr_col_base),
+            .ia_wr_data              (ia_dma_wr_data),
+            .ia_wr_valid             (ia_dma_wr_valid),
+            .ia_wr_use_16bits        (ia_dma_wr_use_16bits),
+                .kernel_req              (load_weight_req),
+                .kernel_granted          (load_weight_granted),
+                .kernel_start            (kernel_dma_start),
+                .kernel_linear_read_mode (kernel_dma_linear_read_mode),
+            .kernel_base_addr        (kernel_dma_base_addr),
+            .kernel_row_stride       (kernel_dma_row_stride),
+            .kernel_rows_to_read     (kernel_dma_rows_to_read),
+            .kernel_burst_len_m1     (kernel_dma_burst_len_m1),
+            .kernel_slot_id          (kernel_dma_slot_id),
+            .kernel_use_16bits       (kernel_dma_use_16bits),
+            .kernel_lhs_zp           (kernel_dma_lhs_zp),
+            .kernel_busy             (kernel_dma_busy),
+            .kernel_done             (kernel_dma_done),
+            .kernel_wr_row           (kernel_dma_wr_row),
+            .kernel_wr_col_base      (kernel_dma_wr_col_base),
+            .kernel_wr_data          (kernel_dma_wr_data),
+            .kernel_wr_valid         (kernel_dma_wr_valid),
+                .bias_req                (load_bias_req),
+                .bias_granted            (load_bias_granted),
+                .bias_start              (bias_dma_start),
+                .bias_linear_read_mode   (bias_dma_linear_read_mode),
+            .bias_base_addr          (bias_dma_base_addr),
+            .bias_row_stride         (bias_dma_row_stride),
+            .bias_rows_to_read       (bias_dma_rows_to_read),
+            .bias_burst_len_m1       (bias_dma_burst_len_m1),
+            .bias_slot_id            (bias_dma_slot_id),
+            .bias_use_16bits         (bias_dma_use_16bits),
+            .bias_lhs_zp             (bias_dma_lhs_zp),
+            .bias_busy               (bias_dma_busy),
+            .bias_done               (bias_dma_done),
+            .bias_wr_slot            (bias_dma_wr_slot),
+            .bias_wr_row             (bias_dma_wr_row),
+            .bias_wr_col_base        (bias_dma_wr_col_base),
+            .bias_wr_data            (bias_dma_wr_data),
+            .bias_wr_valid           (bias_dma_wr_valid),
+            .bias_wr_use_16bits      (bias_dma_wr_use_16bits),
+                .quant_req               (load_quant_req),
+                .quant_granted           (load_quant_granted),
+                .quant_start             (quant_dma_start),
+                .quant_linear_read_mode  (quant_dma_linear_read_mode),
+            .quant_base_addr         (quant_dma_base_addr),
+            .quant_row_stride        (quant_dma_row_stride),
+            .quant_rows_to_read      (quant_dma_rows_to_read),
+            .quant_burst_len_m1      (quant_dma_burst_len_m1),
+            .quant_slot_id           (quant_dma_slot_id),
+            .quant_use_16bits        (quant_dma_use_16bits),
+            .quant_lhs_zp            (quant_dma_lhs_zp),
+            .quant_busy              (quant_dma_busy),
+            .quant_done              (quant_dma_done),
+            .quant_raw_data          (quant_dma_raw_data),
+            .quant_raw_valid         (quant_dma_raw_valid),
+                .oa_req                  (write_oa_req),
+                .oa_granted              (write_oa_granted),
+                .oa_start                (oa_dma_start),
+                .oa_base_addr            (oa_dma_base_addr),
+                .oa_row_stride           (oa_dma_row_stride),
+                .oa_rows_to_read         (oa_dma_rows_to_read),
+                .oa_burst_len_m1         (oa_dma_burst_len_m1),
+                .oa_src_wdata            (oa_dma_src_wdata),
+            .oa_src_wmask            (oa_dma_src_wmask),
+            .oa_src_wvalid           (oa_dma_src_wvalid),
+            .oa_src_wready           (oa_dma_src_wready),
+            .oa_busy                 (oa_dma_busy),
+            .oa_done                 (oa_dma_done),
+            .m_axi_arvalid           (m_axi_arvalid),
+            .m_axi_arready           (m_axi_arready),
+            .m_axi_araddr            (m_axi_araddr),
+            .m_axi_arlen             (m_axi_arlen),
+            .m_axi_arsize            (m_axi_arsize),
+            .m_axi_arburst           (m_axi_arburst),
+            .m_axi_rvalid            (m_axi_rvalid),
+            .m_axi_rready            (m_axi_rready),
+            .m_axi_rdata             (m_axi_rdata),
+            .m_axi_rresp             (m_axi_rresp),
+            .m_axi_rlast             (m_axi_rlast),
+            .m_axi_awvalid           (m_axi_awvalid),
+            .m_axi_awready           (m_axi_awready),
+            .m_axi_awaddr            (m_axi_awaddr),
+            .m_axi_awlen             (m_axi_awlen),
+            .m_axi_awsize            (m_axi_awsize),
+            .m_axi_awburst           (m_axi_awburst),
+            .m_axi_wvalid            (m_axi_wvalid),
+            .m_axi_wready            (m_axi_wready),
+            .m_axi_wdata             (m_axi_wdata),
+            .m_axi_wstrb             (m_axi_wstrb),
+            .m_axi_wlast             (m_axi_wlast),
+            .m_axi_bvalid            (m_axi_bvalid),
+            .m_axi_bready            (m_axi_bready),
+            .m_axi_bresp             (m_axi_bresp)
+        );
 
-	    //========================================
+        //========================================
     // 模块实例化
     //========================================
 
-	    // NPU 控制器
+        // NPU 控制器
     npu_controller #(
-        .WEIGHT_WIDTH(WEIGHT_WIDTH),
-        .DATA_WIDTH  (DATA_WIDTH),
+        .WEIGHT_WIDTH(KERNEL_DATA_WIDTH),
+        .DATA_WIDTH  (IA_DATA_WIDTH),
         .SIZE        (SIZE),
         .BUS_WIDTH   (BUS_WIDTH),
         .REG_WIDTH   (REG_WIDTH)
@@ -641,7 +646,7 @@ module npu_top #(
 
         .partial_sum_calc_over(partial_sum_calc_over),
         .tile_calc_over       (tile_calc_over),
-	        .init_cfg_ia          (init_cfg_ia),
+            .init_cfg_ia          (init_cfg_ia),
         .init_cfg_weight      (init_cfg_weight),
         .init_cfg_bias        (init_cfg_bias),
         .init_cfg_requant     (init_cfg_requant),
@@ -661,125 +666,125 @@ module npu_top #(
         .lhs_row_stride_b     (lhs_row_stride_b),
         .dst_row_stride_b     (dst_row_stride_b),
         .rhs_col_stride_b     (rhs_col_stride_b),
-	        // IA Loader Interface
-	        .send_ia_trigger      (send_ia_trigger),
-	        .ia_sending_done      (ia_sending_done),
-	        .ia_data_valid        (ia_data_valid),
-		        // Weight Loader Interface
-	        .send_weight_trigger  (send_weight_trigger),
+            // IA Loader Interface
+            .send_ia_trigger      (send_ia_trigger),
+            .ia_sending_done      (ia_sending_done),
+            .ia_data_valid        (ia_data_valid),
+                // Weight Loader Interface
+            .send_weight_trigger  (send_weight_trigger),
         .weight_sending_done  (weight_sending_done),
         .weight_data_valid    (weight_data_valid),
-	        // Bias Loader Interface
-	        .bias_valid           (bias_group_valid),
-	        .bias_sleep           (bias_sleep),
-	        // Requantization Interface
-	        .quant_params_valid   (quant_params_valid),
+            // Bias Loader Interface
+            .bias_valid           (bias_group_valid),
+            .bias_sleep           (bias_sleep),
+            // Requantization Interface
+            .quant_params_valid   (quant_params_valid),
         // FIFO Interface
         .fifo_full_flag       (fifo_full_flag),
-	        // OA Writer Interface
-	        .oa_calc_over         (oa_calc_over),
+            // OA Writer Interface
+            .oa_calc_over         (oa_calc_over),
         // Task Completion Handshake Interface
         .done_valid             (done_valid),
         .done_ready             (done_ready),
         .err_code             (err_code)
     );
-	    // IA Loader
-		    ia_loader #(
-		        .DATA_WIDTH  (DATA_WIDTH),
-		        .SIZE        (SIZE),
-		        .BUS_WIDTH   (BUS_WIDTH),
-		        .REG_WIDTH   (REG_WIDTH),
-		        .COUNT_WIDTH (DIM_COUNT_WIDTH),
-		        .CACHE_BLOCKS(IA_CACHE_BLOCKS),
-		        .PS_FRAME_COUNT(PS_FRAME_COUNT)
-		    ) u_ia_loader (
+        // IA Loader
+            ia_loader #(
+                .DATA_WIDTH  (IA_DATA_WIDTH),
+                .SIZE        (SIZE),
+                .BUS_WIDTH   (BUS_WIDTH),
+                .REG_WIDTH   (REG_WIDTH),
+                .COUNT_WIDTH (DIM_COUNT_WIDTH),
+                .CACHE_BLOCKS(IA_CACHE_BLOCKS),
+                .PS_FRAME_COUNT(PS_FRAME_COUNT)
+            ) u_ia_loader (
         .clk             (clk),
         .rst_n           (rst_n),
         .init_cfg        (init_cfg_ia),
         .load_ia_req     (load_ia_req),
         .load_ia_granted (load_ia_granted),
-	        .send_ia_trigger (send_ia_trigger),
-	        .k               (stream_k),
-	        .n               (run_n),
-	        .m               (stream_m),
+            .send_ia_trigger (send_ia_trigger),
+            .k               (stream_k),
+            .n               (run_n),
+            .m               (stream_m),
         .lhs_zp          (ia_zp_eff),
         .lhs_row_stride_b(ia_stride_eff),
         .lhs_base        (ia_base_eff),
         .use_16bits      (ia_use_16bits_eff),
         .bias_by_row_mode(is_mode),
         .ia_reuse_num    (ia_reuse_num_eff),
-	        .w_reuse_num     (w_reuse_num_eff),
-	        .ext_dma_start(ia_dma_start),
-	        .ext_dma_is_write(),
-	        .ext_dma_linear_read_mode(ia_dma_linear_read_mode),
-	        .ext_dma_base_addr(ia_dma_base_addr),
-	        .ext_dma_row_stride(ia_dma_row_stride),
-	        .ext_dma_rows_to_read(ia_dma_rows_to_read),
-	        .ext_dma_burst_len_m1(ia_dma_burst_len_m1),
-	        .ext_dma_slot_id(ia_dma_slot_id),
-	        .ext_dma_use_16bits(ia_dma_use_16bits),
-	        .ext_dma_lhs_zp(ia_dma_lhs_zp),
-	        .ext_dma_busy(ia_dma_busy),
-	        .ext_dma_done(ia_dma_done),
-	        .ext_dma_wr_slot(ia_dma_wr_slot),
-	        .ext_dma_wr_row(ia_dma_wr_row),
-	        .ext_dma_wr_col_base(ia_dma_wr_col_base),
-	        .ext_dma_wr_data(ia_dma_wr_data),
-	        .ext_dma_wr_valid(ia_dma_wr_valid),
-	        .ext_dma_wr_use_16bits(ia_dma_wr_use_16bits),
+            .w_reuse_num     (w_reuse_num_eff),
+            .ext_dma_start(ia_dma_start),
+            .ext_dma_is_write(),
+            .ext_dma_linear_read_mode(ia_dma_linear_read_mode),
+            .ext_dma_base_addr(ia_dma_base_addr),
+            .ext_dma_row_stride(ia_dma_row_stride),
+            .ext_dma_rows_to_read(ia_dma_rows_to_read),
+            .ext_dma_burst_len_m1(ia_dma_burst_len_m1),
+            .ext_dma_slot_id(ia_dma_slot_id),
+            .ext_dma_use_16bits(ia_dma_use_16bits),
+            .ext_dma_lhs_zp(ia_dma_lhs_zp),
+            .ext_dma_busy(ia_dma_busy),
+            .ext_dma_done(ia_dma_done),
+            .ext_dma_wr_slot(ia_dma_wr_slot),
+            .ext_dma_wr_row(ia_dma_wr_row),
+            .ext_dma_wr_col_base(ia_dma_wr_col_base),
+            .ext_dma_wr_data(ia_dma_wr_data),
+            .ext_dma_wr_valid(ia_dma_wr_valid),
+            .ext_dma_wr_use_16bits(ia_dma_wr_use_16bits),
 
 
         .ia_sending_done(ia_sending_done),
         .ia_row_valid   (ia_row_valid),
         .ia_tile_start  (ia_tile_start),
         .ia_is_init_data(ia_is_init_data),
-	        .ia_calc_done   (ia_calc_done),
-	        .ia_out         (ia_out),
-	        .ia_data_valid  (ia_data_valid),
-	        .bias_sleep     (bias_sleep),
+            .ia_calc_done   (ia_calc_done),
+            .ia_out         (ia_out),
+            .ia_data_valid  (ia_data_valid),
+            .bias_sleep     (bias_sleep),
         .bias_switch    (bias_switch),
         .bias_last_loop (bias_last_loop),
         .ia_l1_switch   (ia_l1_switch)
     );
-	    // Kernel Loader
-		    kernel_loader #(
-		        .DATA_WIDTH(WEIGHT_WIDTH),
-		        .SIZE      (SIZE),
-		        .BUS_WIDTH (BUS_WIDTH),
-		        .REG_WIDTH (REG_WIDTH),
-		        .COUNT_WIDTH(DIM_COUNT_WIDTH)
-		    ) u_kernel_loader (
+        // Kernel Loader
+            kernel_loader #(
+                .DATA_WIDTH(KERNEL_DATA_WIDTH),
+                .SIZE      (SIZE),
+                .BUS_WIDTH (BUS_WIDTH),
+                .REG_WIDTH (REG_WIDTH),
+                .COUNT_WIDTH(DIM_COUNT_WIDTH)
+            ) u_kernel_loader (
         .clk                (clk),
         .rst_n              (rst_n),
         .init_cfg           (init_cfg_weight),
         .load_weight_req    (load_weight_req),
         .load_weight_granted(load_weight_granted),
-	        .send_weight_trigger(send_weight_trigger),
-	        .k                  (stream_k),
-	        .n                  (run_n),
-	        .m                  (stream_m),
+            .send_weight_trigger(send_weight_trigger),
+            .k                  (stream_k),
+            .n                  (run_n),
+            .m                  (stream_m),
         .rhs_zp             (weight_zp_eff),
         .rhs_base           (weight_base_eff),
         .rhs_row_stride_b   (weight_stride_eff),
         .ia_reuse_num       (ia_reuse_num_eff),
         .w_reuse_num        (w_reuse_num_eff),
-	        .use_16bits         (weight_use_16bits_eff),
-	        .ext_dma_start(kernel_dma_start),
-	        .ext_dma_is_write(),
-	        .ext_dma_linear_read_mode(kernel_dma_linear_read_mode),
-	        .ext_dma_base_addr(kernel_dma_base_addr),
-	        .ext_dma_row_stride(kernel_dma_row_stride),
-	        .ext_dma_rows_to_read(kernel_dma_rows_to_read),
-	        .ext_dma_burst_len_m1(kernel_dma_burst_len_m1),
-	        .ext_dma_slot_id(kernel_dma_slot_id),
-	        .ext_dma_use_16bits(kernel_dma_use_16bits),
-	        .ext_dma_lhs_zp(kernel_dma_lhs_zp),
-	        .ext_dma_busy(kernel_dma_busy),
-	        .ext_dma_done(kernel_dma_done),
-	        .ext_dma_wr_row(kernel_dma_wr_row),
-	        .ext_dma_wr_col_base(kernel_dma_wr_col_base),
-	        .ext_dma_wr_data(kernel_dma_wr_data),
-	        .ext_dma_wr_valid(kernel_dma_wr_valid),
+            .use_16bits         (weight_use_16bits_eff),
+            .ext_dma_start(kernel_dma_start),
+            .ext_dma_is_write(),
+            .ext_dma_linear_read_mode(kernel_dma_linear_read_mode),
+            .ext_dma_base_addr(kernel_dma_base_addr),
+            .ext_dma_row_stride(kernel_dma_row_stride),
+            .ext_dma_rows_to_read(kernel_dma_rows_to_read),
+            .ext_dma_burst_len_m1(kernel_dma_burst_len_m1),
+            .ext_dma_slot_id(kernel_dma_slot_id),
+            .ext_dma_use_16bits(kernel_dma_use_16bits),
+            .ext_dma_lhs_zp(kernel_dma_lhs_zp),
+            .ext_dma_busy(kernel_dma_busy),
+            .ext_dma_done(kernel_dma_done),
+            .ext_dma_wr_row(kernel_dma_wr_row),
+            .ext_dma_wr_col_base(kernel_dma_wr_col_base),
+            .ext_dma_wr_data(kernel_dma_wr_data),
+            .ext_dma_wr_valid(kernel_dma_wr_valid),
 
 
         .weight_sending_done(weight_sending_done),
@@ -789,52 +794,52 @@ module npu_top #(
         .weight_data_valid  (weight_data_valid)
     );
 
-	    // Bias Loader
-	    bias_loader #(
-	        .SIZE      (SIZE),
-	        .DATA_WIDTH(32),
-		        .BUS_WIDTH (BUS_WIDTH),
-		        .REG_WIDTH (REG_WIDTH),
-		        .COUNT_WIDTH(DIM_COUNT_WIDTH),
-		        .GROUP_BLOCKS_MAX(BIAS_GROUP_BLOCKS_MAX)
-		    ) u_bias_loader (
+        // Bias Loader
+        bias_loader #(
+            .SIZE      (SIZE),
+            .DATA_WIDTH(32),
+                .BUS_WIDTH (BUS_WIDTH),
+                .REG_WIDTH (REG_WIDTH),
+                .COUNT_WIDTH(DIM_COUNT_WIDTH),
+                .GROUP_BLOCKS_MAX(BIAS_GROUP_BLOCKS_MAX)
+            ) u_bias_loader (
         .clk              (clk),
         .rst_n            (rst_n),
         .init_cfg         (init_cfg_bias),
         .load_bias_req    (load_bias_req),
-	        .load_bias_granted(load_bias_granted),
-	        .bias_base        (bias_base),
-	        .k                (run_k),
-	        .m                (run_m),
-	        .bias_step_blocks (is_mode ? ia_reuse_num_eff : REG_WIDTH'(1)),
+            .load_bias_granted(load_bias_granted),
+            .bias_base        (bias_base),
+            .k                (run_k),
+            .m                (run_m),
+            .bias_step_blocks (is_mode ? ia_reuse_num_eff : REG_WIDTH'(1)),
         .bias_switch      (bias_switch),
         .bias_sleep       (bias_sleep),
         .bias_last_loop   (bias_last_loop),
-	        .bias_valid       (bias_valid),
-	        .bias_group_valid (bias_group_valid),
-	        .load_bias_done   (load_bias_done),
-	        .group_read_idx   (is_bias_row_idx),
-	        .data_out         (bias_data_out),
-	        .group_data_scalar(bias_group_scalar),
-		        .ext_dma_start    (bias_dma_start),
-		        .ext_dma_is_write (),
-	        .ext_dma_linear_read_mode(bias_dma_linear_read_mode),
-	        .ext_dma_base_addr(bias_dma_base_addr),
-	        .ext_dma_row_stride(bias_dma_row_stride),
-	        .ext_dma_rows_to_read(bias_dma_rows_to_read),
-	        .ext_dma_burst_len_m1(bias_dma_burst_len_m1),
-	        .ext_dma_slot_id  (bias_dma_slot_id),
-	        .ext_dma_use_16bits(bias_dma_use_16bits),
-	        .ext_dma_lhs_zp   (bias_dma_lhs_zp),
-	        .ext_dma_busy     (bias_dma_busy),
-	        .ext_dma_done     (bias_dma_done),
-	        .ext_dma_wr_slot  (bias_dma_wr_slot),
-	        .ext_dma_wr_row   (bias_dma_wr_row),
-	        .ext_dma_wr_col_base(bias_dma_wr_col_base),
-	        .ext_dma_wr_data  (bias_dma_wr_data),
-	        .ext_dma_wr_valid (bias_dma_wr_valid),
-	        .ext_dma_wr_use_16bits(bias_dma_wr_use_16bits)
-	    );
+            .bias_valid       (bias_valid),
+            .bias_group_valid (bias_group_valid),
+            .load_bias_done   (load_bias_done),
+            .group_read_idx   (is_bias_row_idx),
+            .data_out         (bias_data_out),
+            .group_data_scalar(bias_group_scalar),
+                .ext_dma_start    (bias_dma_start),
+                .ext_dma_is_write (),
+            .ext_dma_linear_read_mode(bias_dma_linear_read_mode),
+            .ext_dma_base_addr(bias_dma_base_addr),
+            .ext_dma_row_stride(bias_dma_row_stride),
+            .ext_dma_rows_to_read(bias_dma_rows_to_read),
+            .ext_dma_burst_len_m1(bias_dma_burst_len_m1),
+            .ext_dma_slot_id  (bias_dma_slot_id),
+            .ext_dma_use_16bits(bias_dma_use_16bits),
+            .ext_dma_lhs_zp   (bias_dma_lhs_zp),
+            .ext_dma_busy     (bias_dma_busy),
+            .ext_dma_done     (bias_dma_done),
+            .ext_dma_wr_slot  (bias_dma_wr_slot),
+            .ext_dma_wr_row   (bias_dma_wr_row),
+            .ext_dma_wr_col_base(bias_dma_wr_col_base),
+            .ext_dma_wr_data  (bias_dma_wr_data),
+            .ext_dma_wr_valid (bias_dma_wr_valid),
+            .ext_dma_wr_use_16bits(bias_dma_wr_use_16bits)
+        );
 
   // 脉动阵列计算核心
   wire signed [31:0] compute_bias_in[SIZE];
@@ -877,8 +882,8 @@ module npu_top #(
 
     compute_core #(
         .SIZE          (SIZE),
-        .DATA_WIDTH    (DATA_WIDTH),
-        .WEIGHT_WIDTH  (WEIGHT_WIDTH),
+        .DATA_WIDTH    (IA_DATA_WIDTH),
+        .WEIGHT_WIDTH  (KERNEL_DATA_WIDTH),
         .PS_FRAME_COUNT(PS_FRAME_COUNT),
         .MAX_IA_REUSE  (IA_REUSE_NUM_MAX)
     ) u_compute_core (
@@ -903,86 +908,86 @@ module npu_top #(
     );
 
     // Vec Requant
-	    logic [REG_WIDTH-1:0] is_bias_group_base;
-	    logic [REG_WIDTH-1:0] is_bias_last_group_base;
-	    logic [IS_BIAS_VALID_W-1:0] is_bias_last_rows;
-	    logic [IS_BIAS_VALID_W-1:0] is_bias_rows_valid;
-	    logic [IS_BIAS_VALID_W-1:0] is_bias_rows_valid_pending;
-	    wire [REG_WIDTH-1:0] is_bias_group_rows_target_ext =
-	      REG_WIDTH'(is_bias_group_rows_target);
-	    wire [REG_WIDTH-1:0] is_bias_target_mask_ext =
-	      is_bias_group_rows_target_ext - REG_WIDTH'(1);
-	    wire [REG_WIDTH-1:0] is_bias_tail_rows_raw =
-	      run_m & is_bias_target_mask_ext;
-	    wire [IS_BIAS_VALID_W-1:0] is_bias_tail_rows_calc =
-	      (is_bias_tail_rows_raw == '0)
-	          ? is_bias_group_rows_target
-	          : is_bias_tail_rows_raw[IS_BIAS_VALID_W-1:0];
-	    wire [REG_WIDTH-1:0] is_bias_tail_rows_ext =
-	      REG_WIDTH'(is_bias_tail_rows_calc);
-	    wire [REG_WIDTH-1:0] is_bias_last_group_base_calc =
-	      (run_m <= is_bias_group_rows_target_ext)
-	          ? REG_WIDTH'(0)
-	          : (run_m - is_bias_tail_rows_ext);
-	    wire [IS_BIAS_VALID_W-1:0] is_bias_first_rows_valid =
-	      (run_m == '0) ? IS_BIAS_VALID_W'(1) :
-	      (run_m > is_bias_group_rows_target_ext)
-	          ? is_bias_group_rows_target
-	          : run_m[IS_BIAS_VALID_W-1:0];
-	    wire [REG_WIDTH-1:0] is_bias_group_base_plus =
-	      is_bias_group_base + REG_WIDTH'(is_bias_rows_valid);
-	    wire is_bias_group_wrap_step =
-	      (is_bias_group_base >= is_bias_last_group_base);
-	    wire [REG_WIDTH-1:0] is_bias_group_base_step =
-	      is_bias_group_wrap_step ? REG_WIDTH'(0) : is_bias_group_base_plus;
-	    wire is_bias_group_step_is_last =
-	      (is_bias_group_base_step >= is_bias_last_group_base);
-	    wire [IS_BIAS_VALID_W-1:0] is_bias_rows_valid_step =
-	      is_bias_group_step_is_last ? is_bias_last_rows : is_bias_group_rows_target;
+        logic [REG_WIDTH-1:0] is_bias_group_base;
+        logic [REG_WIDTH-1:0] is_bias_last_group_base;
+        logic [IS_BIAS_VALID_W-1:0] is_bias_last_rows;
+        logic [IS_BIAS_VALID_W-1:0] is_bias_rows_valid;
+        logic [IS_BIAS_VALID_W-1:0] is_bias_rows_valid_pending;
+        wire [REG_WIDTH-1:0] is_bias_group_rows_target_ext =
+          REG_WIDTH'(is_bias_group_rows_target);
+        wire [REG_WIDTH-1:0] is_bias_target_mask_ext =
+          is_bias_group_rows_target_ext - REG_WIDTH'(1);
+        wire [REG_WIDTH-1:0] is_bias_tail_rows_raw =
+          run_m & is_bias_target_mask_ext;
+        wire [IS_BIAS_VALID_W-1:0] is_bias_tail_rows_calc =
+          (is_bias_tail_rows_raw == '0)
+              ? is_bias_group_rows_target
+              : is_bias_tail_rows_raw[IS_BIAS_VALID_W-1:0];
+        wire [REG_WIDTH-1:0] is_bias_tail_rows_ext =
+          REG_WIDTH'(is_bias_tail_rows_calc);
+        wire [REG_WIDTH-1:0] is_bias_last_group_base_calc =
+          (run_m <= is_bias_group_rows_target_ext)
+              ? REG_WIDTH'(0)
+              : (run_m - is_bias_tail_rows_ext);
+        wire [IS_BIAS_VALID_W-1:0] is_bias_first_rows_valid =
+          (run_m == '0) ? IS_BIAS_VALID_W'(1) :
+          (run_m > is_bias_group_rows_target_ext)
+              ? is_bias_group_rows_target
+              : run_m[IS_BIAS_VALID_W-1:0];
+        wire [REG_WIDTH-1:0] is_bias_group_base_plus =
+          is_bias_group_base + REG_WIDTH'(is_bias_rows_valid);
+        wire is_bias_group_wrap_step =
+          (is_bias_group_base >= is_bias_last_group_base);
+        wire [REG_WIDTH-1:0] is_bias_group_base_step =
+          is_bias_group_wrap_step ? REG_WIDTH'(0) : is_bias_group_base_plus;
+        wire is_bias_group_step_is_last =
+          (is_bias_group_base_step >= is_bias_last_group_base);
+        wire [IS_BIAS_VALID_W-1:0] is_bias_rows_valid_step =
+          is_bias_group_step_is_last ? is_bias_last_rows : is_bias_group_rows_target;
     wire signed [31:0] is_bias_scalar =
       (is_mode && (bias_base != '0)) ? bias_group_scalar : 32'sd0;
     wire signed [31:0] requant_in_vec[SIZE];
 
-	    always_ff @(posedge clk or negedge rst_n) begin
-	        if (!rst_n) begin
-	            is_bias_row_idx <= '0;
-	            is_bias_group_base <= '0;
-	            is_bias_last_group_base <= '0;
-	            is_bias_last_rows <= IS_BIAS_VALID_W'(1);
-	            is_bias_rows_valid <= IS_BIAS_VALID_W'(1);
-	            is_bias_rows_valid_pending <= IS_BIAS_VALID_W'(1);
-	        end else begin
-	            if (init_cfg_ia) begin
-	                is_bias_row_idx <= '0;
-	                is_bias_group_base <= '0;
-	                is_bias_last_group_base <= is_bias_last_group_base_calc;
-	                is_bias_last_rows <= is_bias_tail_rows_calc;
-	                is_bias_rows_valid <= IS_BIAS_VALID_W'(1);
-	                is_bias_rows_valid_pending <= is_bias_first_rows_valid;
-	            end else begin
-	                if (is_mode && acc_data_valid) begin
-	                    if (is_bias_rows_valid <= IS_BIAS_VALID_W'(1)) begin
-	                        is_bias_row_idx <= '0;
-	                    end else if ((IS_BIAS_VALID_W'(is_bias_row_idx) +
-	                                  IS_BIAS_VALID_W'(1)) >= is_bias_rows_valid) begin
-	                        is_bias_row_idx <= '0;
-	                    end else begin
-	                        is_bias_row_idx <= is_bias_row_idx + 1'b1;
-	                    end
-	                end
+        always_ff @(posedge clk or negedge rst_n) begin
+            if (!rst_n) begin
+                is_bias_row_idx <= '0;
+                is_bias_group_base <= '0;
+                is_bias_last_group_base <= '0;
+                is_bias_last_rows <= IS_BIAS_VALID_W'(1);
+                is_bias_rows_valid <= IS_BIAS_VALID_W'(1);
+                is_bias_rows_valid_pending <= IS_BIAS_VALID_W'(1);
+            end else begin
+                if (init_cfg_ia) begin
+                    is_bias_row_idx <= '0;
+                    is_bias_group_base <= '0;
+                    is_bias_last_group_base <= is_bias_last_group_base_calc;
+                    is_bias_last_rows <= is_bias_tail_rows_calc;
+                    is_bias_rows_valid <= IS_BIAS_VALID_W'(1);
+                    is_bias_rows_valid_pending <= is_bias_first_rows_valid;
+                end else begin
+                    if (is_mode && acc_data_valid) begin
+                        if (is_bias_rows_valid <= IS_BIAS_VALID_W'(1)) begin
+                            is_bias_row_idx <= '0;
+                        end else if ((IS_BIAS_VALID_W'(is_bias_row_idx) +
+                                      IS_BIAS_VALID_W'(1)) >= is_bias_rows_valid) begin
+                            is_bias_row_idx <= '0;
+                        end else begin
+                            is_bias_row_idx <= is_bias_row_idx + 1'b1;
+                        end
+                    end
 
-	                if (is_mode && bias_switch) begin
-	                    is_bias_group_base <= is_bias_group_base_step;
-	                    is_bias_rows_valid_pending <= is_bias_rows_valid_step;
-	                end
+                    if (is_mode && bias_switch) begin
+                        is_bias_group_base <= is_bias_group_base_step;
+                        is_bias_rows_valid_pending <= is_bias_rows_valid_step;
+                    end
 
-	                if (is_mode && send_ia_trigger && !bias_sleep) begin
-	                    is_bias_row_idx <= '0;
-	                    is_bias_rows_valid <= is_bias_rows_valid_pending;
-	                end
-	            end
-	        end
-	    end
+                    if (is_mode && send_ia_trigger && !bias_sleep) begin
+                        is_bias_row_idx <= '0;
+                        is_bias_rows_valid <= is_bias_rows_valid_pending;
+                    end
+                end
+            end
+        end
 
     genvar rq_i;
     generate
@@ -992,12 +997,12 @@ module npu_top #(
         end
     endgenerate
 
-	    vec_requant #(
-	        .VLEN        (SIZE),
-	        .REG_WIDTH   (REG_WIDTH),
-	        .MAX_IA_REUSE(REQUANT_MAX_IA_REUSE),
-	        .ENABLE_PER_CHANNEL(ENABLE_PER_CHANNEL),
-	        .ENABLE_IS_MODE(ENABLE_IS_MODE)
+        vec_requant #(
+            .VLEN        (SIZE),
+            .REG_WIDTH   (REG_WIDTH),
+            .MAX_IA_REUSE(REQUANT_MAX_IA_REUSE),
+            .ENABLE_PER_CHANNEL(ENABLE_PER_CHANNEL),
+            .ENABLE_IS_MODE(ENABLE_IS_MODE)
     ) u_vec_requant (
         .clk               (clk),
         .rst_n             (rst_n),
@@ -1012,28 +1017,28 @@ module npu_top #(
         .load_quant_req    (load_quant_req),
         .load_quant_granted(load_quant_granted),
         .quant_params_valid(quant_params_valid),
-	        .k                 (stream_k),
-	        .m                 (stream_m),
-	        .ia_reuse_num_in   (ia_reuse_num_eff),
-	        .dma_start         (quant_dma_start),
-	        .dma_is_write      (),
-	        .dma_linear_read_mode(quant_dma_linear_read_mode),
-	        .dma_base_addr     (quant_dma_base_addr),
-	        .dma_row_stride    (quant_dma_row_stride),
-	        .dma_rows_to_read  (quant_dma_rows_to_read),
-	        .dma_burst_len_m1  (quant_dma_burst_len_m1),
-	        .dma_slot_id       (quant_dma_slot_id),
-	        .dma_use_16bits    (quant_dma_use_16bits),
-	        .dma_lhs_zp        (quant_dma_lhs_zp),
-	        .dma_raw_data      (quant_dma_raw_data),
-	        .dma_raw_valid     (quant_dma_raw_valid),
-	        .in_valid          (acc_data_valid),
-	        .in_tile_done      (tile_calc_over),
-	        .in_vec_s32        (requant_in_vec),
+            .k                 (stream_k),
+            .m                 (stream_m),
+            .ia_reuse_num_in   (ia_reuse_num_eff),
+            .dma_start         (quant_dma_start),
+            .dma_is_write      (),
+            .dma_linear_read_mode(quant_dma_linear_read_mode),
+            .dma_base_addr     (quant_dma_base_addr),
+            .dma_row_stride    (quant_dma_row_stride),
+            .dma_rows_to_read  (quant_dma_rows_to_read),
+            .dma_burst_len_m1  (quant_dma_burst_len_m1),
+            .dma_slot_id       (quant_dma_slot_id),
+            .dma_use_16bits    (quant_dma_use_16bits),
+            .dma_lhs_zp        (quant_dma_lhs_zp),
+            .dma_raw_data      (quant_dma_raw_data),
+            .dma_raw_valid     (quant_dma_raw_valid),
+            .in_valid          (acc_data_valid),
+            .in_tile_done      (tile_calc_over),
+            .in_vec_s32        (requant_in_vec),
         .out_valid         (requant_out_valid),
         .out_tile_done     (requant_out_tile_done),
-	        .out_vec_s8        (requant_out)
-	    );
+            .out_vec_s8        (requant_out)
+        );
     //wire signed [             7:0] requant_out                            [SIZE];
     //TODO: check big or little endian
     //
@@ -1073,14 +1078,14 @@ module npu_top #(
     );
 
     // OA Writer
-	    oa_writer #(
-	        .VLEN      (SIZE),
-	        .DATA_WIDTH(8),
-	        .REG_WIDTH (REG_WIDTH),
-	        .BUS_WIDTH (BUS_WIDTH),
-	        .COUNT_WIDTH(DIM_COUNT_WIDTH),
-	        .ENABLE_IS_MODE(ENABLE_IS_MODE)
-	    ) u_oa_writer (
+        oa_writer #(
+            .VLEN      (SIZE),
+            .DATA_WIDTH(8),
+            .REG_WIDTH (REG_WIDTH),
+            .BUS_WIDTH (BUS_WIDTH),
+            .COUNT_WIDTH(DIM_COUNT_WIDTH),
+            .ENABLE_IS_MODE(ENABLE_IS_MODE)
+        ) u_oa_writer (
         .clk              (clk),
         .rst_n            (rst_n),
         .init_cfg         (init_cfg_oa),
@@ -1090,36 +1095,36 @@ module npu_top #(
         //.write_oa_trigger(),
         .write_oa_req     (write_oa_req),
         .write_oa_granted (write_oa_granted),
-	        .dst_base         (dst_base),
-	        .dst_row_stride_b (dst_row_stride_b),
-	        .k                (run_k),
-	        .m                (run_m),
+            .dst_base         (dst_base),
+            .dst_row_stride_b (dst_row_stride_b),
+            .k                (run_k),
+            .m                (run_m),
         .ia_reuse_num     (ia_reuse_num_eff),
         .is_mode          (is_mode),
         .output_valid     (fifo_output_valid),
         .switch_row       (fifo_output_switch_row),
-	        .output_ready     (fifo_output_ready),
-	        .output_mask      (fifo_output_mask),
-	        .output_data      (fifo_output_data),
-	        .dma_start        (oa_dma_start),
-	        .dma_is_write     (),
-	        .dma_linear_read_mode(),
-	        .dma_base_addr    (oa_dma_base_addr),
-	        .dma_row_stride   (oa_dma_row_stride),
-	        .dma_rows_to_read (oa_dma_rows_to_read),
-	        .dma_burst_len_m1 (oa_dma_burst_len_m1),
-	        .dma_slot_id      (),
-	        .dma_use_16bits   (),
-	        .dma_lhs_zp       (),
-	        .dma_src_wdata    (oa_dma_src_wdata),
-	        .dma_src_wmask    (oa_dma_src_wmask),
-	        .dma_src_wvalid   (oa_dma_src_wvalid),
-	        .dma_src_wready   (oa_dma_src_wready),
-	        .dma_busy         (oa_dma_busy),
-	        .dma_done         (oa_dma_done),
-	        .write_done       (write_done),
-	        .oa_calc_over     (oa_calc_over)
-	    );
+            .output_ready     (fifo_output_ready),
+            .output_mask      (fifo_output_mask),
+            .output_data      (fifo_output_data),
+            .dma_start        (oa_dma_start),
+            .dma_is_write     (),
+            .dma_linear_read_mode(),
+            .dma_base_addr    (oa_dma_base_addr),
+            .dma_row_stride   (oa_dma_row_stride),
+            .dma_rows_to_read (oa_dma_rows_to_read),
+            .dma_burst_len_m1 (oa_dma_burst_len_m1),
+            .dma_slot_id      (),
+            .dma_use_16bits   (),
+            .dma_lhs_zp       (),
+            .dma_src_wdata    (oa_dma_src_wdata),
+            .dma_src_wmask    (oa_dma_src_wmask),
+            .dma_src_wvalid   (oa_dma_src_wvalid),
+            .dma_src_wready   (oa_dma_src_wready),
+            .dma_busy         (oa_dma_busy),
+            .dma_done         (oa_dma_done),
+            .write_done       (write_done),
+            .oa_calc_over     (oa_calc_over)
+        );
 
 `ifndef SYNTHESIS
     function automatic longint unsigned util_bp(

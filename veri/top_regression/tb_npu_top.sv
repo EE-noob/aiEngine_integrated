@@ -14,6 +14,12 @@ module tb_npu_top;
 `ifndef TB_SIZE
 `define TB_SIZE 4
 `endif
+`ifndef TB_WEIGHT_WIDTH
+`define TB_WEIGHT_WIDTH 16
+`endif
+`ifndef TB_DATA_WIDTH
+`define TB_DATA_WIDTH 16
+`endif
 `ifndef TB_IA_CACHE_BLOCKS
 `define TB_IA_CACHE_BLOCKS 4
 `endif
@@ -25,6 +31,8 @@ module tb_npu_top;
 `endif
 
     localparam int unsigned SIZE = `TB_SIZE;
+    localparam int unsigned WEIGHT_WIDTH = `TB_WEIGHT_WIDTH;
+    localparam int unsigned DATA_WIDTH = `TB_DATA_WIDTH;
     localparam int unsigned IA_CACHE_BLOCKS = `TB_IA_CACHE_BLOCKS;
     localparam int unsigned PS_FRAME_COUNT = `TB_PS_FRAME_COUNT;
     localparam int unsigned AXI_READ_OUTSTANDING = `TB_AXI_READ_OUTSTANDING;
@@ -125,6 +133,8 @@ module tb_npu_top;
 
     // DUT 实例
     npu_top #(
+        .WEIGHT_WIDTH(WEIGHT_WIDTH),
+        .DATA_WIDTH(DATA_WIDTH),
         .SIZE(SIZE),
         .IA_CACHE_BLOCKS(IA_CACHE_BLOCKS),
         .PS_FRAME_COUNT(PS_FRAME_COUNT),

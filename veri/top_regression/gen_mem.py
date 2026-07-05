@@ -170,8 +170,8 @@ def choose_case(args):
         "n": n,
         "m": m,
         "lhs_dtype": lhs_dtype,
-        "lhs_zp": 0,
-        "rhs_zp": 0,
+        "lhs_zp": args.lhs_zp,
+        "rhs_zp": args.rhs_zp,
         "dst_zp": dst_zp,
         "q_mult": signed32(q_mult),
         "q_shift": q_shift,
@@ -431,6 +431,8 @@ def main():
     parser.add_argument("--min_dim", type=int, default=1)
     parser.add_argument("--max_dim", type=int, default=32)
     parser.add_argument("--dim_multiple", type=int, default=1)
+    parser.add_argument("--lhs_zp", type=int, default=0)
+    parser.add_argument("--rhs_zp", type=int, default=0)
     parser.add_argument("--ia_reuse_num", type=int)
     parser.add_argument("--w_reuse_num", type=int)
     parser.add_argument("--dataflow_mode", type=int, choices=[0, 1], default=0,
