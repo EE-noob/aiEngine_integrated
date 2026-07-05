@@ -1,0 +1,55 @@
+{
+  "title": "AXI4 Burst 地址递增读写时序",
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "p..........."
+    },
+    {
+      "name": "m_axi_arvalid",
+      "wave": "010........."
+    },
+    {
+      "name": "m_axi_arready",
+      "wave": "010........."
+    },
+    {
+      "name": "m_axi_araddr",
+      "wave": "0=0.........",
+      "data": [
+        "A"
+      ]
+    },
+    {
+      "name": "m_axi_arburst",
+      "wave": "0=0.........",
+      "data": [
+        "INCR"
+      ]
+    },
+    {
+      "name": "m_axi_rvalid",
+      "wave": "0..11110...."
+    },
+    {
+      "name": "m_axi_rready",
+      "wave": "0..11110...."
+    },
+    {
+      "name": "m_axi_rlast",
+      "wave": "0......10..."
+    },
+    {
+      "name": "m_axi_awvalid",
+      "wave": "0.......10.."
+    },
+    {
+      "name": "m_axi_wvalid",
+      "wave": "0........1110"
+    },
+    {
+      "name": "m_axi_wlast",
+      "wave": "0..........10"
+    }
+  ]
+}
