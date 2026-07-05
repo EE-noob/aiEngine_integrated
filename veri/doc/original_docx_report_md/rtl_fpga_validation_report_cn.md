@@ -56,7 +56,7 @@
 
 ### 2.2 验证范围
 
-验证范围包括 RTL 周期级功能仿真、软件驱动可见接口、NPU 端到端数值结果、SoC 程序运行、NPU RTL line coverage、FPGA 150 MHz 可实现性检查、post-implementation functional 后仿、实物板卡下载和板级 UART 输出。功耗报告采用 Vivado 默认活动率估算，不作为功能通过条件；门级时序仿真不纳入本报告通过结论。
+验证范围包括 RTL 周期级功能仿真、软件驱动可见接口、NPU 端到端数值结果、SoC 程序运行、NPU RTL line coverage、FPGA 150 MHz 可实现性检查、post-implementation functional 后仿、实物板卡下载和板级 UART 输出。门级时序仿真不纳入本报告通过结论。
 
 FPGA 工程包含 full 和 pruned_addr19 两类配置，用于验证板级资源、150 MHz 时序、AXI 访问、NPU int8 WS 推理通路和 UART 状态输出。两个工程版本均启用主动门控时钟。full 工程保留 IS 模式、按通道缩放转换和 32 bit NPU 内部地址配置，用于验证完整可选功能集合。pruned_addr19 工程关闭 IS 模式和按通道缩放转换，并将 NPU 内部地址宽度配置为 19 bit，用于板级部署配置和资源裁剪结果检查。int16 输入方式由 RTL/SoC 回归覆盖。
 
@@ -664,7 +664,7 @@ Post-implementation functional 后仿使用布局布线后的 functional netlist
 
 ### 7.5 Bitstream、Route 与 DRC
 
-两个工程版本均使用综合策略 `Flow_AreaOptimized_high`，综合 directive 为 `AreaOptimized_high`，实现策略为 `Performance_Explore`。实现完成后均生成 routed checkpoint、bitstream、timing、utilization、route、DRC 和 power 报告。
+两个工程版本均使用综合策略 `Flow_AreaOptimized_high`，综合 directive 为 `AreaOptimized_high`，实现策略为 `Performance_Explore`。实现完成后均生成 routed checkpoint、bitstream、timing、utilization、route 和 DRC 报告。
 
 | 工程配置 | Route status | DRC 错误数 | Bitstream | Bitstream bytes |
 |---|---|---:|---|---:|
@@ -729,7 +729,6 @@ NPU 内部主要模块资源如下。`u_vec_requant` 和 `u_compute_core` 合计
 |---|---|---|
 | AXI 错误响应 | 正常 RAM 与外设访问均返回 OKAY | `SLVERR/DECERR` 注入不计入正常推理通过范围 |
 | 运行中复位 | 复位释放后的任务执行和完成状态被验证 | 任务执行期间异步复位不计入本报告通过结论 |
-| 功耗报告 | 已导出 Vivado routed `report_power` 结果 | 该结果采用默认活动率估算，不作为功能通过条件 |
 | 门级时序仿真 | 本报告覆盖 post-implementation functional 后仿 | SDF timing simulation 不纳入本报告通过结论 |
 
 上述限制条件不改变已覆盖 RTL 功能组合、SoC 集成结果、应用级推理结果、98% line coverage、FPGA 150 MHz 实现、post-implementation functional 后仿和实物板卡 UART 运行的通过结论。
