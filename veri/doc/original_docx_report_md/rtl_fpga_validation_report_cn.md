@@ -735,7 +735,23 @@ Post-implementation functional 后仿使用布局布线后的 functional netlist
 
 ![图7-1 前仿与实现状态摘要](fpga_validation_figs/fpga_final_sim_summary.png)
 
-### 7.4 Bitstream、Route 与 DRC
+### 7.4 实物板卡运行验证
+
+实物板卡运行验证使用已生成的 `fpga_top.bit` 下载到 Artix-7 开发板。板级输入时钟为 50 MHz，核心时钟由 Clocking Wizard 生成，串口参数为 115200 baud、8-N-1。固件启动后执行 TFLM MNIST MLP 推理任务，通过 UART 输出样本预测结果、调用周期统计和完成状态。
+
+板级串口输出显示，3 个 MNIST MLP 样本均完成推理，样本 `0/1/2` 的预测值分别与参考标签 `7/2/1` 一致。输出末尾出现 `[tflm] mnist_mlp PASS`，未出现结果不匹配或失败状态。该结果证明 bitstream 下载后，PicoRV32 固件执行、片上 RAM 访问、UART 输出、NPU 调度、矩阵计算和结果返回在实物板卡条件下工作正常。
+
+<p align="center">
+<img src="fpga_validation_figs/6314a2019e8101d2bd9c0435c380ab15.png" alt="FPGA 板级 UART 推理结果" width="88%">
+</p>
+<p align="center">图7-2 FPGA 板级 UART 推理结果</p>
+
+<p align="center">
+<img src="fpga_validation_figs/a80c57e41c0a536959b38e72dc61a39c.jpg" alt="FPGA 实物板卡运行现场" width="72%">
+</p>
+<p align="center">图7-3 FPGA 实物板卡运行现场</p>
+
+### 7.5 Bitstream、Route 与 DRC
 
 四个实现版本均使用综合策略 `Flow_AreaOptimized_high`，综合 directive 为 `AreaOptimized_high`，实现策略为 `Performance_Explore`。实现完成后均生成 routed checkpoint、bitstream、timing、utilization、route、DRC 和 power 报告。
 
@@ -746,7 +762,7 @@ Post-implementation functional 后仿使用布局布线后的 functional netlist
 | pruned_addr19 | 开启 | fully routed | 0 | `fpga_top.bit` 已写出 | 3411133 |
 | pruned_addr19 | 关闭 | fully routed | 0 | `fpga_top.bit` 已写出 | 3575829 |
 
-### 7.5 时序结果
+### 7.6 时序结果
 
 150 MHz 核心时钟周期为 `6.667 ns`。四个 routed timing summary 均显示 user specified timing constraints met。WNS 最小值为 full 门控开启版本的 `+0.211 ns`，TNS 均为 `0.000 ns`，failing endpoints 均为 0。
 
@@ -757,7 +773,7 @@ Post-implementation functional 后仿使用布局布线后的 functional netlist
 | pruned_addr19 | 开启 | +0.440 ns | 0.000 ns | 0 | +2.283 ns | 0.000 ns | 通过 |
 | pruned_addr19 | 关闭 | +0.369 ns | 0.000 ns | 0 | +2.283 ns | 0.000 ns | 通过 |
 
-### 7.6 资源利用率
+### 7.7 资源利用率
 
 资源统计取自 routed design 状态下的 Vivado `report_utilization` 输出。资源占用汇总报告已导出至 `/home/etc/FPGA/tflm_ai_dsa/vivado_export/fpga_resource_compare_20260705.md`。四个实现版本在 Artix-7 `xc7a200tfbg484-3` 上均满足资源容量要求，DSP 使用量固定为 32 个，主要来自 4x4 计算阵列和定点缩放乘法；BRAM 使用量主要来自共享 RAM、IA cache、权重缓存和部分和缓冲区。
 
