@@ -1,0 +1,5 @@
+model,hw_avg_invoke_cycles,sw_avg_invoke_cycles,speedup
+MNIST MLP (784->64->10),159925,5114414,31.98
+Hello World,27035,63161,2.34
+Micro Speech,2936028,66383752,22.61
+MNIST CNN,5534554,80563979,14.56
