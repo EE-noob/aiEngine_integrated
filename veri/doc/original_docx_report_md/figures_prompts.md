@@ -1,6 +1,6 @@
 # AI 绘图提示词
 
-本文件保存报告插图的生成提示词。图形应采用白色背景、二维工程框图风格，重点表达模块组成、连接关系、数据搬移方向、控制信号方向和存储复用关系。曲线图和柱状图应优先由脚本按实测数据生成，AI 绘图仅用于结构示意、流程示意和时序说明图。
+该提示词文件保存报告插图的生成提示词。图形应采用白色背景、二维工程框图风格，重点表达模块组成、连接关系、数据搬移方向、控制信号方向和存储复用关系。曲线图和柱状图应优先由脚本按实测数据生成，AI 绘图仅用于结构示意、流程示意和时序说明图。
 
 ## 统一绘图规范
 
@@ -8,11 +8,11 @@
 
 图中文字必须优先保证阅读清晰。3840×2160 画布中，主标题推荐 64 px 至 72 px，一级模块标题推荐 42 px 至 48 px，模块内部文字推荐 34 px 至 40 px，箭头标注和说明文字不小于 30 px；2560×1440 画布中按相同比例缩放，但最小文字不低于 24 px。模块框可以采用更紧凑的网格排列，减少大面积留白，但同一模块内部文字不应超过四行；连接关系较多时优先增加连接线标注密度和局部说明框，不通过缩小字号容纳内容。正式报告插图优先使用 SVG 或高分辨率 PNG，避免在页面中缩放到文字难以识别的尺寸。
 
-颜色推荐保持一致：CPU 与软件控制使用浅蓝填充 `#E3F2FD`、深蓝描边 `#1565C0`；总线和互连使用浅紫填充 `#EDE7F6`、深紫描边 `#5E35B1`；共享存储和片上缓存使用浅绿填充 `#E8F5E9`、深绿描边 `#2E7D32`；寄存器和配置外设使用浅黄填充 `#FFF8E1`、琥珀色描边 `#F9A825`；NPU 计算阵列和计算核心使用浅红填充 `#FFEBEE`、深红描边 `#C62828`；DMA 与数据搬移单元使用浅青填充 `#E0F7FA`、深青描边 `#00838F`；重量化和输出处理使用浅粉填充 `#FCE4EC`、深粉描边 `#AD1457`；状态和完成信号使用浅灰填充 `#ECEFF1`、深灰描边 `#455A64`。
+颜色推荐保持一致：CPU 与软件控制使用浅蓝填充 `#E3F2FD`、深蓝描边 `#1565C0`；总线和互连使用浅紫填充 `#EDE7F6`、深紫描边 `#5E35B1`；共享存储和片上缓存使用浅绿填充 `#E8F5E9`、深绿描边 `#2E7D32`；寄存器和配置外设使用浅黄填充 `#FFF8E1`、琥珀色描边 `#F9A825`；NPU 计算阵列和计算核心使用浅红填充 `#FFEBEE`、深红描边 `#C62828`；DMA 与数据搬移单元使用浅青填充 `#E0F7FA`、深青描边 `#00838F`；定点缩放和输出处理使用浅粉填充 `#FCE4EC`、深粉描边 `#AD1457`；状态和完成信号使用浅灰填充 `#ECEFF1`、深灰描边 `#455A64`。
 
 箭头颜色推荐区分含义：配置和控制访问使用蓝色箭头，矩阵数据搬移使用橙色或青色箭头，片上缓存到计算阵列的数据流使用绿色箭头，状态返回使用紫色或灰色箭头，写回路径使用红色箭头。箭头应标注协议、数据宽度或关键握手关系，例如 `AXI-Lite 32 bit`、`AXI4 32 bit`、`valid/ready`、`start`、`busy/done/error`、`wstrb`、`int8`、`int32`。箭头方向必须与硬件实际方向一致。
 
-图中不要加入未实现的性能数字、未确认的频率、未确认的资源占用、未实现的电源管理模块、未使用的 CPU、未使用的接口、ASIC 后端签核流程、抽象云端服务、人物、服务器机柜或商业化图标。若需要表达未在图中展开的内部细节，应使用小字号说明框，不应使用夸张标语。
+图中不要加入未实现的性能数字、未确认的频率、未确认的资源占用、未实现的电源管理模块、未使用的 CPU、未使用的接口、ASIC 后端交付流程、抽象云端服务、人物、服务器机柜或商业化图标。若需要表达未在图中展开的内部细节，应使用小字号说明框，不应使用夸张标语。
 
 ## compute_core 数据流示意图提示词
 
@@ -34,7 +34,7 @@
 
 阵列上方或左上方绘制 bias 输入，绿色箭头进入阵列的 `sum_in / bias mux`，标注“首个 K 分块使用 bias 或 zero 作为初值”。
 
-阵列下方绘制 `PS buffer / partial sum buffer`，紫色虚线箭头从阵列输出回到 PS buffer，再从 PS buffer 回灌到脉动阵列 `sum_in`，标注“中间 K 分块 partial sum replay / ps_replay 回灌”。
+阵列下方绘制 `PS buffer / partial sum buffer`，紫色虚线箭头从阵列输出回到 PS buffer，再从 PS buffer 回灌到脉动阵列 `sum_in`，标注“中间 K 分块部分和回灌到 `sum_in`”。
 
 阵列右侧绘制对角化的脉动阵列输出，红色箭头输出 `p0`、`p1`、`p2`、`p3`，这些输出必须带有错拍、阶梯状、对角化到达的视觉效果。
 
@@ -67,13 +67,13 @@
 
 `soc_top` 图必须体现两条主设备路径。CPU 路径为 `u_picorv32` 到 `u_pico_axi_bridge`，再分别经过 `u_cpu_axi_read_pingpong` 和 `u_cpu_axi_write_pingpong` 接入 `u_axi_interconnect` 的 `s0` 端口。NPU 路径为 CPU 通过互连访问 `u_npu_axil_pingpong`，再进入 `u_npu_axil_top` 的 AXI-Lite 从接口；NPU 内部 DMA 产生的 AXI4 主设备信号从 `u_npu_axil_top` 输出，经 `u_npu_axi_pingpong` 接入互连 `s1` 端口。互连对外连接 RAM、UART 和 SOC 控制寄存器，其中 RAM 默认读通道直连，写通道可经过 `u_ram_axi_write_pingpong`，UART 前级包含 `u_uart_axil_pingpong`。
 
-`npu_top` 图必须体现配置、加载、计算、重量化、打包和写回之间的真实信号关系。配置入口由 `calc_start && sa_ready` 形成 `cfg_start_event`，经过 `cfg_stage0/1/2` 锁存模式、矩阵维度、数据宽度和复用参数，裁剪后形成 `run_k/run_n/run_m/run_is_mode` 等配置，再由 `ctrl_calc_start` 触发 `u_npu_controller`。控制器向 `u_ia_loader`、`u_kernel_loader`、`u_bias_loader`、`u_vec_requant` 和 `u_oa_writer` 发出 `init_cfg_*`，并通过 `send_ia_trigger`、`send_weight_trigger` 推动加载和计算；同时接收 `ia_sending_done`、`weight_sending_done`、`bias_group_valid`、`quant_params_valid`、`fifo_full_flag`、`tile_calc_over`、`partial_sum_calc_over` 和 `oa_calc_over`。
+`npu_top` 图必须体现配置、加载、计算、定点缩放、打包和写回之间的真实信号关系。配置入口由 `calc_start && sa_ready` 形成 `cfg_start_event`，经过 `cfg_stage0/1/2` 锁存模式、矩阵维度、数据宽度和复用参数，裁剪后形成 `run_k/run_n/run_m/run_is_mode` 等配置，再由 `ctrl_calc_start` 触发 `u_npu_controller`。控制器向 `u_ia_loader`、`u_kernel_loader`、`u_bias_loader`、`u_vec_requant` 和 `u_oa_writer` 发出 `init_cfg_*`，并通过 `send_ia_trigger`、`send_weight_trigger` 推动加载和计算；同时接收 `ia_sending_done`、`weight_sending_done`、`bias_group_valid`、`quant_params_valid`、`fifo_full_flag`、`tile_calc_over`、`partial_sum_calc_over` 和 `oa_calc_over`。
 
 加载路径必须按代码中的外部 DMA 客户端画出。`u_ia_loader` 由 `ia_loader_ctrl` 和 `ia_loader_cache_mgr` 组成，通过 `load_ia_req/ia_start` 向 `u_block_dma_arbiter` 申请读请求，并接收 `ia_wr_slot`、`ia_wr_row`、`ia_wr_col_base`、`ia_wr_data[BUS_WIDTH/8]` 和 `ia_wr_valid` 写入IA cache；输出 `ia_out[SIZE]`、`ia_row_valid`、`ia_tile_start`、`ia_is_init_data`、`ia_calc_done`、`ia_l1_switch` 和 `ia_sending_done` 到 `u_compute_core`。`u_kernel_loader` 通过 `load_weight_req/kernel_start` 读取权重，内部使用 `kernel_loader_ctrl` 与 `kernel_loader_buffer`，输出 `weight_out[SIZE]`、`store_weight_req` 和 `weight_data_valid` 到计算核心。`u_bias_loader` 通过 `load_bias_req/bias_start` 读取偏置，内部使用 `bias_loader_ctrl` 与 `bias_loader_buffer`，输出 `bias_data_out[SIZE]`、`bias_group_valid` 和 `group_data_out[IA_REUSE*SIZE]`。
 
-计算与输出路径必须体现 `u_compute_core` 内部由 `bias_mux`、`ws_systolic_array` 和 `ps_buffer` 组成。`bias_mux` 在 WS 模式下选择锁存偏置或部分和回灌值，`ws_systolic_array` 接收 `store_weight_req`、`weight_in`、`ia_vec_in` 和 `sum_in`，`ps_buffer` 接收阵列输出并根据 `ia_is_init_data`、`ia_calc_done`、`ia_l1_switch` 保存或输出部分和。`u_vec_requant` 接收 `acc_data_out[SIZE]` 和 `acc_data_valid`，在per-channel量化时通过 `load_quant_req/quant_start` 读取参数，并输出 `requant_out[SIZE]`、`requant_out_valid` 和 `requant_out_tile_done`。`u_vec_s8_to_fifo` 将 int8 向量写入 bank，按 4 字节生成 `output_data[31:0]` 和 `output_mask[3:0]`。`u_oa_writer` 使用 `vec_valid_num_col/row`、`dst_base` 和 `dst_row_stride_b` 生成写回地址，通过 `write_oa_req/oa_start` 和 `dma_src_wdata/dma_src_wmask/dma_src_wvalid` 接入 DMA 写客户端。
+计算与输出路径必须体现 `u_compute_core` 内部由 `bias_mux`、`ws_systolic_array` 和 `ps_buffer` 组成。`bias_mux` 在 WS 模式下选择锁存偏置或部分和回灌值，`ws_systolic_array` 接收 `store_weight_req`、`weight_in`、`ia_vec_in` 和 `sum_in`，`ps_buffer` 接收阵列输出并根据 `ia_is_init_data`、`ia_calc_done`、`ia_l1_switch` 保存或输出部分和。`u_vec_requant` 接收 `acc_data_out[SIZE]` 和 `acc_data_valid`，在per-channel 定点缩放时通过 `load_quant_req/quant_start` 读取参数，并输出 `requant_out[SIZE]`、`requant_out_valid` 和 `requant_out_tile_done`。`u_vec_s8_to_fifo` 将 int8 向量写入 bank，按 4 字节生成 `output_data[31:0]` 和 `output_mask[3:0]`。`u_oa_writer` 使用 `vec_valid_num_col/row`、`dst_base` 和 `dst_row_stride_b` 生成写回地址，通过 `write_oa_req/oa_start` 和 `dma_src_wdata/dma_src_wmask/dma_src_wvalid` 接入 DMA 写客户端。
 
-DMA 细节图必须体现读写分离。读侧在 `axi_block_dma_arbiter` 中先执行组合选择，优先级为 `kernel_req`、`quant_req`、`ia_req`、`bias_req`，随后由 `rd_client/rd_active/rd_started` 寄存选中客户端，发出 `*_granted`，并把所选客户端的 base、stride、rows、burst 长度、slot、use16 和 zero point 多路选择到 `axi_dual_block_dma`。读引擎发出 `m_axi_arvalid`，接收 `m_axi_rvalid`，对非对齐读数据进行拼接，并把数据按选中客户端返回到 IA、权重、偏置或重量化参数路径。写侧由 `oa_req` 独占，`wr_active/wr_started` 管理写事务，写数据从 `oa_writer` 的 `src_wdata/src_wmask/src_wvalid` 进入 DMA，AW/W 通道完成后必须等待 B 响应返回才产生 `oa_done`。
+DMA 细节图必须体现读写分离。读侧在 `axi_block_dma_arbiter` 中先执行组合选择，优先级为 `kernel_req`、`quant_req`、`ia_req`、`bias_req`，随后由 `rd_client/rd_active/rd_started` 寄存选中客户端，发出 `*_granted`，并把所选客户端的 base、stride、rows、burst 长度、slot、use16 和 zero point 多路选择到 `axi_dual_block_dma`。读引擎发出 `m_axi_arvalid`，接收 `m_axi_rvalid`，对非对齐读数据进行拼接，并把数据按选中客户端返回到 IA、权重、偏置或定点缩放参数路径。写侧由 `oa_req` 独占，`wr_active/wr_started` 管理写事务，写数据从 `oa_writer` 的 `src_wdata/src_wmask/src_wvalid` 进入 DMA，AW/W 通道完成后必须等待 B 响应返回才产生 `oa_done`。
 
 ## 图 1 PicoRV32 与 NPU 异构 SoC 总体架构
 
@@ -83,7 +83,7 @@ DMA 细节图必须体现读写分离。读侧在 `axi_block_dma_arbiter` 中先
 
 **详细提示词：** 绘制一张白色背景的数字 IC 系统架构图，横向 16:9，工程框图风格。画面从左到右分为四个区域。最左侧是浅蓝色 CPU 区域，包含一个大矩形“PicoRV32 控制 CPU”，下方小字标注“C 软件、算子调度、寄存器配置、状态轮询”。CPU 右侧连接浅蓝色矩形“CPU 原生接口到 AXI 桥”，箭头标签为 `mem_valid / mem_addr / mem_wdata / mem_wstrb`。
 
-中间区域为浅紫色“共享 AXI 互连”，放置在画面中心，作为所有主设备和从设备的连接枢纽。CPU 桥到互连使用蓝色箭头，标注“CPU AXI 主设备”。右下侧放置浅青色“分块 DMA”，从 NPU 指向 DMA，再由 DMA 回到 AXI 互连，箭头标注“AXI4 32 bit 读写请求”。互连向下连接浅绿色“共享 AXI RAM”，RAM 内部用小块标出“输入矩阵 LHS”“权重 RHS”“输出 DST”“bias 与量化参数”“im2col 缓冲区”。互连向上连接浅黄色“UART”和“SOC 控制寄存器”，箭头标注“AXI-Lite 外设访问”。
+中间区域为浅紫色“共享 AXI 互连”，放置在画面中心，作为所有主设备和从设备的连接枢纽。CPU 桥到互连使用蓝色箭头，标注“CPU AXI 主设备”。右下侧放置浅青色“分块 DMA”，从 NPU 指向 DMA，再由 DMA 回到 AXI 互连，箭头标注“AXI4 32 bit 读写请求”。互连向下连接浅绿色“共享 AXI RAM”，RAM 内部用小块标出“输入矩阵 LHS”“权重 RHS”“输出 DST”“bias 与定点缩放参数”“im2col 缓冲区”。互连向上连接浅黄色“UART”和“SOC 控制寄存器”，箭头标注“AXI-Lite 外设访问”。
 
 右侧为 NPU 区域，使用浅红色外框表示“矩阵乘 NPU”。外框内部从左到右放置浅黄色“NPU AXI-Lite 外设”、浅黄色“任务配置寄存器”、浅红色“NPU 控制器”、浅红色“计算数据通路”。NPU AXI-Lite 外设通过蓝色箭头连接互连，标注“AXI-Lite 32 bit 寄存器访问”。任务配置寄存器向控制器发出 `start / irq_enable / cfg`，控制器向寄存器返回 `ready / busy / done / error`。NPU 控制器和计算数据通路向分块 DMA 发出橙色箭头，标注“二维分块读写、地址、长度、写掩码”。
 
@@ -93,15 +93,15 @@ DMA 细节图必须体现读写分离。读侧在 `axi_block_dma_arbiter` 中先
 
 **输出文件名：** `fig_npu_datapath.png`
 
-**用途：** 用于展示 NPU 内部从寄存器组到加载、缓存、阵列计算、部分和保存、重量化、输出打包和写回的结构。
+**用途：** 用于展示 NPU 内部从寄存器组到加载、缓存、阵列计算、部分和保存、定点缩放、输出打包和写回的结构。
 
-**详细提示词：** 绘制一张 NPU 内部功能结构图，白色背景，横向 16:9，采用严格的数字电路框图。画面顶部放置一条浅黄色配置控制带，从左到右依次为“NPU AXI-Lite 外设”“任务配置寄存器”“NPU 控制器”。配置控制带向下发出蓝色控制箭头，分别连接输入加载、权重加载、bias 与量化参数加载、计算核心、输出写回单元。控制箭头标注 `cfg_valid`、`start`、`clear`、`busy/done/error`、`reuse 参数`。
+**详细提示词：** 绘制一张 NPU 内部功能结构图，白色背景，横向 16:9，采用严格的数字电路框图。画面顶部放置一条浅黄色配置控制带，从左到右依次为“NPU AXI-Lite 外设”“任务配置寄存器”“NPU 控制器”。配置控制带向下发出蓝色控制箭头，分别连接输入加载、权重加载、bias 与定点缩放参数加载、计算核心、输出写回单元。控制箭头标注 `cfg_valid`、`start`、`clear`、`busy/done/error`、`reuse 参数`。
 
-画面中部为数据通路，从左到右排列。左侧放置三个外部数据源，使用浅绿色存储符号：“LHS 输入矩阵”“RHS 权重矩阵”“bias 与量化参数”。它们通过浅青色“分块 DMA”进入三个加载路径。第一条路径为“输入激活加载单元”，内部包含“地址生成”“s8/s16 抽取与符号扩展”“IA cache”“对角化输出时序”；输出到计算核心的箭头为绿色，标注 `int16 输入向量 valid/ready`。第二条路径为“权重加载单元”，内部包含“权重地址生成”“权重缓存”“store_weight 装载控制”；输出到阵列的箭头标注 `int8 权重向量`。第三条路径为“bias 与量化参数加载”，内部包含“int32 偏置”“乘法系数”“移位参数”“输出偏移与激活范围”。
+画面中部为数据通路，从左到右排列。左侧放置三个外部数据源，使用浅绿色存储符号：“LHS 输入矩阵”“RHS 权重矩阵”“bias 与定点缩放参数”。它们通过浅青色“分块 DMA”进入三个加载路径。第一条路径为“输入激活加载单元”，内部包含“地址生成”“s8/s16 抽取与符号扩展”“IA cache”“对角化输出时序”；输出到计算核心的箭头为绿色，标注 `int16 输入向量 valid/ready`。第二条路径为“权重加载单元”，内部包含“权重地址生成”“权重缓存”“store_weight 装载控制”；输出到阵列的箭头标注 `int8 权重向量`。第三条路径为“bias 与定点缩放参数加载”，内部包含“int32 偏置”“乘法系数”“移位参数”“输出偏移与激活范围”。
 
-画面中心偏右放置浅红色“计算核心与 16x16 权重固定脉动阵列”，内部画成 16 个小 PE 方块的 4×4 缩略网格，并用文字说明“图中为缩略表示，实际参数为 16x16 阵列”。阵列下方放置浅绿色“部分和缓冲区”，箭头从计算核心写入部分和，再从部分和缓冲区回到计算核心，标注“int32 中间和保存与回灌”。从计算核心到右侧浅粉色“重量化流水”使用红色箭头，标注“最终 int32 向量”。重量化流水内部标注“乘法缩放、舍入、移位、输出偏移、激活钳位、int8 饱和”。
+画面中心偏右放置浅红色“计算核心与 16x16 权重固定脉动阵列”，内部画成 16 个小 PE 方块的 4×4 缩略网格，并用文字说明“图中为缩略表示，实际参数为 16x16 阵列”。阵列下方放置浅绿色“部分和缓冲区”，箭头从计算核心写入部分和，再从部分和缓冲区回到计算核心，标注“int32 中间和保存与回灌”。从计算核心到右侧浅粉色“定点缩放流水”使用红色箭头，标注“最终 int32 向量”。定点缩放流水内部标注“乘法缩放、舍入、移位、输出偏移、激活钳位、int8 饱和”。
 
-画面最右侧为输出写回路径。重量化流水连接“输出打包 FIFO”，标注“int8 输出打包为 32 bit 数据拍”。FIFO 连接“输出写回单元”，标注“DST 地址生成、行步长、尾列处理、4 bit 字节写掩码”。输出写回单元连接分块 DMA，再写回浅绿色“DST 输出矩阵”。写回箭头用红色，标注 `AW/W/B` 和 `wstrb`。图中使用灰色虚线箭头表示状态返回，例如加载完成、FIFO 水位、写响应完成。不要把 CPU 逐元素访问画入 NPU 内部，不要把部分和画成外存写回。
+画面最右侧为输出写回路径。定点缩放流水连接“输出打包 FIFO”，标注“int8 输出打包为 32 bit 数据拍”。FIFO 连接“输出写回单元”，标注“DST 地址生成、行步长、尾列处理、4 bit 字节写掩码”。输出写回单元连接分块 DMA，再写回浅绿色“DST 输出矩阵”。写回箭头用红色，标注 `AW/W/B` 和 `wstrb`。图中使用灰色虚线箭头表示状态返回，例如加载完成、FIFO 水位、写响应完成。不要把 CPU 逐元素访问画入 NPU 内部，不要把部分和画成外存写回。
 
 ## 图 3 分块矩阵外积式数据流调度
 
@@ -113,7 +113,7 @@ DMA 细节图必须体现读写分离。读侧在 `axi_block_dma_arbiter` 中先
 
 在画面中央绘制“调度窗口”，用虚线矩形框住一组输入激活分块和一组权重分块。框内放置三个模块：“IA cache：保存多个输入矩阵分块”“权重驻留：权重分块装入 PE 后复用”“部分和帧：保存 int32 中间和”。从 A 的高亮分块到IA cache画绿色箭头，标注“一次读取，多次服务输出列组”；从 B 的高亮分块到权重驻留模块画橙色箭头，标注“一次装载，多次服务输出行组”；从计算结果到部分和帧画红色箭头，标注“归约未完成时保存 int32 中间和”；从部分和帧回到计算阵列画红色回灌箭头，标注“下一归约分块继续累加”。
 
-中间计算模块画成浅红色“16x16 脉动阵列”，阵列旁标注“以 SIZE×SIZE 为基本分块，图中展示一个调度窗口”。底部放置一条时间轴，顺序标出“读取输入分块组”“装载权重列组”“执行乘加”“保存或回灌部分和”“最终重量化并写回”。时间轴上的箭头不要表现为软件循环，而要表现为硬件调度阶段。右下角放置小图例说明：蓝色高亮为输入行分块，黄色高亮为权重列分块，红色高亮为输出分块，绿色箭头为读入，红色箭头为部分和与写回。
+中间计算模块画成浅红色“16x16 脉动阵列”，阵列旁标注“以 SIZE×SIZE 为基本分块，图中展示一个调度窗口”。底部放置一条时间轴，顺序标出“读取输入分块组”“装载权重列组”“执行乘加”“保存或回灌部分和”“最终定点缩放并写回”。时间轴上的箭头不要表现为软件循环，而要表现为硬件调度阶段。右下角放置小图例说明：蓝色高亮为输入行分块，黄色高亮为权重列分块，红色高亮为输出分块，绿色箭头为读入，红色箭头为部分和与写回。
 
 图中不要出现未确认的 TOPS 数字。不要使用英文短语描述部分和或分块，使用“部分和”“输入矩阵分块”“权重分块”“输出分块”“归约分块”等中文标签。
 
@@ -141,7 +141,7 @@ DMA 细节图必须体现读写分离。读侧在 `axi_block_dma_arbiter` 中先
 
 第一组事务表现为 CPU 写控制寄存器。`AWVALID` 与 `AWREADY` 在同一周期为高，`AWADDR` 标注“CONTROL 地址”；`WVALID` 与 `WREADY` 同周期为高，`WDATA` 标注“start=1”，`WSTRB` 标注“4'b1111”。在写地址和写数据均完成后，`BVALID` 拉高一个周期，`BRESP` 若出现则标注“OKAY”。`calc_start` 在写事务接受后形成一个周期脉冲，随后 `npu_busy` 置 1。
 
-中间阶段用灰色省略区表示 NPU 内部加载、计算、重量化和写回，不展开内部信号。右侧表现任务完成：当所有输出写响应返回后，`npu_busy` 由 1 变 0，`done_sticky` 置 1 并保持。最后画一组 CPU 写清除位事务，`clear_done` 一个周期有效，随后 `done_sticky` 清 0。关键周期用竖向虚线对齐，分别标注“写握手完成”“start 被采样”“busy 有效”“写回完成”“done 保持”“软件清除”。不要画成软件流程图，应保持硬件时序图形式。
+中间阶段用灰色省略区表示 NPU 内部加载、计算、定点缩放和写回，不展开内部信号。右侧表现任务完成：当所有输出写响应返回后，`npu_busy` 由 1 变 0，`done_sticky` 置 1 并保持。最后画一组 CPU 写清除位事务，`clear_done` 一个周期有效，随后 `done_sticky` 清 0。关键周期用竖向虚线对齐，分别标注“写握手完成”“start 被采样”“busy 有效”“写回完成”“done 保持”“软件清除”。不要画成软件流程图，应保持硬件时序图形式。
 
 ## 图 6 AXI4 递增突发读写地址与响应时序
 
@@ -175,23 +175,23 @@ DMA 细节图必须体现读写分离。读侧在 `axi_block_dma_arbiter` 中先
 
 **用途：** 用于补充说明 `vec_s8_to_fifo` 和 `oa_writer` 如何把 int8 输出转换为 32 bit AXI 写数据，并处理尾列和非 4 字节对齐地址。
 
-**详细提示词：** 绘制一张输出写回结构图，白色背景，横向 16:9。左侧放置浅粉色“重量化输出向量”，内部画 16 个小格表示 16 个 int8 输出通道，其中尾列无效通道用浅灰色填充。中间放置浅绿色“输出打包 FIFO”，画成多行 32 bit 数据拍，每行包含 4 个字节格。每个字节格标注 `O0`、`O1`、`O2`、`O3` 等输出元素，尾拍中无效字节画成灰色并标注“不写”。
+**详细提示词：** 绘制一张输出写回结构图，白色背景，横向 16:9。左侧放置浅粉色“定点缩放输出向量”，内部画 16 个小格表示 16 个 int8 输出通道，其中尾列无效通道用浅灰色填充。中间放置浅绿色“输出打包 FIFO”，画成多行 32 bit 数据拍，每行包含 4 个字节格。每个字节格标注 `O0`、`O1`、`O2`、`O3` 等输出元素，尾拍中无效字节画成灰色并标注“不写”。
 
 右侧放置浅青色“输出写回单元”，内部标注“DST 基址”“行步长”“输出行/列坐标”“地址低位”“4 bit 字节写掩码”。从 FIFO 到写回单元画红色箭头，标注“写数据 + 写掩码 + 坐标”。从写回单元到共享 RAM 的 DST 区域画红色 AXI 写箭头，标注 `AWADDR`、`WDATA[31:0]`、`WSTRB[3:0]`、`WLAST`、`BVALID`。
 
 在底部画三个例子：地址 4 字节对齐且 4 个输出字节有效时 `WSTRB=1111`；首地址低位为 1 且写 3 个字节时 `WSTRB=1110`；尾列只剩 1 个有效输出时 `WSTRB=0001` 或按地址低位显示对应位。所有示例应明确“只修改掩码为 1 的字节”。不要使用模糊英文描述，不要把无效尾列画成写入 0。
 
-## 图 9 WS/IS 双数据流与输出坐标映射
+## 图 9 WS/IS 双数据流与输出坐标对应
 
 **输出文件名：** `fig_ws_is_dataflow.png`
 
 **用途：** 用于展示权重固定模式和输入固定模式的差异，以及两种模式下软件可见输出矩阵仍保持同一行主序布局。
 
-**详细提示词：** 绘制一张左右对比图，白色背景，横向 16:9。左半部分标题为“WS 权重固定模式”，右半部分标题为“IS 输入固定模式”。两侧都包含输入矩阵、权重矩阵、脉动阵列、部分和缓冲区、重量化、输出写回和 DST 输出矩阵。使用相同颜色：输入矩阵浅蓝，权重浅黄，阵列浅红，部分和浅绿，重量化浅粉，输出矩阵浅绿色。
+**详细提示词：** 绘制一张左右对比图，白色背景，横向 16:9。左半部分标题为“WS 权重固定模式”，右半部分标题为“IS 输入固定模式”。两侧都包含输入矩阵、权重矩阵、脉动阵列、部分和缓冲区、定点缩放、输出写回和 DST 输出矩阵。使用相同颜色：输入矩阵浅蓝，权重浅黄，阵列浅红，部分和浅绿，定点缩放浅粉，输出矩阵浅绿色。
 
-左侧 WS 模式中，权重分块从上方进入阵列并驻留在 PE 内，输入激活分块从左侧按对角化时序进入阵列，部分和沿阵列输出方向进入缓冲区或重量化。箭头标注“权重装载后保持”“输入激活连续流入”“输出列组复用”。右侧 IS 模式中，输入相关数据驻留或优先保持，另一矩阵数据流入阵列，输出产生顺序经过 FIFO 和写回坐标转换后写入同一 DST 行主序矩阵。箭头标注“模式位在 start 时锁存”“内部流向变化”“DST 行主序不变”。
+左侧 WS 模式中，权重分块从上方进入阵列并驻留在 PE 内，输入激活分块从左侧按对角化时序进入阵列，部分和沿阵列输出方向进入缓冲区或定点缩放。箭头标注“权重装载后保持”“输入激活连续流入”“输出列组复用”。右侧 IS 模式中，输入相关数据驻留或优先保持，另一矩阵数据流入阵列，输出产生顺序经过 FIFO 和写回坐标转换后写入同一 DST 行主序矩阵。箭头标注“模式位在 start 时锁存”“内部流向变化”“DST 行主序不变”。
 
-两侧底部各画一小块输出矩阵 C[K,M]，使用相同的行列坐标标注 `row` 和 `col`，并用灰色说明“软件可见 GEMM 公式保持 C=A×B”。不要把两种模式画成两套完全不同的外设接口；AXI-Lite 寄存器、分块 DMA、重量化和状态寄存器应显示为共享或相同结构。
+两侧底部各画一小块输出矩阵 C[K,M]，使用相同的行列坐标标注 `row` 和 `col`，并用灰色说明“软件可见 GEMM 公式保持 C=A×B”。不要把两种模式画成两套完全不同的外设接口；AXI-Lite 寄存器、分块 DMA、定点缩放和状态寄存器应显示为共享或相同结构。
 
 ## 图 10 FPGA 实现结果汇总结构图
 
@@ -207,9 +207,9 @@ DMA 细节图必须体现读写分离。读侧在 `axi_block_dma_arbiter` 中先
 
 **输出文件名：** `fig_verification_flow.png`
 
-**用途：** 该图供验证报告使用，不插入设计报告正文。用于展示 RTL、testbench、随机用例、SoC 程序、golden 对比和日志汇总之间的关系。
+**用途：** 该图供验证报告使用，不插入设计报告正文。用于展示 RTL、testbench、随机用例、SoC 程序、参考输出比对和运行结果汇总之间的关系。
 
-**详细提示词：** 绘制一张 RTL 仿真流程图，白色背景，横向 16:9。左侧为输入区域，包含“RTL 源码”“testbench”“C 程序镜像”“随机矩阵与 golden 输出”。中间为执行区域，分成三条并行路径：“NPU 独立随机回归”“SoC 级 VCS 仿真”“TFLM/NMSIS-NN 软件入口”。右侧为结果区域，包含“输出矩阵比较”“状态位与错误码检查”“周期计数器”“总线读写数据拍统计”“日志汇总”。
+**详细提示词：** 绘制一张 RTL 仿真流程图，白色背景，横向 16:9。左侧为输入区域，包含“RTL 源码”“testbench”“C 程序镜像”“随机矩阵与参考输出”。中间为执行区域，分成三条并行路径：“NPU 独立随机回归”“SoC 级 VCS 仿真”“TFLM/NMSIS-NN 软件入口”。右侧为结果区域，包含“输出矩阵比较”“状态位与错误码检查”“周期计数器”“总线读写数据拍统计”“运行结果汇总”。
 
 每条路径使用不同颜色：独立 NPU 回归为浅红，SoC 级仿真为浅紫，软件入口为浅蓝，结果检查为浅绿。箭头从输入指向执行，再指向结果。结果区域最后汇总到“验证报告表格与图形源文件”。图中只表达验证组织方式，不给出覆盖率或通过率数值，除非图外已经提供明确数据。不要把该图放入设计报告正文。
 
@@ -243,7 +243,7 @@ DMA 细节图必须体现读写分离。读侧在 `axi_block_dma_arbiter` 中先
 
 阵列下方放置浅绿色大框“ps_buffer：部分和帧缓冲”。该框内部左侧为“宽向量 FIFO”，右侧为“反对角化输出单元”，中间标注 `FRAME_COUNT`、`MAX_IA_REUSE`、`frame_len`、`read_ptr/write_ptr`。从阵列 `sum_out[SIZE]` 向 ps_buffer 画红色箭头；从 ps_buffer 回到 `bias_mux` 画绿色回灌箭头，标注 `ps_data_out[SIZE]`；从 ps_buffer 向右画红色箭头，标注 `acc_data_out[SIZE]` 和 `acc_data_valid`，连接到图右侧浅粉色“vec_requant 输入”。ps_buffer 还向控制器返回 `tile_calc_over`、`stream_calc_over` 和 `partial_sum_calc_over`，用灰色状态箭头画到上方“控制器状态采样”小框。
 
-图中需要体现时序延迟：在 IA 输入到阵列之间画一条细灰色“SIZE 周期对齐寄存”说明，表示 `ia_tile_start` 经对齐后生成 `ps_burst_start`；在输出侧画 `ps_tail_cnt` 小框，说明阵列尾部排空期间继续产生有效部分和。所有数据宽度标签使用 `int16 输入`、`int16 权重`、`int32 累加`、`int32 部分和`。不要把部分和画成外部 RAM 访问，也不要把重量化逻辑放入 PE 内。
+图中需要体现时序延迟：在 IA 输入到阵列之间画一条细灰色“SIZE 周期对齐寄存”说明，表示 `ia_tile_start` 经对齐后生成 `ps_burst_start`；在输出侧画 `ps_tail_cnt` 小框，说明阵列尾部排空期间继续产生有效部分和。所有数据宽度标签使用 `int16 输入`、`int16 权重`、`int32 累加`、`int32 部分和`。不要把部分和画成外部 RAM 访问，也不要把定点缩放逻辑放入 PE 内。
 
 ## 图3-8 oa_writer 输出坐标、字节写掩码与写响应完成关系
 
@@ -259,17 +259,17 @@ DMA 细节图必须体现读写分离。读侧在 `axi_block_dma_arbiter` 中先
 
 在图底部画一个小型状态机带：`S_IDLE` 等待 `init_cfg` 和 FIFO 请求，`S_REQ` 保持写请求，`S_START` 等待 grant 后发出 `dma_start`，`S_WRITE` 传输输出数据并等待 `dma_done`，`S_DONE` 产生 `oa_calc_over` 后回到空闲。每个状态使用小矩形和箭头，箭头上写进入条件。图右下角增加 WS/IS 坐标说明：WS 模式下行步进对应输出行，列步进对应输出列；IS 模式下内部产生顺序可变化，但 DST 行主序写回保持。不要使用“自动处理”这类模糊表述。
 
-## 图4-1 FPGA 资源映射与主要 RTL 模块对应关系
+## 图4-1 FPGA 资源分配与主要 RTL 模块对应关系
 
 **输出文件名：** `report_figures/ai/fig04_01_fpga_resource_mapping.png`
 
 **用途：** 用于表达主要 RTL 模块与 FPGA 资源类型之间的对应关系，不写入未确认的具体资源数量。
 
-**详细提示词：** 绘制一张 FPGA 资源映射结构图，白色背景，横向 16:9，标题为“FPGA 资源映射与主要 RTL 模块对应关系”。画面左侧为浅红色“NPU 计算模块”，包含 `compute_core`、`ws_systolic_array`、`ws_systolic_cell`、`vec_requant`，箭头指向右侧资源框“乘法器、加法树、流水寄存器、DSP 或查找表乘法资源”。图中只写资源类型，不写 LUT、FF、BRAM、DSP 的具体数值。
+**详细提示词：** 绘制一张 FPGA 资源分配结构图，白色背景，横向 16:9，标题为“FPGA 资源分配与主要 RTL 模块对应关系”。画面左侧为浅红色“NPU 计算模块”，包含 `compute_core`、`ws_systolic_array`、`ws_systolic_cell`、`vec_requant`，箭头指向右侧资源框“乘法器、加法树、流水寄存器、DSP 或查找表乘法资源”。图中只写资源类型，不写 LUT、FF、BRAM、DSP 的具体数值。
 
 画面中部为浅绿色“片上存储模块”，包含 `ia_loader_cache_mgr`、`kernel_loader_buffer`、`bias_loader_buffer`、`ps_buffer`、`vec_s8_to_fifo`，箭头指向“BRAM、分布式 RAM、同步读 RAM、读写指针寄存器”。在该区内部用小图标表示 IA cache 槽位、权重缓存、偏置 bank、部分和帧和输出 FIFO bank。每个小图标旁写一句短标签，例如“valid 标志保护有效数据”“帧信息绑定输出分块坐标”“bank_ready 控制输出流”。
 
-画面右侧为浅紫色“总线与控制模块”，包含 `soc_axi_interconnect`、`pico_native_to_axi`、`npu_axil_top`、`npu_axil_reg_if`、`axi_block_dma_arbiter`、`axi_dual_block_dma`、`axi_pingpong_buffer`，箭头指向“状态机、地址译码、仲裁选择、未完成事务计数、valid 标志寄存器”。在最右边放浅黄色“软件可见寄存器组”，标注“32 bit AXI-Lite、控制、状态、矩阵参数、量化参数基址”。
+画面右侧为浅紫色“总线与控制模块”，包含 `soc_axi_interconnect`、`pico_native_to_axi`、`npu_axil_top`、`npu_axil_reg_if`、`axi_block_dma_arbiter`、`axi_dual_block_dma`、`axi_pingpong_buffer`，箭头指向“状态机、地址译码、仲裁选择、未完成事务计数、valid 标志寄存器”。在最右边放浅黄色“软件可见寄存器组”，标注“32 bit AXI-Lite、控制、状态、矩阵参数、定点缩放参数基址”。
 
 底部放一条参数化说明带，列出综合期参数“阵列规模 SIZE”“IA cache 分块数”“部分和帧数”“AXI 数据宽度”“未完成事务深度”。用虚线从这些参数连接到计算模块、存储模块和 DMA 模块，说明参数影响生成硬件规模。图中不要写性能承诺、频率数字、资源百分比或未实现功能；如需要数值位置，只用“由综合报告填写”表示。
 
@@ -301,29 +301,29 @@ DMA 细节图必须体现读写分离。读侧在 `axi_block_dma_arbiter` 中先
 
 底部画一条时序泳道，横向分成“加载当前组”“发送当前组”“预取下一组”“释放已完成槽位”“切换到下一组”。在“发送当前组”和“预取下一组”之间使用重叠色块，说明预取可以与当前组输出并行。用箭头标出预取条件：目标槽位 `valid=0` 且 `busy=0`，当前组不是最后一组，DMA 仲裁器接受请求。不要把预取画成越过当前发送数据；预取写入只进入空闲槽位。
 
-## 图5-3 权重驻留、部分和保存与重量化输入关系
+## 图5-3 权重驻留、部分和保存与定点缩放输入关系
 
 **输出文件名：** `report_figures/ai/fig05_03_weight_ps_requant.png`
 
-**用途：** 用于展示权重固定阵列中权重装载、IA 输入、偏置或部分和初值选择、部分和保存和最终重量化输入之间的连接。
+**用途：** 用于展示权重固定阵列中权重装载、IA 输入、偏置或部分和初值选择、部分和保存和最终定点缩放输入之间的连接。
 
-**详细提示词：** 绘制一张权重驻留和部分和数据通路图，白色背景，横向 16:9，标题为“权重驻留、部分和保存与重量化输入关系”。左上方放浅黄色“kernel_loader_buffer”，内部画两个权重槽位，标注 `weight_data_valid`、`store_weight_req`、`weight_out[SIZE]`。从该模块向中央阵列上方画橙色箭头，标注“权重列向量装入 PE 并保持”。左下方放浅绿色“IA cache 输出”，向阵列左侧画绿色箭头，标注“对角化输入激活向量”。
+**详细提示词：** 绘制一张权重驻留和部分和数据通路图，白色背景，横向 16:9，标题为“权重驻留、部分和保存与定点缩放输入关系”。左上方放浅黄色“kernel_loader_buffer”，内部画两个权重槽位，标注 `weight_data_valid`、`store_weight_req`、`weight_out[SIZE]`。从该模块向中央阵列上方画橙色箭头，标注“权重列向量装入 PE 并保持”。左下方放浅绿色“IA cache 输出”，向阵列左侧画绿色箭头，标注“对角化输入激活向量”。
 
 中央放浅红色“16x16 权重固定脉动阵列”，内部用网格 PE 表示。每一列顶部画一个小寄存器符号，标注“权重寄存”；每一行左侧画 IA 输入箭头。阵列下方输出 `sum_out[SIZE]`，进入浅绿色“ps_buffer 部分和帧”。ps_buffer 内部画两类路径：一条红色箭头写入“中间归约结果 int32”；一条绿色箭头读出“上一归约分块部分和”，回到左侧浅黄色“bias_mux”。bias_mux 的另一输入来自“bias_loader 输出 bias_in[SIZE]”，并由 `bias_sleep` 控制选择。旁边写明“首次归约使用 bias 或 0；后续归约使用部分和回灌”。
 
-右侧放浅粉色“vec_requant 重量化流水”。从 ps_buffer 向 vec_requant 画红色箭头，标注 `acc_data_out[SIZE] / acc_data_valid`。vec_requant 旁边放“量化参数”小框，包含“按张量乘法系数与移位”“per-channel 乘法系数与移位”“输出偏移”“激活上下限”。从 vec_requant 到右侧“输出打包 FIFO”画箭头，标注 `int8 输出向量`。
+右侧放浅粉色“vec_requant 定点缩放流水”。从 ps_buffer 向 vec_requant 画红色箭头，标注 `acc_data_out[SIZE] / acc_data_valid`。vec_requant 旁边放“定点缩放参数”小框，包含“按张量乘法系数与移位”“per-channel 乘法系数与移位”“输出偏移”“激活上下限”。从 vec_requant 到右侧“输出打包 FIFO”画箭头，标注 `int8 输出向量`。
 
-图底部画一个归约分块序列：`N 分块 0` 使用 bias 初值并写部分和，`N 分块 1..倒数第二个` 读部分和并写回更新后的部分和，`N 最后分块` 读部分和并输出到重量化。每个阶段用色块表示，不写性能数字。不要把 int32 部分和画到外部 RAM；不要把 bias 在每个归约分块重复相加。
+图底部画一个归约分块序列：`N 分块 0` 使用 bias 初值并写部分和，`N 分块 1..倒数第二个` 读部分和并写回更新后的部分和，`N 最后分块` 读部分和并输出到定点缩放。每个阶段用色块表示，不写性能数字。不要把 int32 部分和画到外部 RAM；不要把 bias 在每个归约分块重复相加。
 
 ## 图5-4 分块DMA 读写客户端调度与 AXI 通道分配关系
 
 **输出文件名：** `report_figures/ai/fig05_04_block_dma_arbiter_channels.png`
 
-**用途：** 用于展示 `axi_block_dma_arbiter` 如何在 IA、权重、bias、量化参数读客户端和 OA 写客户端之间进行选择，并连接到 `axi_dual_block_dma` 的 AXI4 通道。
+**用途：** 用于展示 `axi_block_dma_arbiter` 如何在 IA、权重、bias、定点缩放参数读客户端和 OA 写客户端之间进行选择，并连接到 `axi_dual_block_dma` 的 AXI4 通道。
 
-**详细提示词：** 绘制一张分块DMA 仲裁结构图，白色背景，横向 16:9，标题为“分块DMA 读写客户端调度与 AXI 通道分配关系”。左侧竖向排列四个浅蓝色读客户端：“IA 读客户端”“权重读客户端”“bias 读客户端”“量化参数读客户端”。每个客户端旁列出请求字段：`req`、`start`、`base_addr`、`row_stride`、`rows_to_read`、`burst_len_m1`、`slot_id`、`use_16bits`、`zero_point`。四个客户端箭头进入中央浅青色“读客户端选择器”。
+**详细提示词：** 绘制一张分块DMA 仲裁结构图，白色背景，横向 16:9，标题为“分块DMA 读写客户端调度与 AXI 通道分配关系”。左侧竖向排列四个浅蓝色读客户端：“IA 读客户端”“权重读客户端”“bias 读客户端”“定点缩放参数读客户端”。每个客户端旁列出请求字段：`req`、`start`、`base_addr`、`row_stride`、`rows_to_read`、`burst_len_m1`、`slot_id`、`use_16bits`、`zero_point`。四个客户端箭头进入中央浅青色“读客户端选择器”。
 
-中央上方放浅青色“axi_block_dma_arbiter 读侧”。内部画优先选择顺序：`kernel_req` 优先，其次 `quant_req`，其次 `ia_req`，最后 `bias_req`；再画寄存器 `rd_client`、`rd_active`、`rd_started`。从读侧选择器到右侧“axi_dual_block_dma 读引擎”画蓝色箭头，标注“多路选择后的读命令”。读引擎向最右侧“AXI4 主设备读通道”输出 `ARVALID/ARREADY/ARADDR/ARLEN`，再接收 `RVALID/RREADY/RDATA/RLAST`。读返回后从读引擎分别回到 IA、权重、bias、量化参数路径，箭头标注 `wr_slot`、`wr_row`、`wr_col_base`、`raw_data`、`raw_valid`。
+中央上方放浅青色“axi_block_dma_arbiter 读侧”。内部画优先选择顺序：`kernel_req` 优先，其次 `quant_req`，其次 `ia_req`，最后 `bias_req`；再画寄存器 `rd_client`、`rd_active`、`rd_started`。从读侧选择器到右侧“axi_dual_block_dma 读引擎”画蓝色箭头，标注“多路选择后的读命令”。读引擎向最右侧“AXI4 主设备读通道”输出 `ARVALID/ARREADY/ARADDR/ARLEN`，再接收 `RVALID/RREADY/RDATA/RLAST`。读返回后从读引擎分别回到 IA、权重、bias、定点缩放参数路径，箭头标注 `wr_slot`、`wr_row`、`wr_col_base`、`raw_data`、`raw_valid`。
 
 左下方放浅粉色“OA 写客户端”，字段包括 `oa_req`、`oa_start`、`oa_base_addr`、`oa_row_stride`、`oa_rows_to_read`、`oa_burst_len_m1`、`oa_src_wdata`、`oa_src_wmask`、`oa_src_wvalid`。该客户端进入中央下方“写侧控制”，内部标注 `wr_active`、`wr_started`、`oa_granted`。写侧控制连接到“axi_dual_block_dma 写引擎”，写引擎输出 `AWVALID/AWREADY/AWADDR/AWLEN` 和 `WVALID/WREADY/WDATA/WSTRB/WLAST`，接收 `BVALID/BREADY/BRESP`。
 
@@ -351,9 +351,9 @@ FIFO 右侧画“32 bit 输出数据拍生成”区域，每一行是一个 32 b
 
 左侧 WS 模式中，RHS 权重分块从上方进入阵列并驻留在 PE 内，箭头标注“权重装载后保持”；LHS 输入激活从左侧以对角化时序进入，箭头标注“输入激活连续流入”；输出列组由权重分块决定，部分和按输出分块坐标保存。画一个小矩阵 C[K,M]，高亮当前输出列组和当前输出行组，箭头指向 DST 行主序位置。
 
-右侧 IS 模式中，用不同箭头说明内部输入角色发生变化：输入相关数据优先保持，另一矩阵数据流入阵列，输出产生顺序需要通过 FIFO 坐标和 `oa_writer` 地址生成恢复到 DST 行主序。画 `cfg_dataflow_mode` 控制箭头从寄存器组进入加载单元、重量化和写回单元，标注“start 时锁存”。在右侧 C[K,M] 中使用与左侧相同的最终行列坐标，旁边写“软件可见 GEMM 结果布局相同”。
+右侧 IS 模式中，用不同箭头说明内部输入角色发生变化：输入相关数据优先保持，另一矩阵数据流入阵列，输出产生顺序需要通过 FIFO 坐标和 `oa_writer` 地址生成恢复到 DST 行主序。画 `cfg_dataflow_mode` 控制箭头从寄存器组进入加载单元、定点缩放和写回单元，标注“start 时锁存”。在右侧 C[K,M] 中使用与左侧相同的最终行列坐标，旁边写“软件可见 GEMM 结果布局相同”。
 
-图底部放一条公共接口说明带，列出两种模式共用的外部接口：AXI-Lite 寄存器组、分块DMA、bias 与量化参数加载、状态寄存器、输出写回。不要把 WS 和 IS 画成两套不同外设；不要改变软件可见矩阵公式。
+图底部放一条公共接口说明带，列出两种模式共用的外部接口：AXI-Lite 寄存器组、分块DMA、bias 与定点缩放参数加载、状态寄存器、输出写回。不要把 WS 和 IS 画成两套不同外设；不要改变软件可见矩阵公式。
 
 ## 图6-4 软件驱动、TFLM/NMSIS-NN 接入层与 NPU MMIO 接口关系
 
@@ -367,17 +367,17 @@ FIFO 右侧画“32 bit 输出数据拍生成”区域，每一行是一个 32 b
 
 从驱动层到 MMIO 寄存器组画蓝色箭头，标注“32 bit AXI-Lite 写配置、写 start、读 status”；从 NPU 到共享 RAM 画橙色箭头，标注“AXI4 分块DMA 读输入、读参数、写输出”；从共享 RAM 回到软件层画灰色箭头，标注“done 后软件读取输出”。在中间层增加一个选择器：当矩阵规模、数据类型和布局满足硬件条件时进入 NPU 提交路径；否则进入 NMSIS-NN 或普通软件函数路径。不要画自定义处理器指令，不要画 CPU 逐元素控制 PE。
 
-## 图6-5 按张量与按通道量化参数组织及重量化流水对应关系
+## 图6-5 按张量与按通道定点缩放参数组织及定点缩放流水对应关系
 
 **输出文件名：** `report_figures/ai/fig06_05_quant_params_requant_pipeline.png`
 
-**用途：** 用于说明 `vec_requant` 在按张量与 per-channel 量化模式下的参数来源、DMA 装载、参数缓冲和 11 级重量化流水关系。
+**用途：** 用于说明 `vec_requant` 在按张量与 per-channel 定点缩放模式下的参数来源、DMA 装载、参数缓冲和 11 级定点缩放流水关系。
 
-**详细提示词：** 绘制一张量化参数组织与重量化流水图，白色背景，横向 16:9，标题为“按张量与按通道量化参数组织及重量化流水对应关系”。左侧分为上下两块参数来源。上块为浅黄色“按张量量化参数”，包含单个 `multiplier`、单个 `shift`、`dst_offset`、`activation_min`、`activation_max`，箭头直接进入 `vec_requant` 配置寄存。下块为浅绿色“per-channel 量化参数数组”，画两个数组“乘法系数数组”和“移位数组”，每个数组按输出通道索引排列；从数组到浅青色“量化参数 DMA 读客户端”画箭头，标注 `load_quant_req/load_quant_granted`、`dma_base_addr`、`dma_burst_len_m1`、`dma_raw_data/dma_raw_valid`。
+**详细提示词：** 绘制一张定点缩放参数组织与定点缩放流水图，白色背景，横向 16:9，标题为“按张量与按通道定点缩放参数组织及定点缩放流水对应关系”。左侧分为上下两块参数来源。上块为浅黄色“按张量定点缩放参数”，包含单个 `multiplier`、单个 `shift`、`dst_offset`、`activation_min`、`activation_max`，箭头直接进入 `vec_requant` 配置寄存。下块为浅绿色“per-channel 定点缩放参数数组”，画两个数组“乘法系数数组”和“移位数组”，每个数组按输出通道索引排列；从数组到浅青色“定点缩放参数 DMA 读客户端”画箭头，标注 `load_quant_req/load_quant_granted`、`dma_base_addr`、`dma_burst_len_m1`、`dma_raw_data/dma_raw_valid`。
 
 中央放浅粉色大框“vec_requant”。框内上部为“参数控制状态机”，画三个状态 `IDLE`、`LOAD`、`COMPUTE`，并在 LOAD 内画两个子阶段 `PH_MUL` 和 `PH_SHIFT`。箭头条件写清楚：per-channel 且参数无效时由 IDLE 进入 LOAD；乘法系数装载完成后进入移位装载；两个数组片段均装载完成后 `quant_params_valid=1`；输入有效且参数有效时进入 COMPUTE。状态机旁放“参数缓冲 QBUF”，标注 `QBUF_DEPTH = VLEN × MAX_IA_REUSE`、`ch_multiplier`、`ch_lshift`、`ch_rshift`。
 
-中央下部画“11 级重量化流水”，从左到右列出 stage0 到 stage11。每一级使用紧凑矩形，文字不要过多。阶段内容依次表达：采样 int32 累加值和参数、拆分乘法局部积、局部积求和、左移、取高位、右移舍入、加输出偏移、激活上下限钳位、int8 饱和、输出 valid。用一条并行细线表示 `tile_done` 标志从 stage0 同步延迟到 stage11。输入箭头为 `in_vec_s32[VLEN] / in_valid / in_tile_done`，输出箭头为 `out_vec_s8[VLEN] / out_valid / out_tile_done`。
+中央下部画“11 级定点缩放流水”，从左到右列出 stage0 到 stage11。每一级使用紧凑矩形，文字不要过多。阶段内容依次表达：采样 int32 累加值和参数、拆分乘法局部积、局部积求和、左移、取高位、右移舍入、加输出偏移、激活上下限钳位、int8 饱和、输出 valid。用一条并行细线表示 `tile_done` 标志从 stage0 同步延迟到 stage11。输入箭头为 `in_vec_s32[VLEN] / in_valid / in_tile_done`，输出箭头为 `out_vec_s8[VLEN] / out_valid / out_tile_done`。
 
 右侧画一个输出通道索引示例。按张量模式下所有通道共享同一参数；per-channel 模式下 WS 模式按输出列选择参数，IS 模式按复用行组选择参数，并由 `cfg_dataflow_mode` 控制索引。尾列无效通道用灰色表示，标注“无效通道输出 0 且不写入有效输出字节”。不要写任何准确率或性能数值，图中只表达参数组织和硬件流水。
 
