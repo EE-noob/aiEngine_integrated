@@ -1,5 +1,5 @@
 digraph fig_quant_param_pipeline {
-  graph [rankdir=LR,bgcolor="white",pad=0.14,nodesep=0.45,ranksep=0.65,splines=ortho,dpi=160,fontname="Noto Sans CJK SC",label="按张量与按通道量化参数组织及重量化流水",labelloc=t,fontsize=28];
+  graph [rankdir=LR,bgcolor="white",pad=0.14,nodesep=0.45,ranksep=0.65,splines=ortho,dpi=160,fontname="Noto Sans CJK SC",label="按张量与按通道定点缩放参数组织及重定点缩放流水",labelloc=t,fontsize=28];
   node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=19,margin="0.13,0.08",penwidth=2.0,color="#455A64"];
   edge [fontname="Noto Sans CJK SC",fontsize=15,penwidth=1.8,arrowsize=0.85,color="#455A64"];
   acc [label="compute_core int32 acc_data[SIZE]\n来自最终归约",fillcolor="#FFEBEE",color="#C62828"];
@@ -8,7 +8,7 @@ digraph fig_quant_param_pipeline {
   pc [label="per-channel\nDMA 读取参数数组\n列组对应 mult/shift",fillcolor="#E0F7FA",color="#00838F"];
   sel [label="参数选择\nuse_per_channel\n尾列只读有效通道",fillcolor="#EDE7F6",color="#5E35B1"];
   fold [label="requant_in_vec\n已合入对应输出通道 bias",fillcolor="#FFF8E1",color="#F9A825"];
-  pipe [label="重量化流水\n乘缩放 -> 舍入移位\n加 offset -> 激活裁剪\nint8 饱和",fillcolor="#FCE4EC",color="#AD1457"];
+  pipe [label="重定点缩放流水\n乘缩放 -> 舍入移位\n加 offset -> 激活裁剪\nint8 饱和",fillcolor="#FCE4EC",color="#AD1457"];
   out [label="out_valid/out_data[SIZE]\n通道索引与 valid 同步推进",fillcolor="#EAF7EA",color="#3B873E"];
   acc -> fold;
   bias -> fold;

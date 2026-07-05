@@ -142,7 +142,7 @@
 <path fill="#ffebee" stroke="#c62828" stroke-width="1.9" d="M2517.3,-237.83C2517.3,-237.83 2299.65,-237.83 2299.65,-237.83 2293.65,-237.83 2287.65,-231.83 2287.65,-225.83 2287.65,-225.83 2287.65,-154.25 2287.65,-154.25 2287.65,-148.25 2293.65,-142.25 2299.65,-142.25 2299.65,-142.25 2517.3,-142.25 2517.3,-142.25 2523.3,-142.25 2529.3,-148.25 2529.3,-154.25 2529.3,-154.25 2529.3,-225.83 2529.3,-225.83 2529.3,-231.83 2523.3,-237.83 2517.3,-237.83"/>
 <text xml:space="preserve" text-anchor="middle" x="2408.47" y="-214.74" font-family="Noto Sans CJK SC" font-size="19.00">u_npu_top</text>
 <text xml:space="preserve" text-anchor="middle" x="2408.47" y="-186.24" font-family="Noto Sans CJK SC" font-size="19.00">加载、DMA、控制器、阵列</text>
-<text xml:space="preserve" text-anchor="middle" x="2408.47" y="-157.74" font-family="Noto Sans CJK SC" font-size="19.00">重量化、FIFO 与写回</text>
+<text xml:space="preserve" text-anchor="middle" x="2408.47" y="-157.74" font-family="Noto Sans CJK SC" font-size="19.00">重定点缩放、FIFO 与写回</text>
 </g>
 <!-- ctrl&#45;&gt;npu -->
 <g id="edge8" class="edge">
@@ -160,7 +160,7 @@
 <polygon fill="#1565c0" stroke="#1565c0" stroke-width="1.65" points="2275.81,-234.86 2284.21,-231.92 2275.81,-228.98 2275.81,-234.86"/>
 <text xml:space="preserve" text-anchor="middle" x="2196.52" y="-314.29" font-family="Noto Sans CJK SC" font-size="15.00">base、K/N/M</text>
 <text xml:space="preserve" text-anchor="middle" x="2196.52" y="-291.79" font-family="Noto Sans CJK SC" font-size="15.00">stride、zero point</text>
-<text xml:space="preserve" text-anchor="middle" x="2196.52" y="-269.29" font-family="Noto Sans CJK SC" font-size="15.00">量化和激活范围</text>
+<text xml:space="preserve" text-anchor="middle" x="2196.52" y="-269.29" font-family="Noto Sans CJK SC" font-size="15.00">缩放和激活范围</text>
 </g>
 <!-- reuse&#45;&gt;npu -->
 <g id="edge10" class="edge">

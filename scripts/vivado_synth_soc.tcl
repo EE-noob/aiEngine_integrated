@@ -29,7 +29,6 @@ set rtl_files [list \
     [file join $repo_root picorv32 picosoc simpleuart.v] \
     [file join $repo_root rtl axi_accelerator axi_top npu_axil_reg_if.sv] \
     [file join $repo_root rtl axi_accelerator axi_top npu_axil_top.sv] \
-    [file join $repo_root rtl axi_accelerator npu accumulator_array.sv] \
     [file join $repo_root rtl axi_accelerator npu axi_block_dma_arbiter.sv] \
     [file join $repo_root rtl axi_accelerator npu axi_dual_block_dma.sv] \
     [file join $repo_root rtl axi_accelerator npu bias_loader.sv] \
@@ -37,9 +36,7 @@ set rtl_files [list \
     [file join $repo_root rtl axi_accelerator npu bias_loader_ctrl.sv] \
     [file join $repo_root rtl axi_accelerator npu bias_mux.sv] \
     [file join $repo_root rtl axi_accelerator npu compute_core.sv] \
-    [file join $repo_root rtl axi_accelerator npu data_setup.sv] \
     [file join $repo_root rtl axi_accelerator npu de_diagonalizer.sv] \
-    [file join $repo_root rtl axi_accelerator npu ia_buffer_wrapper.sv] \
     [file join $repo_root rtl axi_accelerator npu ia_loader.sv] \
     [file join $repo_root rtl axi_accelerator npu ia_loader_cache_mgr.sv] \
     [file join $repo_root rtl axi_accelerator npu ia_loader_ctrl.sv] \
@@ -52,7 +49,6 @@ set rtl_files [list \
     [file join $repo_root rtl axi_accelerator npu ps_buffer.sv] \
     [file join $repo_root rtl axi_accelerator npu ps_buffer_fifo.sv] \
     [file join $repo_root rtl axi_accelerator npu pseudo_dual_port_ram.v] \
-    [file join $repo_root rtl axi_accelerator npu shift_accumulator.sv] \
     [file join $repo_root rtl axi_accelerator npu vec_requant.sv] \
     [file join $repo_root rtl axi_accelerator npu vec_s8_to_fifo.sv] \
     [file join $repo_root rtl axi_accelerator npu ws_systolic_array.sv] \

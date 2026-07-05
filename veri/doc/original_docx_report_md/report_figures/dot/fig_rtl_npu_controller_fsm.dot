@@ -62,6 +62,6 @@ digraph rtl_npu_controller_fsm {
 
   idle -> idle [label="无启动", color="#90A4AE", style=dashed];
   wstart -> wstart [label="等待权重安全条件或权重数据", color="#90A4AE", style=dashed];
-  istart -> istart [label="等待 IA、偏置、量化参数或 FIFO 空间", color="#90A4AE", style=dashed];
+  istart -> istart [label="等待 IA、偏置、定点缩放参数或 FIFO 空间", color="#90A4AE", style=dashed];
   waitdone -> waitdone [label="done_ready = 0", color="#90A4AE", style=dashed];
 }

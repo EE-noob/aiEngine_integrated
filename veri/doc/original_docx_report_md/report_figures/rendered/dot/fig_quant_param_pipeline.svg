@@ -9,7 +9,7 @@
 <g id="graph0" class="graph" transform="scale(2.22222 2.22222) rotate(0) translate(10.08 515.1)">
 <title>fig_quant_param_pipeline</title>
 <polygon fill="white" stroke="none" points="-10.08,10.08 -10.08,-515.1 1222.46,-515.1 1222.46,10.08 -10.08,10.08"/>
-<text xml:space="preserve" text-anchor="middle" x="606.19" y="-474.42" font-family="Noto Sans CJK SC" font-size="28.00">按张量与按通道量化参数组织及重量化流水</text>
+<text xml:space="preserve" text-anchor="middle" x="606.19" y="-474.42" font-family="Noto Sans CJK SC" font-size="28.00">按张量与按通道定点缩放参数组织及重定点缩放流水</text>
 <!-- acc -->
 <g id="node1" class="node">
 <title>acc</title>
@@ -84,7 +84,7 @@
 <g id="node7" class="node">
 <title>pipe</title>
 <path fill="#fce4ec" stroke="#ad1457" stroke-width="2" d="M909.91,-304.27C909.91,-304.27 740.44,-304.27 740.44,-304.27 734.44,-304.27 728.44,-298.27 728.44,-292.27 728.44,-292.27 728.44,-190.75 728.44,-190.75 728.44,-184.75 734.44,-178.75 740.44,-178.75 740.44,-178.75 909.91,-178.75 909.91,-178.75 915.91,-178.75 921.91,-184.75 921.91,-190.75 921.91,-190.75 921.91,-292.27 921.91,-292.27 921.91,-298.27 915.91,-304.27 909.91,-304.27"/>
-<text xml:space="preserve" text-anchor="middle" x="825.17" y="-280.46" font-family="Noto Sans CJK SC" font-size="19.00">重量化流水</text>
+<text xml:space="preserve" text-anchor="middle" x="825.17" y="-280.46" font-family="Noto Sans CJK SC" font-size="19.00">重定点缩放流水</text>
 <text xml:space="preserve" text-anchor="middle" x="825.17" y="-251.96" font-family="Noto Sans CJK SC" font-size="19.00">乘缩放 &#45;&gt; 舍入移位</text>
 <text xml:space="preserve" text-anchor="middle" x="825.17" y="-223.46" font-family="Noto Sans CJK SC" font-size="19.00">加 offset &#45;&gt; 激活裁剪</text>
 <text xml:space="preserve" text-anchor="middle" x="825.17" y="-194.96" font-family="Noto Sans CJK SC" font-size="19.00">int8 饱和</text>

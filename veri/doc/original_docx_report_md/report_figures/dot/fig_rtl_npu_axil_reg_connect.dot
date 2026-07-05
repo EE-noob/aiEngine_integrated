@@ -39,7 +39,7 @@ digraph rtl_npu_axil_reg_connect {
   cfg [label="任务配置寄存器\nLHS/RHS/DST/BIAS base\nK/N/M、stride、zero point\nQ_MULT/Q_SHIFT、ACT_MIN/MAX", fillcolor="#FFF8E1", color="#F9A825"];
   reuse [label="复用和模式寄存器\nNPU_REG_IA_REUSE\nNPU_REG_W_REUSE\nNPU_REG_DATAFLOW", fillcolor="#FFF8E1", color="#F9A825"];
 
-  npu [label="u_npu_top\n加载、DMA、控制器、阵列\n重量化、FIFO 与写回", fillcolor="#FFEBEE", color="#C62828"];
+  npu [label="u_npu_top\n加载、DMA、控制器、阵列\n重定点缩放、FIFO 与写回", fillcolor="#FFEBEE", color="#C62828"];
   axi [label="NPU AXI4 主设备\nm_axi_ar/r/aw/w/b\n访问共享 RAM", fillcolor="#E0F7FA", color="#00838F"];
   status [label="状态返回\nnpu_sa_ready\nnpu_done_valid / npu_err_code\nnpu_busy / irq", fillcolor="#ECEFF1", color="#455A64"];
 
@@ -53,7 +53,7 @@ digraph rtl_npu_axil_reg_connect {
   regif -> reuse [label="地址 0x054~0x05c", color="#F9A825"];
 
   ctrl -> npu [label="calc_start\ncfg_16bits_ia\nuse_per_channel", color="#1565C0"];
-  cfg -> npu [label="base、K/N/M\nstride、zero point\n量化和激活范围", color="#1565C0"];
+  cfg -> npu [label="base、K/N/M\nstride、zero point\n缩放和激活范围", color="#1565C0"];
   reuse -> npu [label="复用深度与 WS/IS 模式", color="#1565C0"];
   npu -> axi [label="分块 DMA 读写", color="#00838F"];
   npu -> status [label="done、busy、error\n完成数据", color="#6C43B6"];

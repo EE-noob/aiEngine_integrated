@@ -99,7 +99,7 @@
 <g id="node4" class="node">
 <title>quant_req</title>
 <path fill="#fce4ec" stroke="#ad1457" stroke-width="1.8" d="M211.34,-367.64C211.34,-367.64 28.88,-367.64 28.88,-367.64 22.88,-367.64 16.88,-361.64 16.88,-355.64 16.88,-355.64 16.88,-269 16.88,-269 16.88,-263 22.88,-257 28.88,-257 28.88,-257 211.34,-257 211.34,-257 217.34,-257 223.34,-263 223.34,-269 223.34,-269 223.34,-355.64 223.34,-355.64 223.34,-361.64 217.34,-367.64 211.34,-367.64"/>
-<text xml:space="preserve" text-anchor="middle" x="120.11" y="-347.17" font-family="Noto Sans CJK SC" font-size="17.00">量化参数读客户端</text>
+<text xml:space="preserve" text-anchor="middle" x="120.11" y="-347.17" font-family="Noto Sans CJK SC" font-size="17.00">定点缩放参数读客户端</text>
 <text xml:space="preserve" text-anchor="middle" x="120.11" y="-321.67" font-family="Noto Sans CJK SC" font-size="17.00">quant_req / quant_start</text>
 <text xml:space="preserve" text-anchor="middle" x="120.11" y="-296.17" font-family="Noto Sans CJK SC" font-size="17.00">mult 或 shift 参数地址</text>
 <text xml:space="preserve" text-anchor="middle" x="120.11" y="-270.67" font-family="Noto Sans CJK SC" font-size="17.00">raw_data 返回</text>
@@ -116,7 +116,7 @@
 <title>quant_req&#45;&gt;rd_mux</title>
 <path fill="none" stroke="#ad1457" stroke-width="1.55" d="M120.51,-368.39C120.51,-373.51 120.51,-376.82 120.51,-376.82 120.51,-376.82 1354.01,-376.82 1354.01,-376.82"/>
 <polygon fill="#ad1457" stroke="#ad1457" stroke-width="1.55" points="1354.01,-379.62 1362.01,-376.82 1354.01,-374.02 1354.01,-379.62"/>
-<text xml:space="preserve" text-anchor="middle" x="779.29" y="-403.02" font-family="Noto Sans CJK SC" font-size="14.00">量化命令字段</text>
+<text xml:space="preserve" text-anchor="middle" x="779.29" y="-403.02" font-family="Noto Sans CJK SC" font-size="14.00">缩放命令字段</text>
 </g>
 <!-- oa_req -->
 <g id="node5" class="node">

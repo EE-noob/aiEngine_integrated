@@ -12,6 +12,6 @@ digraph fig_output_pack_mask_unaligned {
   fifo -> pack;
   fifo -> mask;
   pack -> dma;
-  mask -> dma [label="映射为 WSTRB"];
+  mask -> dma [label="生成 WSTRB"];
   dma -> ram;
 }

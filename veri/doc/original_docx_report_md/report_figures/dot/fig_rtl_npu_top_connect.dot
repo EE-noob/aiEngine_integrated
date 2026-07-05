@@ -64,9 +64,9 @@ digraph rtl_npu_top_connect {
     color="#C62828";
     fontsize=20;
     style="rounded";
-    bias_hold [label="bias_data_hold / compute_bias_latched\nWS 模式下在 ia_tile_start 锁存偏置\nIS 模式下偏置在重量化前相加", fillcolor="#FCE4EC", color="#AD1457"];
+    bias_hold [label="bias_data_hold / compute_bias_latched\nWS 模式下在 ia_tile_start 锁存偏置\nIS 模式下偏置在重定点缩放前相加", fillcolor="#FCE4EC", color="#AD1457"];
     compute [label="u_compute_core\nbias_mux + ws_systolic_array + ps_buffer\n权重固定阵列、部分和保存/回灌\n输出 acc_data_out[SIZE]", fillcolor="#FFEBEE", color="#C62828"];
-    req [label="u_vec_requant\n按张量或按通道重量化\nmult/shift、dst_offset、激活钳位\n输出 int8 向量", fillcolor="#FCE4EC", color="#AD1457"];
+    req [label="u_vec_requant\n按张量或按通道重定点缩放\nmult/shift、dst_offset、激活钳位\n输出 int8 向量", fillcolor="#FCE4EC", color="#AD1457"];
     fifo [label="u_vec_s8_to_fifo\nBANKS=OA_FIFO_BANKS\n16 路 int8 向量写入 bank\n按 4 字节生成 output_data/mask\n支持 transpose_mode", fillcolor="#EAF7EA", color="#3B873E"];
     oaw [label="u_oa_writer\n输出分块坐标与 DST 地址生成\nvec_valid_num_row/col\n写数据拍、字节写掩码、B 响应完成", fillcolor="#E0F7FA", color="#00838F"];
   }

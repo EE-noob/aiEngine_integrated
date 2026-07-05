@@ -32,7 +32,7 @@ digraph rtl_dma_arbiter_detail {
   ia_req [label="IA 读客户端\nia_req / ia_start\nbase、row_stride、rows\nslot_id、use_16bits、lhs_zp", fillcolor="#E8F5E9", color="#2E7D32"];
   kernel_req [label="权重读客户端\nkernel_req / kernel_start\nbase、row_stride、rows\nuse_16bits、rhs_zp", fillcolor="#E8F5E9", color="#2E7D32"];
   bias_req [label="偏置读客户端\nbias_req / bias_start\nbase、row_stride、rows\nload_bank", fillcolor="#E8F5E9", color="#2E7D32"];
-  quant_req [label="量化参数读客户端\nquant_req / quant_start\nmult 或 shift 参数地址\nraw_data 返回", fillcolor="#FCE4EC", color="#AD1457"];
+  quant_req [label="定点缩放参数读客户端\nquant_req / quant_start\nmult 或 shift 参数地址\nraw_data 返回", fillcolor="#FCE4EC", color="#AD1457"];
   oa_req [label="输出写客户端\nwrite_oa_req / oa_start\nDST base、stride、rows\nwdata、wmask、wvalid", fillcolor="#FFEBEE", color="#C62828"];
 
   rd_prio [label="读仲裁组合选择\n优先级：kernel > quant > IA > bias\n生成 rd_next_client", fillcolor="#E0F7FA", color="#00838F"];
@@ -63,7 +63,7 @@ digraph rtl_dma_arbiter_detail {
   ia_req -> rd_mux [label="IA 命令字段", color="#2E7D32"];
   kernel_req -> rd_mux [label="权重命令字段", color="#2E7D32"];
   bias_req -> rd_mux [label="偏置命令字段", color="#2E7D32"];
-  quant_req -> rd_mux [label="量化命令字段", color="#AD1457"];
+  quant_req -> rd_mux [label="缩放命令字段", color="#AD1457"];
   rd_mux -> dma_rd [label="rd_start 与读配置", color="#00838F"];
   dma_rd -> rd_state [label="rd_dma_busy / rd_dma_done", color="#00838F", style=dashed];
 

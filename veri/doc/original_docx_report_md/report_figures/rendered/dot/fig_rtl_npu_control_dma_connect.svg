@@ -179,7 +179,7 @@
 <title>quant</title>
 <path fill="#fce4ec" stroke="#ad1457" stroke-width="2" d="M1736.72,-990.04C1736.72,-990.04 1454.57,-990.04 1454.57,-990.04 1448.57,-990.04 1442.57,-984.04 1442.57,-978.04 1442.57,-978.04 1442.57,-865.96 1442.57,-865.96 1442.57,-859.96 1448.57,-853.96 1454.57,-853.96 1454.57,-853.96 1736.72,-853.96 1736.72,-853.96 1742.72,-853.96 1748.72,-859.96 1748.72,-865.96 1748.72,-865.96 1748.72,-978.04 1748.72,-978.04 1748.72,-984.04 1742.72,-990.04 1736.72,-990.04"/>
 <text xml:space="preserve" text-anchor="middle" x="1595.65" y="-965.05" font-family="Noto Sans CJK SC" font-size="21.00">u_vec_requant</text>
-<text xml:space="preserve" text-anchor="middle" x="1595.65" y="-933.55" font-family="Noto Sans CJK SC" font-size="21.00">量化参数读客户端</text>
+<text xml:space="preserve" text-anchor="middle" x="1595.65" y="-933.55" font-family="Noto Sans CJK SC" font-size="21.00">定点缩放参数读客户端</text>
 <text xml:space="preserve" text-anchor="middle" x="1595.65" y="-902.05" font-family="Noto Sans CJK SC" font-size="21.00">load_quant_req / quant_start</text>
 <text xml:space="preserve" text-anchor="middle" x="1595.65" y="-870.55" font-family="Noto Sans CJK SC" font-size="21.00">mult 或 shift 参数地址</text>
 </g>
@@ -272,7 +272,7 @@
 <title>quant&#45;&gt;arb</title>
 <path fill="none" stroke="#ad1457" stroke-width="1.8" d="M1448.9,-990.77C1448.9,-1046.66 1448.9,-1116.28 1448.9,-1116.28 1448.9,-1116.28 1142.93,-1116.28 1142.93,-1116.28"/>
 <polygon fill="#ad1457" stroke="#ad1457" stroke-width="1.8" points="1142.93,-1113.2 1134.13,-1116.28 1142.93,-1119.36 1142.93,-1113.2"/>
-<text xml:space="preserve" text-anchor="middle" x="1250.32" y="-1066.35" font-family="Noto Sans CJK SC" font-size="17.00">量化参数读请求</text>
+<text xml:space="preserve" text-anchor="middle" x="1250.32" y="-1066.35" font-family="Noto Sans CJK SC" font-size="17.00">定点缩放参数读请求</text>
 </g>
 <!-- oaw&#45;&gt;ctrl -->
 <g id="edge32" class="edge">

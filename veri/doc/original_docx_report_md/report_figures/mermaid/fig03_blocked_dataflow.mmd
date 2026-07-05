@@ -6,7 +6,7 @@ flowchart LR
     DMA[分块 DMA<br/>二维突发读写]
     IAC[IA cache<br/>多个输入矩阵分块]
     KBUF[权重缓存<br/>列向量输出]
-    BBUF[bias 与量化参数缓存<br/>输出通道组]
+    BBUF[bias 与定点缩放参数缓存<br/>输出通道组]
     PE[阵列规模16x16脉动阵列<br/>有符号乘加]
     PS[部分和缓存<br/>int32 累加保存]
     RQ[vec_requant<br/>乘法缩放、移位、零点和裁剪]

@@ -1,28 +1,80 @@
 digraph fig_npu_overall_arch {
-  graph [rankdir=TB,bgcolor="white",pad=0.14,nodesep=0.45,ranksep=0.55,splines=polyline,dpi=180,fontname="Noto Sans CJK SC",label="NPU 总体架构简图",labelloc=t,fontsize=30];
-  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=23,margin="0.18,0.12",penwidth=2.0,color="#455A64"];
-  edge [fontname="Noto Sans CJK SC",fontsize=17,penwidth=2.0,arrowsize=0.85,color="#455A64"];
+  graph [rankdir=LR,bgcolor="white",pad=0.20,nodesep=0.55,ranksep=0.70,splines=polyline,dpi=190,fontname="Noto Sans CJK SC",label="NPU 总体架构",labelloc=t,fontsize=34];
+  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=24,margin="0.18,0.12",penwidth=2.2,color="#455A64"];
+  edge [fontname="Noto Sans CJK SC",fontsize=18,penwidth=2.2,arrowsize=0.90,color="#455A64"];
 
-  axil [label="AXI-Lite 寄存器\n配置 / start / status / irq",fillcolor="#FFF8E1",color="#F9A825"];
-  ctrl [label="配置流水 + 控制器\n参数锁存、复用裁剪、任务调度",fillcolor="#EDE7F6",color="#5E35B1"];
-  load [label="加载与片上缓存\nIA cache、权重、bias、量化参数",fillcolor="#E3F2FD",color="#1565C0"];
-  core [label="计算核心\nSIZE x SIZE 脉动阵列\n+ ps_buffer",fontsize=26,margin="0.24,0.16",fillcolor="#FFEBEE",color="#C62828"];
-  out [label="输出流水\nrequant -> int8 FIFO -> OA writer",fillcolor="#FCE4EC",color="#AD1457"];
-  dma [label="分块 DMA\n读写仲裁、二维 burst、WSTRB",fillcolor="#E0F7FA",color="#00838F"];
-  ram [label="共享 AXI RAM\n输入、权重、参数、输出",fillcolor="#E8F5E9",color="#2E7D32"];
+  axil [label="AXI-Lite 外设接口
+寄存器 / start / status / irq",fillcolor="#FFF8E1",color="#F9A825"];
+  cfg [label="配置流水
+参数锁存
+复用次数裁剪",fillcolor="#FFF8E1",color="#F9A825"];
+  ctrl [label="npu_controller
+分块调度
+阶段完成控制",fillcolor="#EDE7F6",color="#5E35B1"];
 
-  { rank=same; axil; ctrl; }
-  { rank=same; load; core; out; }
+  dma [label="分块 DMA 子系统
+读客户端仲裁
+二维 burst / WSTRB
+等待 B 响应",fillcolor="#E0F7FA",color="#00838F"];
+  ram [label="共享 AXI RAM
+LHS / RHS / bias
+缩放参数 / DST",fillcolor="#E8F5E9",color="#2E7D32"];
 
-  axil -> ctrl [label="任务参数 + start"];
-  ctrl -> load [label="init / send 触发"];
-  load -> core [label="IA / W / bias"];
-  core -> out [label="int32 acc"];
-  out -> dma [label="输出写请求"];
-  dma -> ram [label="AXI4"];
-  ram -> dma [style=dashed,color="#607D8B"];
-  dma -> load [style=dashed,color="#607D8B",constraint=false];
-  out -> ctrl [style=dashed,color="#607D8B",constraint=false];
-  core -> ctrl [style=dashed,color="#607D8B",constraint=false];
-  ctrl -> axil [style=dashed,color="#607D8B",constraint=false];
+  ia [label="IA loader + IA cache
+s8/s16 抽取
+零点处理
+对角化输出",fillcolor="#E3F2FD",color="#1565C0"];
+  ker [label="Kernel loader
+权重读取
+权重缓存
+PE 装载",fillcolor="#E3F2FD",color="#1565C0"];
+  bias [label="Bias / 缩放参数加载
+列组参数有效
+双存储组切换",fillcolor="#E3F2FD",color="#1565C0"];
+
+  core [label="compute_core
+SIZE x SIZE 权重固定脉动阵列
+bias / PS 初值选择
+int32 累加输出",fontsize=30,margin="0.28,0.18",fillcolor="#FFEBEE",color="#C62828",penwidth=3.2];
+  ps [label="ps_buffer
+中间归约部分和保存
+下一归约分块回灌",fillcolor="#E8F5E9",color="#2E7D32"];
+  rq [label="vec_requant
+乘法缩放 / 舍入移位
+激活钳位 / int8 饱和",fillcolor="#FCE4EC",color="#AD1457"];
+  fifo [label="vec_s8_to_fifo
+int8 打包
+FIFO bank / 尾拍掩码",fillcolor="#FCE4EC",color="#AD1457"];
+  wr [label="oa_writer
+DST 地址生成
+AXI 写回完成",fillcolor="#FCE4EC",color="#AD1457"];
+
+  axil -> cfg [label="软件配置 + start"];
+  cfg -> ctrl [label="run_* 参数"];
+  ctrl -> ia [label="init / send"];
+  ctrl -> ker [label="load / store_weight"];
+  ctrl -> bias [label="列组参数请求"];
+  ctrl -> rq [label="缩放模式"];
+  ctrl -> wr [label="输出坐标"];
+
+  ia -> core [label="IA 对角化向量"];
+  ker -> core [label="权重向量"];
+  bias -> core [label="bias 初值"];
+  core -> ps [label="非最终归约",color="#5E35B1"];
+  ps -> core [label="PS 回灌",color="#5E35B1",constraint=false];
+  core -> rq [label="最终 int32 向量",color="#C62828"];
+  rq -> fifo [label="int8 向量"];
+  fifo -> wr [label="32 bit 数据 + mask"];
+
+  ia -> dma [label="IA 读请求",color="#00838F"];
+  ker -> dma [label="RHS 读请求",color="#00838F"];
+  bias -> dma [label="bias/缩放参数读",color="#00838F"];
+  wr -> dma [label="DST 写请求",color="#AD1457"];
+  dma -> ram [label="AXI4 32 bit",color="#00838F"];
+  ram -> dma [label="读数据 / 写响应",style=dashed,color="#607D8B"];
+
+  core -> ctrl [label="tile done",style=dashed,color="#607D8B",constraint=false];
+  rq -> ctrl [label="out tile done",style=dashed,color="#607D8B",constraint=false];
+  wr -> ctrl [label="oa_calc_over",style=dashed,color="#607D8B",constraint=false];
+  ctrl -> axil [label="ready / busy / done / error",style=dashed,color="#607D8B",constraint=false];
 }

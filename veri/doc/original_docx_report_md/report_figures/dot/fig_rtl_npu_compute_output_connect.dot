@@ -45,18 +45,18 @@ digraph rtl_npu_compute_output_connect {
     color="#C62828";
     fontsize=24;
     style="rounded";
-    hold [label="bias_data_hold\ncompute_bias_latched\nWS 模式在 ia_tile_start 锁存\nIS 模式保留重量化前相加值", fillcolor="#FCE4EC", color="#AD1457"];
+    hold [label="bias_data_hold\ncompute_bias_latched\nWS 模式在 ia_tile_start 锁存\nIS 模式保留重定点缩放前相加值", fillcolor="#FCE4EC", color="#AD1457"];
     mux [label="bias_mux\n选择偏置或部分和回灌值\n形成 sum_in[SIZE]", fillcolor="#FFEBEE", color="#C62828"];
     array [label="ws_systolic_array\n阵列规模参数 SIZE x SIZE\n接收输入激活向量与权重向量\n输出 int32 累加结果", fillcolor="#FFEBEE", color="#C62828"];
     ps [label="ps_buffer\n保存归约未完成的部分和\n根据 ia_is_init_data 与 ia_calc_done\n输出 ps_acc_out[SIZE]", fillcolor="#E8F5E9", color="#2E7D32"];
   }
 
   subgraph cluster_out {
-    label="重量化、打包与写回";
+    label="重定点缩放、打包与写回";
     color="#AD1457";
     fontsize=24;
     style="rounded";
-    req [label="u_vec_requant\n按张量或按通道重量化\nmult / shift / dst_offset\n激活钳位与 int8 饱和", fillcolor="#FCE4EC", color="#AD1457"];
+    req [label="u_vec_requant\n按张量或按通道重定点缩放\nmult / shift / dst_offset\n激活钳位与 int8 饱和", fillcolor="#FCE4EC", color="#AD1457"];
     fifo [label="u_vec_s8_to_fifo\n16 路 int8 向量写入 bank\n按 4 字节形成 output_data\n生成 output_mask[3:0]", fillcolor="#EAF7EA", color="#3B873E"];
     oaw [label="u_oa_writer\n输出分块坐标\nDST 地址和行步长\n尾列字节写掩码\n等待 B 响应后完成", fillcolor="#E0F7FA", color="#00838F"];
     dma [label="u_block_dma_arbiter\n+ axi_dual_block_dma 写侧\nAW / W / B", fillcolor="#E0F7FA", color="#00838F"];

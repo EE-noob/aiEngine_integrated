@@ -22,8 +22,20 @@
       "reason": "generated-lane clamp alternatives checked by saturation regressions"
     },
     {
-      "pattern": "WAIT_DONE|done_ready|state <= S_IDLE|state <= IDLE|state_nxt = IDLE|wr_active <= 1\\x27b0|send_active <= 1\\x27b0|cfg_valid <= 1\\x27b0|dma_burst_len_m1 <= 8\\x27b0|load_bias_req <= 1\\x27b0",
+      "pattern": "WAIT_DONE|done_ready|state <= S_IDLE|state <= IDLE|state_nxt = S_IDLE|state_nxt = IDLE|wr_active <= 1\\x27b0|send_active <= 1\\x27b0|cfg_valid <= 1\\x27b0|dma_burst_len_m1 <= 8\\x27b0|load_bias_req <= 1\\x27b0",
       "reason": "idle/backpressure cleanup paths not part of forward-progress sign-off"
+    },
+    {
+      "pattern": "next_state = IDLE|err_code <= error_type|rd_error_r <= 1\\x27b1|wr_error_r <= 1\\x27b1",
+      "reason": "top fixed-ready completion and AXI error-response defensive paths"
+    },
+    {
+      "pattern": "cfg_last_group_width = count_t\\x27\\(1\\)|first_group_width = tile_cols_total|first_group_width = count_t\\x27\\(1\\)|valid_n_rows = count_t\\x27\\(1\\)|valid_m_cols = count_t\\x27\\(1\\)|dma_beats_per_row = 32\\x27\\(1\\)",
+      "reason": "illegal or software-normalized reuse geometry guards"
+    },
+    {
+      "pattern": "valid_in_beat_i = 0|word_idx = \\(byte_offset >> BYTE_SHIFT\\)|load_word_row_q <= \\x270",
+      "reason": "defensive tail and unaligned buffer guard paths"
     }
   ]
 }

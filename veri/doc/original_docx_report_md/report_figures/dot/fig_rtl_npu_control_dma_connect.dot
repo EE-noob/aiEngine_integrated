@@ -57,7 +57,7 @@ digraph rtl_npu_control_dma_connect {
     ia [label="u_ia_loader\n输入激活读客户端\nload_ia_req / ia_start\nbase / stride / rows / slot / use16 / zero point", fillcolor="#E8F5E9", color="#2E7D32"];
     kern [label="u_kernel_loader\n权重读客户端\nload_weight_req / kernel_start\nbase / stride / rows / valid_cols / zero point", fillcolor="#E8F5E9", color="#2E7D32"];
     bias [label="u_bias_loader\n偏置读客户端\nload_bias_req / bias_start\nbias_base / rows / load_bank", fillcolor="#E8F5E9", color="#2E7D32"];
-    quant [label="u_vec_requant\n量化参数读客户端\nload_quant_req / quant_start\nmult 或 shift 参数地址", fillcolor="#FCE4EC", color="#AD1457"];
+    quant [label="u_vec_requant\n定点缩放参数读客户端\nload_quant_req / quant_start\nmult 或 shift 参数地址", fillcolor="#FCE4EC", color="#AD1457"];
     oaw [label="u_oa_writer\n输出写客户端\nwrite_oa_req / oa_start\nDST base / stride / rows / len\nwdata / wmask / wvalid", fillcolor="#FFEBEE", color="#C62828"];
   }
 
@@ -89,7 +89,7 @@ digraph rtl_npu_control_dma_connect {
   ia -> arb [label="IA 读请求", color="#2E7D32"];
   kern -> arb [label="权重读请求", color="#2E7D32"];
   bias -> arb [label="偏置读请求", color="#2E7D32"];
-  quant -> arb [label="量化参数读请求", color="#AD1457"];
+  quant -> arb [label="定点缩放参数读请求", color="#AD1457"];
   oaw -> arb [label="输出写请求", color="#C62828"];
 
   arb -> rdsel [label="rd_client / rd_active", color="#00838F"];

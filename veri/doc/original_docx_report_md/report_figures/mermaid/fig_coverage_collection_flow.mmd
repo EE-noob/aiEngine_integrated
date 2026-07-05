@@ -1,0 +1,37 @@
+%%{init: {"theme": "base", "flowchart": {"htmlLabels": true, "nodeSpacing": 48, "rankSpacing": 62, "padding": 16}, "themeVariables": {"fontFamily": "Noto Sans CJK SC, Microsoft YaHei, Arial", "fontSize": "18px", "primaryTextColor": "#111111", "lineColor": "#455A64"}}}%%
+flowchart TB
+    PLAN["覆盖率计划<br/>coverage_plan.json"]
+    CASES["用例集合<br/>模块级 30 项<br/>SoC 级 27 项"]
+    BUILD["VCS 插桩编译<br/>line / cond<br/>branch / FSM / toggle"]
+
+    AXIL["AXI-Lite<br/>寄存器与中断"]
+    SOC["SoC 运行时<br/>CPU + NPU"]
+    TOP["NPU 顶层<br/>随机参考比对"]
+
+    VDB["覆盖数据库<br/>单用例 VDB"]
+    MERGE["数据库合并<br/>NPU 层次限定"]
+    EXCLUDE["行排除规则<br/>generate / trace<br/>防御分支"]
+    SUMMARY["覆盖率汇总<br/>coverage_summary.py"]
+    RESULT["报告结果<br/>line coverage<br/>达到 98%"]
+
+    PLAN --> CASES --> BUILD
+    BUILD --> AXIL
+    BUILD --> SOC
+    BUILD --> TOP
+    AXIL --> VDB
+    SOC --> VDB
+    TOP --> VDB
+    VDB --> MERGE
+    EXCLUDE --> MERGE
+    MERGE --> SUMMARY
+    SUMMARY --> RESULT
+
+    classDef plan fill:#E8F1FF,stroke:#2F5DA8,stroke-width:1.5px,color:#111;
+    classDef run fill:#FFF4D6,stroke:#B88300,stroke-width:1.5px,color:#111;
+    classDef db fill:#EDE7F6,stroke:#5E35B1,stroke-width:1.5px,color:#111;
+    classDef report fill:#EAF7EA,stroke:#3B873E,stroke-width:1.5px,color:#111;
+
+    class PLAN,CASES plan;
+    class BUILD,AXIL,SOC,TOP run;
+    class VDB,MERGE,EXCLUDE db;
+    class SUMMARY,RESULT report;

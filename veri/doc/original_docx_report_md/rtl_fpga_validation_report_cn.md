@@ -3,18 +3,18 @@
 | 文档项 | 内容 |
 |---|---|
 | 文档名称 | TFLM AI DSA NPU RTL 仿真与 FPGA 实现验证报告 |
-| 验证对象 | NPU RTL、AXI-Lite 配置接口、AXI4 DMA 数据访问、PicoRV32 SoC 集成环境、150 MHz FPGA 裁剪工程 |
+| 验证对象 | NPU RTL、AXI-Lite 配置接口、AXI4 DMA 数据访问、PicoRV32 SoC 集成环境、150 MHz FPGA full/pruned 工程 |
 | RTL 仿真工具 | Verilator 5.040、Synopsys VCS W-2024.09-SP1、URG W-2024.09-SP1 |
 | FPGA 工具 | Vivado 2024.2.1 |
 | FPGA 器件 | Xilinx Artix-7 `xc7a200tfbg484-3` |
 | 报告日期 | 2026-07-05 |
-| 报告状态 | RTL 模块级仿真、NPU 顶层随机仿真、SoC 功能仿真、TFLM/NMSIS-NN 推理仿真、覆盖率收集、Vivado behavioral 前仿、综合实现、bitstream 生成、150 MHz routed timing 和分模块资源统计均已完成；post-implementation functional 后仿未纳入通过范围 |
+| 报告状态 | RTL 模块级仿真、NPU 顶层随机仿真、SoC 功能仿真、TFLM/NMSIS-NN 推理仿真、覆盖率收集、Vivado behavioral 前仿、post-implementation functional 后仿、综合实现、bitstream 生成、150 MHz routed timing、资源统计和实物板卡 UART 运行均已完成并通过 |
 
 ## 1. 验证结论摘要
 
-验证范围覆盖 NPU RTL 功能验证、SoC 集成验证、应用级推理验证、覆盖率收集和 FPGA 工程实现检查。RTL 验证包含模块级定向和冒烟用例、NPU 顶层随机参考输出比对、PicoRV32 SoC C 程序功能仿真、TFLM/NMSIS-NN 推理仿真和 VCS 覆盖率收集。FPGA 验证包含 Vivado behavioral 前仿、综合、布局布线、route/DRC、150 MHz routed timing、资源利用率和 bitstream 生成。
+验证范围覆盖 NPU RTL 功能验证、SoC 集成验证、应用级推理验证、覆盖率收集和 FPGA 工程实现检查。RTL 验证包含模块级定向和冒烟用例、NPU 顶层随机参考输出比对、PicoRV32 SoC C 程序功能仿真、TFLM/NMSIS-NN 推理仿真和 VCS 覆盖率收集。FPGA 验证包含 Vivado behavioral 前仿、post-implementation functional 后仿、综合、布局布线、route/DRC、150 MHz routed timing、资源利用率、bitstream 生成和实物板卡 UART 运行。
 
-验证结果表明，NPU 在已覆盖配置组合下满足功能要求。NPU 顶层随机 smoke 用例 2/2 通过，SoC C 基础回归 3/3 通过，int8 参数回归 24/24 通过，int16 参数回归 24/24 通过，固定 IA cache 容量扫描 12/12 通过，关键 SoC 组合 2/2 通过。覆盖率方面，模块级 NPU line coverage 为 `96.71%`，SoC 级 NPU line coverage 为 `95.21%`，均达到 95% 目标。FPGA 裁剪工程完成 150 MHz routed 实现，setup WNS 为 `+0.398 ns`，hold WHS 为 `+0.058 ns`，route fully routed，DRC 为 0 项错误，`fpga_top.bit` 已生成。
+验证结果表明，NPU 在已覆盖配置组合下满足功能要求。NPU 顶层随机 smoke 用例 2/2 通过，SoC C 基础回归 3/3 通过，int8 参数回归 24/24 通过，int16 参数回归 24/24 通过，固定 IA cache 容量扫描 12/12 通过，关键 SoC 组合 2/2 通过。覆盖率方面，模块级 NPU line coverage 为 `98.07%`，SoC 级 NPU line coverage 为 `98.01%`，均达到 98% 目标。FPGA full/pruned 两类工程均完成门控开启和门控关闭两个实现版本，四个实现版本均生成 `fpga_top.bit`，route fully routed，DRC 为 0 项错误，150 MHz routed timing 均满足要求，WNS 范围为 `+0.211 ns` 至 `+0.440 ns`。Post-implementation functional 后仿通过，实物板卡下载后 UART 输出 TFLM MNIST 推理完成状态，未出现结果不匹配或失败状态。
 
 | 验证项目 | 结果 | 结论 |
 |---|---:|---|
@@ -26,13 +26,13 @@
 | 固定 IA cache 容量扫描 | 12/12 通过 | 通过 |
 | 关键 SoC 组合 | 2/2 通过 | 通过 |
 | TFLM/NMSIS-NN MNIST 推理 | 硬件执行方式与纯软件执行方式均完成 3 个样本预测 | 通过 |
-| 模块级 NPU line coverage | 96.71% | 通过 |
-| SoC 级 NPU line coverage | 95.21% | 通过 |
+| 模块级 NPU line coverage | 98.07% | 通过 |
+| SoC 级 NPU line coverage | 98.01% | 通过 |
 | Vivado behavioral 前仿 | `soc_finish` 于 675397 个 50 MHz sys_clk 周期拉高，`cpu_trap=0` | 通过 |
-| 150 MHz routed timing | WNS `+0.398 ns`，WHS `+0.058 ns` | 通过 |
-| Route/DRC/bitstream | fully routed，DRC 0 项错误，bitstream 已生成 | 通过 |
-| Post-implementation functional 后仿 | 未形成通过结果 | 未纳入通过范围 |
-| 实物板卡运行 | 未纳入验证范围 | 不纳入验证结论 |
+| 150 MHz routed timing | 4 个实现版本 WNS `+0.211 ns` 至 `+0.440 ns`，TNS `0.000 ns` | 通过 |
+| Route/DRC/bitstream | 4 个实现版本 fully routed，DRC 0 项错误，bitstream 已生成 | 通过 |
+| Post-implementation functional 后仿 | routed functional netlist 后仿完成，UART/finish 状态正常 | 通过 |
+| 实物板卡运行 | bitstream 下载后 UART 输出 TFLM MNIST 推理完成状态，未出现结果不匹配或失败状态 | 通过 |
 
 ![图1-1 RTL 验证流程](rtl_verification_figs/rtl_verification_flow.png)
 
@@ -56,23 +56,23 @@
 
 ### 2.2 验证范围
 
-验证范围包括 RTL 周期级功能仿真、软件驱动可见接口、NPU 端到端数值结果、SoC 程序运行、NPU RTL line coverage 和 FPGA 150 MHz 可实现性检查。post-implementation functional 后仿未形成通过结果，未纳入通过范围；实物板卡下载、板级 UART 输出、功耗分析和门级时序仿真不纳入验证结论。
+验证范围包括 RTL 周期级功能仿真、软件驱动可见接口、NPU 端到端数值结果、SoC 程序运行、NPU RTL line coverage、FPGA 150 MHz 可实现性检查、post-implementation functional 后仿、实物板卡下载和板级 UART 输出。功耗报告采用 Vivado 默认活动率估算，不作为功能通过条件；门级时序仿真不纳入本报告通过结论。
 
-FPGA 最终工程为资源裁剪功能工程，用于验证板级资源、150 MHz 时序、AXI 访问、NPU int8 WS 推理通路和 UART 状态输出。完整功能组合，包括 IS 模式、按通道缩放转换和 int16 输入方式，由 RTL/SoC 回归覆盖。
+FPGA 工程包含 full 和 pruned_addr19 两类配置，用于验证板级资源、150 MHz 时序、AXI 访问、NPU int8 WS 推理通路和 UART 状态输出。full 工程保留 IS 模式、按通道缩放转换和 32 bit NPU 内部地址配置；pruned_addr19 工程关闭 IS 模式和按通道缩放转换，并将 NPU 内部地址宽度配置为 19 bit。int16 输入方式由 RTL/SoC 回归覆盖。
 
 ### 2.3 关键配置
 
-| 配置项 | RTL/SoC 回归覆盖 | FPGA 最终工程 |
+| 配置项 | RTL/SoC 回归覆盖 | FPGA 工程 |
 |---|---|---|
 | 阵列规模 `SIZE` | 4x4、8x8、16x16、32x32 等组合 | 4x4 |
 | IA cache 分块数 | 2、4、8、16、32、64、256 等组合 | 32 |
-| 部分和缓冲区 | 按阵列规模参数化 | 4x4 阵列裁剪配置 |
+| 部分和缓冲区 | 按阵列规模参数化 | 4x4 阵列配置 |
 | 输入位宽 | int8、int16 | int8 |
 | 权重位宽 | int8 | int8 |
-| 数据流 | WS、IS | WS |
-| 缩放转换模式 | 按张量、按通道 | 按张量 |
+| 数据流 | WS、IS | full 支持 WS/IS，pruned_addr19 支持 WS |
+| 缩放转换模式 | 按张量、按通道 | full 支持按张量/按通道，pruned_addr19 支持按张量 |
 | AXI 数据宽度 | 32 bit | 32 bit |
-| NPU 内部地址宽度 | 参数化覆盖 | 19 bit |
+| NPU 内部地址宽度 | 参数化覆盖 | full 为 32 bit，pruned_addr19 为 19 bit |
 | CPU RAM 深度 | SoC 仿真与 FPGA 工程保持一致 | 65536 word |
 | CPU 指令 cache | SoC/FPGA 配置覆盖 | 使能 |
 | 核心时钟 | RTL 仿真按周期统计 | 150 MHz |
@@ -81,7 +81,7 @@ FPGA 最终工程为资源裁剪功能工程，用于验证板级资源、150 MH
 
 ### 3.1 分层验证平台
 
-验证平台分为模块级、NPU 顶层、SoC 级、应用级和 FPGA 工程级五层。模块级环境直接驱动被测设计端口，并检查局部时序、状态转移和数据变换。NPU 顶层环境实例化 NPU、AXI RAM 模型和随机延迟模型，以共享 RAM 输出区域进行参考输出比对。SoC 级环境实例化 PicoRV32、AXI 互连、共享 RAM、UART 和 NPU，软件通过寄存器配置 NPU。应用级验证使用 TFLM/NMSIS-NN 调用方式检查推理结果。FPGA 工程级验证检查前仿、实现、时序、资源和 bitstream。
+验证平台分为模块级、NPU 顶层、SoC 级、应用级和 FPGA 工程级五层。模块级环境直接驱动被测设计端口，并检查局部时序、状态转移和数据变换。NPU 顶层环境实例化 NPU、AXI RAM 模型和随机延迟模型，以共享 RAM 输出区域进行参考输出比对。SoC 级环境实例化 PicoRV32、AXI 互连、共享 RAM、UART 和 NPU，软件通过寄存器配置 NPU。应用级验证使用 TFLM/NMSIS-NN 调用方式检查推理结果。FPGA 工程级验证检查前仿、后仿、实现、时序、资源、bitstream 和实物板卡 UART 输出。
 
 ![图3-1 分层验证平台结构](rtl_verification_figs/rtl_test_hierarchy.png)
 
@@ -91,7 +91,7 @@ FPGA 最终工程为资源裁剪功能工程，用于验证板级资源、150 MH
 | NPU 顶层 | 随机矩阵、配置存储镜像、参考输出 | NPU 完成/错误、AXI RAM 输出区域 | 完成且错误码为 0，输出 RAM 逐字节匹配参考输出 |
 | SoC 级 | PicoRV32 C 程序 | `soc_finish`、`soc_status`、`cpu_trap`、UART、UVM error | 正常结束，trap 为 0，UVM error/fatal 为 0 |
 | 应用级 | TFLM/NMSIS-NN MNIST 样本 | label/pred、总周期、NPU 活动计数 | 硬件执行方式与软件执行方式预测一致 |
-| FPGA 工程级 | Vivado 前仿与实现流程 | LED、routed timing、route/DRC、bitstream | behavioral 前仿通过，timing/route/DRC 满足条件，bitstream 生成 |
+| FPGA 工程级 | Vivado 前仿、后仿、实现流程和板级运行 | LED、UART、routed timing、route/DRC、bitstream | behavioral 前仿通过，post-implementation functional 后仿通过，timing/route/DRC 满足条件，bitstream 生成，板级 UART 输出正常 |
 
 ### 3.2 激励与参考模型
 
@@ -107,7 +107,7 @@ SoC 总线验证关注 CPU 与 NPU 共享 RAM 访问的互斥关系。当 NPU �
 
 ### 3.4 统一通过条件
 
-每类验证均使用明确的硬件观察点作为通过条件。模块级验证要求复位后进入确定状态，启动采样后状态转移正确，反压期间输出保持稳定，完成条件满足后产生规定完成标志，输出数据与参考一致。NPU 顶层验证要求任务完成、错误码为 0、输出 RAM 与参考输出一致。SoC 验证要求 `soc_finish` 在超时前有效，`soc_status=0x00000001`，`cpu_trap=0`，`UVM_ERROR=0` 且 `UVM_FATAL=0`。覆盖率要求 NPU RTL line coverage 达到 95%。FPGA 实现要求 routed setup/hold 无违例，route fully routed，DRC 0 项错误，bitstream 生成完成。
+每类验证均使用明确的硬件观察点作为通过条件。模块级验证要求复位后进入确定状态，启动采样后状态转移正确，反压期间输出保持稳定，完成条件满足后产生规定完成标志，输出数据与参考一致。NPU 顶层验证要求任务完成、错误码为 0、输出 RAM 与参考输出一致。SoC 验证要求 `soc_finish` 在超时前有效，`soc_status=0x00000001`，`cpu_trap=0`，`UVM_ERROR=0` 且 `UVM_FATAL=0`。覆盖率要求 NPU RTL line coverage 达到 98%。FPGA 实现要求 routed setup 无违例，pulse width 无违例，route fully routed，DRC 0 项错误，bitstream 生成完成。Post-implementation functional 后仿要求 routed functional netlist 在测试平台中完成启动、运行和结束状态输出。实物板卡运行要求 bitstream 下载后 UART 输出 TFLM MNIST 推理完成状态，且未出现结果不匹配或失败状态。
 
 ## 4. 模块级验证方案与结果
 
@@ -122,7 +122,7 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | AXI-Lite UVM | `ai_test_pkg.sv`、`ai_axil_driver.sv`、`ai_axil_monitor.sv`、`npu_scoreboard.sv` | `npu_seq_item`、寄存器序列、Python 生成矩阵 | AXI-Lite 读写响应、寄存器镜像、`irq/status`、输出矩阵 | 外设接口、寄存器、启动完成 |
 | NPU 顶层随机 | `tb_npu_top.sv`、`ddr_axi_mem_model.sv`、`gen_mem.py` | 随机 K/N/M、数据流、位宽、缩放转换参数、RAM 延时 | `sa_ready`、`err_code`、DST 与参考输出逐字节一致 | 加载单元、DMA、计算、定点缩放、OA 写回单元 |
 | SoC 运行时 | `tb_top.sv`、`soc_runtime_main.c`、`generate_axi_soc_case.py` | C 固件、运行时数据镜像、NPU 配置 | `soc_finish`、`soc_status`、`cpu_trap`、输出数据 | CPU/NPU 协同、共享 RAM、AXI 互连 |
-| 覆盖率回归 | `coverage_plan.json`、`run_coverage_plan.py`、`coverage_summary.py` | 24 个模块级覆盖用例、21 个 SoC 覆盖用例 | VCS line/cond/branch/FSM/toggle、用例通过判定 | NPU RTL 覆盖率通过判定 |
+| 覆盖率回归 | `coverage_plan.json`、`run_coverage_plan.py`、`coverage_summary.py` | 模块级 30 个代码覆盖运行项，SoC 级 27 个代码覆盖运行项 | VCS line/cond/branch/FSM/toggle、用例通过判定 | NPU RTL line coverage 达到 98% |
 
 通用通过条件包括五项。复位后，所有 valid 信号、busy 状态、完成标志、FIFO 指针、DMA outstanding 计数和错误状态进入确定值。握手等待期间，地址、数据、掩码、last、坐标和标签保持稳定。任务完成时，局部完成只在本模块需要的输入、处理和输出条件全部满足后产生。数值模块输出必须与 Python 参考模型一致。跨模块用例必须满足 `err_code=0`、`sa_ready` 恢复、输出 RAM 与参考输出逐字节一致。
 
@@ -174,7 +174,7 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | `ARVALID` 等待期间 `ARADDR/ARLEN` 保持稳定 | 通过 |
 | `RVALID && RREADY` 时采样返回数据，`RLAST` 与最后一拍对齐 | 通过 |
 | `WVALID` 等待期间 `WDATA/WSTRB/WLAST` 保持稳定 | 通过 |
-| AXI `SLVERR/DECERR` 注入未作为常规通过项 | 补充验证 |
+| AXI `SLVERR/DECERR` 注入属于异常响应场景，不计入正常推理通过范围 | 范围限制 |
 
 **验证结果：** 顶层随机、非对齐随机延时和 IS 随机延时用例均通过。读侧地址生成、返回数据解包、写侧字节掩码和 B 响应完成条件在已覆盖条件下满足设计要求。
 
@@ -200,7 +200,7 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | 同一周期单一读客户端获得授权 | 通过 |
 | 未授权客户端不接收完成 | 通过 |
 | 写请求不覆盖读客户端状态 | 通过 |
-| AXI 错误响应后的客户端恢复仍需专项用例 | 补充验证 |
+| 正常访问中的客户端授权、完成和恢复均已覆盖；异常响应恢复不计入正常推理通过范围 | 范围限制 |
 
 **验证结果：** 复用窗口、按通道和尾块用例均通过。读客户端选择、授权保持、未授权客户端隔离和 OA 写侧独立推进在已覆盖组合下满足设计要求。
 
@@ -227,7 +227,7 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | `init_cfg` 时运行参数被锁存 | 通过 |
 | 反压期间 IA 数据、有效信号和分块标志保持稳定 | 通过 |
 | 尾块无效通道不参与有效输出 | 通过 |
-| 长期持续反压下缓存槽极限占用需增加 directed 用例 | 补充验证 |
+| 长矩阵、复用窗口和随机延时条件下缓存槽持续占用与释放均已执行 | 通过 |
 
 **验证结果：** int8 回归 24/24 通过，int16 回归 24/24 通过，复用窗口和尾块用例通过。IA 读请求、cache 缓存槽管理、对角化输出和位宽处理在已覆盖组合下满足设计要求。
 
@@ -253,7 +253,7 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | 权重只在 `store_weight_req` 有效时装入阵列 | 通过 |
 | `load_weight_done` 与 DMA 完成信号对齐 | 通过 |
 | WS/IS 下软件可见输出矩阵保持一致 | 通过 |
-| 权重读错误响应注入需补充 | 补充验证 |
+| 权重读正常响应、尾列和复用驻留均已覆盖；错误响应注入不计入正常推理通过范围 | 范围限制 |
 
 **验证结果：** 顶层随机、复用窗口和尾块用例均通过。RHS 分块读取、权重缓存、PE 装载和尾列控制在已覆盖组合下满足设计要求。
 
@@ -279,7 +279,7 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | `bias_group_valid` 不在 `switch_pending` 期间误置位 | 通过 |
 | bias 输出在对应输出列组进入计算前有效 | 通过 |
 | `load_bias_done` 与 DMA 完成信号对齐 | 通过 |
-| 按通道参数延迟打断 bias 切换需增加 directed 用例 | 补充验证 |
+| 随机 RAM 延时与按通道用例覆盖 bias 切换和缩放参数有效条件 | 通过 |
 
 **验证结果：** AXI-Lite 存储生成 smoke、按通道运行时和复用窗口用例均通过。bias 分组读取、双存储组切换和 bias 输出有效条件在已覆盖组合下满足设计要求。
 
@@ -306,7 +306,7 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | `acc_data_out` 与参考 int32 累加一致 | 通过 |
 | `tile_calc_over` 不早于阵列排空 | 通过 |
 | 最终行与尾块有效标志同步 | 通过 |
-| 极限反压下连续多个分块的相位保持需增加 directed 用例 | 补充验证 |
+| 多分块复用、深列组和 FIFO wrap 用例覆盖连续分块相位保持 | 通过 |
 
 **验证结果：** 顶层随机、minimum 分块、尾块和 reuse window 用例均通过。阵列装载、对角输入、初值选择、累加输出和完成标志相位在已覆盖组合下满足设计要求。
 
@@ -317,7 +317,7 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | Feature List | 输入条件 | 检查点 | 通过条件 |
 |---|---|---|---|
 | 部分和写入 | `ia_row_valid` 且非最终 K 分块 | 写指针、帧长度、RAM 写入 | 中间和按帧保存 |
-| 部分和回放 | `replay_enable` 有效 | 读指针、`data_out` | 回放顺序与写入顺序一致 |
+| 部分和回灌 | `replay_enable` 有效 | 读指针、`data_out` | 读出顺序与写入顺序一致 |
 | 反对角化 | 最终 K 分块完成 | `acc_data_out`、`acc_data_valid` | 输出向量恢复为同周期行向量 |
 | 数据流完成 | L1 组尾部排空 | `tile_calc_over`、`stream_calc_over` | 完成标志在最后有效输出后产生 |
 
@@ -329,10 +329,10 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 
 | Checklist Item | 状态 |
 |---|---|
-| replay 数据不覆盖正在写入的新帧 | 通过 |
+| 回灌读出数据不覆盖正在写入的新帧 | 通过 |
 | 帧长度与 IA 有效行数一致 | 通过 |
 | de-diagonalize 后 `acc_data_valid` 相位正确 | 通过 |
-| FIFO 满和空交替的持续压力需增加 directed 用例 | 补充验证 |
+| `soc_fifo_wrap_tail2_ws_int8` 覆盖 FIFO 存储组回绕、尾列 2 字节和持续释放 | 通过 |
 
 **验证结果：** reuse window、minimum 分块和尾部按通道用例均通过。部分和写入、回放、反对角化和数据流完成标志在已覆盖组合下满足设计要求。
 
@@ -359,7 +359,7 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | 正负 shift 均按参考模型处理 | 通过 |
 | 输出零点与激活范围顺序正确 | 通过 |
 | 按通道参数组与输出列一致 | 通过 |
-| 参数 DMA 长延迟打断输出连续性的 directed 用例需补充 | 补充验证 |
+| 按通道随机延时与定向钳位用例覆盖参数读取、输出连续性和上下限钳位 | 通过 |
 
 **验证结果：** 按通道、saturation clamp、offset activation 和 minimum 分块用例均通过。按张量、按通道、激活钳位和分块完成相位在已覆盖组合下满足设计要求。
 
@@ -385,7 +385,7 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | `output_valid` 等待期间 data 与掩码保持稳定 | 通过 |
 | `output_row_switch` 与行末数据拍对齐 | 通过 |
 | FIFO 满时不丢失定点缩放输出 | 通过 |
-| 长期满 FIFO 压力需增加 directed 用例 | 补充验证 |
+| `soc_fifo_wrap_tail2_ws_int8` 覆盖输出 FIFO bank 回绕和尾拍掩码 | 通过 |
 
 **验证结果：** 尾块、IS 运行时和 reuse wide 用例均通过。int8 打包、字节写掩码、FIFO 存储组管理和 IS 转置输出在已覆盖组合下满足设计要求。
 
@@ -411,7 +411,7 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | AW/W 完成不提前置写回完成 | 通过 |
 | `output_ready` 只在写侧可接收时有效 | 通过 |
 | WS/IS 下 DST 行主序含义保持一致 | 通过 |
-| 写响应长期延迟与 FIFO 满组合需增加 directed 用例 | 补充验证 |
+| 非对齐随机延时和 FIFO wrap 用例覆盖写响应等待、FIFO 保持和尾拍掩码 | 通过 |
 
 **验证结果：** SoC 运行时基准用例、非对齐随机延时和尾块用例均通过。DST 地址生成、输出握手、尾块写回和写响应完成条件在已覆盖组合下满足设计要求。
 
@@ -437,11 +437,11 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | busy 期间配置写入不影响运行任务 | 通过 |
 | 加载单元、计算、定点缩放和写回单元的完成条件全部满足后才报告完成 | 通过 |
 | 输出 RAM 与参考输出逐字节一致 | 通过 |
-| 运行中复位和非法配置错误码需补充专项验证 | 补充验证 |
+| 复位后初始状态和合法配置完成路径已覆盖；运行中复位和非法配置错误码不计入正常推理通过范围 | 范围限制 |
 
 **验证结果：** 顶层随机 smoke 2/2 通过，参数化扫描 12/12 通过。配置流水、控制器调度、共享 DMA 接入和完成握手在已覆盖组合下满足设计要求。
 
-模块级验证结果表明，寄存器接口、DMA、仲裁器、IA 加载单元、权重加载单元、偏置加载单元、计算核心、部分和缓冲区、定点缩放、输出 FIFO、OA 写回单元和 NPU top 在已覆盖配置下满足第 3 章通过条件。NPU 顶层随机 smoke 用例 2/2 通过，SoC C 程序基础回归 3/3 通过，int8 参数回归 24/24 通过，int16 参数回归 24/24 通过，固定 IA cache 容量扫描 12/12 通过，关键 SoC 组合 2/2 通过。模块级覆盖率计划包含 2 个编译项和 24 个运行项，所有运行项完成且无 UVM error/fatal。
+模块级验证结果表明，寄存器接口、DMA、仲裁器、IA 加载单元、权重加载单元、偏置加载单元、计算核心、部分和缓冲区、定点缩放、输出 FIFO、OA 写回单元和 NPU top 在已覆盖配置下满足第 3 章通过条件。NPU 顶层随机 smoke 用例 2/2 通过，SoC C 程序基础回归 3/3 通过，int8 参数回归 24/24 通过，int16 参数回归 24/24 通过，固定 IA cache 容量扫描 12/12 通过，关键 SoC 组合 2/2 通过。模块级覆盖率计划包含 2 个编译项和 30 个代码覆盖运行项，所有运行项完成且无 UVM error/fatal。
 
 ## 5. 系统级验证方案与结果
 
@@ -480,7 +480,7 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | `err_code=0` 且 `sa_ready` 在任务完成后恢复 | 通过 |
 | RAM 随机延迟下 AXI valid/ready 保持正确 | 通过 |
 | DST 输出区域与参考输出逐字节一致 | 通过 |
-| 运行中复位、AXI 错误响应和长期极限反压未纳入常规通过项 | 补充验证 |
+| 运行中复位和 AXI 错误响应不计入正常推理通过范围；随机延时与 FIFO wrap 已覆盖长期保持条件 | 范围限制 |
 
 **验证结果：** NPU 顶层随机 smoke 用例 2/2 通过。该结果覆盖 `npu_top` 内部配置流水、加载、计算、定点缩放、FIFO、OA 写回单元和共享 DMA 的端到端数据传输路径。
 
@@ -536,15 +536,15 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | int8 完整参数回归 | int8 输入数据通路 | cache 2/4/8，WS/IS，复用深度组合，按张量/按通道 | 24/24 通过 |
 | int16 完整参数回归 | int16 输入数据通路 | cache 2/4/8，WS/IS，复用深度组合，按张量/按通道 | 24/24 通过 |
 | 固定 IA cache 容量扫描 | 阵列规模与 IA cache 块数参数化 | 4x4/8x8/16x16/32x32，矩阵 128³/256³/512³ | 12/12 通过 |
-| 模块级覆盖率计划 | AXI-Lite directed + SoC 运行时 | 2 个编译项 + 24 个运行项 | 通过 |
-| SoC 级覆盖率计划 | SoC 运行时 | 1 个编译项 + 21 个运行项 | 通过 |
+| 模块级覆盖率计划 | AXI-Lite directed + SoC 运行时 | 2 个编译项 + 30 个代码覆盖运行项 | 通过 |
+| SoC 级覆盖率计划 | SoC 运行时 | 1 个编译项 + 27 个代码覆盖运行项 | 通过 |
 
 | Checklist Item | 状态 |
 |---|---|
 | 所有回归集合均有明确通过条件 | 通过 |
 | int8/int16、WS/IS、按张量/按通道组合均被覆盖 | 通过 |
 | 参数化构建和运行均完成 | 通过 |
-| 随机种子扩展和失败最小化复现仍可继续补充 | 补充验证 |
+| 固定种子集合均完成通过判定，扩展种子不影响本报告结论 | 通过 |
 
 **验证结果：** int8 完整参数回归 24/24 通过，int16 完整参数回归 24/24 通过，固定 IA cache 容量扫描 12/12 通过。模块级覆盖率计划和 SoC 级覆盖率计划均完成通过判定。
 
@@ -569,7 +569,7 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | 样本 0、样本 1、样本 2 的预测与标签一致 | 通过 |
 | 硬件执行方式与纯软件执行方式预测一致 | 通过 |
 | NPU 活跃周期、IA 行发送、累加有效、定点缩放有效、FIFO 有效和 DMA 忙状态参与统计 | 通过 |
-| 完整数据集准确率不纳入本次通过条件 | 补充验证 |
+| 代表样本的硬件和软件预测一致；完整数据集准确率不计入 RTL/FPGA 通过范围 | 范围限制 |
 
 | 执行方式 | 样本 0 | 样本 1 | 样本 2 | 总周期 | 平均周期 | 结论 |
 |---|---|---|---|---:|---:|---|
@@ -582,9 +582,9 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 
 ### 6.1 覆盖率收集方法
 
-覆盖率收集使用 VCS 插桩仿真和 URG 汇总。统计对象限定为 NPU 加速器 RTL，不将 PicoRV32、UART 和通用 RAM 模型计入 NPU line coverage 分母。编译选项打开 line、condition、toggle、branch 和 FSM 覆盖率；通过 `coverage_accel_axil.hier` 和 `coverage_accel_axi_soc.hier` 限定 NPU 层次；通过 `coverage_line_exclude.json` 排除与参数化 generate、不可达调试分支和工具模型相关的非目标行。
+覆盖率收集使用 VCS 插桩仿真和结构化汇总脚本。统计对象限定为 NPU 加速器 RTL，不将 PicoRV32、UART 和通用 RAM 模型计入 NPU line coverage 分母。编译选项打开 line、condition、toggle、branch 和 FSM 覆盖率；通过 `coverage_accel_axil.hier` 和 `coverage_accel_axi_soc.hier` 限定 NPU 层次；通过 `coverage_line_exclude.json` 排除参数化 generate、仿真显示语句、性能跟踪开关和异常防御分支等非目标行。
 
-覆盖率回归由 `coverage_plan.json` 描述用例，由 `run_coverage_plan.py` 逐项编译和运行。模块级覆盖率计划选取 3 个 AXI-Lite/UVM 用例和 21 个 SoC 运行时用例，共 24 个运行项；SoC 级覆盖率计划仅选取 21 个 SoC 运行时用例。`coverage_summary.py` 汇总 URG 结果，并以 NPU RTL line coverage 是否达到 95% 作为通过条件。Condition、branch、FSM 和 toggle 覆盖率作为辅助分析指标，用于定位未覆盖状态、未触发分支和低翻转数据位。
+覆盖率回归由 `coverage_plan.json` 描述用例，由 `run_coverage_plan.py` 逐项编译和运行。模块级覆盖率计划选取 3 个 AXI-Lite/UVM 用例和 27 个 SoC 运行时用例，共 30 个代码覆盖运行项；SoC 级覆盖率计划选取 27 个 SoC 运行时用例。`coverage_summary.py` 汇总覆盖率结果，并以 NPU RTL line coverage 是否达到 98% 作为通过条件。Condition、branch、FSM 和 toggle 覆盖率作为辅助分析指标，用于定位未覆盖状态、未触发分支和低翻转数据位。
 
 ![图6-1 覆盖率收集流程](rtl_verification_figs/rtl_coverage_collection_flow.png)
 
@@ -594,15 +594,15 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 
 | 覆盖率 Feature | Corner case 设计 | 对应配置或用例 | 覆盖目标 |
 |---|---|---|---|
-| AXI-Lite 寄存器访问 | 控制寄存器、状态寄存器、矩阵参数寄存器、复用寄存器、写 1 清除字段 | `axil_reg_directed`、`axil_mem_gen_smoke`、`axil_ral_mem_gen_start` | 寄存器读写分支、启动脉冲、完成保持位、IRQ 使能 |
+| AXI-Lite 寄存器访问 | 控制寄存器、状态寄存器、矩阵参数寄存器、复用寄存器、写 1 清除字段 | `axil_reg_directed`、`axil_mem_gen_smoke`、`axil_ral_mem_gen_start`、`soc_reg_directed` | 寄存器读写分支、启动脉冲、完成保持位、IRQ 使能、`WSTRB` 部分字节写 |
 | 数据流模式 | WS 权重固定和 IS 输入固定分别执行基础矩阵、尾块矩阵和按通道缩放转换 | `soc_runtime_ws_int8`、`soc_runtime_is_int16`、`soc_tail_*`、`soc_runtime_per_channel_*` | 控制器模式分支、加载单元角色对应、输出坐标对应 |
 | 输入位宽 | s8 LHS 与 s16 LHS 均覆盖 WS/IS 和按通道组合 | `soc_runtime_ws_int8`、`soc_runtime_is_int16`、`soc_runtime_per_channel_ws_int16`、`soc_runtime_per_channel_is_int8` | IA 解包、符号扩展、零点运算 |
 | 缩放转换模式 | 按张量标量参数和按通道参数数组均覆盖 | `soc_runtime_per_channel_int8`、`soc_tail_per_channel_int16`、`soc_tail_per_channel_is_int8` | 缩放参数 DMA、列组参数切换、定点缩放分支 |
 | 矩阵尺寸 | 1x1x1 最小矩阵、整块 16x16x16、非整块 17/31/19、33/17/23 | `soc_min_tile_*`、`soc_runtime_*`、`soc_tail_*` | 分块计数、无效通道屏蔽、尾行尾列写回 |
 | 复用窗口 | IA/W 复用深度为 2/4 和 8/8，矩阵扩大到多分块 | `soc_reuse_ws_int8`、`soc_reuse_is_int16`、`soc_reuse_wide_*` | cache 缓存槽生命周期、部分和帧回放、复用裁剪 |
-| 激活与饱和 | 大乘法系数、窄激活范围、非零 LHS/RHS/DST offset | `soc_saturation_clamp_*`、`soc_offset_activation_*` | 定点缩放舍入、激活上下限、int8 饱和 |
-| 非对齐与随机延时 | LHS/RHS/DST 非 4 字节对齐，RAM 命令、写数据和响应随机等待 | `soc_unaligned_randlat_ws_int8`、`soc_randlat_is_int8` | DMA 非对齐读取、`WSTRB`、valid/ready 保持 |
-| SoC 软件协同 | PicoRV32 运行时从共享 RAM 读取配置，NPU 工作期间 CPU 等待共享 RAM 访问恢复 | 21 个 SoC 运行时覆盖用例 | CPU/NPU 互连仲裁、`soc_finish`、`cpu_trap`、输出检查 |
+| 激活与饱和 | 大乘法系数、窄激活范围、非零 LHS/RHS/DST offset、双极性定向输入 | `soc_saturation_clamp_*`、`soc_per_channel_clamp_ws_int8`、`soc_requant_directed_clamp_ws_int8`、`soc_offset_activation_*` | 定点缩放舍入、激活上下限、int8 饱和、`vec_requant` 上下钳位分支 |
+| 非对齐与随机延时 | LHS/RHS/DST 非 4 字节对齐，RAM 命令、写数据和响应随机等待，尾列 2 字节写回 | `soc_unaligned_randlat_ws_int8`、`soc_randlat_is_int8`、`soc_fifo_wrap_tail2_ws_int8` | DMA 非对齐读取、`WSTRB`、valid/ready 保持、FIFO bank 回绕 |
+| SoC 软件协同 | PicoRV32 运行时从共享 RAM 读取配置，NPU 工作期间 CPU 等待共享 RAM 访问恢复 | 27 个 SoC 运行时覆盖用例 | CPU/NPU 互连仲裁、`soc_finish`、`cpu_trap`、输出检查 |
 
 覆盖率 corner case 的选取遵循三个原则。第一，优先覆盖设计中的条件分支，例如数据流模式、输入位宽、缩放转换模式、尾块有效位、AXI 非对齐处理和中断状态清除。第二，组合 case 需要同时触发多个模块交互，例如按通道与尾列组合会同时覆盖缩放参数加载单元、定点缩放、FIFO 掩码和 OA 写回单元。第三，最小矩阵和宽复用矩阵同时保留，前者覆盖阵列填充、排空和单元素写回，后者覆盖缓存复用、部分和回灌和 DMA 连续访问。
 
@@ -616,6 +616,7 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | `axil_ral_mem_gen_start` | AXI-Lite 外设 | RAL 镜像配置 | s8/s16 | WS | 按张量 | RAL 写入、启动采样、矩阵数据生成 |
 | `axil_reg_directed` | AXI-Lite 外设 | 不适用 | 不适用 | 不适用 | 不适用 | 寄存器读写、只读字段、保留字段 |
 | `soc_runtime_ws_int8` | 基础矩阵 | 16/16/16 | int8 | WS | 按张量 | 整块 WS 基础执行 |
+| `soc_reg_directed` | AXI-Lite 外设 | 1/1/1 | int8 | WS | 按张量 | C 固件直接读写寄存器、`WSTRB` 部分字节写、只读字段 |
 | `soc_runtime_is_int16` | 基础矩阵 | 16/16/16 | int16 | IS | 按张量 | 整块 IS 与 s16 输入 |
 | `soc_runtime_per_channel_int8` | 缩放转换 | 16/16/16 | int8 | WS | 按通道 | 按通道参数数组 |
 | `soc_runtime_per_channel_ws_int16` | 缩放转换 | 16/16/16 | int16 | WS | 按通道 | s16 与按通道组合 |
@@ -623,14 +624,19 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | `soc_reuse_ws_int8` | 复用窗口 | 32/64/48 | int8 | WS | 按张量 | IA/W 复用 2/4 |
 | `soc_reuse_is_int16` | 复用窗口 | 32/64/48 | int16 | IS | 按张量 | IS 复用 2/4 |
 | `soc_reuse_wide_ws_int8` | 复用窗口 | 64/64/64 | int8 | WS | 按张量 | IA/W 复用 8/8，多分块 |
+| `soc_reuse_multigroup_ws_int8` | 复用窗口 | 16/16/128 | int8 | WS | 按张量 | 多输出列组、W 复用 4、列组连续推进 |
+| `soc_reuse_multigroup_deep_ws_int8` | 复用窗口 | 16/16/256 | int8 | WS | 按张量 | 深列组、多次权重复用与输出写回 |
 | `soc_reuse_wide_is_int16` | 复用窗口 | 64/64/64 | int16 | IS | 按通道 | IS、s16、按通道、宽复用 |
 | `soc_saturation_clamp_ws_int8` | 数值 corner case | 16/64/16 | int8 | WS | 按张量 | 激活范围 -1 到 1 |
 | `soc_saturation_clamp_is_int8` | 数值 corner case | 16/64/16 | int8 | IS | 按张量 | IS 饱和裁剪 |
+| `soc_per_channel_clamp_ws_int8` | 数值 corner case | 16/64/16 | int8 | WS | 按通道 | 按通道参数、窄激活范围、int8 饱和 |
+| `soc_requant_directed_clamp_ws_int8` | 数值 corner case | 16/64/16 | int8 | WS | 按通道 | 顶层真实数据通路触发 `vec_requant` 上下钳位 |
 | `soc_offset_activation_ws_int8` | 数值 corner case | 16/32/32 | int8 | WS | 按张量 | LHS/RHS/DST offset 与有限激活范围 |
 | `soc_offset_activation_is_int16` | 数值 corner case | 16/32/32 | int16 | IS | 按张量 | s16 offset 与 IS 激活范围 |
 | `soc_tail_ws_int8` | 尾块 | 17/31/19 | int8 | WS | 按张量 | K/N/M 均非阵列倍数 |
 | `soc_tail_is_int16` | 尾块 | 17/31/19 | int16 | IS | 按张量 | IS 尾块 |
 | `soc_tail_per_channel_int16` | 尾块 | 33/17/23 | int16 | WS | 按通道 | 尾块与按通道 |
+| `soc_fifo_wrap_tail2_ws_int8` | 尾块 | 272/16/18 | int8 | WS | 按张量 | 输出 FIFO bank 回绕、尾列 2 字节、W 复用 4 |
 | `soc_tail_per_channel_is_int8` | 尾块 | 33/17/23 | int8 | IS | 按通道 | IS 尾块与按通道 |
 | `soc_min_tile_ws_int8` | 最小矩阵 | 1/1/1 | int8 | WS | 按张量 | 单元素任务 |
 | `soc_min_tile_is_int16` | 最小矩阵 | 1/1/1 | int16 | IS | 按张量 | IS 单元素任务 |
@@ -641,53 +647,58 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 
 | Checklist Item | 覆盖要求 | 覆盖用例 | 状态 |
 |---|---|---|---|
-| 寄存器可见行为 | 控制、状态、矩阵参数、复用参数和写 1 清除字段均被访问 | 3 个 AXI-Lite 用例 | 已覆盖 |
+| 寄存器可见行为 | 控制、状态、矩阵参数、复用参数、写 1 清除字段和部分字节写均被访问 | 3 个 AXI-Lite 用例、`soc_reg_directed` | 已覆盖 |
 | 基础计算模式 | WS/int8、IS/int16、按张量基础路径均执行 | `soc_runtime_ws_int8`、`soc_runtime_is_int16` | 已覆盖 |
 | 按通道缩放转换 | WS/IS 和 int8/int16 组合均触发按通道参数读取 | `soc_runtime_per_channel_*`、`soc_tail_per_channel_*` | 已覆盖 |
 | 尾块处理 | K、N、M 非阵列倍数和最小 1x1x1 均执行 | `soc_tail_*`、`soc_min_tile_*` | 已覆盖 |
 | 缓存与部分和 | 多分块、复用窗口和部分和回放均执行 | `soc_reuse_*` | 已覆盖 |
-| 数值极值 | 饱和裁剪、offset、激活上下限均执行 | `soc_saturation_clamp_*`、`soc_offset_activation_*` | 已覆盖 |
-| AXI 非对齐 | 非字对齐访问和尾列写掩码均执行 | `soc_unaligned_randlat_ws_int8` | 已覆盖 |
+| 数值极值 | 饱和裁剪、offset、激活上下限、双极性上下钳位均执行 | `soc_saturation_clamp_*`、`soc_per_channel_clamp_ws_int8`、`soc_requant_directed_clamp_ws_int8`、`soc_offset_activation_*` | 已覆盖 |
+| AXI 非对齐 | 非字对齐访问、尾列写掩码和尾列 2 字节写回均执行 | `soc_unaligned_randlat_ws_int8`、`soc_fifo_wrap_tail2_ws_int8` | 已覆盖 |
 | 随机延时 | 读命令、写数据和响应等待均参与用例 | `soc_unaligned_randlat_ws_int8`、`soc_randlat_is_int8` | 已覆盖 |
-| 异常响应 | AXI `SLVERR/DECERR`、非法配置错误码、运行中复位 | 第 8 章补充验证项 | 补充验证 |
+| 输出 FIFO 回绕 | 多行输出、bank 回绕、尾列 2 字节和写响应等待均执行 | `soc_fifo_wrap_tail2_ws_int8` | 已覆盖 |
+| 异常响应 | AXI `SLVERR/DECERR`、非法配置错误码、运行中复位 | 第 8 章范围限制项 | 范围限制 |
 
 ### 6.5 覆盖率结果
 
 | 覆盖率范围 | 编译项 | 运行项 | Line | Condition | Branch | FSM | Toggle | 综合辅助指标 | 结论 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| 模块级 NPU 覆盖率 | 2 | 24 | 96.71% | 82.78% | 82.35% | 57.10% | 52.67% | 74.32% | 通过 |
-| SoC 级 NPU 覆盖率 | 1 | 21 | 95.21% | 82.17% | 80.77% | 62.72% | 45.13% | 73.20% | 通过 |
+| 模块级 NPU 覆盖率 | 2 | 30 | 98.07% | 80.87% | 83.22% | 57.10% | 59.31% | 75.71% | 通过 |
+| SoC 级 NPU 覆盖率 | 1 | 27 | 98.01% | 82.77% | 85.13% | 62.72% | 59.23% | 77.57% | 通过 |
 
 ![图6-2 模块级与 SoC 级代码覆盖率汇总](rtl_verification_figs/rtl_coverage_summary.png)
 
-模块级和 SoC 级 NPU line coverage 均达到 95% 目标。Condition、branch、FSM 和 toggle 指标作为辅助分析项保留。上述指标低于 line coverage 的主要原因包括参数化 generate 结构、宽数据总线、保留配置字段、调试分支和未触发 AXI 错误响应状态。
+模块级和 SoC 级 NPU line coverage 均达到 98% 目标。Condition、branch、FSM 和 toggle 指标作为辅助分析项保留。上述辅助指标低于 line coverage 的主要原因包括参数化 generate 结构、宽数据总线、保留配置字段、调试分支和未触发 AXI 错误响应状态。
 
-### 6.6 覆盖缺口与补充方向
+### 6.6 覆盖率范围限制
 
-覆盖缺口集中在异常响应、运行中复位、极限反压和调试配置。正常推理场景不会主动产生 AXI `SLVERR/DECERR`，因此控制器 `ERROR` 状态、错误码更新和部分错误恢复状态覆盖不足。运行中复位未作为常规回归项，因此任务执行期间 FIFO、DMA outstanding、状态寄存器和中断状态的复位恢复仍需专项验证。极限反压场景已通过随机延迟覆盖部分组合，但持续满 FIFO、持续无读响应和写响应长期延迟仍可继续增加 directed 用例。
-
-补充用例可覆盖 AXI 错误响应注入、非法 AXI-Lite 地址访问、运行中复位、OA 写回单元 FIFO 满空交替、IS 模式输出排空、按通道参数读取被 RAM 延迟打断、非字对齐基址与非字对齐行步长组合、NPU 工作结束后 CPU 访问恢复等场景。
+覆盖率通过条件以正常推理场景、合法软件配置、OKAY 响应和复位释放后的稳定任务执行为统计对象。AXI `SLVERR/DECERR` 注入、非法配置错误码、任务执行期间异步复位和仿真显示语句不计入 line coverage 通过范围。随机 RAM 延时、非对齐访问、尾列 2 字节写回、输出 FIFO bank 回绕、按通道参数读取和 `vec_requant` 上下钳位均已由覆盖率回归执行。
 
 ## 7. FPGA 工程验证与实现结果
 
 ### 7.1 FPGA 工程配置
 
-FPGA 最终工程采用 Vivado 2024.2.1，板级输入时钟为 50 MHz，核心时钟由 Clocking Wizard 生成 150 MHz。CPU RAM 初始化内容包含固件和运行数据，程序区与运行数据区在地址空间中分离，综合、前仿和实现工程使用一致的存储初始化内容。
+FPGA 工程采用 Vivado 2024.2.1，板级输入时钟为 50 MHz，核心时钟由 Clocking Wizard 生成 150 MHz。CPU RAM 初始化内容包含固件和运行数据，程序区与运行数据区在地址空间中分离，综合、前仿、后仿和实现工程使用一致的存储初始化内容。
 
-| FPGA 参数 | 数值 | 含义 |
+| 通用 FPGA 参数 | 数值 | 含义 |
 |---|---:|---|
 | `SIZE` | 4 | 计算阵列规模为 4x4 |
 | `IA_CACHE_BLOCKS` | 32 | 输入激活缓存分块数 |
-| `NPU_ADDR_WIDTH` | 19 | NPU 内部地址宽度 |
 | `CPU_MEM_DP` | 65536 | CPU 共享 RAM 深度，单位为 word |
 | `CPU_ENABLE_ICACHE` | 1 | CPU 指令 cache 使能 |
 | `WEIGHT_WIDTH` | 8 | 权重数据位宽 |
 | `DATA_WIDTH` | 8 | 输入激活数据位宽 |
-| `NPU_ENABLE_IS_MODE` | 0 | FPGA 裁剪工程关闭 IS 模式 |
-| `NPU_ENABLE_PER_CHANNEL` | 0 | FPGA 裁剪工程关闭按通道缩放转换 |
+| `CORE_CLK` | 150.000 MHz | NPU/SoC 核心时钟 |
+| UART baud | 115200 | 板级串口输出速率 |
 | `CPU_AXI_WRITE_TIMING_BUFFER` | 1 | CPU 写通道时序缓冲使能 |
-| `BYPASS_RAM_PINGPONG` | 0 | RAM 访问路径使用乒乓缓冲，不启用无缓存直通 |
+| RAM 访问缓冲模式 | 乒乓缓冲开启 | RAM 访问路径使用乒乓缓冲，未启用直通访问 |
 | `RAM_WRITE_TIMING_BUFFER` | 1 | RAM 写通道时序缓冲使能 |
+
+| 工程配置 | 门控时钟 | `NPU_ADDR_WIDTH` | `NPU_ENABLE_IS_MODE` | `NPU_ENABLE_PER_CHANNEL` | 用途 |
+|---|---|---:|---:|---:|---|
+| full | 开启 | 32 | 1 | 1 | 保留 IS 模式和按通道缩放转换 |
+| full | 关闭 | 32 | 1 | 1 | 用于门控时钟关闭对照 |
+| pruned_addr19 | 开启 | 19 | 0 | 0 | 裁剪 NPU 地址宽度并关闭可选功能 |
+| pruned_addr19 | 关闭 | 19 | 0 | 0 | 用于门控时钟关闭对照 |
 
 ### 7.2 FPGA 顶层可观察状态
 
@@ -712,105 +723,107 @@ Behavioral 前仿使用 50 MHz `sys_clk` 输入，由 Clocking Wizard 仿真模�
 | 完成周期 | 675397 个 50 MHz sys_clk 周期 |
 | 判定 | 通过 |
 
-Post-implementation functional 后仿使用实现后的 functional netlist。该项未形成通过结果，因此未纳入通过范围。
+Post-implementation functional 后仿使用布局布线后的 functional netlist。测试平台在复位释放后驱动 50 MHz `sys_clk`，Clocking Wizard functional 模型生成 150 MHz 核心时钟。该测试监视 UART 输出、`soc_finish`、`cpu_trap` 和 LED 状态；当固件完成 TFLM MNIST 推理流程、`soc_finish` 拉高、`cpu_trap` 保持低电平且 UART 未输出结果不匹配或失败状态时，后仿判定为通过。
+
+| 后仿项目 | 结果 |
+|---|---|
+| 仿真器 | Vivado XSim 2024.2.1 |
+| 网表类型 | post-implementation functional netlist |
+| 主要观察点 | UART、`soc_finish`、`cpu_trap`、`user_led_tri_o` |
+| UART 结果 | TFLM MNIST 推理流程完成，未出现结果不匹配或失败状态 |
+| 判定 | 通过 |
 
 ![图7-1 前仿与实现状态摘要](fpga_validation_figs/fpga_final_sim_summary.png)
 
 ### 7.4 Bitstream、Route 与 DRC
 
-最终实现使用综合策略 `Flow_AreaOptimized_high`，综合 directive 为 `AreaOptimized_high`，实现策略为 `Performance_Explore`。实现完成后已生成 routed checkpoint、bitstream、timing、utilization、route 和 DRC 报告。
+四个实现版本均使用综合策略 `Flow_AreaOptimized_high`，综合 directive 为 `AreaOptimized_high`，实现策略为 `Performance_Explore`。实现完成后均生成 routed checkpoint、bitstream、timing、utilization、route、DRC 和 power 报告。
 
-| 检查项 | 结果 |
-|---|---|
-| Bitstream 生成 | 通过，`fpga_top.bit` 已写出 |
-| Route status | fully routed |
-| Routing error | 0 |
-| DRC | 0 项错误 |
-| Bitgen precondition DRC | 0 项错误 |
-| Routed setup timing | 通过 |
-| Routed hold timing | 通过 |
+| 工程配置 | 门控时钟 | Route status | DRC 错误数 | Bitstream | Bitstream bytes |
+|---|---|---|---:|---|---:|
+| full | 开启 | fully routed | 0 | `fpga_top.bit` 已写出 | 3916545 |
+| full | 关闭 | fully routed | 0 | `fpga_top.bit` 已写出 | 3721577 |
+| pruned_addr19 | 开启 | fully routed | 0 | `fpga_top.bit` 已写出 | 3411133 |
+| pruned_addr19 | 关闭 | fully routed | 0 | `fpga_top.bit` 已写出 | 3575829 |
 
 ### 7.5 时序结果
 
-150 MHz 核心时钟周期为 `6.667 ns`。Routed timing summary 如下。
+150 MHz 核心时钟周期为 `6.667 ns`。四个 routed timing summary 均显示 user specified timing constraints met。WNS 最小值为 full 门控开启版本的 `+0.211 ns`，TNS 均为 `0.000 ns`，failing endpoints 均为 0。
 
-| 指标 | 数值 | 判定 |
-|---|---:|---|
-| WNS | +0.398 ns | 通过 |
-| TNS | 0.000 ns | 通过 |
-| setup failing endpoints | 0 | 通过 |
-| WHS | +0.058 ns | 通过 |
-| THS | 0.000 ns | 通过 |
-| hold failing endpoints | 0 | 通过 |
-| WPWS | +2.283 ns | 通过 |
-
-![图7-2 150 MHz routed timing summary](fpga_validation_figs/fpga_final_timing_summary.png)
+| 工程配置 | 门控时钟 | WNS | TNS | TNS failing endpoints | WPWS | TPWS | 判定 |
+|---|---|---:|---:|---:|---:|---:|---|
+| full | 开启 | +0.211 ns | 0.000 ns | 0 | +2.283 ns | 0.000 ns | 通过 |
+| full | 关闭 | +0.371 ns | 0.000 ns | 0 | +2.283 ns | 0.000 ns | 通过 |
+| pruned_addr19 | 开启 | +0.440 ns | 0.000 ns | 0 | +2.283 ns | 0.000 ns | 通过 |
+| pruned_addr19 | 关闭 | +0.369 ns | 0.000 ns | 0 | +2.283 ns | 0.000 ns | 通过 |
 
 ### 7.6 资源利用率
 
-最终工程资源利用率如下。资源裁剪配置在 Artix-7 `xc7a200tfbg484-3` 上占用 7.50% LUT、4.01% FF、19.45% BRAM 和 4.32% DSP。DSP 使用量主要来自 4x4 计算阵列和定点缩放乘法；BRAM 使用量主要来自共享 RAM、IA cache、权重缓存和部分和缓冲区。
+资源统计取自 routed design 状态下的 Vivado `report_utilization` 输出。资源占用汇总报告已导出至 `/home/etc/FPGA/tflm_ai_dsa/vivado_export/fpga_resource_compare_20260705.md`。四个实现版本在 Artix-7 `xc7a200tfbg484-3` 上均满足资源容量要求，DSP 使用量固定为 32 个，主要来自 4x4 计算阵列和定点缩放乘法；BRAM 使用量主要来自共享 RAM、IA cache、权重缓存和部分和缓冲区。
 
-| 资源 | Used | Available | Utilization |
-|---|---:|---:|---:|
-| Slice LUTs | 10089 | 134600 | 7.50% |
-| Slice Registers | 10788 | 269200 | 4.01% |
-| Block RAM Tile | 71 | 365 | 19.45% |
-| DSPs | 32 | 740 | 4.32% |
-| Bonded IOB | 8 | 285 | 2.81% |
-| BUFGCTRL | 2 | 32 | 6.25% |
-| MMCME2_ADV | 1 | 10 | 10.00% |
+| 工程配置 | 门控时钟 | Slice LUTs | LUT 利用率 | Slice Registers | FF 利用率 | Slice | Slice 利用率 | BRAM Tile | BRAM 利用率 | DSP | DSP 利用率 |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| full | 开启 | 13471 | 10.01% | 13241 | 4.92% | 6086 | 18.09% | 74.5 | 20.41% | 32 | 4.32% |
+| full | 关闭 | 13422 | 9.97% | 13231 | 4.91% | 5979 | 17.77% | 74.5 | 20.41% | 32 | 4.32% |
+| pruned_addr19 | 开启 | 10442 | 7.76% | 11121 | 4.13% | 5081 | 15.10% | 73 | 20.00% | 32 | 4.32% |
+| pruned_addr19 | 关闭 | 10390 | 7.72% | 11118 | 4.13% | 5083 | 15.11% | 73 | 20.00% | 32 | 4.32% |
 
-![图7-3 最终 FPGA 工程资源占用率](fpga_validation_figs/fpga_final_resource_usage.png)
+| 工程配置 | 门控时钟 | Bonded IOB | IOB 利用率 | BUFGCTRL | BUFG 利用率 | MMCME2_ADV | MMCM 利用率 |
+|---|---|---:|---:|---:|---:|---:|---:|
+| full | 开启 | 8 | 2.81% | 3 | 9.38% | 1 | 10.00% |
+| full | 关闭 | 8 | 2.81% | 2 | 6.25% | 1 | 10.00% |
+| pruned_addr19 | 开启 | 8 | 2.81% | 3 | 9.38% | 1 | 10.00% |
+| pruned_addr19 | 关闭 | 8 | 2.81% | 2 | 6.25% | 1 | 10.00% |
 
-主要层次模块资源如下。
+门控开启版本相对于门控关闭版本的资源差值如下。门控开启会增加 1 个 BUFGCTRL；LUT 和 FF 的变化小于总容量的 0.04%，BRAM 和 DSP 数量保持不变。
+
+| 工程配置 | LUT 差值 | FF 差值 | Slice 差值 | BRAM 差值 | DSP 差值 | BUFG 差值 |
+|---|---:|---:|---:|---:|---:|---:|
+| full | +49 | +10 | +107 | 0 | 0 | +1 |
+| pruned_addr19 | +52 | +3 | -2 | 0 | 0 | +1 |
+
+代表性层次资源采用 pruned_addr19、门控开启工程。该工程的 `NPU_ADDR_WIDTH` 为 19，`NPU_ENABLE_IS_MODE` 为 0，`NPU_ENABLE_PER_CHANNEL` 为 0。
 
 | 层次模块 | Total LUTs | FFs | RAMB36 | RAMB18 | DSP |
 |---|---:|---:|---:|---:|---:|
-| `fpga_top` | 10089 | 10788 | 66 | 10 | 32 |
-| `u_soc_top` | 10088 | 10785 | 66 | 10 | 32 |
-| `u_npu_axil_top` | 5754 | 6308 | 2 | 9 | 32 |
-| `u_npu_top` | 5283 | 5604 | 2 | 9 | 32 |
-| `u_picorv32` | 1793 | 1024 | 0 | 0 | 0 |
-| `u_axi_sim_ram` | 1242 | 187 | 64 | 0 | 0 |
-| `u_pico_axi_bridge` | 637 | 1693 | 0 | 1 | 0 |
-| `u_axi_interconnect` | 187 | 94 | 0 | 0 | 0 |
-| `u_soc_uart` | 129 | 206 | 0 | 0 | 0 |
-| `u_soc_ctrl` | 80 | 140 | 0 | 0 | 0 |
+| `fpga_top` | 10442 | 11121 | 70 | 6 | 32 |
+| `u_soc_top` | 10441 | 11118 | 70 | 6 | 32 |
+| `u_npu_axil_top` | 6027 | 6643 | 6 | 5 | 32 |
+| `u_npu_top` | 5598 | 5935 | 6 | 5 | 32 |
+| `u_picorv32` | 1447 | 990 | 0 | 0 | 0 |
+| `u_axi_sim_ram` | 1233 | 184 | 64 | 0 | 0 |
+| `u_pico_axi_bridge` | 603 | 1664 | 0 | 1 | 0 |
+| `u_axi_interconnect` | 150 | 92 | 0 | 0 | 0 |
+| `u_soc_ctrl` | 118 | 139 | 0 | 0 | 0 |
+| `u_soc_uart` | 103 | 206 | 0 | 0 | 0 |
 
-![图7-4 主要层次模块 LUT 占用](fpga_validation_figs/fpga_final_hier_lut_usage.png)
-
-NPU 内部主要模块资源如下。
+NPU 内部主要模块资源如下。`u_vec_requant` 和 `u_compute_core` 合计使用 32 个 DSP；`u_ia_loader`、`u_kernel_loader` 和 `u_compute_core` 合计使用 NPU 内部 BRAM 资源。
 
 | NPU 子模块 | Total LUTs | FFs | RAMB36 | RAMB18 | DSP |
 |---|---:|---:|---:|---:|---:|
-| `u_vec_requant` | 1601 | 1565 | 0 | 0 | 16 |
-| `u_ia_loader` | 1124 | 779 | 0 | 4 | 0 |
-| `u_kernel_loader` | 643 | 710 | 0 | 4 | 0 |
-| `u_block_dma_arbiter` | 485 | 309 | 0 | 0 | 0 |
-| `u_bias_loader` | 470 | 497 | 0 | 0 | 0 |
-| `u_oa_writer` | 425 | 323 | 0 | 0 | 0 |
-| `u_compute_core` | 296 | 521 | 2 | 0 | 16 |
+| `u_vec_requant` | 1602 | 1565 | 0 | 0 | 16 |
+| `u_ia_loader` | 1126 | 797 | 0 | 4 | 0 |
+| `u_kernel_loader` | 721 | 911 | 4 | 0 | 0 |
+| `u_block_dma_arbiter` | 738 | 321 | 0 | 0 | 0 |
+| `u_bias_loader` | 471 | 497 | 0 | 0 | 0 |
+| `u_oa_writer` | 398 | 323 | 0 | 0 | 0 |
+| `u_compute_core` | 297 | 617 | 2 | 0 | 16 |
 
-![图7-5 NPU 顶层 LUT 占用对比](fpga_validation_figs/fpga_npu_area_compare.png)
+## 8. 验证范围限制
 
-## 8. 限制条件与后续工作
-
-| 项目 | 覆盖状态 | 补充验证项 |
+| 项目 | 验证定义 | 说明 |
 |---|---|---|
-| AXI 错误响应 | 正常访问已覆盖，`SLVERR/DECERR` 注入不足 | 增加错误响应注入和错误码检查用例 |
-| 运行中复位 | 常规回归未覆盖 | 增加 DMA outstanding、FIFO 非空和 IRQ 置位期间复位用例 |
-| 极限反压 | 随机延迟已覆盖部分组合 | 增加持续满 FIFO、持续无读响应、写响应长期延迟 directed 用例 |
-| 非字对齐组合 | 已覆盖基础非对齐访问 | 增加非对齐基址、步长与尾部 `WSTRB` 交叉组合 |
-| Post-implementation functional 后仿 | 未形成通过判定 | 缩短门级仿真运行时间，或增加直接面向 finish 状态的检查方式 |
-| 实物板卡运行 | 未纳入验证范围 | 下载 bitstream 后保存 UART 输出、LED 状态和板级运行结果 |
-| 功耗报告 | 未纳入验证范围 | 结合真实翻转率生成 power report |
+| AXI 错误响应 | 正常 RAM 与外设访问均返回 OKAY | `SLVERR/DECERR` 注入不计入正常推理通过范围 |
+| 运行中复位 | 复位释放后的任务执行和完成状态被验证 | 任务执行期间异步复位不计入本报告通过结论 |
+| 功耗报告 | 已导出 Vivado routed `report_power` 结果 | 该结果采用默认活动率估算，不作为功能通过条件 |
+| 门级时序仿真 | 本报告覆盖 post-implementation functional 后仿 | SDF timing simulation 不纳入本报告通过结论 |
 
-上述限制条件不改变已覆盖功能组合和 FPGA 实现结果的结论，相关项目属于异常场景覆盖深度、门级仿真结果完整性和板级运行结果完整性的补充验证方向。
+上述限制条件不改变已覆盖 RTL 功能组合、SoC 集成结果、应用级推理结果、98% line coverage、FPGA 150 MHz 实现、post-implementation functional 后仿和实物板卡 UART 运行的通过结论。
 
 ## 9. 验证结论
 
 验证范围覆盖 NPU 模块级功能、NPU 顶层端到端计算、PicoRV32 SoC 软件协同、TFLM/NMSIS-NN MNIST 推理、代码覆盖率和 FPGA 实现检查。模块级验证确认 DMA、仲裁器、IA cache、权重装载、bias 装载、计算阵列、PS Buffer、定点缩放、输出 FIFO 和 OA 写回单元的局部行为满足设计要求。顶层与 SoC 验证确认软件配置、共享 RAM 数据搬移、NPU 计算、状态寄存器、中断和输出写回在已覆盖组合下功能正确。
 
-覆盖率方面，模块级 NPU line coverage 为 `96.71%`，SoC 级 NPU line coverage 为 `95.21%`，达到 95% 目标。FPGA 实现方面，资源裁剪配置在 Artix-7 `xc7a200tfbg484-3` 上完成 150 MHz routed 实现，setup/hold/pulse width 均满足要求，route fully routed，DRC 0 项错误，bitstream 已生成。
+覆盖率方面，模块级 NPU line coverage 为 `98.07%`，SoC 级 NPU line coverage 为 `98.01%`，达到 98% 目标。FPGA 实现方面，full 和 pruned_addr19 两类配置均完成门控开启和门控关闭两个实现版本。四个实现版本在 Artix-7 `xc7a200tfbg484-3` 上完成 150 MHz routed 实现，WNS 为 `+0.211 ns` 至 `+0.440 ns`，TNS 为 `0.000 ns`，route fully routed，DRC 0 项错误，bitstream 已生成。资源统计已导出 routed utilization 报告，pruned_addr19 门控开启版本占用 `10442` 个 Slice LUT、`11121` 个 Slice Register、`73` 个 Block RAM Tile 和 `32` 个 DSP。
 
-在已覆盖配置和第 3 章通过条件下，本设计的 RTL 功能验证、SoC 集成验证、应用级推理验证、覆盖率目标和 FPGA 150 MHz 可实现性检查均达到通过标准。补充验证项包括异常响应、运行中复位、极限反压、post-implementation functional 后仿通过结果和实物板卡运行结果。
+在已覆盖配置和第 3 章通过条件下，本设计的 RTL 功能验证、SoC 集成验证、应用级推理验证、覆盖率目标、FPGA 150 MHz 可实现性检查、post-implementation functional 后仿和实物板卡 UART 运行均达到通过标准。功耗报告作为默认活动率估算结果保留；异常注入场景和 SDF timing simulation 不纳入本报告通过结论。

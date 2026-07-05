@@ -9,7 +9,7 @@
 <g id="graph0" class="graph" transform="scale(2.22222 2.22222) rotate(0) translate(10.08 294.6)">
 <title>fig_weight_ps_requant_flow</title>
 <polygon fill="white" stroke="none" points="-10.08,10.08 -10.08,-294.6 1188.47,-294.6 1188.47,10.08 -10.08,10.08"/>
-<text xml:space="preserve" text-anchor="middle" x="589.19" y="-253.92" font-family="Noto Sans CJK SC" font-size="28.00">权重驻留、部分和保存与重量化输入关系</text>
+<text xml:space="preserve" text-anchor="middle" x="589.19" y="-253.92" font-family="Noto Sans CJK SC" font-size="28.00">权重驻留、部分和保存与重定点缩放输入关系</text>
 <!-- rhs -->
 <g id="node1" class="node">
 <title>rhs</title>

@@ -173,6 +173,7 @@ def generate_test_case(
     min_dim=16,
     max_dim=256,
     dim_multiple=1,
+    directed_pattern=None,
     out_dir="./test_case",
 ):
     if seed is not None:
@@ -212,8 +213,15 @@ def generate_test_case(
     if quant_mode is None:
         quant_mode = random.choice([0, 1])  # 0: per-tensor, 1: per-channel
 
+    directed_pattern = directed_pattern or ""
+
     # 随机生成 lhs (A)、rhs (B) 的 int8/int16 内容
-    if not fix_mode:
+    if directed_pattern == "requant_clamp_bipolar":
+        row_values = np.where((np.arange(K) & 1) == 0, 7, -8).reshape(K, 1)
+        lhs_dtype_np = np.int16 if lhs_dtype == 2 else np.int8
+        lhs = np.repeat(row_values, N, axis=1).astype(lhs_dtype_np)
+        rhs = np.full((N, M), 7, dtype=np.int8)
+    elif not fix_mode:
         if lhs_dtype == 1:  # S8
             lhs = np.random.randint(-128, 128, size=(K, N), dtype=np.int8)
         else:  # S16
@@ -236,7 +244,10 @@ def generate_test_case(
         rhs = rhs_u8.view(np.int8)
 
     # 随机生成 bias (int32)
-    bias = np.random.randint(-10000, 10000, size=M, dtype=np.int32)
+    if directed_pattern == "requant_clamp_bipolar":
+        bias = np.zeros(M, dtype=np.int32)
+    else:
+        bias = np.random.randint(-10000, 10000, size=M, dtype=np.int32)
     # bias 随机或为 0，这里先简单设为 0
     # bias = np.zeros(M, dtype=np.int32)
 
@@ -293,6 +304,8 @@ def generate_test_case(
         for i in range(K):
             row_str = ' '.join(f'{result[i, j]:8d}' for j in range(M))
             f.write(f"行 {i}: {row_str}\n")
+        if directed_pattern:
+            f.write(f"\n定向数据模式: {directed_pattern}\n")
         f.write(f"\n量化模式: {'per-tensor' if quant_mode == 0 else 'per-channel'}\n")
         if quant_mode == 0:
             f.write(f"量化参数: dst_mult={dst_mult}, dst_shift={dst_shift}\n")
@@ -428,6 +441,8 @@ def generate_test_case(
             f.write("dst_shift = 0\n")
         f.write(f"act_min = {int(act_min)}\n")
         f.write(f"act_max = {int(act_max)}\n")
+        if directed_pattern:
+            f.write(f"directed_pattern = {directed_pattern}\n")
 
     return {
         "K": K,
@@ -445,6 +460,7 @@ def generate_test_case(
         "min_dim": min_dim,
         "max_dim": max_dim,
         "dim_multiple": dim_multiple,
+        "directed_pattern": directed_pattern,
         "out_dir": out_dir,
     }
 
@@ -469,6 +485,7 @@ if __name__ == "__main__":
     parser.add_argument("--min_dim", type=int, default=16)
     parser.add_argument("--max_dim", type=int, default=256)
     parser.add_argument("--dim_multiple", type=int, default=1)
+    parser.add_argument("--directed_pattern", choices=["requant_clamp_bipolar"], default=None)
     parser.add_argument("--out_dir", type=str, default="./test_case")
     args = parser.parse_args()
 
@@ -490,5 +507,6 @@ if __name__ == "__main__":
         min_dim=args.min_dim,
         max_dim=args.max_dim,
         dim_multiple=args.dim_multiple,
+        directed_pattern=args.directed_pattern,
         out_dir=args.out_dir,
     )

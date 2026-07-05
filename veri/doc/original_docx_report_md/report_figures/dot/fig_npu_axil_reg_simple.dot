@@ -15,7 +15,7 @@ digraph fig_npu_axil_reg_simple {
   cpu -> reg [label="写配置 / 读状态"];
   reg -> gate [label="calc_start"];
   gate -> core [label="core_start"];
-  reg -> core [label="地址、维度、量化、模式",constraint=false];
+  reg -> core [label="地址、维度、定点缩放、模式",constraint=false];
   core -> reg [style=dashed,color="#607D8B",constraint=false];
   reg -> irq [style=dashed,color="#607D8B"];
 }

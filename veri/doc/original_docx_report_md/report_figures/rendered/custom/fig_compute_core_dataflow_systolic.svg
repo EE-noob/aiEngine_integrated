@@ -1,161 +1,194 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980">
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
   <defs>
     <marker id="arrowBlue" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
       <path d="M2,2 L10,6 L2,10 Z" fill="#1565C0"/>
     </marker>
-    <marker id="arrowRed" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
-      <path d="M2,2 L10,6 L2,10 Z" fill="#C62828"/>
+    <marker id="arrowGreen" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#2E7D32"/>
     </marker>
     <marker id="arrowPurple" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
       <path d="M2,2 L10,6 L2,10 Z" fill="#5E35B1"/>
     </marker>
-    <marker id="arrowGreen" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
-      <path d="M2,2 L10,6 L2,10 Z" fill="#2E7D32"/>
+    <marker id="arrowRed" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#C62828"/>
+    </marker>
+    <marker id="arrowOrange" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#EF6C00"/>
     </marker>
     <style>
-      text { font-family: "Noto Sans CJK SC", "Microsoft YaHei", Arial, sans-serif; fill: #263238; }
+      text { font-family: "Noto Sans CJK SC", "Microsoft YaHei", Arial, sans-serif; fill: #263238; letter-spacing: 0; }
       .title { font-size: 34px; font-weight: 700; }
+      .subtitle { font-size: 18px; fill: #546E7A; }
       .label { font-size: 24px; font-weight: 700; }
-      .small { font-size: 18px; font-weight: 600; }
-      .tiny { font-size: 15px; font-weight: 600; }
-      .note { font-size: 17px; fill: #546E7A; }
-      .panel { fill: #FFFFFF; stroke: #CFD8DC; stroke-width: 2; rx: 12; }
-      .blue { fill: #E3F2FD; stroke: #1565C0; stroke-width: 3; rx: 10; }
-      .red { fill: #FFEBEE; stroke: #C62828; stroke-width: 3; rx: 10; }
-      .purple { fill: #EDE7F6; stroke: #5E35B1; stroke-width: 3; rx: 10; }
-      .green { fill: #E8F5E9; stroke: #2E7D32; stroke-width: 3; rx: 10; }
-      .orange { fill: #FFF8E1; stroke: #F9A825; stroke-width: 3; rx: 10; }
-      .pe { fill: #FFFDF7; stroke: #455A64; stroke-width: 2; rx: 6; }
-      .peAlt { fill: #FFF3E0; stroke: #455A64; stroke-width: 2; rx: 6; }
-      .gridLine { stroke: #90A4AE; stroke-width: 1.5; }
+      .mid { font-size: 18px; font-weight: 600; }
+      .small { font-size: 15px; font-weight: 600; }
+      .note { font-size: 16px; fill: #546E7A; }
+      .panel { fill: #FFFFFF; stroke: #CFD8DC; stroke-width: 2; rx: 8; }
+      .arrayPanel { fill: #FFF5F5; stroke: #C62828; stroke-width: 3; rx: 8; }
+      .pe { fill: #FFFDF7; stroke: #455A64; stroke-width: 1.8; rx: 4; }
+      .peAlt { fill: #FFF3E0; stroke: #455A64; stroke-width: 1.8; rx: 4; }
+      .iaBox { fill: #E3F2FD; stroke: #1565C0; stroke-width: 3; rx: 8; }
+      .biasBox { fill: #E8F5E9; stroke: #2E7D32; stroke-width: 3; rx: 8; }
+      .psBox { fill: #EDE7F6; stroke: #5E35B1; stroke-width: 3; rx: 8; }
+      .weightBox { fill: #FFF8E1; stroke: #EF6C00; stroke-width: 3; rx: 8; }
+      .outBox { fill: #FFEBEE; stroke: #C62828; stroke-width: 3; rx: 8; }
+      .iaPoly { fill: #E3F2FD; stroke: #1565C0; stroke-width: 3; }
+      .biasPoly { fill: #E8F5E9; stroke: #2E7D32; stroke-width: 3; }
+      .psPoly { fill: #EDE7F6; stroke: #5E35B1; stroke-width: 3; }
+      .outPoly { fill: #FFEBEE; stroke: #C62828; stroke-width: 3; }
       .iaLine { stroke: #1565C0; stroke-width: 4; fill: none; marker-end: url(#arrowBlue); }
-      .wLine { stroke: #F9A825; stroke-width: 4; fill: none; marker-end: url(#arrowBlue); }
-      .accLine { stroke: #C62828; stroke-width: 4; fill: none; marker-end: url(#arrowRed); }
-      .psLine { stroke: #5E35B1; stroke-width: 4; fill: none; marker-end: url(#arrowPurple); stroke-dasharray: 10 8; }
       .biasLine { stroke: #2E7D32; stroke-width: 4; fill: none; marker-end: url(#arrowGreen); }
+      .psLine { stroke: #5E35B1; stroke-width: 4; fill: none; marker-end: url(#arrowPurple); }
+      .outLine { stroke: #C62828; stroke-width: 4; fill: none; marker-end: url(#arrowRed); }
+      .wLine { stroke: #EF6C00; stroke-width: 3.5; fill: none; marker-end: url(#arrowOrange); }
+      .dash { stroke-dasharray: 10 8; }
+      .blueText { fill: #1565C0; }
+      .greenText { fill: #2E7D32; }
+      .purpleText { fill: #5E35B1; }
+      .redText { fill: #C62828; }
+      .orangeText { fill: #EF6C00; }
     </style>
   </defs>
 
-  <rect width="1600" height="980" fill="white"/>
-  <text x="800" y="52" class="title" text-anchor="middle">compute_core 数据流示意图</text>
-  <text x="800" y="84" class="note" text-anchor="middle">对角化 IA 输入、权重固定 4x4 脉动阵列、对角化累加输出、反对角化向量输出、PS 回灌与 bias 初值选择</text>
+  <rect width="1600" height="900" fill="#FFFFFF"/>
 
-  <!-- Input diagonalization panel -->
-  <rect x="54" y="142" width="300" height="570" class="panel"/>
-  <rect x="84" y="166" width="240" height="72" class="blue"/>
-  <text x="204" y="196" class="label" text-anchor="middle">IA cache</text>
-  <text x="204" y="224" class="small" text-anchor="middle">col0-leader + 延迟链</text>
-  <text x="204" y="274" class="label" text-anchor="middle" fill="#1565C0">对角化输入</text>
-  <text x="204" y="304" class="note" text-anchor="middle">第 j 列比第 0 列晚 j 拍进入阵列</text>
+  <text x="800" y="46" text-anchor="middle" class="title">compute_core 阶梯化输入、正交阵列传播与反对角化输出</text>
+  <text x="800" y="78" text-anchor="middle" class="subtitle">左侧 IA 平行四边形输入；阵列内 IA 水平传播、bias/部分和垂直传播；底部错拍输出进入反对角化</text>
 
-  <rect x="92" y="338" width="56" height="34" class="blue"/><text x="120" y="361" class="tiny" text-anchor="middle">a0</text>
-  <rect x="128" y="392" width="56" height="34" class="blue"/><text x="156" y="415" class="tiny" text-anchor="middle">a1</text>
-  <rect x="164" y="446" width="56" height="34" class="blue"/><text x="192" y="469" class="tiny" text-anchor="middle">a2</text>
-  <rect x="200" y="500" width="56" height="34" class="blue"/><text x="228" y="523" class="tiny" text-anchor="middle">a3</text>
-  <path d="M120 372 L348 372" class="iaLine"/>
-  <path d="M156 426 L348 426" class="iaLine"/>
-  <path d="M192 480 L348 480" class="iaLine"/>
-  <path d="M228 534 L348 534" class="iaLine"/>
-  <text x="88" y="610" class="tiny">时间错位:</text>
-  <text x="88" y="636" class="tiny">lane0 T0</text>
-  <text x="88" y="660" class="tiny">lane1 T1</text>
-  <text x="88" y="684" class="tiny">lane2 T2</text>
+  <!-- Left input side -->
+  <rect x="52" y="132" width="328" height="606" class="panel"/>
+  <rect x="92" y="158" width="248" height="74" class="iaBox"/>
+  <text x="216" y="189" text-anchor="middle" class="label">输入缓存</text>
+  <text x="216" y="216" text-anchor="middle" class="mid">IA cache</text>
+  <text x="216" y="270" text-anchor="middle" class="label blueText">IA 从左侧输入</text>
+  <text x="216" y="298" text-anchor="middle" class="note">相邻行输入错开一个时钟</text>
 
-  <!-- Bias and PS mux -->
-  <rect x="444" y="130" width="260" height="126" class="green"/>
-  <text x="574" y="166" class="label" text-anchor="middle">bias 输入</text>
-  <text x="574" y="196" class="small" text-anchor="middle">首个 K 分块初值</text>
-  <text x="574" y="224" class="small" text-anchor="middle">bias / zero / ps_replay</text>
+  <polygon points="112,342 258,342 294,384 148,384" class="iaPoly"/>
+  <polygon points="132,412 278,412 314,454 168,454" class="iaPoly"/>
+  <polygon points="152,482 298,482 334,524 188,524" class="iaPoly"/>
+  <polygon points="172,552 318,552 354,594 208,594" class="iaPoly"/>
+  <text x="203" y="370" text-anchor="middle" class="mid">a0 @ T0</text>
+  <text x="223" y="440" text-anchor="middle" class="mid">a1 @ T1</text>
+  <text x="243" y="510" text-anchor="middle" class="mid">a2 @ T2</text>
+  <text x="263" y="580" text-anchor="middle" class="mid">a3 @ T3</text>
+  <text x="216" y="646" text-anchor="middle" class="note">平行四边形表示阶梯化数据带</text>
 
-  <rect x="444" y="750" width="260" height="126" class="purple"/>
-  <text x="574" y="786" class="label" text-anchor="middle">PS buffer</text>
-  <text x="574" y="816" class="small" text-anchor="middle">保存中间 partial sum</text>
-  <text x="574" y="844" class="small" text-anchor="middle">下一 K 分块回灌</text>
+  <!-- Top inputs -->
+  <rect x="470" y="116" width="610" height="126" class="panel"/>
+  <text x="775" y="150" text-anchor="middle" class="label">顶部输入选择</text>
+  <polygon points="520,178 682,178 710,214 548,214" class="biasPoly"/>
+  <text x="615" y="202" text-anchor="middle" class="mid">bias / zero</text>
+  <polygon points="818,178 980,178 1008,214 846,214" class="psPoly"/>
+  <text x="913" y="202" text-anchor="middle" class="mid">部分和回灌</text>
+  <text x="775" y="234" text-anchor="middle" class="note">首个 K 分块使用 bias 或 0；后续 K 分块使用部分和作为初值</text>
+
+  <rect x="1130" y="142" width="246" height="82" class="weightBox"/>
+  <text x="1253" y="176" text-anchor="middle" class="mid">权重数据</text>
+  <text x="1253" y="204" text-anchor="middle" class="mid">装入后驻留在 PE</text>
 
   <!-- Systolic array -->
-  <rect x="430" y="312" width="500" height="360" class="red"/>
-  <text x="680" y="344" class="label" text-anchor="middle">SIZE x SIZE 权重固定脉动阵列</text>
-  <text x="680" y="372" class="small" text-anchor="middle">PE 内部执行: acc = sum_in + IA x W</text>
+  <rect x="470" y="278" width="620" height="404" class="arrayPanel"/>
+  <text x="780" y="314" text-anchor="middle" class="label">SIZE x SIZE 权重固定脉动阵列</text>
+  <text x="780" y="342" text-anchor="middle" class="mid">正交传播：IA 向右，bias/部分和向下</text>
 
-  <g transform="translate(505,408)">
-    <rect x="0" y="0" width="86" height="58" class="peAlt"/><text x="43" y="35" class="tiny" text-anchor="middle">PE00</text>
-    <rect x="86" y="0" width="86" height="58" class="pe"/><text x="129" y="35" class="tiny" text-anchor="middle">PE01</text>
-    <rect x="172" y="0" width="86" height="58" class="peAlt"/><text x="215" y="35" class="tiny" text-anchor="middle">PE02</text>
-    <rect x="258" y="0" width="86" height="58" class="pe"/><text x="301" y="35" class="tiny" text-anchor="middle">PE03</text>
-    <rect x="0" y="58" width="86" height="58" class="pe"/><text x="43" y="93" class="tiny" text-anchor="middle">PE10</text>
-    <rect x="86" y="58" width="86" height="58" class="peAlt"/><text x="129" y="93" class="tiny" text-anchor="middle">PE11</text>
-    <rect x="172" y="58" width="86" height="58" class="pe"/><text x="215" y="93" class="tiny" text-anchor="middle">PE12</text>
-    <rect x="258" y="58" width="86" height="58" class="peAlt"/><text x="301" y="93" class="tiny" text-anchor="middle">PE13</text>
-    <rect x="0" y="116" width="86" height="58" class="peAlt"/><text x="43" y="151" class="tiny" text-anchor="middle">PE20</text>
-    <rect x="86" y="116" width="86" height="58" class="pe"/><text x="129" y="151" class="tiny" text-anchor="middle">PE21</text>
-    <rect x="172" y="116" width="86" height="58" class="peAlt"/><text x="215" y="151" class="tiny" text-anchor="middle">PE22</text>
-    <rect x="258" y="116" width="86" height="58" class="pe"/><text x="301" y="151" class="tiny" text-anchor="middle">PE23</text>
-    <rect x="0" y="174" width="86" height="58" class="pe"/><text x="43" y="209" class="tiny" text-anchor="middle">PE30</text>
-    <rect x="86" y="174" width="86" height="58" class="peAlt"/><text x="129" y="209" class="tiny" text-anchor="middle">PE31</text>
-    <rect x="172" y="174" width="86" height="58" class="pe"/><text x="215" y="209" class="tiny" text-anchor="middle">PE32</text>
-    <rect x="258" y="174" width="86" height="58" class="peAlt"/><text x="301" y="209" class="tiny" text-anchor="middle">PE33</text>
+  <g transform="translate(548,374)">
+    <!-- Orthogonal flow guides behind PE labels -->
+    <path d="M-72 28 H504" class="iaLine" opacity="0.78"/>
+    <path d="M-52 96 H504" class="iaLine" opacity="0.78"/>
+    <path d="M-32 164 H504" class="iaLine" opacity="0.78"/>
+    <path d="M-12 232 H504" class="iaLine" opacity="0.78"/>
 
-    <path d="M28 20 L316 218" stroke="#C62828" stroke-width="3" fill="none" opacity="0.35"/>
-    <path d="M114 20 L316 160" stroke="#C62828" stroke-width="3" fill="none" opacity="0.35"/>
-    <path d="M28 78 L230 218" stroke="#C62828" stroke-width="3" fill="none" opacity="0.35"/>
-    <path d="M200 20 L316 102" stroke="#C62828" stroke-width="3" fill="none" opacity="0.35"/>
-    <path d="M28 136 L144 218" stroke="#C62828" stroke-width="3" fill="none" opacity="0.35"/>
+    <path d="M52 -58 V272" class="psLine" opacity="0.76"/>
+    <path d="M164 -58 V272" class="psLine" opacity="0.76"/>
+    <path d="M276 -58 V272" class="psLine" opacity="0.76"/>
+    <path d="M388 -58 V272" class="psLine" opacity="0.76"/>
+
+    <!-- PE grid -->
+    <rect x="0" y="0" width="112" height="68" class="peAlt"/><text x="56" y="43" text-anchor="middle" class="small">PE00</text>
+    <rect x="112" y="0" width="112" height="68" class="pe"/><text x="168" y="43" text-anchor="middle" class="small">PE01</text>
+    <rect x="224" y="0" width="112" height="68" class="peAlt"/><text x="280" y="43" text-anchor="middle" class="small">PE02</text>
+    <rect x="336" y="0" width="112" height="68" class="pe"/><text x="392" y="43" text-anchor="middle" class="small">PE03</text>
+
+    <rect x="0" y="68" width="112" height="68" class="pe"/><text x="56" y="111" text-anchor="middle" class="small">PE10</text>
+    <rect x="112" y="68" width="112" height="68" class="peAlt"/><text x="168" y="111" text-anchor="middle" class="small">PE11</text>
+    <rect x="224" y="68" width="112" height="68" class="pe"/><text x="280" y="111" text-anchor="middle" class="small">PE12</text>
+    <rect x="336" y="68" width="112" height="68" class="peAlt"/><text x="392" y="111" text-anchor="middle" class="small">PE13</text>
+
+    <rect x="0" y="136" width="112" height="68" class="peAlt"/><text x="56" y="179" text-anchor="middle" class="small">PE20</text>
+    <rect x="112" y="136" width="112" height="68" class="pe"/><text x="168" y="179" text-anchor="middle" class="small">PE21</text>
+    <rect x="224" y="136" width="112" height="68" class="peAlt"/><text x="280" y="179" text-anchor="middle" class="small">PE22</text>
+    <rect x="336" y="136" width="112" height="68" class="pe"/><text x="392" y="179" text-anchor="middle" class="small">PE23</text>
+
+    <rect x="0" y="204" width="112" height="68" class="pe"/><text x="56" y="247" text-anchor="middle" class="small">PE30</text>
+    <rect x="112" y="204" width="112" height="68" class="peAlt"/><text x="168" y="247" text-anchor="middle" class="small">PE31</text>
+    <rect x="224" y="204" width="112" height="68" class="pe"/><text x="280" y="247" text-anchor="middle" class="small">PE32</text>
+    <rect x="336" y="204" width="112" height="68" class="peAlt"/><text x="392" y="247" text-anchor="middle" class="small">PE33</text>
+
+    <!-- Visible orthogonal flow guides above the PE cells -->
+    <path d="M-72 24 H504" class="iaLine" opacity="0.72"/>
+    <path d="M-52 92 H504" class="iaLine" opacity="0.72"/>
+    <path d="M-32 160 H504" class="iaLine" opacity="0.72"/>
+    <path d="M-12 228 H504" class="iaLine" opacity="0.72"/>
+
+    <path d="M88 -58 V272" class="psLine" opacity="0.70"/>
+    <path d="M200 -58 V272" class="psLine" opacity="0.70"/>
+    <path d="M312 -58 V272" class="psLine" opacity="0.70"/>
+    <path d="M424 -58 V272" class="psLine" opacity="0.70"/>
   </g>
 
-  <text x="675" y="650" class="note" text-anchor="middle">红色斜线表示阵列输出仍带对角/阶梯相位</text>
+  <!-- Input arrows to rows -->
+  <path d="M294 363 H476" class="iaLine"/>
+  <path d="M314 433 H496" class="iaLine"/>
+  <path d="M334 503 H516" class="iaLine"/>
+  <path d="M354 573 H536" class="iaLine"/>
 
-  <!-- Weight load hints -->
-  <rect x="512" y="258" width="336" height="40" class="orange"/>
-  <text x="680" y="285" class="small" text-anchor="middle">weight_data 固定装入 PE</text>
-  <path d="M552 298 L552 404" class="wLine"/>
-  <path d="M638 298 L638 404" class="wLine"/>
-  <path d="M724 298 L724 404" class="wLine"/>
-  <path d="M810 298 L810 404" class="wLine"/>
+  <!-- Top input arrows to columns -->
+  <path d="M615 214 V316 H600 V374" class="biasLine"/>
+  <path d="M615 214 V316 H712 V374" class="biasLine"/>
+  <path d="M913 214 V316 H824 V374" class="psLine"/>
+  <path d="M913 214 V316 H936 V374" class="psLine"/>
+  <path d="M1253 224 V252 H1030 V374" class="wLine"/>
+  <text x="1048" y="360" text-anchor="start" class="small orangeText">W 驻留</text>
 
-  <!-- Incoming arrows to array -->
-  <path d="M354 372 L505 428" class="iaLine"/>
-  <path d="M354 426 L505 486" class="iaLine"/>
-  <path d="M354 480 L505 544" class="iaLine"/>
-  <path d="M354 534 L505 602" class="iaLine"/>
-  <path d="M574 256 C574 292 590 328 620 405" class="biasLine"/>
-  <path d="M574 750 C574 704 590 676 620 638" class="psLine"/>
+  <!-- Bottom skewed output -->
+  <text x="780" y="720" text-anchor="middle" class="label redText">阵列下方错拍输出</text>
+  <path d="M600 646 V744" class="outLine"/>
+  <path d="M712 646 V744" class="outLine"/>
+  <path d="M824 646 V744" class="outLine"/>
+  <path d="M936 646 V744" class="outLine"/>
+  <polygon points="544,744 692,744 724,782 576,782" class="outPoly"/>
+  <polygon points="656,744 804,744 836,782 688,782" class="outPoly"/>
+  <polygon points="768,744 916,744 948,782 800,782" class="outPoly"/>
+  <polygon points="880,744 1028,744 1060,782 912,782" class="outPoly"/>
+  <text x="633" y="769" text-anchor="middle" class="mid">p0</text>
+  <text x="745" y="769" text-anchor="middle" class="mid">p1</text>
+  <text x="857" y="769" text-anchor="middle" class="mid">p2</text>
+  <text x="969" y="769" text-anchor="middle" class="mid">p3</text>
 
-  <!-- Diagonalized array output -->
-  <rect x="1010" y="270" width="230" height="248" class="panel"/>
-  <text x="1125" y="304" class="label" text-anchor="middle" fill="#C62828">对角化阵列输出</text>
-  <text x="1125" y="332" class="note" text-anchor="middle">acc0..acc3 错拍到达</text>
-  <rect x="1040" y="372" width="58" height="34" class="red"/><text x="1069" y="395" class="tiny" text-anchor="middle">p0</text>
-  <rect x="1074" y="420" width="58" height="34" class="red"/><text x="1103" y="443" class="tiny" text-anchor="middle">p1</text>
-  <rect x="1108" y="468" width="58" height="34" class="red"/><text x="1137" y="491" class="tiny" text-anchor="middle">p2</text>
-  <rect x="1142" y="516" width="58" height="34" class="red"/><text x="1171" y="539" class="tiny" text-anchor="middle">p3</text>
-  <path d="M930 428 L1040 389" class="accLine"/>
-  <path d="M930 486 L1074 437" class="accLine"/>
-  <path d="M930 544 L1108 485" class="accLine"/>
-  <path d="M930 602 L1142 533" class="accLine"/>
+  <!-- Partial sum buffer and feedback -->
+  <rect x="1150" y="312" width="300" height="142" class="psBox"/>
+  <text x="1300" y="354" text-anchor="middle" class="label">部分和缓冲区</text>
+  <text x="1300" y="386" text-anchor="middle" class="mid">保存中间 K 分块</text>
+  <text x="1300" y="416" text-anchor="middle" class="mid">下一 K 分块回灌到顶部</text>
+  <path d="M1090 612 H1122 V454 H1150" class="psLine dash"/>
+  <path d="M1300 312 V252 H913" class="psLine dash"/>
 
   <!-- De-diagonalizer and final output -->
-  <rect x="1292" y="342" width="230" height="170" class="blue"/>
-  <text x="1407" y="378" class="label" text-anchor="middle">反对角化</text>
-  <text x="1407" y="408" class="small" text-anchor="middle">de-diagonalizer / SRL</text>
-  <text x="1407" y="438" class="small" text-anchor="middle">对齐为 acc_data[SIZE]</text>
-  <path d="M1200 533 C1240 536 1258 474 1292 432" class="accLine"/>
-  <path d="M1240 430 L1292 430" class="accLine"/>
+  <rect x="1138" y="704" width="278" height="112" class="iaBox"/>
+  <text x="1277" y="746" text-anchor="middle" class="label">反对角化</text>
+  <text x="1277" y="778" text-anchor="middle" class="mid">错拍数据对齐为向量</text>
+  <path d="M1060 763 H1138" class="outLine"/>
 
-  <rect x="1324" y="592" width="166" height="82" class="green"/>
-  <text x="1407" y="625" class="label" text-anchor="middle">输出向量</text>
-  <text x="1407" y="654" class="small" text-anchor="middle">y0 y1 y2 y3</text>
-  <path d="M1407 512 L1407 592" class="iaLine"/>
-  <text x="1407" y="710" class="note" text-anchor="middle">最终 K 分块: 送往 requant</text>
-
-  <!-- PS feedback path -->
-  <path d="M1292 492 C1210 722 900 872 704 813" class="psLine"/>
-  <text x="1038" y="840" class="small" fill="#5E35B1">中间 K 分块: 写入 PS buffer</text>
-  <path d="M704 813 C830 748 880 700 930 623" class="psLine"/>
-  <text x="780" y="742" class="small" fill="#5E35B1">ps_replay 回灌 sum_in</text>
+  <rect x="1452" y="714" width="108" height="92" class="biasBox"/>
+  <text x="1506" y="748" text-anchor="middle" class="mid">acc_data</text>
+  <text x="1506" y="776" text-anchor="middle" class="mid">y0 y1</text>
+  <text x="1506" y="802" text-anchor="middle" class="mid">y2 y3</text>
+  <path d="M1416 760 H1452" class="iaLine"/>
+  <text x="1320" y="842" text-anchor="middle" class="note">最终 K 分块输出送入 vec_requant</text>
 
   <!-- Legend -->
-  <rect x="54" y="804" width="300" height="120" class="panel"/>
-  <line x1="86" y1="838" x2="146" y2="838" class="iaLine"/><text x="164" y="846" class="small">IA 对角化数据</text>
-  <line x1="86" y1="874" x2="146" y2="874" class="accLine"/><text x="164" y="882" class="small">阵列累加输出</text>
-  <line x1="86" y1="910" x2="146" y2="910" class="psLine"/><text x="164" y="918" class="small">部分和回灌</text>
+  <rect x="52" y="766" width="408" height="106" class="panel"/>
+  <line x1="82" y1="800" x2="142" y2="800" class="iaLine"/><text x="162" y="808" class="mid">IA 水平传播</text>
+  <line x1="82" y1="834" x2="142" y2="834" class="psLine"/><text x="162" y="842" class="mid">bias/部分和垂直传播与回灌</text>
+  <line x1="82" y1="864" x2="142" y2="864" class="outLine"/><text x="162" y="872" class="mid">阵列底部输出</text>
 </svg>

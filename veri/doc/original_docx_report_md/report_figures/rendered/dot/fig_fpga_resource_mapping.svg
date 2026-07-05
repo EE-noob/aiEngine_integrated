@@ -9,7 +9,7 @@
 <g id="graph0" class="graph" transform="scale(2.22222 2.22222) rotate(0) translate(10.08 590.6)">
 <title>fig_fpga_resource_mapping</title>
 <polygon fill="white" stroke="none" points="-10.08,10.08 -10.08,-590.6 957.56,-590.6 957.56,10.08 -10.08,10.08"/>
-<text xml:space="preserve" text-anchor="middle" x="473.74" y="-549.92" font-family="Noto Sans CJK SC" font-size="28.00">FPGA 资源映射与 RTL 模块对应关系</text>
+<text xml:space="preserve" text-anchor="middle" x="473.74" y="-549.92" font-family="Noto Sans CJK SC" font-size="28.00">FPGA 资源与 RTL 模块对应关系</text>
 <!-- rtl -->
 <g id="node1" class="node">
 <title>rtl</title>
@@ -24,7 +24,7 @@
 <path fill="#ffebee" stroke="#c62828" stroke-width="2" d="M602.7,-531.27C602.7,-531.27 424.29,-531.27 424.29,-531.27 418.29,-531.27 412.29,-525.27 412.29,-519.27 412.29,-519.27 412.29,-444 412.29,-444 412.29,-438 418.29,-432 424.29,-432 424.29,-432 602.7,-432 602.7,-432 608.7,-432 614.7,-438 614.7,-444 614.7,-444 614.7,-519.27 614.7,-519.27 614.7,-525.27 608.7,-531.27 602.7,-531.27"/>
 <text xml:space="preserve" text-anchor="middle" x="513.49" y="-506.51" font-family="Noto Sans CJK SC" font-size="20.00">脉动阵列 PE</text>
 <text xml:space="preserve" text-anchor="middle" x="513.49" y="-477.26" font-family="Noto Sans CJK SC" font-size="20.00">乘法器 + 累加寄存器</text>
-<text xml:space="preserve" text-anchor="middle" x="513.49" y="-448.01" font-family="Noto Sans CJK SC" font-size="20.00">映射 DSP/LUT/FF</text>
+<text xml:space="preserve" text-anchor="middle" x="513.49" y="-448.01" font-family="Noto Sans CJK SC" font-size="20.00">使用 DSP/LUT/FF</text>
 </g>
 <!-- rtl&#45;&gt;pe -->
 <g id="edge1" class="edge">
@@ -39,7 +39,7 @@
 <text xml:space="preserve" text-anchor="middle" x="513.49" y="-372.13" font-family="Noto Sans CJK SC" font-size="20.00">片上存储</text>
 <text xml:space="preserve" text-anchor="middle" x="513.49" y="-342.88" font-family="Noto Sans CJK SC" font-size="20.00">IA cache、权重缓存</text>
 <text xml:space="preserve" text-anchor="middle" x="513.49" y="-313.63" font-family="Noto Sans CJK SC" font-size="20.00">ps_buffer、输出 FIFO</text>
-<text xml:space="preserve" text-anchor="middle" x="513.49" y="-284.38" font-family="Noto Sans CJK SC" font-size="20.00">映射 BRAM/LUTRAM</text>
+<text xml:space="preserve" text-anchor="middle" x="513.49" y="-284.38" font-family="Noto Sans CJK SC" font-size="20.00">使用 BRAM/LUTRAM</text>
 </g>
 <!-- rtl&#45;&gt;mem -->
 <g id="edge2" class="edge">
@@ -53,7 +53,7 @@
 <path fill="#fff8e1" stroke="#f9a825" stroke-width="2" d="M632.32,-233.27C632.32,-233.27 394.66,-233.27 394.66,-233.27 388.66,-233.27 382.66,-227.27 382.66,-221.27 382.66,-221.27 382.66,-146 382.66,-146 382.66,-140 388.66,-134 394.66,-134 394.66,-134 632.32,-134 632.32,-134 638.32,-134 644.32,-140 644.32,-146 644.32,-146 644.32,-221.27 644.32,-221.27 644.32,-227.27 638.32,-233.27 632.32,-233.27"/>
 <text xml:space="preserve" text-anchor="middle" x="513.49" y="-208.51" font-family="Noto Sans CJK SC" font-size="20.00">控制状态与计数器</text>
 <text xml:space="preserve" text-anchor="middle" x="513.49" y="-179.26" font-family="Noto Sans CJK SC" font-size="20.00">DMA、loader、writer FSM</text>
-<text xml:space="preserve" text-anchor="middle" x="513.49" y="-150.01" font-family="Noto Sans CJK SC" font-size="20.00">映射 FF/LUT</text>
+<text xml:space="preserve" text-anchor="middle" x="513.49" y="-150.01" font-family="Noto Sans CJK SC" font-size="20.00">使用 FF/LUT</text>
 </g>
 <!-- rtl&#45;&gt;ctrl -->
 <g id="edge3" class="edge">

@@ -8,11 +8,11 @@ flowchart TB
     IACACHE[ia_loader_cache_mgr<br/>输入缓存与对角化输出]
     WCTRL[kernel_loader_ctrl<br/>权重块调度]
     WBUF[kernel_loader_buffer<br/>权重缓存]
-    BCTRL[bias_loader_ctrl<br/>bias 与量化参数读取]
+    BCTRL[bias_loader_ctrl<br/>bias 与定点缩放参数读取]
     CORE[compute_core<br/>计算控制与部分和接口]
     ARRAY[ws_systolic_array<br/>权重固定脉动阵列]
     PS[ps_buffer<br/>int32 部分和缓存]
-    REQ[vec_requant<br/>重量化与裁剪]
+    REQ[vec_requant<br/>重定点缩放与裁剪]
     FIFO[vec_s8_to_fifo<br/>int8 打包 FIFO]
     WR[oa_writer<br/>输出地址与写掩码]
 

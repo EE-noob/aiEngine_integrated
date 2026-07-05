@@ -15,7 +15,7 @@
 <title>regs</title>
 <path fill="#fff8e1" stroke="#f9a825" stroke-width="2" d="M258.42,-627.65C258.42,-627.65 12,-627.65 12,-627.65 6,-627.65 0,-621.65 0,-615.65 0,-615.65 0,-554.87 0,-554.87 0,-548.87 6,-542.87 12,-542.87 12,-542.87 258.42,-542.87 258.42,-542.87 264.42,-542.87 270.42,-548.87 270.42,-554.87 270.42,-554.87 270.42,-615.65 270.42,-615.65 270.42,-621.65 264.42,-627.65 258.42,-627.65"/>
 <text xml:space="preserve" text-anchor="middle" x="135.21" y="-597.16" font-family="Noto Sans CJK SC" font-size="23.00">寄存器配置</text>
-<text xml:space="preserve" text-anchor="middle" x="135.21" y="-563.41" font-family="Noto Sans CJK SC" font-size="23.00">地址 / 维度 / 量化 / 模式</text>
+<text xml:space="preserve" text-anchor="middle" x="135.21" y="-563.41" font-family="Noto Sans CJK SC" font-size="23.00">地址 / 维度 / 缩放 / 模式</text>
 </g>
 <!-- cfg -->
 <g id="node2" class="node">

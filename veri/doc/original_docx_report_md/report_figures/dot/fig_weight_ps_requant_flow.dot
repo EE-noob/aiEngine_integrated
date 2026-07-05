@@ -1,5 +1,5 @@
 digraph fig_weight_ps_requant_flow {
-  graph [rankdir=LR,bgcolor="white",pad=0.14,nodesep=0.45,ranksep=0.65,splines=ortho,dpi=160,fontname="Noto Sans CJK SC",label="权重驻留、部分和保存与重量化输入关系",labelloc=t,fontsize=28];
+  graph [rankdir=LR,bgcolor="white",pad=0.14,nodesep=0.45,ranksep=0.65,splines=ortho,dpi=160,fontname="Noto Sans CJK SC",label="权重驻留、部分和保存与重定点缩放输入关系",labelloc=t,fontsize=28];
   node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=20,margin="0.14,0.08",penwidth=2.0,color="#455A64"];
   edge [fontname="Noto Sans CJK SC",fontsize=16,penwidth=1.8,arrowsize=0.85,color="#455A64"];
   rhs [label="RHS/权重分块\nDMA 读取\n输出列组",fillcolor="#E0F7FA",color="#00838F"];

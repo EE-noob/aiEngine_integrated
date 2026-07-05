@@ -96,16 +96,16 @@
 <!-- rq -->
 <g id="node7" class="node">
 <title>rq</title>
-<path fill="#fce4ec" stroke="#ad1457" stroke-width="2" d="M951.48,-230.27C951.48,-230.27 813.57,-230.27 813.57,-230.27 807.57,-230.27 801.57,-224.27 801.57,-218.27 801.57,-218.27 801.57,-143 801.57,-143 801.57,-137 807.57,-131 813.57,-131 813.57,-131 951.48,-131 951.48,-131 957.48,-131 963.48,-137 963.48,-143 963.48,-143 963.48,-218.27 963.48,-218.27 963.48,-224.27 957.48,-230.27 951.48,-230.27"/>
+<path fill="#fce4ec" stroke="#ad1457" stroke-width="2" d="M971.73,-230.27C971.73,-230.27 793.32,-230.27 793.32,-230.27 787.32,-230.27 781.32,-224.27 781.32,-218.27 781.32,-218.27 781.32,-143 781.32,-143 781.32,-137 787.32,-131 793.32,-131 793.32,-131 971.73,-131 971.73,-131 977.73,-131 983.73,-137 983.73,-143 983.73,-143 983.73,-218.27 983.73,-218.27 983.73,-224.27 977.73,-230.27 971.73,-230.27"/>
 <text xml:space="preserve" text-anchor="middle" x="882.52" y="-205.51" font-family="Noto Sans CJK SC" font-size="20.00">vec_requant</text>
 <text xml:space="preserve" text-anchor="middle" x="882.52" y="-176.26" font-family="Noto Sans CJK SC" font-size="20.00">最终归约结果</text>
-<text xml:space="preserve" text-anchor="middle" x="882.52" y="-147.01" font-family="Noto Sans CJK SC" font-size="20.00">进入重量化流水</text>
+<text xml:space="preserve" text-anchor="middle" x="882.52" y="-147.01" font-family="Noto Sans CJK SC" font-size="20.00">进入重定点缩放流水</text>
 </g>
 <!-- array&#45;&gt;rq -->
 <g id="edge7" class="edge">
 <title>array&#45;&gt;rq</title>
-<path fill="none" stroke="#455a64" stroke-width="1.8" d="M539.39,-261.2C539.39,-237.19 539.39,-213.63 539.39,-213.63 539.39,-213.63 789.55,-213.63 789.55,-213.63"/>
-<polygon fill="#455a64" stroke="#455a64" stroke-width="1.8" points="789.55,-216.61 798.05,-213.64 789.55,-210.66 789.55,-216.61"/>
+<path fill="none" stroke="#455a64" stroke-width="1.8" d="M539.39,-261.2C539.39,-237.19 539.39,-213.63 539.39,-213.63 539.39,-213.63 769.28,-213.63 769.28,-213.63"/>
+<polygon fill="#455a64" stroke="#455a64" stroke-width="1.8" points="769.28,-216.61 777.78,-213.64 769.28,-210.66 769.28,-216.61"/>
 <text xml:space="preserve" text-anchor="middle" x="706.32" y="-213.44" font-family="Noto Sans CJK SC" font-size="16.00">最终归约</text>
 <text xml:space="preserve" text-anchor="middle" x="706.32" y="-189.44" font-family="Noto Sans CJK SC" font-size="16.00">acc_data_out</text>
 </g>

@@ -1,7 +1,6 @@
 ../../rtl/axi_accelerator/axi_top/npu_axil_reg_if.sv
 ../../rtl/axi_accelerator/axi_top/npu_axil_top.sv
 ../../rtl/axi_accelerator/axi_top/axil_top_with_ram.sv
-../../rtl/axi_accelerator/npu/accumulator_array.sv
 ../../rtl/axi_accelerator/npu/bias_loader.sv
 ../../rtl/axi_accelerator/npu/bias_loader_buffer.sv
 ../../rtl/axi_accelerator/npu/bias_loader_ctrl.sv
@@ -9,9 +8,7 @@
 ../../rtl/axi_accelerator/npu/axi_block_dma_arbiter.sv
 ../../rtl/axi_accelerator/npu/axi_dual_block_dma.sv
 ../../rtl/axi_accelerator/npu/compute_core.sv
-../../rtl/axi_accelerator/npu/data_setup.sv
 ../../rtl/axi_accelerator/npu/de_diagonalizer.sv
-../../rtl/axi_accelerator/npu/ia_buffer_wrapper.sv
 ../../rtl/axi_accelerator/npu/ia_loader.sv
 ../../rtl/axi_accelerator/npu/ia_loader_cache_mgr.sv
 ../../rtl/axi_accelerator/npu/ia_loader_ctrl.sv
@@ -24,7 +21,6 @@
 ../../rtl/axi_accelerator/npu/ps_buffer.sv
 ../../rtl/axi_accelerator/npu/ps_buffer_fifo.sv
 ../../rtl/axi_accelerator/npu/pseudo_dual_port_ram.v
-../../rtl/axi_accelerator/npu/shift_accumulator.sv
 ../../rtl/axi_accelerator/npu/vec_requant.sv
 ../../rtl/axi_accelerator/npu/vec_s8_to_fifo.sv
 ../../rtl/axi_accelerator/npu/ws_systolic_array.sv

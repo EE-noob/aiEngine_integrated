@@ -154,7 +154,7 @@ def parse_urg_report(report_dir):
     )
     dashboard_total_metrics = {}
 
-    def parse_coverage_sunpury_table(text, title):
+    def parse_coverage_summary_table(text, title):
         lines = text.splitlines()
         for idx, line in enumerate(lines):
             if line.strip() != title:
@@ -192,11 +192,13 @@ def parse_urg_report(report_dir):
         except OSError:
             continue
         if path.name.lower().startswith("dashboard"):
-            preferred = parse_coverage_sunpury_table(text, "Total Coverage Sunpury")
+            preferred = parse_coverage_summary_table(text, "Total Coverage Summary")
+            if not preferred:
+                preferred = parse_coverage_summary_table(text, "Total Coverage Sunpury")
             if preferred:
                 dashboard_total_metrics.update(preferred)
                 for key, val in sorted(preferred.items()):
-                    evidence.append(f"{path.relative_to(report_dir)}: Total Coverage Sunpury {key}={val:.2f}%")
+                    evidence.append(f"{path.relative_to(report_dir)}: Total Coverage Summary {key}={val:.2f}%")
         lines = text.splitlines()
         for idx, line in enumerate(lines):
             headers = line.split()
@@ -453,7 +455,7 @@ def write_markdown(path, data):
     if not functional_requested:
         functional_status = "not requested"
     lines = [
-        "# Coverage Report Sunpury",
+        "# Coverage Report Summary",
         "",
         f"- Goal: {data['goal']:.2f}%",
         f"- Sign-off status: {'PASS' if data['signoff_pass'] else 'FAIL'}",
@@ -484,7 +486,7 @@ def write_markdown(path, data):
     if data["functional_average"] is not None:
         lines.append(f"- Average covergroup coverage from simulation logs: {data['functional_average']:.2f}%")
     else:
-        lines.append("- No covergroup coverage sunpury was found in coverage simulation logs.")
+        lines.append("- No covergroup coverage summary was found in coverage simulation logs.")
     if data["functional_cases"]:
         lines.append("")
         lines.append("| Log | Average |")
@@ -553,7 +555,7 @@ def main():
     code_metric_source = "URG"
     vdb_direct_metrics = {}
     line_exclusion_rules = load_line_exclusion_rules(args.line_exclude_file) if args.line_exclude_file else []
-    if not metrics or len(args.urg_report) != len(vdbs):
+    if line_exclusion_rules or not metrics or len(args.urg_report) != len(vdbs):
         metrics, evidence, vdb_direct_metrics = parse_vdb_direct(
             vdbs,
             args.vdb_merge_mode,

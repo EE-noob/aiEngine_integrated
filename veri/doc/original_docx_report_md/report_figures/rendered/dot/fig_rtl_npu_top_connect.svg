@@ -135,7 +135,7 @@
 <title>req</title>
 <path fill="#fce4ec" stroke="#ad1457" stroke-width="1.8" d="M1406.63,-195.32C1406.63,-195.32 1155.17,-195.32 1155.17,-195.32 1149.17,-195.32 1143.17,-189.32 1143.17,-183.32 1143.17,-183.32 1143.17,-96.68 1143.17,-96.68 1143.17,-90.68 1149.17,-84.68 1155.17,-84.68 1155.17,-84.68 1406.63,-84.68 1406.63,-84.68 1412.63,-84.68 1418.63,-90.68 1418.63,-96.68 1418.63,-96.68 1418.63,-183.32 1418.63,-183.32 1418.63,-189.32 1412.63,-195.32 1406.63,-195.32"/>
 <text xml:space="preserve" text-anchor="middle" x="1280.9" y="-174.85" font-family="Noto Sans CJK SC" font-size="17.00">u_vec_requant</text>
-<text xml:space="preserve" text-anchor="middle" x="1280.9" y="-149.35" font-family="Noto Sans CJK SC" font-size="17.00">按张量或按通道重量化</text>
+<text xml:space="preserve" text-anchor="middle" x="1280.9" y="-149.35" font-family="Noto Sans CJK SC" font-size="17.00">按张量或按通道重定点缩放</text>
 <text xml:space="preserve" text-anchor="middle" x="1280.9" y="-123.85" font-family="Noto Sans CJK SC" font-size="17.00">mult/shift、dst_offset、激活钳位</text>
 <text xml:space="preserve" text-anchor="middle" x="1280.9" y="-98.35" font-family="Noto Sans CJK SC" font-size="17.00">输出 int8 向量</text>
 </g>
@@ -326,7 +326,7 @@
 <path fill="#fce4ec" stroke="#ad1457" stroke-width="1.8" d="M337.96,-189.57C337.96,-189.57 28,-189.57 28,-189.57 22,-189.57 16,-183.57 16,-177.57 16,-177.57 16,-116.43 16,-116.43 16,-110.43 22,-104.43 28,-104.43 28,-104.43 337.96,-104.43 337.96,-104.43 343.96,-104.43 349.96,-110.43 349.96,-116.43 349.96,-116.43 349.96,-177.57 349.96,-177.57 349.96,-183.57 343.96,-189.57 337.96,-189.57"/>
 <text xml:space="preserve" text-anchor="middle" x="182.98" y="-169.1" font-family="Noto Sans CJK SC" font-size="17.00">bias_data_hold / compute_bias_latched</text>
 <text xml:space="preserve" text-anchor="middle" x="182.98" y="-143.6" font-family="Noto Sans CJK SC" font-size="17.00">WS 模式下在 ia_tile_start 锁存偏置</text>
-<text xml:space="preserve" text-anchor="middle" x="182.98" y="-118.1" font-family="Noto Sans CJK SC" font-size="17.00">IS 模式下偏置在重量化前相加</text>
+<text xml:space="preserve" text-anchor="middle" x="182.98" y="-118.1" font-family="Noto Sans CJK SC" font-size="17.00">IS 模式下偏置在重定点缩放前相加</text>
 </g>
 <!-- bias&#45;&gt;bias_hold -->
 <g id="edge23" class="edge">

@@ -13,7 +13,7 @@ flowchart TB
     CFG --> AXIL[AXI-Lite 寄存器访问<br/>读写、清除位、非法地址]
     CFG --> CTRL[控制状态机<br/>启动、完成、错误、软复位]
     MEM --> DMA[DMA 传输<br/>非对齐、stride、burst、写掩码]
-    MEM --> DATA[矩阵数据通路<br/>s8、s16、尾块、量化模式]
+    MEM --> DATA[矩阵数据通路<br/>s8、s16、尾块、定点缩放模式]
     SYS --> SOC[SoC 集成<br/>PicoRV32、RAM、UART、NPU]
     SYS --> TFLM[TFLM/NMSIS-NN 入口<br/>全连接与卷积 im2col]
     RES --> PERF[性能扫描<br/>阵列规模、IA 分块数、frame 数]

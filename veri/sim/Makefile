@@ -41,6 +41,7 @@ SOC_UNALIGNED_LAYOUT ?= 0
 SOC_MIN_DIM ?=
 SOC_MAX_DIM ?=
 SOC_DIM_MULTIPLE ?= 16
+SOC_DIRECTED_PATTERN ?=
 SOC_LHS_OFFSET ?= 0
 SOC_RHS_OFFSET ?= 0
 SOC_DST_OFFSET ?= 0
@@ -245,6 +246,8 @@ SOC_GEN_ARGS = --seed $(SOC_SEED) \
                $(if $(SOC_DST_SHIFT),--dst_shift $(SOC_DST_SHIFT),) \
                $(if $(SOC_RANDOM_LHS_DTYPE),--lhs_dtype $(SOC_RANDOM_LHS_DTYPE),) \
                $(if $(SOC_RANDOM_QUANT_MODE),--quant_mode $(SOC_RANDOM_QUANT_MODE),) \
+               $(if $(SOC_DIRECTED_PATTERN),--directed_pattern $(SOC_DIRECTED_PATTERN),) \
+               --runtime_base_addr $(SOC_RUNTIME_BASE_ADDR) \
                $(if $(filter 1 yes true TRUE,$(SOC_UNALIGNED_LAYOUT)),--unaligned_layout,) \
                $(if $(SOC_MIN_DIM),--min_dim $(SOC_MIN_DIM),) \
                $(if $(SOC_MAX_DIM),--max_dim $(SOC_MAX_DIM),) \
@@ -291,18 +294,18 @@ COV_LINE_EXCLUDE_FILE ?= ./coverage_line_exclude.json
 COV_CODE_REPORT_ROOT ?= $(COV_ROOT)/urg_code_by_design
 COV_MODULE_ROOT ?= runs/coverage_module
 COV_MODULE_PLAN_ARGS ?= --only axil_mem_gen_smoke --only axil_ral_mem_gen_start --only axil_reg_directed \
-	--only soc_runtime_ws_int8 --only soc_runtime_is_int16 --only soc_runtime_per_channel_int8 \
-	--only soc_reuse_ws_int8 --only soc_reuse_is_int16 --only soc_reuse_wide_ws_int8 --only soc_reuse_wide_is_int16 \
-	--only soc_saturation_clamp_ws_int8 --only soc_saturation_clamp_is_int8 --only soc_tail_ws_int8 --only soc_tail_is_int16 \
-	--only soc_tail_per_channel_int16 --only soc_unaligned_randlat_ws_int8 --only soc_runtime_per_channel_ws_int16 \
+	--only soc_runtime_ws_int8 --only soc_reg_directed --only soc_runtime_is_int16 --only soc_runtime_per_channel_int8 \
+	--only soc_reuse_ws_int8 --only soc_reuse_is_int16 --only soc_reuse_wide_ws_int8 --only soc_reuse_multigroup_ws_int8 --only soc_reuse_multigroup_deep_ws_int8 --only soc_reuse_wide_is_int16 \
+	--only soc_saturation_clamp_ws_int8 --only soc_saturation_clamp_is_int8 --only soc_per_channel_clamp_ws_int8 --only soc_requant_directed_clamp_ws_int8 --only soc_tail_ws_int8 --only soc_tail_is_int16 \
+	--only soc_tail_per_channel_int16 --only soc_fifo_wrap_tail2_ws_int8 --only soc_unaligned_randlat_ws_int8 --only soc_runtime_per_channel_ws_int16 \
 	--only soc_runtime_per_channel_is_int8 --only soc_min_tile_ws_int8 --only soc_offset_activation_ws_int8 \
 	--only soc_randlat_is_int8 --only soc_min_tile_is_int16 --only soc_offset_activation_is_int16 --only soc_tail_per_channel_is_int8
 COV_SOC_ROOT ?= runs/coverage_soc
 COV_SOC_HIER_FILE ?= ./coverage_accel_axi_soc.hier
-COV_SOC_PLAN_ARGS ?= --only soc_runtime_ws_int8 --only soc_runtime_is_int16 --only soc_runtime_per_channel_int8 \
-	--only soc_reuse_ws_int8 --only soc_reuse_is_int16 --only soc_reuse_wide_ws_int8 --only soc_reuse_wide_is_int16 \
-	--only soc_saturation_clamp_ws_int8 --only soc_saturation_clamp_is_int8 --only soc_tail_ws_int8 --only soc_tail_is_int16 \
-	--only soc_tail_per_channel_int16 --only soc_unaligned_randlat_ws_int8 --only soc_runtime_per_channel_ws_int16 \
+COV_SOC_PLAN_ARGS ?= --only soc_runtime_ws_int8 --only soc_reg_directed --only soc_runtime_is_int16 --only soc_runtime_per_channel_int8 \
+	--only soc_reuse_ws_int8 --only soc_reuse_is_int16 --only soc_reuse_wide_ws_int8 --only soc_reuse_multigroup_ws_int8 --only soc_reuse_multigroup_deep_ws_int8 --only soc_reuse_wide_is_int16 \
+	--only soc_saturation_clamp_ws_int8 --only soc_saturation_clamp_is_int8 --only soc_per_channel_clamp_ws_int8 --only soc_requant_directed_clamp_ws_int8 --only soc_tail_ws_int8 --only soc_tail_is_int16 \
+	--only soc_tail_per_channel_int16 --only soc_fifo_wrap_tail2_ws_int8 --only soc_unaligned_randlat_ws_int8 --only soc_runtime_per_channel_ws_int16 \
 	--only soc_runtime_per_channel_is_int8 --only soc_min_tile_ws_int8 --only soc_offset_activation_ws_int8 \
 	--only soc_randlat_is_int8 --only soc_min_tile_is_int16 --only soc_offset_activation_is_int16 --only soc_tail_per_channel_is_int8
 COV_COMPILE_OPTS = $(if $(filter 1 yes true TRUE,$(COV)),-cm $(COV_TYPES) -cm_dir $(COV_COMPILE_DB) $(if $(strip $(COV_HIER_FILE)),-cm_hier $(COV_HIER_FILE),),)

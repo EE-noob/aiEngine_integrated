@@ -23,7 +23,10 @@ def parse_config(path):
                 if value.startswith("DSA_DTYPE_"):
                     cfg[key] = value
                 else:
-                    cfg[key] = int(value, 0)
+                    try:
+                        cfg[key] = int(value, 0)
+                    except ValueError:
+                        cfg[key] = value
     return cfg
 
 
@@ -72,8 +75,9 @@ def write_mem_words(path, data_bytes):
 
 
 def emit_runtime_mem(out_dir, cfg, lhs, rhs, bias, expected, dtype_value,
+                     runtime_base_addr=RUNTIME_BASE_ADDR,
                      random_case=False, unaligned_layout=False):
-    base_addr = RUNTIME_BASE_ADDR
+    base_addr = int(runtime_base_addr)
     cursor = RUNTIME_HEADER_BYTES
     rng = np.random.default_rng(int(cfg.get("seed", 0)) ^ 0x5A17)
 
@@ -181,7 +185,8 @@ def emit_runtime_mem(out_dir, cfg, lhs, rhs, bias, expected, dtype_value,
     return runtime_mem_path
 
 
-def emit_soc_case_files(out_dir, cfg, random_case=False, unaligned_layout=False):
+def emit_soc_case_files(out_dir, cfg, random_case=False, unaligned_layout=False,
+                        runtime_base_addr=RUNTIME_BASE_ADDR):
     dtype = cfg.get("lhs_dtype", "DSA_DTYPE_S8")
     if isinstance(dtype, str):
         dtype_value = 2 if dtype == "DSA_DTYPE_S16" else 1
@@ -267,6 +272,7 @@ def emit_soc_case_files(out_dir, cfg, random_case=False, unaligned_layout=False)
 
     runtime_mem_path = emit_runtime_mem(out_dir, cfg, lhs, rhs, bias, expected,
                                         dtype_value,
+                                        runtime_base_addr=runtime_base_addr,
                                         random_case=random_case,
                                         unaligned_layout=unaligned_layout)
 
@@ -297,6 +303,8 @@ def main():
     parser.add_argument("--min_dim", type=int, default=16)
     parser.add_argument("--max_dim", type=int, default=32)
     parser.add_argument("--dim_multiple", type=int, default=16)
+    parser.add_argument("--directed_pattern", choices=["requant_clamp_bipolar"], default=None)
+    parser.add_argument("--runtime_base_addr", type=lambda value: int(value, 0), default=RUNTIME_BASE_ADDR)
     parser.add_argument("--unaligned_layout", action="store_true",
                         help="place runtime data sections at deterministic byte offsets")
     parser.add_argument("--out_dir", type=str, default="./axi_soc_case")
@@ -320,6 +328,7 @@ def main():
         min_dim=args.min_dim,
         max_dim=args.max_dim,
         dim_multiple=args.dim_multiple,
+        directed_pattern=args.directed_pattern,
         out_dir=args.out_dir,
     )
 
@@ -329,7 +338,8 @@ def main():
     cfg["w_reuse_num"] = args.w_reuse_num
     header_path, c_path, runtime_mem_path = emit_soc_case_files(
         args.out_dir, cfg, random_case=args.random,
-        unaligned_layout=args.unaligned_layout)
+        unaligned_layout=args.unaligned_layout,
+        runtime_base_addr=args.runtime_base_addr)
     print(f"Generated AXI SoC case in {args.out_dir}")
     print(f"Generated {header_path}")
     print(f"Generated {c_path}")
