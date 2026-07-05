@@ -1,0 +1,20 @@
+digraph fig_software_tflm_mmio_interface {
+  graph [rankdir=LR,bgcolor="white",pad=0.14,nodesep=0.48,ranksep=0.68,splines=ortho,dpi=160,fontname="Noto Sans CJK SC",label="软件驱动、TFLM/NMSIS-NN 接入层与 NPU MMIO 接口",labelloc=t,fontsize=28];
+  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=20,margin="0.14,0.08",penwidth=2.0,color="#455A64"];
+  edge [fontname="Noto Sans CJK SC",fontsize=16,penwidth=1.8,arrowsize=0.85,color="#455A64"];
+  tflm [label="TFLM / NMSIS-NN 算子\nGEMM、FC、Conv im2col",fillcolor="#E3F2FD",color="#1565C0"];
+  adapt [label="NPU 适配层\n检查形状、数据类型\n构造 dsa_matmul_config_t",fillcolor="#EDE7F6",color="#5E35B1"];
+  drv [label="MMIO 驱动\n写基址、维度、步长\n量化参数、复用、模式",fillcolor="#FFF8E1",color="#F9A825"];
+  axil [label="NPU AXI-Lite 寄存器\nCTRL / STATUS / K/N/M\nQ_MULT / Q_SHIFT",fillcolor="#FFF8E1",color="#F9A825"];
+  ram [label="共享 RAM\n输入、权重、bias\n量化参数、输出",fillcolor="#E8F5E9",color="#2E7D32"];
+  npu [label="NPU GEMM 后端\nDMA + 阵列 + 重量化\n写回后置 done",fillcolor="#FFEBEE",color="#C62828"];
+  tflm -> adapt [label="算子调用"];
+  adapt -> drv [label="硬件路径"];
+  adapt -> tflm [label="不满足条件时软件回退",style=dashed,color="#607D8B"];
+  drv -> axil [label="32 bit MMIO"];
+  drv -> ram [label="准备输入/参数"];
+  axil -> npu [label="start + 配置锁存"];
+  ram -> npu [label="AXI4 DMA"];
+  npu -> ram [label="输出写回"];
+  npu -> drv [label="done/error/status",style=dashed,color="#607D8B"];
+}

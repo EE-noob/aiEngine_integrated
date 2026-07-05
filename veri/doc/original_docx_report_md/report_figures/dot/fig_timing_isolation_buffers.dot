@@ -1,0 +1,16 @@
+digraph fig_timing_isolation_buffers {
+  graph [rankdir=LR,bgcolor="white",pad=0.14,nodesep=0.45,ranksep=0.65,splines=ortho,dpi=160,fontname="Noto Sans CJK SC",label="长组合路径隔离、乒乓缓冲与局部寄存器切分",labelloc=t,fontsize=28];
+  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=20,margin="0.14,0.08",penwidth=2.0,color="#455A64"];
+  edge [fontname="Noto Sans CJK SC",fontsize=16,penwidth=1.8,arrowsize=0.85,color="#455A64"];
+  src [label="上游源端\nvalid + payload\nready 为低时保持",fillcolor="#E3F2FD",color="#1565C0"];
+  pp [label="soc_axi_pingpong_chan\nvalid 寄存\npayload 寄存\n同周期弹出/写入",fillcolor="#E0F7FA",color="#00838F"];
+  dma [label="DMA/loader 局部寄存\n命令保持\n计数器只在握手后推进",fillcolor="#FFF8E1",color="#F9A825"];
+  fifo [label="FIFO / BRAM 前寄存\n隔离写口、读口\n局部反压",fillcolor="#E8F5E9",color="#2E7D32"];
+  dst [label="下游消费端\nready 恢复后继续传输\n顺序不变",fillcolor="#FFEBEE",color="#C62828"];
+  src -> pp [label="切断跨模块 ready 路径"];
+  pp -> dma [label="寄存后转发"];
+  dma -> fifo [label="局部握手"];
+  fifo -> dst [label="valid/ready"];
+  dst -> fifo [label="反压只返回相邻级",style=dashed,color="#607D8B"];
+  fifo -> dma [label="满/空状态",style=dashed,color="#607D8B"];
+}

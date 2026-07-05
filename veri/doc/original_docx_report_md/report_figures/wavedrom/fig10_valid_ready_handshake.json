@@ -1,17 +1,17 @@
 {
   "head": { "text": "valid/ready 反压保持与计数推进时序" },
-  "config": { "hscale": 1.55 },
+  "config": { "hscale": 1.35 },
   "signal": [
-    { "name": "clk", "wave": "p................" },
-    { "name": "rst_n", "wave": "0.1.............." },
+    { "name": "clk", "wave": "p........................." },
+    { "name": "rst_n", "wave": "0.1......................." },
     {},
-    { "name": "src_valid", "wave": "0..1.....0.1..0." },
-    { "name": "dst_ready", "wave": "0.....1.0..1..0." },
-    { "name": "data_bus", "wave": "x..=.....x.=..x.", "data": ["data_A", "data_B"] },
-    { "name": "addr_or_tag", "wave": "x..=.....x.=..x.", "data": ["tag_A", "tag_B"] },
-    { "name": "transfer", "wave": "0.....10...10..." },
-    { "name": "hold_state", "wave": "0..1..0.1..0...." },
-    { "name": "counter_en", "wave": "0.....10...10..." },
-    { "name": "fifo_level", "wave": "=.....=....=....", "data": ["N", "N+1", "N+2"] }
+    { "name": "src_valid", "wave": "0...1....0...1..0........." },
+    { "name": "dst_ready", "wave": "0.......10.....10........." },
+    { "name": "payload", "wave": "x...=....x...=..x.........", "data": ["DATA_A", "DATA_B"] },
+    { "name": "addr_tag", "wave": "x...=....x...=..x.........", "data": ["TAG_A", "TAG_B"] },
+    { "name": "fire", "wave": "0.......10.....10........." },
+    { "name": "hold_payload", "wave": "0...1...0....1.0.........." },
+    { "name": "counter_en", "wave": "0.......10.....10........." },
+    { "name": "fifo_level", "wave": "=........=......=.........", "data": ["N", "N+1", "N+2"] }
   ]
 }

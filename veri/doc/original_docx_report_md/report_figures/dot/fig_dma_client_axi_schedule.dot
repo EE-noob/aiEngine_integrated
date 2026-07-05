@@ -1,0 +1,18 @@
+digraph fig_dma_client_axi_schedule {
+  graph [rankdir=LR,bgcolor="white",pad=0.14,nodesep=0.45,ranksep=0.65,splines=ortho,dpi=160,fontname="Noto Sans CJK SC",label="分块 DMA 读写客户端调度与 AXI 通道分配",labelloc=t,fontsize=28];
+  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=19,margin="0.13,0.08",penwidth=2.0,color="#455A64"];
+  edge [fontname="Noto Sans CJK SC",fontsize=15,penwidth=1.8,arrowsize=0.85,color="#455A64"];
+  ia [label="IA 读客户端\nLHS 分块",fillcolor="#E8F5E9",color="#2E7D32"];
+  w [label="权重读客户端\nRHS 分块",fillcolor="#E8F5E9",color="#2E7D32"];
+  bias [label="bias 读客户端\nint32 偏置",fillcolor="#E8F5E9",color="#2E7D32"];
+  q [label="quant 读客户端\nper-channel 参数",fillcolor="#E8F5E9",color="#2E7D32"];
+  oa [label="OA 写客户端\n输出数据与 mask",fillcolor="#FCE4EC",color="#AD1457"];
+  arb [label="axi_block_dma_arbiter\n读侧 grant 保持到 rd_done\n写侧 grant 保持到 wr_done",fillcolor="#FFF8E1",color="#F9A825"];
+  dma [label="axi_dual_block_dma\n二维地址生成\n读写引擎并行跟踪",fillcolor="#E0F7FA",color="#00838F"];
+  axi [label="AXI4 主接口\nAR/R 读通道\nAW/W/B 写通道",fillcolor="#EDE7F6",color="#5E35B1"];
+  ia -> arb; w -> arb; bias -> arb; q -> arb; oa -> arb;
+  arb -> dma [label="锁存命令字段"];
+  dma -> axi [label="突发传输"];
+  axi -> dma [label="R 数据与 B 响应",style=dashed,color="#607D8B"];
+  dma -> arb [label="rd_done / wr_done",style=dashed,color="#607D8B"];
+}

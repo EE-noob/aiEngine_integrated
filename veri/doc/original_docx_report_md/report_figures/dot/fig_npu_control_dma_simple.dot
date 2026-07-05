@@ -1,0 +1,29 @@
+digraph fig_npu_control_dma_simple {
+  graph [rankdir=TB,bgcolor="white",pad=0.14,nodesep=0.45,ranksep=0.55,splines=polyline,dpi=180,fontname="Noto Sans CJK SC",label="npu_top 控制与 DMA 关系简图",labelloc=t,fontsize=30];
+  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=23,margin="0.18,0.12",penwidth=2.0,color="#455A64"];
+  edge [fontname="Noto Sans CJK SC",fontsize=17,penwidth=2.0,arrowsize=0.85,color="#455A64"];
+
+  regs [label="寄存器配置\n地址 / 维度 / 量化 / 模式",fillcolor="#FFF8E1",color="#F9A825"];
+  cfg [label="配置流水\n锁存参数、裁剪复用窗口",fillcolor="#EDE7F6",color="#5E35B1"];
+  ctrl [label="NPU 控制器\n加载、计算、写回调度",fillcolor="#EDE7F6",color="#5E35B1"];
+  readers [label="读客户端\nIA / Weight / Bias / Quant",fillcolor="#E3F2FD",color="#1565C0"];
+  writer [label="写客户端\nOA writer",fillcolor="#FCE4EC",color="#AD1457"];
+  arb [label="DMA 仲裁器\n读 grant / 写 grant",fillcolor="#E0F7FA",color="#00838F"];
+  dma [label="双向分块 DMA\nAR/R 与 AW/W/B",fillcolor="#E0F7FA",color="#00838F"];
+  ram [label="共享 RAM",fillcolor="#E8F5E9",color="#2E7D32"];
+
+  { rank=same; regs; cfg; ctrl; }
+  { rank=same; readers; writer; }
+  regs -> cfg;
+  cfg -> ctrl [label="ctrl_start"];
+  ctrl -> readers [label="init / send"];
+  ctrl -> writer [label="init_oa"];
+  readers -> arb [label="读请求"];
+  writer -> arb [label="写请求"];
+  arb -> dma;
+  dma -> ram [label="AXI4"];
+  ram -> dma [style=dashed,color="#607D8B"];
+  readers -> ctrl [style=dashed,color="#607D8B",constraint=false];
+  writer -> ctrl [style=dashed,color="#607D8B",constraint=false];
+  ctrl -> regs [style=dashed,color="#607D8B",constraint=false];
+}

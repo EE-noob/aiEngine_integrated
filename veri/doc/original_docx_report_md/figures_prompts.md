@@ -14,6 +14,38 @@
 
 图中不要加入未实现的性能数字、未确认的频率、未确认的资源占用、未实现的电源管理模块、未使用的 CPU、未使用的接口、ASIC 后端签核流程、抽象云端服务、人物、服务器机柜或商业化图标。若需要表达未在图中展开的内部细节，应使用小字号说明框，不应使用夸张标语。
 
+## compute_core 数据流示意图提示词
+
+**建议输出文件名：** `report_figures/rendered/custom/fig_compute_core_dataflow_systolic.svg`
+
+**已绘制参考图：** `report_figures/rendered/custom/fig_compute_core_dataflow_systolic.svg`
+
+**用途：** 用于展示 `compute_core` 内部对角化 IA 输入、权重固定脉动阵列、对角化累加输出、反对角化输出、PS 回灌和 bias 初值输入之间的数据流关系。
+
+**详细提示词：**
+
+绘制一张 `compute_core` 数据流技术示意图，白色背景，16:9 横向版式，清晰工程图风格，矢量插画，不要照片质感。
+
+画面中央是一个方格状 `SIZE x SIZE` 脉动阵列，示例使用 4x4 PE 网格，每个格子标注 `PE00`、`PE01`、`PE10` 等。阵列表示 weight-stationary systolic array，每个 PE 内部执行 `acc = sum_in + IA x W`。
+
+左侧绘制 `IA cache / input activation cache`，输出 `a0`、`a1`、`a2`、`a3` 四路输入。输入必须表现为“对角化输入 / diagonal skewing”：第 0 路先进入，第 1 路延迟 1 拍，第 2 路延迟 2 拍，第 3 路延迟 3 拍，用蓝色箭头从左侧错位进入脉动阵列。
+
+阵列上方绘制 `weight_data` 输入，表示权重固定装入 PE，可用橙色箭头从上方进入每一列 PE。
+
+阵列上方或左上方绘制 bias 输入，绿色箭头进入阵列的 `sum_in / bias mux`，标注“首个 K 分块使用 bias 或 zero 作为初值”。
+
+阵列下方绘制 `PS buffer / partial sum buffer`，紫色虚线箭头从阵列输出回到 PS buffer，再从 PS buffer 回灌到脉动阵列 `sum_in`，标注“中间 K 分块 partial sum replay / ps_replay 回灌”。
+
+阵列右侧绘制对角化的脉动阵列输出，红色箭头输出 `p0`、`p1`、`p2`、`p3`，这些输出必须带有错拍、阶梯状、对角化到达的视觉效果。
+
+右侧再绘制 `de-diagonalizer / 反对角化` 模块，将错拍输出重新对齐为 `acc_data[SIZE]` 输出向量 `y0`、`y1`、`y2`、`y3`。最终输出向量再送往 `requant`。
+
+使用颜色区分数据流：蓝色表示 IA 对角化输入，橙色表示权重装载，绿色表示 bias 输入，紫色表示 partial sum 回灌，红色表示累加输出。所有文字必须清晰可读，箭头不要交叉太多，整体像芯片设计报告中的数据通路框图。
+
+**负面提示词：**
+
+不要画成人工神经网络层级图，不要画成 GPU/CPU 照片，不要复杂背景，不要 3D 透视，不要小到不可读的文字，不要装饰性渐变，不要把脉动阵列画成圆点网络，不要把 partial sum 画成外部 RAM 写回。
+
 ## 基于 RTL 连接关系生成的高精度图
 
 以下图形已经按 RTL 代码重新梳理并用 Graphviz/DOT 生成。图形采用较大的节点和箭头字号、较小的节点间距和高分辨率输出，框图元素排列较紧凑，优先保证文字在报告页面中仍可阅读。`npu_top` 的完整图保留全局连接，正式排版时可优先采用拆分后的控制与 DMA 图、加载计算与输出图，避免单张图片信息量过大导致字号被压缩。它们比通用 AI 插图更适合表达真实模块连接，报告排版优先采用这些 PNG 或 SVG 文件。

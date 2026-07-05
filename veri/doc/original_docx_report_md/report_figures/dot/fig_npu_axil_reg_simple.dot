@@ -1,0 +1,21 @@
+digraph fig_npu_axil_reg_simple {
+  graph [rankdir=TB,bgcolor="white",pad=0.14,nodesep=0.45,ranksep=0.55,splines=polyline,dpi=180,fontname="Noto Sans CJK SC",label="NPU AXI-Lite 寄存器接口简图",labelloc=t,fontsize=30];
+  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=23,margin="0.18,0.12",penwidth=2.0,color="#455A64"];
+  edge [fontname="Noto Sans CJK SC",fontsize=17,penwidth=2.0,arrowsize=0.85,color="#455A64"];
+
+  cpu [label="CPU MMIO\nAXI-Lite AW/W/B + AR/R",fillcolor="#E3F2FD",color="#1565C0"];
+  reg [label="npu_axil_reg_if\n配置寄存器 + status sticky",fillcolor="#FFF8E1",color="#F9A825"];
+  gate [label="npu_axil_top\nstart 保持 + 可选门控时钟",fillcolor="#FFF3E0",color="#EF6C00"];
+  core [label="npu_top\n任务执行",fillcolor="#FFEBEE",color="#C62828"];
+  irq [label="irq\nDONE sticky && IRQ_EN",fillcolor="#FFF8E1",color="#F9A825"];
+
+  { rank=same; cpu; reg; }
+  { rank=same; gate; core; }
+
+  cpu -> reg [label="写配置 / 读状态"];
+  reg -> gate [label="calc_start"];
+  gate -> core [label="core_start"];
+  reg -> core [label="地址、维度、量化、模式",constraint=false];
+  core -> reg [style=dashed,color="#607D8B",constraint=false];
+  reg -> irq [style=dashed,color="#607D8B"];
+}

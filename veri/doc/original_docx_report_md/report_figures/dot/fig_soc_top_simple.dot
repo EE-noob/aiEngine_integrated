@@ -1,0 +1,21 @@
+digraph fig_soc_top_simple {
+  graph [rankdir=LR,bgcolor="white",pad=0.12,nodesep=0.55,ranksep=0.70,splines=ortho,dpi=180,fontname="Noto Sans CJK SC",label="soc_top 简化连接关系",labelloc=t,fontsize=28];
+  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=22,margin="0.16,0.10",penwidth=2.0,color="#455A64"];
+  edge [fontname="Noto Sans CJK SC",fontsize=16,penwidth=2.0,arrowsize=0.85,color="#455A64"];
+
+  cpu [label="PicoRV32 CPU\n软件调度 / MMIO",fillcolor="#E3F2FD",color="#1565C0"];
+  bridge [label="native-to-AXI 桥\nload/store -> AXI",fillcolor="#EDE7F6",color="#5E35B1"];
+  ic [label="共享 AXI 互连\nRAM 仲裁 + 外设译码",fillcolor="#EDE7F6",color="#5E35B1"];
+  ram [label="AXI RAM\n程序、模型、输入输出",fillcolor="#E8F5E9",color="#2E7D32"];
+  npu [label="NPU 外设\nAXI-Lite 控制 + AXI4 DMA",fillcolor="#FFEBEE",color="#C62828"];
+  uart [label="UART",fillcolor="#FFF8E1",color="#F9A825"];
+  ctrl [label="SOC 控制\nfinish / status",fillcolor="#FFF8E1",color="#F9A825"];
+
+  cpu -> bridge;
+  bridge -> ic [label="CPU AXI"];
+  ic -> ram [label="共享数据访问"];
+  ic -> npu [label="MMIO 配置"];
+  npu -> ic [label="DMA 读写"];
+  ic -> uart [label="日志"];
+  ic -> ctrl [label="完成状态"];
+}

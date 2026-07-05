@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1056" height="642" viewBox="0 0 1056 642">
+<svg xmlns="http://www.w3.org/2000/svg" width="1488" height="642" viewBox="0 0 1488 642">
 <style>text{font-family:"Noto Sans CJK SC","Microsoft YaHei",Arial,sans-serif}.title{font-size:28px;font-weight:700}.name{font-size:18px;font-weight:600}.tick{font-size:13px;fill:#607D8B}.buslabel{font-size:15px;font-weight:700;fill:#3A2A00}</style>
 <rect width="100%" height="100%" fill="white"/>
-<text x="528.0" y="38" class="title" text-anchor="middle">valid/ready 反压保持与计数推进时序</text>
+<text x="744.0" y="38" class="title" text-anchor="middle">valid/ready 反压保持与计数推进时序</text>
 <line x1="190" y1="58" x2="190" y2="618" stroke="#ECEFF1" stroke-width="1"/>
 <text x="214.0" y="64" class="tick" text-anchor="middle">T0</text>
 <line x1="238" y1="58" x2="238" y2="618" stroke="#ECEFF1" stroke-width="1"/>
@@ -37,37 +37,57 @@
 <line x1="958" y1="58" x2="958" y2="618" stroke="#ECEFF1" stroke-width="1"/>
 <text x="982.0" y="64" class="tick" text-anchor="middle">T16</text>
 <line x1="1006" y1="58" x2="1006" y2="618" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1030.0" y="64" class="tick" text-anchor="middle">T17</text>
+<line x1="1054" y1="58" x2="1054" y2="618" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1078.0" y="64" class="tick" text-anchor="middle">T18</text>
+<line x1="1102" y1="58" x2="1102" y2="618" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1126.0" y="64" class="tick" text-anchor="middle">T19</text>
+<line x1="1150" y1="58" x2="1150" y2="618" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1174.0" y="64" class="tick" text-anchor="middle">T20</text>
+<line x1="1198" y1="58" x2="1198" y2="618" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1222.0" y="64" class="tick" text-anchor="middle">T21</text>
+<line x1="1246" y1="58" x2="1246" y2="618" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1270.0" y="64" class="tick" text-anchor="middle">T22</text>
+<line x1="1294" y1="58" x2="1294" y2="618" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1318.0" y="64" class="tick" text-anchor="middle">T23</text>
+<line x1="1342" y1="58" x2="1342" y2="618" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1366.0" y="64" class="tick" text-anchor="middle">T24</text>
+<line x1="1390" y1="58" x2="1390" y2="618" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1414.0" y="64" class="tick" text-anchor="middle">T25</text>
+<line x1="1438" y1="58" x2="1438" y2="618" stroke="#ECEFF1" stroke-width="1"/>
 <text x="22" y="123" class="name">clk</text>
-<path d="M190,132 L190,132 L190,106 L214.0,106 L214.0,132 L238,132 L238,132 L238,106 L262.0,106 L262.0,132 L286,132 L286,132 L286,106 L310.0,106 L310.0,132 L334,132 L334,132 L334,106 L358.0,106 L358.0,132 L382,132 L382,132 L382,106 L406.0,106 L406.0,132 L430,132 L430,132 L430,106 L454.0,106 L454.0,132 L478,132 L478,132 L478,106 L502.0,106 L502.0,132 L526,132 L526,132 L526,106 L550.0,106 L550.0,132 L574,132 L574,132 L574,106 L598.0,106 L598.0,132 L622,132 L622,132 L622,106 L646.0,106 L646.0,132 L670,132 L670,132 L670,106 L694.0,106 L694.0,132 L718,132 L718,132 L718,106 L742.0,106 L742.0,132 L766,132 L766,132 L766,106 L790.0,106 L790.0,132 L814,132 L814,132 L814,106 L838.0,106 L838.0,132 L862,132 L862,132 L862,106 L886.0,106 L886.0,132 L910,132 L910,132 L910,106 L934.0,106 L934.0,132 L958,132 L958,132 L958,106 L982.0,106 L982.0,132 L1006,132" fill="none" stroke="#263238" stroke-width="2.4"/>
+<path d="M190,132 L190,132 L190,106 L214.0,106 L214.0,132 L238,132 L238,132 L238,106 L262.0,106 L262.0,132 L286,132 L286,132 L286,106 L310.0,106 L310.0,132 L334,132 L334,132 L334,106 L358.0,106 L358.0,132 L382,132 L382,132 L382,106 L406.0,106 L406.0,132 L430,132 L430,132 L430,106 L454.0,106 L454.0,132 L478,132 L478,132 L478,106 L502.0,106 L502.0,132 L526,132 L526,132 L526,106 L550.0,106 L550.0,132 L574,132 L574,132 L574,106 L598.0,106 L598.0,132 L622,132 L622,132 L622,106 L646.0,106 L646.0,132 L670,132 L670,132 L670,106 L694.0,106 L694.0,132 L718,132 L718,132 L718,106 L742.0,106 L742.0,132 L766,132 L766,132 L766,106 L790.0,106 L790.0,132 L814,132 L814,132 L814,106 L838.0,106 L838.0,132 L862,132 L862,132 L862,106 L886.0,106 L886.0,132 L910,132 L910,132 L910,106 L934.0,106 L934.0,132 L958,132 L958,132 L958,106 L982.0,106 L982.0,132 L1006,132 L1006,132 L1006,106 L1030.0,106 L1030.0,132 L1054,132 L1054,132 L1054,106 L1078.0,106 L1078.0,132 L1102,132 L1102,132 L1102,106 L1126.0,106 L1126.0,132 L1150,132 L1150,132 L1150,106 L1174.0,106 L1174.0,132 L1198,132 L1198,132 L1198,106 L1222.0,106 L1222.0,132 L1246,132 L1246,132 L1246,106 L1270.0,106 L1270.0,132 L1294,132 L1294,132 L1294,106 L1318.0,106 L1318.0,132 L1342,132 L1342,132 L1342,106 L1366.0,106 L1366.0,132 L1390,132 L1390,132 L1390,106 L1414.0,106 L1414.0,132 L1438,132" fill="none" stroke="#263238" stroke-width="2.4"/>
 <text x="22" y="171" class="name">rst_n</text>
-<path d="M190,180 L238,180 L286,180 L286,154 L334,154 L382,154 L430,154 L478,154 L526,154 L574,154 L622,154 L670,154 L718,154 L766,154 L814,154 L862,154 L910,154 L958,154 L1006,154" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
-<line x1="24" y1="198.0" x2="1032" y2="198.0" stroke="#CFD8DC" stroke-width="1"/>
+<path d="M190,180 L238,180 L286,180 L286,154 L334,154 L382,154 L430,154 L478,154 L526,154 L574,154 L622,154 L670,154 L718,154 L766,154 L814,154 L862,154 L910,154 L958,154 L1006,154 L1054,154 L1102,154 L1150,154 L1198,154 L1246,154 L1294,154 L1342,154 L1390,154 L1438,154" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<line x1="24" y1="198.0" x2="1464" y2="198.0" stroke="#CFD8DC" stroke-width="1"/>
 <text x="22" y="267" class="name">src_valid</text>
-<path d="M190,276 L238,276 L286,276 L334,276 L334,250 L382,250 L430,250 L478,250 L526,250 L574,250 L622,250 L622,276 L670,276 L718,276 L718,250 L766,250 L814,250 L862,250 L862,276 L910,276 L958,276" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M190,276 L238,276 L286,276 L334,276 L382,276 L382,250 L430,250 L478,250 L526,250 L574,250 L622,250 L622,276 L670,276 L718,276 L766,276 L814,276 L814,250 L862,250 L910,250 L958,250 L958,276 L1006,276 L1054,276 L1102,276 L1150,276 L1198,276 L1246,276 L1294,276 L1342,276 L1390,276 L1438,276" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
 <text x="22" y="315" class="name">dst_ready</text>
-<path d="M190,324 L238,324 L286,324 L334,324 L382,324 L430,324 L478,324 L478,298 L526,298 L574,298 L574,324 L622,324 L670,324 L718,324 L718,298 L766,298 L814,298 L862,298 L862,324 L910,324 L958,324" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
-<text x="22" y="363" class="name">data_bus</text>
-<rect x="334" y="342" width="288" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
-<text x="478.0" y="363" class="buslabel" text-anchor="middle">data_A</text>
-<rect x="718" y="342" width="144" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
-<text x="790.0" y="363" class="buslabel" text-anchor="middle">data_B</text>
-<line x1="190" y1="359" x2="958" y2="359" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
-<text x="22" y="411" class="name">addr_or_tag</text>
-<rect x="334" y="390" width="288" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
-<text x="478.0" y="411" class="buslabel" text-anchor="middle">tag_A</text>
-<rect x="718" y="390" width="144" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
-<text x="790.0" y="411" class="buslabel" text-anchor="middle">tag_B</text>
-<line x1="190" y1="407" x2="958" y2="407" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
-<text x="22" y="459" class="name">transfer</text>
-<path d="M190,468 L238,468 L286,468 L334,468 L382,468 L430,468 L478,468 L478,442 L526,442 L526,468 L574,468 L622,468 L670,468 L718,468 L718,442 L766,442 L766,468 L814,468 L862,468 L910,468 L958,468" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
-<text x="22" y="507" class="name">hold_state</text>
-<path d="M190,516 L238,516 L286,516 L334,516 L334,490 L382,490 L430,490 L478,490 L478,516 L526,516 L574,516 L574,490 L622,490 L670,490 L718,490 L718,516 L766,516 L814,516 L862,516 L910,516 L958,516" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M190,324 L238,324 L286,324 L334,324 L382,324 L430,324 L478,324 L526,324 L574,324 L574,298 L622,298 L622,324 L670,324 L718,324 L766,324 L814,324 L862,324 L910,324 L910,298 L958,298 L958,324 L1006,324 L1054,324 L1102,324 L1150,324 L1198,324 L1246,324 L1294,324 L1342,324 L1390,324 L1438,324" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<text x="22" y="363" class="name">payload</text>
+<rect x="382" y="342" width="240" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
+<text x="502.0" y="363" class="buslabel" text-anchor="middle">DATA_A</text>
+<rect x="814" y="342" width="144" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
+<text x="886.0" y="363" class="buslabel" text-anchor="middle">DATA_B</text>
+<line x1="190" y1="359" x2="1438" y2="359" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
+<text x="22" y="411" class="name">addr_tag</text>
+<rect x="382" y="390" width="240" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
+<text x="502.0" y="411" class="buslabel" text-anchor="middle">TAG_A</text>
+<rect x="814" y="390" width="144" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
+<text x="886.0" y="411" class="buslabel" text-anchor="middle">TAG_B</text>
+<line x1="190" y1="407" x2="1438" y2="407" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
+<text x="22" y="459" class="name">fire</text>
+<path d="M190,468 L238,468 L286,468 L334,468 L382,468 L430,468 L478,468 L526,468 L574,468 L574,442 L622,442 L622,468 L670,468 L718,468 L766,468 L814,468 L862,468 L910,468 L910,442 L958,442 L958,468 L1006,468 L1054,468 L1102,468 L1150,468 L1198,468 L1246,468 L1294,468 L1342,468 L1390,468 L1438,468" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<text x="22" y="507" class="name">hold_payload</text>
+<path d="M190,516 L238,516 L286,516 L334,516 L382,516 L382,490 L430,490 L478,490 L526,490 L574,490 L574,516 L622,516 L670,516 L718,516 L766,516 L814,516 L814,490 L862,490 L910,490 L910,516 L958,516 L1006,516 L1054,516 L1102,516 L1150,516 L1198,516 L1246,516 L1294,516 L1342,516 L1390,516 L1438,516" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
 <text x="22" y="555" class="name">counter_en</text>
-<path d="M190,564 L238,564 L286,564 L334,564 L382,564 L430,564 L478,564 L478,538 L526,538 L526,564 L574,564 L622,564 L670,564 L718,564 L718,538 L766,538 L766,564 L814,564 L862,564 L910,564 L958,564" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M190,564 L238,564 L286,564 L334,564 L382,564 L430,564 L478,564 L526,564 L574,564 L574,538 L622,538 L622,564 L670,564 L718,564 L766,564 L814,564 L862,564 L910,564 L910,538 L958,538 L958,564 L1006,564 L1054,564 L1102,564 L1150,564 L1198,564 L1246,564 L1294,564 L1342,564 L1390,564 L1438,564" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
 <text x="22" y="603" class="name">fifo_level</text>
-<rect x="190" y="582" width="288" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
-<text x="334.0" y="603" class="buslabel" text-anchor="middle">N</text>
-<rect x="718" y="582" width="240" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
-<text x="838.0" y="603" class="buslabel" text-anchor="middle">N+1</text>
-<line x1="190" y1="599" x2="958" y2="599" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
+<rect x="190" y="582" width="432" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
+<text x="406.0" y="603" class="buslabel" text-anchor="middle">N</text>
+<rect x="622" y="582" width="336" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
+<text x="790.0" y="603" class="buslabel" text-anchor="middle">N+1</text>
+<rect x="958" y="582" width="480" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
+<text x="1198.0" y="603" class="buslabel" text-anchor="middle">N+2</text>
+<line x1="190" y1="599" x2="1438" y2="599" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
 </svg>

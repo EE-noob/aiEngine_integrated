@@ -1,0 +1,18 @@
+digraph fig_oa_writer_mask_done {
+  graph [rankdir=LR,bgcolor="white",pad=0.14,nodesep=0.48,ranksep=0.68,splines=ortho,dpi=160,fontname="Noto Sans CJK SC",label="oa_writer 输出坐标、字节写掩码与响应完成",labelloc=t,fontsize=28];
+  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=20,margin="0.14,0.08",penwidth=2.0,color="#455A64"];
+  edge [fontname="Noto Sans CJK SC",fontsize=16,penwidth=1.8,arrowsize=0.85,color="#455A64"];
+  fifo [label="vec_s8_to_fifo\noutput_data[31:0]\noutput_mask[3:0]\nrow/col 坐标",fillcolor="#EAF7EA",color="#3B873E"];
+  geom [label="输出分块几何\n有效行、有效列\nDST 行步长",fillcolor="#FFF8E1",color="#F9A825"];
+  writer [label="oa_writer\n生成写地址\n保持写命令\n等待 DMA 接受",fillcolor="#E0F7FA",color="#00838F"];
+  dma [label="axi_dual_block_dma 写侧\nAW/W 通道\nWSTRB 来自 output_mask",fillcolor="#E0F7FA",color="#00838F"];
+  ram [label="AXI RAM\n只更新有效字节\n尾列不覆盖其他字节",fillcolor="#E8F5E9",color="#2E7D32"];
+  done [label="完成条件\n全部 W 数据拍发送\n全部 B 响应返回\noa_calc_over",fillcolor="#FFEBEE",color="#C62828"];
+  fifo -> writer [label="valid && ready 才消费"];
+  geom -> writer [label="dst_base + row_stride + col"];
+  writer -> dma [label="write_oa_req\nbase/rows/len/data/mask"];
+  dma -> ram [label="AWADDR / WDATA / WSTRB"];
+  ram -> dma [label="BVALID/BRESP",style=dashed,color="#607D8B"];
+  dma -> done [label="wr_done"];
+  done -> writer [label="释放当前分块",style=dashed,color="#607D8B"];
+}

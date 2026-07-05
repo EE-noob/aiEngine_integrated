@@ -1,0 +1,17 @@
+digraph fig_output_pack_mask_unaligned {
+  graph [rankdir=LR,bgcolor="white",pad=0.14,nodesep=0.45,ranksep=0.65,splines=ortho,dpi=160,fontname="Noto Sans CJK SC",label="int8 输出打包、尾列字节写掩码与非对齐写回",labelloc=t,fontsize=28];
+  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=20,margin="0.14,0.08",penwidth=2.0,color="#455A64"];
+  edge [fontname="Noto Sans CJK SC",fontsize=16,penwidth=1.8,arrowsize=0.85,color="#455A64"];
+  rq [label="vec_requant\nSIZE 路 int8 输出\n有效通道标志",fillcolor="#FCE4EC",color="#AD1457"];
+  fifo [label="vec_s8_to_fifo\n按 4 字节打包\n保存 row/col/last",fillcolor="#EAF7EA",color="#3B873E"];
+  pack [label="32 bit 写数据拍\nbyte0..byte3\n不足 4 字节补无效",fillcolor="#FFF8E1",color="#F9A825"];
+  mask [label="output_mask[3:0]\n尾列和非对齐地址\n只标记有效字节",fillcolor="#FFF8E1",color="#F9A825"];
+  dma [label="写 DMA\nWDATA + WSTRB\nWLAST 标记最后数据拍",fillcolor="#E0F7FA",color="#00838F"];
+  ram [label="AXI RAM word\n仅 WSTRB=1 的字节更新",fillcolor="#E8F5E9",color="#2E7D32"];
+  rq -> fifo;
+  fifo -> pack;
+  fifo -> mask;
+  pack -> dma;
+  mask -> dma [label="映射为 WSTRB"];
+  dma -> ram;
+}

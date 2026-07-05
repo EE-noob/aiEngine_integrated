@@ -1,0 +1,11 @@
+digraph fig_ws_is_dataflow_compare {
+  graph [rankdir=LR,bgcolor="white",pad=0.14,nodesep=0.45,ranksep=0.65,splines=ortho,dpi=160,fontname="Noto Sans CJK SC",label="WS 与 IS 模式下阵列输入角色、输出坐标和写回次序",labelloc=t,fontsize=28];
+  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=19,margin="0.13,0.08",penwidth=2.0,color="#455A64"];
+  edge [fontname="Noto Sans CJK SC",fontsize=15,penwidth=1.8,arrowsize=0.85,color="#455A64"];
+  subgraph cluster_ws { label="WS 权重固定模式"; color="#C62828"; fontsize=22; style="rounded"; ws_w [label="RHS/权重驻留 PE\n输出列组 M",fillcolor="#FFEBEE",color="#C62828"]; ws_ia [label="LHS/IA 对角化流入\n输出行组 K",fillcolor="#E8F5E9",color="#2E7D32"]; ws_out [label="阵列输出\n按 K x M 行主序写回",fillcolor="#FFF8E1",color="#F9A825"]; }
+  subgraph cluster_is { label="IS 输入固定模式"; color="#1565C0"; fontsize=22; style="rounded"; is_ia [label="IA 侧改读 RHS\nstream_k=M\n按列组复用输入角色",fillcolor="#E3F2FD",color="#1565C0"]; is_w [label="W 侧改读 LHS\nstream_m=K\n内部角色交换",fillcolor="#E8F5E9",color="#2E7D32"]; is_out [label="FIFO 转置/坐标保存\n写回仍保持 K x M 行主序",fillcolor="#FFF8E1",color="#F9A825"]; }
+  cfg [label="cfg_dataflow_mode\nstart 时锁存\nbusy 期间不改变当前任务",fillcolor="#EDE7F6",color="#5E35B1"];
+  cfg -> ws_w; cfg -> is_ia;
+  ws_w -> ws_out; ws_ia -> ws_out;
+  is_ia -> is_out; is_w -> is_out;
+}

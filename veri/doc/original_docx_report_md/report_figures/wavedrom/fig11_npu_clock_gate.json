@@ -1,0 +1,20 @@
+{
+  "head": { "text": "NPU 主动门控时钟启动与关闭时序" },
+  "config": { "hscale": 1.35 },
+  "signal": [
+    { "name": "soc_clk", "wave": "p........................" },
+    { "name": "rst_n", "wave": "0.1......................" },
+    { "name": "calc_start", "wave": "0.....10................" },
+    { "name": "start_pending", "wave": "0.....1...0............." },
+    { "name": "gate_en", "wave": "1..........1........0..." },
+    { "name": "warmup_cnt", "wave": "=..=.=.=.=.=x...........", "data": ["reset", "w0", "w1", "w2", "ready"] },
+    { "name": "npu_core_clk", "wave": "p..........p........x..." },
+    { "name": "core_calc_start", "wave": "0.........10..........." },
+    { "name": "npu_busy", "wave": "0..........1.....0....." },
+    { "name": "axi_active", "wave": "0...........1..0......." },
+    { "name": "done_valid", "wave": "0................10...." },
+    { "name": "npu_sa_ready", "wave": "1.........0......1....." },
+    { "name": "done_sticky", "wave": "0.................1..0." },
+    { "name": "irq", "wave": "0.................1..0." }
+  ]
+}

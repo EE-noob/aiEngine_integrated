@@ -1,0 +1,28 @@
+digraph fig_npu_overall_arch {
+  graph [rankdir=TB,bgcolor="white",pad=0.14,nodesep=0.45,ranksep=0.55,splines=polyline,dpi=180,fontname="Noto Sans CJK SC",label="NPU 总体架构简图",labelloc=t,fontsize=30];
+  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=23,margin="0.18,0.12",penwidth=2.0,color="#455A64"];
+  edge [fontname="Noto Sans CJK SC",fontsize=17,penwidth=2.0,arrowsize=0.85,color="#455A64"];
+
+  axil [label="AXI-Lite 寄存器\n配置 / start / status / irq",fillcolor="#FFF8E1",color="#F9A825"];
+  ctrl [label="配置流水 + 控制器\n参数锁存、复用裁剪、任务调度",fillcolor="#EDE7F6",color="#5E35B1"];
+  load [label="加载与片上缓存\nIA cache、权重、bias、量化参数",fillcolor="#E3F2FD",color="#1565C0"];
+  core [label="计算核心\nSIZE x SIZE 脉动阵列\n+ ps_buffer",fontsize=26,margin="0.24,0.16",fillcolor="#FFEBEE",color="#C62828"];
+  out [label="输出流水\nrequant -> int8 FIFO -> OA writer",fillcolor="#FCE4EC",color="#AD1457"];
+  dma [label="分块 DMA\n读写仲裁、二维 burst、WSTRB",fillcolor="#E0F7FA",color="#00838F"];
+  ram [label="共享 AXI RAM\n输入、权重、参数、输出",fillcolor="#E8F5E9",color="#2E7D32"];
+
+  { rank=same; axil; ctrl; }
+  { rank=same; load; core; out; }
+
+  axil -> ctrl [label="任务参数 + start"];
+  ctrl -> load [label="init / send 触发"];
+  load -> core [label="IA / W / bias"];
+  core -> out [label="int32 acc"];
+  out -> dma [label="输出写请求"];
+  dma -> ram [label="AXI4"];
+  ram -> dma [style=dashed,color="#607D8B"];
+  dma -> load [style=dashed,color="#607D8B",constraint=false];
+  out -> ctrl [style=dashed,color="#607D8B",constraint=false];
+  core -> ctrl [style=dashed,color="#607D8B",constraint=false];
+  ctrl -> axil [style=dashed,color="#607D8B",constraint=false];
+}

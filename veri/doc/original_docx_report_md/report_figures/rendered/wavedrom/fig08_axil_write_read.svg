@@ -1,117 +1,155 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1344" height="1410" viewBox="0 0 1344 1410">
+<svg xmlns="http://www.w3.org/2000/svg" width="2016" height="1458" viewBox="0 0 2016 1458">
 <style>text{font-family:"Noto Sans CJK SC","Microsoft YaHei",Arial,sans-serif}.title{font-size:28px;font-weight:700}.name{font-size:18px;font-weight:600}.tick{font-size:13px;fill:#607D8B}.buslabel{font-size:15px;font-weight:700;fill:#3A2A00}</style>
 <rect width="100%" height="100%" fill="white"/>
-<text x="672.0" y="38" class="title" text-anchor="middle">AXI-Lite 寄存器写读与启动状态时序</text>
-<line x1="190" y1="58" x2="190" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1008.0" y="38" class="title" text-anchor="middle">AXI-Lite 配置写入、状态读取与 done 清除时序</text>
+<line x1="190" y1="58" x2="190" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="214.0" y="64" class="tick" text-anchor="middle">T0</text>
-<line x1="238" y1="58" x2="238" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="238" y1="58" x2="238" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="262.0" y="64" class="tick" text-anchor="middle">T1</text>
-<line x1="286" y1="58" x2="286" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="286" y1="58" x2="286" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="310.0" y="64" class="tick" text-anchor="middle">T2</text>
-<line x1="334" y1="58" x2="334" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="334" y1="58" x2="334" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="358.0" y="64" class="tick" text-anchor="middle">T3</text>
-<line x1="382" y1="58" x2="382" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="382" y1="58" x2="382" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="406.0" y="64" class="tick" text-anchor="middle">T4</text>
-<line x1="430" y1="58" x2="430" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="430" y1="58" x2="430" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="454.0" y="64" class="tick" text-anchor="middle">T5</text>
-<line x1="478" y1="58" x2="478" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="478" y1="58" x2="478" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="502.0" y="64" class="tick" text-anchor="middle">T6</text>
-<line x1="526" y1="58" x2="526" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="526" y1="58" x2="526" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="550.0" y="64" class="tick" text-anchor="middle">T7</text>
-<line x1="574" y1="58" x2="574" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="574" y1="58" x2="574" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="598.0" y="64" class="tick" text-anchor="middle">T8</text>
-<line x1="622" y1="58" x2="622" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="622" y1="58" x2="622" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="646.0" y="64" class="tick" text-anchor="middle">T9</text>
-<line x1="670" y1="58" x2="670" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="670" y1="58" x2="670" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="694.0" y="64" class="tick" text-anchor="middle">T10</text>
-<line x1="718" y1="58" x2="718" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="718" y1="58" x2="718" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="742.0" y="64" class="tick" text-anchor="middle">T11</text>
-<line x1="766" y1="58" x2="766" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="766" y1="58" x2="766" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="790.0" y="64" class="tick" text-anchor="middle">T12</text>
-<line x1="814" y1="58" x2="814" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="814" y1="58" x2="814" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="838.0" y="64" class="tick" text-anchor="middle">T13</text>
-<line x1="862" y1="58" x2="862" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="862" y1="58" x2="862" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="886.0" y="64" class="tick" text-anchor="middle">T14</text>
-<line x1="910" y1="58" x2="910" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="910" y1="58" x2="910" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="934.0" y="64" class="tick" text-anchor="middle">T15</text>
-<line x1="958" y1="58" x2="958" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="958" y1="58" x2="958" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="982.0" y="64" class="tick" text-anchor="middle">T16</text>
-<line x1="1006" y1="58" x2="1006" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="1006" y1="58" x2="1006" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="1030.0" y="64" class="tick" text-anchor="middle">T17</text>
-<line x1="1054" y1="58" x2="1054" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="1054" y1="58" x2="1054" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="1078.0" y="64" class="tick" text-anchor="middle">T18</text>
-<line x1="1102" y1="58" x2="1102" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="1102" y1="58" x2="1102" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="1126.0" y="64" class="tick" text-anchor="middle">T19</text>
-<line x1="1150" y1="58" x2="1150" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="1150" y1="58" x2="1150" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="1174.0" y="64" class="tick" text-anchor="middle">T20</text>
-<line x1="1198" y1="58" x2="1198" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="1198" y1="58" x2="1198" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="1222.0" y="64" class="tick" text-anchor="middle">T21</text>
-<line x1="1246" y1="58" x2="1246" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="1246" y1="58" x2="1246" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="1270.0" y="64" class="tick" text-anchor="middle">T22</text>
-<line x1="1294" y1="58" x2="1294" y2="1386" stroke="#ECEFF1" stroke-width="1"/>
+<line x1="1294" y1="58" x2="1294" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1318.0" y="64" class="tick" text-anchor="middle">T23</text>
+<line x1="1342" y1="58" x2="1342" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1366.0" y="64" class="tick" text-anchor="middle">T24</text>
+<line x1="1390" y1="58" x2="1390" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1414.0" y="64" class="tick" text-anchor="middle">T25</text>
+<line x1="1438" y1="58" x2="1438" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1462.0" y="64" class="tick" text-anchor="middle">T26</text>
+<line x1="1486" y1="58" x2="1486" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1510.0" y="64" class="tick" text-anchor="middle">T27</text>
+<line x1="1534" y1="58" x2="1534" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1558.0" y="64" class="tick" text-anchor="middle">T28</text>
+<line x1="1582" y1="58" x2="1582" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1606.0" y="64" class="tick" text-anchor="middle">T29</text>
+<line x1="1630" y1="58" x2="1630" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1654.0" y="64" class="tick" text-anchor="middle">T30</text>
+<line x1="1678" y1="58" x2="1678" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1702.0" y="64" class="tick" text-anchor="middle">T31</text>
+<line x1="1726" y1="58" x2="1726" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1750.0" y="64" class="tick" text-anchor="middle">T32</text>
+<line x1="1774" y1="58" x2="1774" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1798.0" y="64" class="tick" text-anchor="middle">T33</text>
+<line x1="1822" y1="58" x2="1822" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1846.0" y="64" class="tick" text-anchor="middle">T34</text>
+<line x1="1870" y1="58" x2="1870" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1894.0" y="64" class="tick" text-anchor="middle">T35</text>
+<line x1="1918" y1="58" x2="1918" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
+<text x="1942.0" y="64" class="tick" text-anchor="middle">T36</text>
+<line x1="1966" y1="58" x2="1966" y2="1434" stroke="#ECEFF1" stroke-width="1"/>
 <text x="22" y="123" class="name">aclk</text>
-<path d="M190,132 L190,132 L190,106 L214.0,106 L214.0,132 L238,132 L238,132 L238,106 L262.0,106 L262.0,132 L286,132 L286,132 L286,106 L310.0,106 L310.0,132 L334,132 L334,132 L334,106 L358.0,106 L358.0,132 L382,132 L382,132 L382,106 L406.0,106 L406.0,132 L430,132 L430,132 L430,106 L454.0,106 L454.0,132 L478,132 L478,132 L478,106 L502.0,106 L502.0,132 L526,132 L526,132 L526,106 L550.0,106 L550.0,132 L574,132 L574,132 L574,106 L598.0,106 L598.0,132 L622,132 L622,132 L622,106 L646.0,106 L646.0,132 L670,132 L670,132 L670,106 L694.0,106 L694.0,132 L718,132 L718,132 L718,106 L742.0,106 L742.0,132 L766,132 L766,132 L766,106 L790.0,106 L790.0,132 L814,132 L814,132 L814,106 L838.0,106 L838.0,132 L862,132 L862,132 L862,106 L886.0,106 L886.0,132 L910,132 L910,132 L910,106 L934.0,106 L934.0,132 L958,132 L958,132 L958,106 L982.0,106 L982.0,132 L1006,132 L1006,132 L1006,106 L1030.0,106 L1030.0,132 L1054,132 L1054,132 L1054,106 L1078.0,106 L1078.0,132 L1102,132 L1102,132 L1102,106 L1126.0,106 L1126.0,132 L1150,132 L1150,132 L1150,106 L1174.0,106 L1174.0,132 L1198,132 L1198,132 L1198,106 L1222.0,106 L1222.0,132 L1246,132 L1246,132 L1246,106 L1270.0,106 L1270.0,132 L1294,132" fill="none" stroke="#263238" stroke-width="2.4"/>
+<path d="M190,132 L190,132 L190,106 L214.0,106 L214.0,132 L238,132 L238,132 L238,106 L262.0,106 L262.0,132 L286,132 L286,132 L286,106 L310.0,106 L310.0,132 L334,132 L334,132 L334,106 L358.0,106 L358.0,132 L382,132 L382,132 L382,106 L406.0,106 L406.0,132 L430,132 L430,132 L430,106 L454.0,106 L454.0,132 L478,132 L478,132 L478,106 L502.0,106 L502.0,132 L526,132 L526,132 L526,106 L550.0,106 L550.0,132 L574,132 L574,132 L574,106 L598.0,106 L598.0,132 L622,132 L622,132 L622,106 L646.0,106 L646.0,132 L670,132 L670,132 L670,106 L694.0,106 L694.0,132 L718,132 L718,132 L718,106 L742.0,106 L742.0,132 L766,132 L766,132 L766,106 L790.0,106 L790.0,132 L814,132 L814,132 L814,106 L838.0,106 L838.0,132 L862,132 L862,132 L862,106 L886.0,106 L886.0,132 L910,132 L910,132 L910,106 L934.0,106 L934.0,132 L958,132 L958,132 L958,106 L982.0,106 L982.0,132 L1006,132 L1006,132 L1006,106 L1030.0,106 L1030.0,132 L1054,132 L1054,132 L1054,106 L1078.0,106 L1078.0,132 L1102,132 L1102,132 L1102,106 L1126.0,106 L1126.0,132 L1150,132 L1150,132 L1150,106 L1174.0,106 L1174.0,132 L1198,132 L1198,132 L1198,106 L1222.0,106 L1222.0,132 L1246,132 L1246,132 L1246,106 L1270.0,106 L1270.0,132 L1294,132 L1294,132 L1294,106 L1318.0,106 L1318.0,132 L1342,132 L1342,132 L1342,106 L1366.0,106 L1366.0,132 L1390,132 L1390,132 L1390,106 L1414.0,106 L1414.0,132 L1438,132 L1438,132 L1438,106 L1462.0,106 L1462.0,132 L1486,132 L1486,132 L1486,106 L1510.0,106 L1510.0,132 L1534,132 L1534,132 L1534,106 L1558.0,106 L1558.0,132 L1582,132 L1582,132 L1582,106 L1606.0,106 L1606.0,132 L1630,132 L1630,132 L1630,106 L1654.0,106 L1654.0,132 L1678,132 L1678,132 L1678,106 L1702.0,106 L1702.0,132 L1726,132 L1726,132 L1726,106 L1750.0,106 L1750.0,132 L1774,132 L1774,132 L1774,106 L1798.0,106 L1798.0,132 L1822,132 L1822,132 L1822,106 L1846.0,106 L1846.0,132 L1870,132 L1870,132 L1870,106 L1894.0,106 L1894.0,132 L1918,132 L1918,132 L1918,106 L1942.0,106 L1942.0,132 L1966,132" fill="none" stroke="#263238" stroke-width="2.4"/>
 <text x="22" y="171" class="name">aresetn</text>
-<path d="M190,180 L238,180 L286,180 L286,154 L334,154 L382,154 L430,154 L478,154 L526,154 L574,154 L622,154 L670,154 L718,154 L766,154 L814,154 L862,154 L910,154 L958,154 L1006,154 L1054,154 L1102,154 L1150,154 L1198,154 L1246,154 L1294,154" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
-<line x1="24" y1="198.0" x2="1320" y2="198.0" stroke="#CFD8DC" stroke-width="1"/>
+<path d="M190,180 L238,180 L286,180 L286,154 L334,154 L382,154 L430,154 L478,154 L526,154 L574,154 L622,154 L670,154 L718,154 L766,154 L814,154 L862,154 L910,154 L958,154 L1006,154 L1054,154 L1102,154 L1150,154 L1198,154 L1246,154 L1294,154 L1342,154 L1390,154 L1438,154 L1486,154 L1534,154 L1582,154 L1630,154 L1678,154 L1726,154 L1774,154 L1822,154 L1870,154 L1918,154 L1966,154" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<line x1="24" y1="198.0" x2="1992" y2="198.0" stroke="#CFD8DC" stroke-width="1"/>
 <text x="22" y="267" class="name">AWVALID</text>
-<path d="M190,276 L238,276 L286,276 L334,276 L334,250 L382,250 L430,250 L478,250 L478,276 L526,276 L574,276 L622,276 L670,276 L718,276 L766,276 L814,276 L862,276 L910,276 L958,276 L1006,276 L1054,276 L1102,276 L1150,276 L1198,276 L1246,276" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M190,276 L238,276 L286,276 L334,276 L382,276 L382,250 L430,250 L478,250 L526,250 L526,276 L574,276 L622,276 L670,276 L718,276 L766,276 L814,276 L862,276 L910,276 L958,276 L1006,276 L1054,276 L1102,276 L1150,276 L1198,276 L1246,276 L1294,276 L1342,276 L1390,276 L1438,276 L1438,250 L1486,250 L1534,250 L1582,250 L1582,276 L1630,276 L1678,276 L1726,276 L1774,276 L1822,276 L1870,276 L1918,276 L1966,276" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
 <text x="22" y="315" class="name">AWREADY</text>
-<path d="M190,324 L238,324 L286,324 L334,324 L382,324 L430,324 L430,298 L478,298 L478,324 L526,324 L574,324 L622,324 L670,324 L718,324 L766,324 L814,324 L862,324 L910,324 L958,324 L1006,324 L1054,324 L1102,324 L1150,324 L1198,324 L1246,324" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M190,324 L238,324 L286,324 L334,324 L382,324 L430,324 L478,324 L478,298 L526,298 L526,324 L574,324 L622,324 L670,324 L718,324 L766,324 L814,324 L862,324 L910,324 L958,324 L1006,324 L1054,324 L1102,324 L1150,324 L1198,324 L1246,324 L1294,324 L1342,324 L1390,324 L1438,324 L1486,324 L1486,298 L1534,298 L1534,324 L1582,324 L1630,324 L1678,324 L1726,324 L1774,324 L1822,324 L1870,324 L1918,324 L1966,324" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
 <text x="22" y="363" class="name">AWADDR</text>
-<rect x="334" y="342" width="144" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
-<text x="406.0" y="363" class="buslabel" text-anchor="middle">CTRL</text>
-<line x1="190" y1="359" x2="1246" y2="359" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
+<rect x="382" y="342" width="144" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
+<text x="454.0" y="363" class="buslabel" text-anchor="middle">CTRL</text>
+<rect x="1438" y="342" width="144" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
+<text x="1510.0" y="363" class="buslabel" text-anchor="middle">STATUS</text>
+<line x1="190" y1="359" x2="1966" y2="359" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
 <text x="22" y="411" class="name">WVALID</text>
-<path d="M190,420 L238,420 L286,420 L334,420 L382,420 L382,394 L430,394 L478,394 L478,420 L526,420 L574,420 L622,420 L670,420 L718,420 L766,420 L814,420 L862,420 L910,420 L958,420 L1006,420 L1054,420 L1102,420 L1150,420 L1198,420 L1246,420" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M190,420 L238,420 L286,420 L334,420 L382,420 L430,420 L430,394 L478,394 L526,394 L574,394 L574,420 L622,420 L670,420 L718,420 L766,420 L814,420 L862,420 L910,420 L958,420 L1006,420 L1054,420 L1102,420 L1150,420 L1198,420 L1246,420 L1294,420 L1342,420 L1390,420 L1438,420 L1438,394 L1486,394 L1534,394 L1582,394 L1582,420 L1630,420 L1678,420 L1726,420 L1774,420 L1822,420 L1870,420 L1918,420 L1966,420" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
 <text x="22" y="459" class="name">WREADY</text>
-<path d="M190,468 L238,468 L286,468 L334,468 L382,468 L430,468 L430,442 L478,442 L478,468 L526,468 L574,468 L622,468 L670,468 L718,468 L766,468 L814,468 L862,468 L910,468 L958,468 L1006,468 L1054,468 L1102,468 L1150,468 L1198,468 L1246,468" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M190,468 L238,468 L286,468 L334,468 L382,468 L430,468 L478,468 L526,468 L526,442 L574,442 L574,468 L622,468 L670,468 L718,468 L766,468 L814,468 L862,468 L910,468 L958,468 L1006,468 L1054,468 L1102,468 L1150,468 L1198,468 L1246,468 L1294,468 L1342,468 L1390,468 L1438,468 L1486,468 L1486,442 L1534,442 L1534,468 L1582,468 L1630,468 L1678,468 L1726,468 L1774,468 L1822,468 L1870,468 L1918,468 L1966,468" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
 <text x="22" y="507" class="name">WDATA</text>
-<rect x="382" y="486" width="96" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
-<text x="430.0" y="507" class="buslabel" text-anchor="middle">START|MODE</text>
-<line x1="190" y1="503" x2="1246" y2="503" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
+<rect x="430" y="486" width="144" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
+<text x="502.0" y="507" class="buslabel" text-anchor="middle">CTRL</text>
+<rect x="1438" y="486" width="144" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
+<text x="1510.0" y="507" class="buslabel" text-anchor="middle">DONE_W1C</text>
+<line x1="190" y1="503" x2="1966" y2="503" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
 <text x="22" y="555" class="name">WSTRB</text>
-<rect x="382" y="534" width="96" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
-<text x="430.0" y="555" class="buslabel" text-anchor="middle">1111</text>
-<line x1="190" y1="551" x2="1246" y2="551" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
-<text x="22" y="603" class="name">write_fire</text>
-<path d="M190,612 L238,612 L286,612 L334,612 L382,612 L430,612 L430,586 L478,586 L478,612 L526,612 L574,612 L622,612 L670,612 L718,612 L766,612 L814,612 L862,612 L910,612 L958,612 L1006,612 L1054,612 L1102,612 L1150,612 L1198,612 L1246,612" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<rect x="430" y="534" width="144" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
+<text x="502.0" y="555" class="buslabel" text-anchor="middle">1111</text>
+<rect x="1438" y="534" width="144" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
+<text x="1510.0" y="555" class="buslabel" text-anchor="middle">1111</text>
+<line x1="190" y1="551" x2="1966" y2="551" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
+<text x="22" y="603" class="name">write_commit</text>
+<path d="M190,612 L238,612 L286,612 L334,612 L382,612 L430,612 L478,612 L526,612 L574,612 L574,586 L622,586 L622,612 L670,612 L718,612 L766,612 L814,612 L862,612 L910,612 L958,612 L1006,612 L1054,612 L1102,612 L1150,612 L1198,612 L1246,612 L1294,612 L1342,612 L1390,612 L1438,612 L1486,612 L1534,612 L1534,586 L1582,586 L1582,612 L1630,612 L1678,612 L1726,612 L1774,612 L1822,612 L1870,612 L1918,612 L1966,612" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
 <text x="22" y="651" class="name">calc_start</text>
-<path d="M190,660 L238,660 L286,660 L334,660 L382,660 L430,660 L478,660 L478,634 L526,634 L526,660 L574,660 L622,660 L670,660 L718,660 L766,660 L814,660 L862,660 L910,660 L958,660 L1006,660 L1054,660 L1102,660 L1150,660 L1198,660 L1246,660" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M190,660 L238,660 L286,660 L334,660 L382,660 L430,660 L478,660 L526,660 L574,660 L574,634 L622,634 L622,660 L670,660 L718,660 L766,660 L814,660 L862,660 L910,660 L958,660 L1006,660 L1054,660 L1102,660 L1150,660 L1198,660 L1246,660 L1294,660 L1342,660 L1390,660 L1438,660 L1486,660 L1534,660 L1582,660 L1630,660 L1678,660 L1726,660 L1774,660 L1822,660 L1870,660 L1918,660 L1966,660" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
 <text x="22" y="699" class="name">BVALID</text>
-<path d="M190,708 L238,708 L286,708 L334,708 L382,708 L430,708 L478,708 L478,682 L526,682 L574,682 L574,708 L622,708 L670,708 L718,708 L766,708 L814,708 L862,708 L910,708 L958,708 L1006,708 L1054,708 L1102,708 L1150,708 L1198,708 L1246,708" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M190,708 L238,708 L286,708 L334,708 L382,708 L430,708 L478,708 L526,708 L574,708 L574,682 L622,682 L670,682 L670,708 L718,708 L766,708 L814,708 L862,708 L910,708 L958,708 L1006,708 L1054,708 L1102,708 L1150,708 L1198,708 L1246,708 L1294,708 L1342,708 L1390,708 L1438,708 L1486,708 L1534,708 L1582,708 L1582,682 L1630,682 L1678,682 L1678,708 L1726,708 L1774,708 L1822,708 L1870,708 L1918,708 L1966,708" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
 <text x="22" y="747" class="name">BREADY</text>
-<path d="M190,730 L238,730 L286,730 L334,730 L382,730 L430,730 L478,730 L526,730 L574,730 L622,730 L670,730 L718,730 L766,730 L814,730 L862,730 L910,730 L958,730 L1006,730 L1054,730 L1102,730 L1150,730 L1198,730 L1246,730" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M190,730 L238,730 L286,730 L334,730 L382,730 L430,730 L478,730 L526,730 L574,730 L622,730 L670,730 L718,730 L766,730 L814,730 L862,730 L910,730 L958,730 L1006,730 L1054,730 L1102,730 L1150,730 L1198,730 L1246,730 L1294,730 L1342,730 L1390,730 L1438,730 L1486,730 L1534,730 L1582,730 L1630,730 L1678,730 L1726,730 L1774,730 L1822,730 L1870,730 L1918,730 L1966,730" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
 <text x="22" y="795" class="name">BRESP</text>
-<rect x="478" y="774" width="96" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
-<text x="526.0" y="795" class="buslabel" text-anchor="middle">OKAY</text>
-<line x1="190" y1="791" x2="1246" y2="791" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
-<line x1="24" y1="822.0" x2="1320" y2="822.0" stroke="#CFD8DC" stroke-width="1"/>
+<rect x="574" y="774" width="96" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
+<text x="622.0" y="795" class="buslabel" text-anchor="middle">OKAY</text>
+<rect x="1582" y="774" width="96" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
+<text x="1630.0" y="795" class="buslabel" text-anchor="middle">OKAY</text>
+<line x1="190" y1="791" x2="1966" y2="791" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
+<line x1="24" y1="822.0" x2="1992" y2="822.0" stroke="#CFD8DC" stroke-width="1"/>
 <text x="22" y="891" class="name">npu_busy</text>
-<path d="M190,900 L238,900 L286,900 L334,900 L382,900 L430,900 L478,900 L526,900 L526,874 L574,874 L622,874 L670,874 L718,874 L766,874 L814,874 L862,874 L910,874 L910,900 L958,900 L1006,900 L1054,900 L1102,900 L1150,900 L1198,900 L1246,900" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
-<text x="22" y="939" class="name">done_sticky</text>
-<path d="M190,948 L238,948 L286,948 L334,948 L382,948 L430,948 L478,948 L526,948 L574,948 L622,948 L670,948 L718,948 L766,948 L814,948 L862,948 L862,922 L910,922 L958,922 L1006,922 L1054,922 L1102,922 L1102,948 L1150,948 L1198,948 L1246,948" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
-<text x="22" y="987" class="name">irq</text>
-<path d="M190,996 L238,996 L286,996 L334,996 L382,996 L430,996 L478,996 L526,996 L574,996 L622,996 L670,996 L718,996 L766,996 L814,996 L862,996 L862,970 L910,970 L958,970 L1006,970 L1054,970 L1102,970 L1102,996 L1150,996 L1198,996 L1246,996" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
-<line x1="24" y1="1014.0" x2="1320" y2="1014.0" stroke="#CFD8DC" stroke-width="1"/>
-<text x="22" y="1083" class="name">ARVALID</text>
-<path d="M190,1092 L238,1092 L286,1092 L334,1092 L382,1092 L430,1092 L478,1092 L526,1092 L574,1092 L622,1092 L670,1092 L718,1092 L766,1092 L814,1092 L862,1092 L910,1092 L910,1066 L958,1066 L1006,1066 L1054,1066 L1054,1092 L1102,1092 L1150,1092 L1198,1092 L1246,1092" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
-<text x="22" y="1131" class="name">ARREADY</text>
-<path d="M190,1140 L238,1140 L286,1140 L334,1140 L382,1140 L430,1140 L478,1140 L526,1140 L574,1140 L622,1140 L670,1140 L718,1140 L766,1140 L814,1140 L862,1140 L910,1140 L958,1140 L958,1114 L1006,1114 L1006,1140 L1054,1140 L1102,1140 L1150,1140 L1198,1140 L1246,1140" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
-<text x="22" y="1179" class="name">ARADDR</text>
-<rect x="910" y="1158" width="144" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
-<text x="982.0" y="1179" class="buslabel" text-anchor="middle">STATUS</text>
-<line x1="190" y1="1175" x2="1246" y2="1175" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
-<text x="22" y="1227" class="name">RVALID</text>
-<path d="M190,1236 L238,1236 L286,1236 L334,1236 L382,1236 L430,1236 L478,1236 L526,1236 L574,1236 L622,1236 L670,1236 L718,1236 L766,1236 L814,1236 L862,1236 L910,1236 L958,1236 L1006,1236 L1006,1210 L1054,1210 L1102,1210 L1102,1236 L1150,1236 L1198,1236 L1246,1236" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
-<text x="22" y="1275" class="name">RREADY</text>
-<path d="M190,1258 L238,1258 L286,1258 L334,1258 L382,1258 L430,1258 L478,1258 L526,1258 L574,1258 L622,1258 L670,1258 L718,1258 L766,1258 L814,1258 L862,1258 L910,1258 L958,1258 L1006,1258 L1054,1258 L1102,1258 L1150,1258 L1198,1258 L1246,1258" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
-<text x="22" y="1323" class="name">RDATA</text>
-<rect x="1006" y="1302" width="96" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
-<text x="1054.0" y="1323" class="buslabel" text-anchor="middle">ready|done|err</text>
-<line x1="190" y1="1319" x2="1246" y2="1319" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
-<text x="22" y="1371" class="name">RRESP</text>
-<rect x="1006" y="1350" width="96" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
-<text x="1054.0" y="1371" class="buslabel" text-anchor="middle">OKAY</text>
-<line x1="190" y1="1367" x2="1246" y2="1367" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
+<path d="M190,900 L238,900 L286,900 L334,900 L382,900 L430,900 L478,900 L526,900 L574,900 L574,874 L622,874 L670,874 L718,874 L766,874 L814,874 L862,874 L910,874 L958,874 L1006,874 L1054,874 L1102,874 L1150,874 L1150,900 L1198,900 L1246,900 L1294,900 L1342,900 L1390,900 L1438,900 L1486,900 L1534,900 L1582,900 L1630,900 L1678,900 L1726,900 L1774,900 L1822,900 L1870,900 L1918,900 L1966,900" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<text x="22" y="939" class="name">npu_done_valid</text>
+<path d="M190,948 L238,948 L286,948 L334,948 L382,948 L430,948 L478,948 L526,948 L574,948 L622,948 L670,948 L718,948 L766,948 L814,948 L862,948 L910,948 L958,948 L1006,948 L1054,948 L1102,948 L1150,948 L1150,922 L1198,922 L1198,948 L1246,948 L1294,948 L1342,948 L1390,948 L1438,948 L1486,948 L1534,948 L1582,948 L1630,948 L1678,948 L1726,948 L1774,948 L1822,948 L1870,948 L1918,948 L1966,948" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<text x="22" y="987" class="name">done_sticky</text>
+<path d="M190,996 L238,996 L286,996 L334,996 L382,996 L430,996 L478,996 L526,996 L574,996 L622,996 L670,996 L718,996 L766,996 L814,996 L862,996 L910,996 L958,996 L1006,996 L1054,996 L1102,996 L1150,996 L1198,996 L1198,970 L1246,970 L1294,970 L1342,970 L1390,970 L1438,970 L1486,970 L1534,970 L1582,970 L1582,996 L1630,996 L1678,996 L1726,996 L1774,996 L1822,996 L1870,996 L1918,996 L1966,996" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<text x="22" y="1035" class="name">irq</text>
+<path d="M190,1044 L238,1044 L286,1044 L334,1044 L382,1044 L430,1044 L478,1044 L526,1044 L574,1044 L622,1044 L670,1044 L718,1044 L766,1044 L814,1044 L862,1044 L910,1044 L958,1044 L1006,1044 L1054,1044 L1102,1044 L1150,1044 L1198,1044 L1198,1018 L1246,1018 L1294,1018 L1342,1018 L1390,1018 L1438,1018 L1486,1018 L1534,1018 L1582,1018 L1582,1044 L1630,1044 L1678,1044 L1726,1044 L1774,1044 L1822,1044 L1870,1044 L1918,1044 L1966,1044" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<line x1="24" y1="1062.0" x2="1992" y2="1062.0" stroke="#CFD8DC" stroke-width="1"/>
+<text x="22" y="1131" class="name">ARVALID</text>
+<path d="M190,1140 L238,1140 L286,1140 L334,1140 L382,1140 L430,1140 L478,1140 L526,1140 L574,1140 L622,1140 L670,1140 L718,1140 L766,1140 L814,1140 L862,1140 L910,1140 L958,1140 L1006,1140 L1054,1140 L1102,1140 L1150,1140 L1198,1140 L1246,1140 L1246,1114 L1294,1114 L1342,1114 L1390,1114 L1390,1140 L1438,1140 L1486,1140 L1534,1140 L1582,1140 L1630,1140 L1678,1140 L1726,1140 L1774,1140 L1822,1140 L1870,1140 L1918,1140 L1966,1140" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<text x="22" y="1179" class="name">ARREADY</text>
+<path d="M190,1188 L238,1188 L286,1188 L334,1188 L382,1188 L430,1188 L478,1188 L526,1188 L574,1188 L622,1188 L670,1188 L718,1188 L766,1188 L814,1188 L862,1188 L910,1188 L958,1188 L1006,1188 L1054,1188 L1102,1188 L1150,1188 L1198,1188 L1246,1188 L1294,1188 L1342,1188 L1342,1162 L1390,1162 L1390,1188 L1438,1188 L1486,1188 L1534,1188 L1582,1188 L1630,1188 L1678,1188 L1726,1188 L1774,1188 L1822,1188 L1870,1188 L1918,1188 L1966,1188" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<text x="22" y="1227" class="name">ARADDR</text>
+<rect x="1246" y="1206" width="144" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
+<text x="1318.0" y="1227" class="buslabel" text-anchor="middle">STATUS</text>
+<line x1="190" y1="1223" x2="1966" y2="1223" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
+<text x="22" y="1275" class="name">RVALID</text>
+<path d="M190,1284 L238,1284 L286,1284 L334,1284 L382,1284 L430,1284 L478,1284 L526,1284 L574,1284 L622,1284 L670,1284 L718,1284 L766,1284 L814,1284 L862,1284 L910,1284 L958,1284 L1006,1284 L1054,1284 L1102,1284 L1150,1284 L1198,1284 L1246,1284 L1294,1284 L1342,1284 L1390,1284 L1390,1258 L1438,1258 L1486,1258 L1486,1284 L1534,1284 L1582,1284 L1630,1284 L1678,1284 L1726,1284 L1774,1284 L1822,1284 L1870,1284 L1918,1284 L1966,1284" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<text x="22" y="1323" class="name">RREADY</text>
+<path d="M190,1306 L238,1306 L286,1306 L334,1306 L382,1306 L430,1306 L478,1306 L526,1306 L574,1306 L622,1306 L670,1306 L718,1306 L766,1306 L814,1306 L862,1306 L910,1306 L958,1306 L1006,1306 L1054,1306 L1102,1306 L1150,1306 L1198,1306 L1246,1306 L1294,1306 L1342,1306 L1390,1306 L1438,1306 L1486,1306 L1534,1306 L1582,1306 L1630,1306 L1678,1306 L1726,1306 L1774,1306 L1822,1306 L1870,1306 L1918,1306 L1966,1306" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-linejoin="round"/>
+<text x="22" y="1371" class="name">RDATA</text>
+<rect x="1390" y="1350" width="96" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
+<text x="1438.0" y="1371" class="buslabel" text-anchor="middle">STATUS</text>
+<line x1="190" y1="1367" x2="1966" y2="1367" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
+<text x="22" y="1419" class="name">RRESP</text>
+<rect x="1390" y="1398" width="96" height="32" rx="6" fill="#FFF8E1" stroke="#B88300" stroke-width="1.8"/>
+<text x="1438.0" y="1419" class="buslabel" text-anchor="middle">OKAY</text>
+<line x1="190" y1="1415" x2="1966" y2="1415" stroke="#B88300" stroke-width="1.4" stroke-dasharray="4 4"/>
 </svg>

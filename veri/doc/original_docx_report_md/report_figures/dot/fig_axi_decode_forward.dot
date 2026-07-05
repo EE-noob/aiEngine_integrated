@@ -1,0 +1,22 @@
+digraph fig_axi_decode_forward {
+  graph [rankdir=LR,bgcolor="white",pad=0.16,nodesep=0.55,ranksep=0.7,splines=ortho,dpi=160,fontname="Noto Sans CJK SC",label="AXI 地址译码、RAM 访问归属与外设转发",labelloc=t,fontsize=28];
+  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=20,margin="0.14,0.08",penwidth=2.0,color="#455A64"];
+  edge [fontname="Noto Sans CJK SC",fontsize=16,penwidth=1.8,arrowsize=0.85,color="#455A64"];
+  cpu [label="CPU AXI 主设备\n取指、数据访存、MMIO",fillcolor="#E3F2FD",color="#1565C0"];
+  npu [label="NPU AXI 主设备\n只访问共享 RAM\n分块 DMA 读写",fillcolor="#E0F7FA",color="#00838F"];
+  dec [label="soc_axi_interconnect\n地址译码 + 主设备归属记录\n读写仲裁 + 响应返回",fillcolor="#EDE7F6",color="#5E35B1"];
+  ram [label="AXI RAM\n程序、模型参数、输入输出\nim2col 缓冲区",fillcolor="#E8F5E9",color="#2E7D32"];
+  npu_cfg [label="NPU AXI-Lite\n寄存器配置与状态读取",fillcolor="#FFF8E1",color="#F9A825"];
+  uart [label="UART AXI-Lite\n输出日志",fillcolor="#FFF8E1",color="#F9A825"];
+  ctrl [label="SOC 控制寄存器\nfinish/status/progress",fillcolor="#FFF8E1",color="#F9A825"];
+  cpu -> dec [label="s0: AR/AW/W"];
+  npu -> dec [label="s1: AR/AW/W"];
+  dec -> ram [label="RAM 地址窗口\nCPU 或 NPU 归属"];
+  dec -> npu_cfg [label="CPU 外设窗口"];
+  dec -> uart [label="CPU 外设窗口"];
+  dec -> ctrl [label="CPU 外设窗口"];
+  ram -> dec [label="R/B 响应按归属返回",style=dashed,color="#607D8B"];
+  npu_cfg -> dec [label="AXI-Lite R/B",style=dashed,color="#607D8B"];
+  uart -> dec [label="AXI-Lite R/B",style=dashed,color="#607D8B"];
+  ctrl -> dec [label="AXI-Lite R/B",style=dashed,color="#607D8B"];
+}

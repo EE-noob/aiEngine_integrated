@@ -1,0 +1,19 @@
+digraph fig_fpga_resource_mapping {
+  graph [rankdir=LR,bgcolor="white",pad=0.14,nodesep=0.48,ranksep=0.68,splines=ortho,dpi=160,fontname="Noto Sans CJK SC",label="FPGA 资源映射与 RTL 模块对应关系",labelloc=t,fontsize=28];
+  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=20,margin="0.14,0.08",penwidth=2.0,color="#455A64"];
+  edge [fontname="Noto Sans CJK SC",fontsize=16,penwidth=1.8,arrowsize=0.85,color="#455A64"];
+  rtl [label="参数化 RTL\nSIZE、IA_CACHE_BLOCKS\nPS_FRAME_COUNT、BUS_WIDTH",fillcolor="#E3F2FD",color="#1565C0"];
+  pe [label="脉动阵列 PE\n乘法器 + 累加寄存器\n映射 DSP/LUT/FF",fillcolor="#FFEBEE",color="#C62828"];
+  mem [label="片上存储\nIA cache、权重缓存\nps_buffer、输出 FIFO\n映射 BRAM/LUTRAM",fillcolor="#E8F5E9",color="#2E7D32"];
+  ctrl [label="控制状态与计数器\nDMA、loader、writer FSM\n映射 FF/LUT",fillcolor="#FFF8E1",color="#F9A825"];
+  axi [label="AXI 通路缓冲\n乒乓通道、未完成计数\n切分 ready 路径",fillcolor="#E0F7FA",color="#00838F"];
+  top [label="FPGA 顶层\n时钟、复位、RAM、UART\n约束与管脚",fillcolor="#EDE7F6",color="#5E35B1"];
+  rtl -> pe;
+  rtl -> mem;
+  rtl -> ctrl;
+  rtl -> axi;
+  pe -> top;
+  mem -> top;
+  ctrl -> top;
+  axi -> top;
+}

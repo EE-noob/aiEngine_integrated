@@ -1,0 +1,19 @@
+digraph fig_compute_core_ps_bias {
+  graph [rankdir=LR,bgcolor="white",pad=0.14,nodesep=0.45,ranksep=0.65,splines=ortho,dpi=160,fontname="Noto Sans CJK SC",label="compute_core 阵列、偏置选择与部分和缓冲",labelloc=t,fontsize=28];
+  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=20,margin="0.14,0.08",penwidth=2.0,color="#455A64"];
+  edge [fontname="Noto Sans CJK SC",fontsize=16,penwidth=1.8,arrowsize=0.85,color="#455A64"];
+  ia [label="IA cache 输出\n对角化输入激活\nia_data[SIZE]",fillcolor="#E8F5E9",color="#2E7D32"];
+  w [label="权重缓存\nstore_weight_req\nweight_data[SIZE]",fillcolor="#E8F5E9",color="#2E7D32"];
+  bias [label="偏置加载单元\nbias_data[SIZE]\n首次归约初值",fillcolor="#FFF8E1",color="#F9A825"];
+  mux [label="bias_mux\n选择 bias / ps_out / 0",fillcolor="#FFEBEE",color="#C62828"];
+  array [label="ws_systolic_array\nSIZE x SIZE PE\nsigned16 x signed16 + int32",fillcolor="#FFEBEE",color="#C62828"];
+  ps [label="ps_buffer\n中间归约部分和保存\n下一归约分块回灌",fillcolor="#E0F2F1",color="#00838F"];
+  rq [label="vec_requant\n最终归约结果\n进入重量化流水",fillcolor="#FCE4EC",color="#AD1457"];
+  ia -> array [label="send_ia_trigger"];
+  w -> array [label="权重装载后驻留"];
+  bias -> mux [label="first k-tile"];
+  ps -> mux [label="middle k-tile replay"];
+  mux -> array [label="sum_in[SIZE]"];
+  array -> ps [label="非最终归约\nacc_valid"];
+  array -> rq [label="最终归约\nacc_data_out"];
+}

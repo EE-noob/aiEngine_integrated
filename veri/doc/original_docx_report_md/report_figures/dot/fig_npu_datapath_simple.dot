@@ -1,0 +1,25 @@
+digraph fig_npu_datapath_simple {
+  graph [rankdir=TB,bgcolor="white",pad=0.14,nodesep=0.45,ranksep=0.55,splines=polyline,dpi=180,fontname="Noto Sans CJK SC",label="npu_top 加载、计算与输出写回简图",labelloc=t,fontsize=30];
+  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=23,margin="0.18,0.12",penwidth=2.0,color="#455A64"];
+  edge [fontname="Noto Sans CJK SC",fontsize=17,penwidth=2.0,arrowsize=0.85,color="#455A64"];
+
+  rdma [label="分块 DMA 读侧\nLHS / RHS / Bias / Quant",fillcolor="#E0F7FA",color="#00838F"];
+  load [label="加载单元\nIA cache / Weight / Bias / Quant",fillcolor="#E3F2FD",color="#1565C0"];
+  core [label="compute_core\n脉动阵列 + 部分和",fillcolor="#FFEBEE",color="#C62828"];
+  rq [label="vec_requant\nint32 -> int8",fillcolor="#FCE4EC",color="#AD1457"];
+  fifo [label="vec_s8_to_fifo\n32 bit 打包 + mask",fillcolor="#E8F5E9",color="#2E7D32"];
+  wr [label="oa_writer\n地址生成 + 等待 B 响应",fillcolor="#E0F7FA",color="#00838F"];
+  wdma [label="分块 DMA 写侧\nDST / WSTRB / B 响应",fillcolor="#E0F7FA",color="#00838F"];
+
+  { rank=same; rdma; load; }
+  { rank=same; core; rq; fifo; }
+  { rank=same; wr; wdma; }
+
+  rdma -> load [label="读入"];
+  load -> core [label="IA / W / bias"];
+  core -> rq [label="最终 acc"];
+  load -> rq [label="quant 参数",style=dashed,color="#607D8B",constraint=false];
+  rq -> fifo;
+  fifo -> wr;
+  wr -> wdma [label="写回"];
+}

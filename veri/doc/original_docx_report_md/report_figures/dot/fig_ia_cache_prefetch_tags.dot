@@ -1,0 +1,17 @@
+digraph fig_ia_cache_prefetch_tags {
+  graph [rankdir=LR,bgcolor="white",pad=0.14,nodesep=0.45,ranksep=0.65,splines=ortho,dpi=160,fontname="Noto Sans CJK SC",label="IA cache 槽位状态、标签匹配与预取关系",labelloc=t,fontsize=28];
+  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=20,margin="0.14,0.08",penwidth=2.0,color="#455A64"];
+  edge [fontname="Noto Sans CJK SC",fontsize=16,penwidth=1.8,arrowsize=0.85,color="#455A64"];
+  ctrl [label="ia_loader_ctrl\n计算待读行组/归约组\n选择空闲槽位",fillcolor="#FFF8E1",color="#F9A825"];
+  dma [label="DMA 读请求\nbase + row_stride\nrows + bytes_per_row",fillcolor="#E0F7FA",color="#00838F"];
+  slot [label="IA cache 槽位\nvalid / busy\ntag(row_tile,k_tile)\nsend_done",fillcolor="#E8F5E9",color="#2E7D32"];
+  match [label="标签匹配\n当前坐标命中且 valid=1\n才允许发送",fillcolor="#EDE7F6",color="#5E35B1"];
+  diag [label="cache_mgr\n对角化输出\n生成 ia_data[SIZE]",fillcolor="#FFEBEE",color="#C62828"];
+  release [label="槽位释放\n最后一次复用完成\n无未完成发送",fillcolor="#FCE4EC",color="#AD1457"];
+  ctrl -> dma [label="预取下一组"];
+  dma -> slot [label="rd_data_valid 写入"];
+  slot -> match [label="valid + tag"];
+  match -> diag [label="send_ia_trigger"];
+  diag -> release [label="发送完成"];
+  release -> ctrl [label="槽位可复用",style=dashed,color="#607D8B"];
+}

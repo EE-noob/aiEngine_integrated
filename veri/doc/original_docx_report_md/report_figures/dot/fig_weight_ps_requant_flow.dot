@@ -1,0 +1,17 @@
+digraph fig_weight_ps_requant_flow {
+  graph [rankdir=LR,bgcolor="white",pad=0.14,nodesep=0.45,ranksep=0.65,splines=ortho,dpi=160,fontname="Noto Sans CJK SC",label="权重驻留、部分和保存与重量化输入关系",labelloc=t,fontsize=28];
+  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",fontsize=20,margin="0.14,0.08",penwidth=2.0,color="#455A64"];
+  edge [fontname="Noto Sans CJK SC",fontsize=16,penwidth=1.8,arrowsize=0.85,color="#455A64"];
+  rhs [label="RHS/权重分块\nDMA 读取\n输出列组",fillcolor="#E0F7FA",color="#00838F"];
+  pe [label="PE 权重寄存器\nstore_weight_req 后驻留\n服务多个 IA 行组",fillcolor="#FFEBEE",color="#C62828"];
+  ia [label="IA 行组流入\n对角化输入\n多个输出列组复用",fillcolor="#E8F5E9",color="#2E7D32"];
+  ps [label="ps_buffer\n中间归约结果\n按输出分块坐标保存",fillcolor="#E8F5E9",color="#2E7D32"];
+  final [label="最终归约\nint32 acc 向量\n不写回外存",fillcolor="#FFF8E1",color="#F9A825"];
+  rq [label="vec_requant\n接收已合入偏置的 int32 向量\n缩放、移位、裁剪并饱和到 int8",fillcolor="#FCE4EC",color="#AD1457"];
+  rhs -> pe;
+  ia -> pe;
+  pe -> ps [label="非最终归约"];
+  ps -> pe [label="下一归约回灌",style=dashed,color="#607D8B"];
+  pe -> final [label="最终归约"];
+  final -> rq;
+}
