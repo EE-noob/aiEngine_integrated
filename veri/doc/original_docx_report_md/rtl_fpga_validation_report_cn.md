@@ -122,7 +122,7 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | AXI-Lite UVM | `ai_test_pkg.sv`、`ai_axil_driver.sv`、`ai_axil_monitor.sv`、`npu_scoreboard.sv` | `npu_seq_item`、寄存器序列、Python 生成矩阵 | AXI-Lite 读写响应、寄存器镜像、`irq/status`、输出矩阵 | 外设接口、寄存器、启动完成 |
 | NPU 顶层随机 | `tb_npu_top.sv`、`ddr_axi_mem_model.sv`、`gen_mem.py` | 随机 K/N/M、数据流、位宽、缩放转换参数、RAM 延时 | `sa_ready`、`err_code`、DST 与参考输出逐字节一致 | 加载单元、DMA、计算、定点缩放、OA 写回单元 |
 | SoC 运行时 | `tb_top.sv`、`soc_runtime_main.c`、`generate_axi_soc_case.py` | C 固件、运行时数据镜像、NPU 配置 | `soc_finish`、`soc_status`、`cpu_trap`、输出数据 | CPU/NPU 协同、共享 RAM、AXI 互连 |
-| 覆盖率回归 | `coverage_plan.json`、`run_coverage_plan.py`、`coverage_summary.py` | 模块级 30 个代码覆盖运行项，SoC 级 27 个代码覆盖运行项 | VCS line/cond/branch/FSM/toggle、用例通过判定 | NPU RTL line coverage 达到 98% |
+| 覆盖率回归 | `coverage_plan.json`、`run_coverage_plan.py`、`coverage_summary.py` | 模块级 30 个代码覆盖运行项，SoC 级 27 个代码覆盖运行项 | VCS line/cond/branch/FSM/toggle、用例测试结果 | NPU RTL line coverage 达到 98% |
 
 通用通过条件包括五项。复位后，所有 valid 信号、busy 状态、完成标志、FIFO 指针、DMA outstanding 计数和错误状态进入确定值。握手等待期间，地址、数据、掩码、last、坐标和标签保持稳定。任务完成时，局部完成只在本模块需要的输入、处理和输出条件全部满足后产生。数值模块输出必须与 Python 参考模型一致。跨模块用例必须满足 `err_code=0`、`sa_ready` 恢复、输出 RAM 与参考输出逐字节一致。
 
@@ -446,7 +446,7 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | 结束状态 | `soc_status=0x00000001` |
 | CPU trap | 0 |
 | UVM 统计 | `UVM_ERROR=0`，`UVM_FATAL=0` |
-| 判定 | 通过 |
+| 测试结果 | 通过 |
 
 **验证结果：** SoC C 程序基础随机回归 3/3 通过，关键 SoC 组合 2/2 通过。SoC 运行时验证确认 CPU 配置、AXI-Lite 访问、共享 RAM 数据搬移、NPU 计算、状态返回和输出检查在已覆盖组合下功能正确。
 
@@ -469,9 +469,9 @@ UVM AXI-Lite 环境由 `ai_env`、`ai_axil_agent`、`ai_axil_driver`、`ai_axil_
 | 模块级覆盖率计划 | AXI-Lite directed + SoC 运行时 | 2 个编译项 + 30 个代码覆盖运行项 | 通过 |
 | SoC 级覆盖率计划 | SoC 运行时 | 1 个编译项 + 27 个代码覆盖运行项 | 通过 |
 
-**验证要点：** 所有回归集合均有明确通过条件；int8/int16、WS/IS、按张量/按通道组合均被覆盖；参数化构建和运行均完成；固定种子集合均完成通过判定，扩展种子不影响本报告结论。
+**验证要点：** 所有回归集合均有明确通过条件；int8/int16、WS/IS、按张量/按通道组合均被覆盖；参数化构建和运行均完成；固定种子集合测试结果均为通过，扩展种子不影响本报告结论。
 
-**验证结果：** int8 完整参数回归 24/24 通过，int16 完整参数回归 24/24 通过，固定 IA cache 容量扫描 12/12 通过。模块级覆盖率计划和 SoC 级覆盖率计划均完成通过判定。
+**验证结果：** int8 完整参数回归 24/24 通过，int16 完整参数回归 24/24 通过，固定 IA cache 容量扫描 12/12 通过。模块级覆盖率计划和 SoC 级覆盖率计划测试结果均为通过。
 
 ### 5.5 TFLM/NMSIS-NN 应用级验证
 
@@ -626,7 +626,7 @@ FPGA 顶层将 SoC 和 NPU 的关键状态连接到 4 bit 用户 LED 输出 `use
 
 ### 7.3 Vivado behavioral 前仿与 post-implementation functional 后仿
 
-Behavioral 前仿使用 50 MHz `sys_clk` 输入，由 Clocking Wizard 仿真模型生成 150 MHz 核心时钟。测试平台在复位释放后监视 LED 输出。当 `user_led_tri_o[1]` 拉高且 `user_led_tri_o[2]` 保持低电平时，前仿判定为通过。
+Behavioral 前仿使用 50 MHz `sys_clk` 输入，由 Clocking Wizard 仿真模型生成 150 MHz 核心时钟。测试平台在复位释放后监视 LED 输出。当 `user_led_tri_o[1]` 拉高且 `user_led_tri_o[2]` 保持低电平时，前仿测试结果为通过。
 
 | 项目 | 结果 |
 |---|---|
@@ -634,9 +634,9 @@ Behavioral 前仿使用 50 MHz `sys_clk` 输入，由 Clocking Wizard 仿真模�
 | 进度标记 | `0x5a000001`、`0x5a000002`、`0x5a000003` 均出现 |
 | finish 状态 | `status=0x00000001` |
 | 完成周期 | 675397 个 50 MHz sys_clk 周期 |
-| 判定 | 通过 |
+| 测试结果 | 通过 |
 
-Post-implementation functional 后仿使用布局布线后的 functional netlist。测试平台在复位释放后驱动 50 MHz `sys_clk`，Clocking Wizard functional 模型生成 150 MHz 核心时钟。该测试监视 UART 输出、`soc_finish`、`cpu_trap` 和 LED 状态；当固件完成 TFLM MNIST 推理流程、`soc_finish` 拉高、`cpu_trap` 保持低电平且 UART 未输出结果不匹配或失败状态时，后仿判定为通过。
+Post-implementation functional 后仿使用布局布线后的 functional netlist。测试平台在复位释放后驱动 50 MHz `sys_clk`，Clocking Wizard functional 模型生成 150 MHz 核心时钟。该测试监视 UART 输出、`soc_finish`、`cpu_trap` 和 LED 状态；当固件完成 TFLM MNIST 推理流程、`soc_finish` 拉高、`cpu_trap` 保持低电平且 UART 未输出结果不匹配或失败状态时，后仿测试结果为通过。
 
 | 后仿项目 | 结果 |
 |---|---|
@@ -644,7 +644,7 @@ Post-implementation functional 后仿使用布局布线后的 functional netlist
 | 网表类型 | post-implementation functional netlist |
 | 主要观察点 | UART、`soc_finish`、`cpu_trap`、`user_led_tri_o` |
 | UART 结果 | TFLM MNIST 推理流程完成，未出现结果不匹配或失败状态 |
-| 判定 | 通过 |
+| 测试结果 | 通过 |
 
 ### 7.4 实物板卡运行验证
 
@@ -675,7 +675,7 @@ Post-implementation functional 后仿使用布局布线后的 functional netlist
 
 150 MHz 核心时钟周期为 `6.667 ns`。两个 routed timing summary 均显示 user specified timing constraints met。full 工程 WNS 为 `+0.211 ns`，pruned_addr19 工程 WNS 为 `+0.440 ns`，TNS 均为 `0.000 ns`，failing endpoints 均为 0。
 
-| 工程配置 | WNS | TNS | TNS failing endpoints | WPWS | TPWS | 判定 |
+| 工程配置 | WNS | TNS | TNS failing endpoints | WPWS | TPWS | 测试结果 |
 |---|---:|---:|---:|---:|---:|---|
 | full | +0.211 ns | 0.000 ns | 0 | +2.283 ns | 0.000 ns | 通过 |
 | pruned_addr19 | +0.440 ns | 0.000 ns | 0 | +2.283 ns | 0.000 ns | 通过 |
