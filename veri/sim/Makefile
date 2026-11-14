@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.RECIPEPREFIX := >
+# Use standard tab-prefixed recipes for GNU Make 3.81 compatibility.
 
 TOP      ?= tb_top
 DUMPOPTS ?= 1
@@ -447,338 +447,338 @@ VCS_SRC_DEPS := $(shell awk '{ sub(/\/\/.*/, ""); if ($$1 != "" && $$1 != "-f" &
 run: sim
 
 soc_case:
-> @mkdir -p $(SOC_CASE_DIR)
-> @python3 ../tb/generate_axi_soc_case.py $(SOC_GEN_ARGS) --out_dir $(SOC_CASE_DIR)
+	@mkdir -p $(SOC_CASE_DIR)
+	@python3 ../tb/generate_axi_soc_case.py $(SOC_GEN_ARGS) --out_dir $(SOC_CASE_DIR)
 
 soc_c: soc_case
-> @mkdir -p $(SOC_CASE_DIR)
-> @echo "[SOC_C] $(SOC_C_SRC) -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GCC) $(SOC_ARCH_FLAGS) $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) -ffreestanding -nostdlib -nostartfiles -DPICOSOC_UART_CLKDIV=$(SOC_UART_CLKDIV) -I../soc_csrc -I$(SOC_CASE_DIR) $(SOC_LINK_FLAGS) ../soc_csrc/start.S ../soc_csrc/picosoc_bsp.c ../soc_csrc/dsa_accel_mmio.c $(SOC_CASE_DIR)/soc_case.c $(SOC_C_SRC) $(SOC_BARE_LIBS) -o $(SOC_CASE_DIR)/cpu.elf
-> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
-> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+	@mkdir -p $(SOC_CASE_DIR)
+	@echo "[SOC_C] $(SOC_C_SRC) -> $(SOC_CASE_DIR)/cpu.mem"
+	$(SOC_GCC) $(SOC_ARCH_FLAGS) $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) -ffreestanding -nostdlib -nostartfiles -DPICOSOC_UART_CLKDIV=$(SOC_UART_CLKDIV) -I../soc_csrc -I$(SOC_CASE_DIR) $(SOC_LINK_FLAGS) ../soc_csrc/start.S ../soc_csrc/picosoc_bsp.c ../soc_csrc/dsa_accel_mmio.c $(SOC_CASE_DIR)/soc_case.c $(SOC_C_SRC) $(SOC_BARE_LIBS) -o $(SOC_CASE_DIR)/cpu.elf
+	$(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+	python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 $(SOC_RUNTIME_CPU_MEM): $(SOC_RUNTIME_C_SRC) ../soc_csrc/start.S ../soc_csrc/picosoc_bsp.c ../soc_csrc/picosoc_bsp.h ../soc_csrc/dsa_accel_mmio.c ../soc_csrc/dsa_accel_mmio.h ../soc_csrc/link.ld Makefile
-> @mkdir -p $(@D)
-> @echo "[SOC_RUNTIME_C] $(SOC_RUNTIME_C_SRC) -> $@"
-> $(SOC_GCC) $(SOC_ARCH_FLAGS) $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) -DSOC_RUNTIME_CASE_BASE=$(SOC_RUNTIME_BASE_ADDR) -ffreestanding -nostdlib -nostartfiles -DPICOSOC_UART_CLKDIV=$(SOC_UART_CLKDIV) -I../soc_csrc $(SOC_LINK_FLAGS) ../soc_csrc/start.S ../soc_csrc/picosoc_bsp.c ../soc_csrc/dsa_accel_mmio.c $(SOC_RUNTIME_C_SRC) $(SOC_BARE_LIBS) -o $(@D)/cpu.elf
-> $(SOC_OBJCOPY) -O binary $(@D)/cpu.elf $(@D)/cpu.bin
-> python3 ../tb/elf_to_mem.py $(@D)/cpu.bin $@ --depth $(SOC_CPU_MEM_DP)
+	@mkdir -p $(@D)
+	@echo "[SOC_RUNTIME_C] $(SOC_RUNTIME_C_SRC) -> $@"
+	$(SOC_GCC) $(SOC_ARCH_FLAGS) $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) -DSOC_RUNTIME_CASE_BASE=$(SOC_RUNTIME_BASE_ADDR) -ffreestanding -nostdlib -nostartfiles -DPICOSOC_UART_CLKDIV=$(SOC_UART_CLKDIV) -I../soc_csrc $(SOC_LINK_FLAGS) ../soc_csrc/start.S ../soc_csrc/picosoc_bsp.c ../soc_csrc/dsa_accel_mmio.c $(SOC_RUNTIME_C_SRC) $(SOC_BARE_LIBS) -o $(@D)/cpu.elf
+	$(SOC_OBJCOPY) -O binary $(@D)/cpu.elf $(@D)/cpu.bin
+	python3 ../tb/elf_to_mem.py $(@D)/cpu.bin $@ --depth $(SOC_CPU_MEM_DP)
 
 soc_runtime_c: $(SOC_RUNTIME_CPU_MEM)
 
 $(TFLM_LIB): $(TFLM_RV32_REBUILD_DEPS)
-> $(MAKE) -C $(TFLM_DIR) BUILD_DIR=$(TFLM_BUILD_DIR) USE_NMSIS_NN=$(TFLM_NMSIS_NN_ENABLE) CC=$(SOC_GCC) CXX=$(SOC_GXX) AR=$(SOC_AR) TARGET_FLAGS="$(SOC_ARCH_FLAGS) $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) $(TFLM_EXTRA_DEFINES) -DTFLM_SOC_PROGRESS $(TFLM_SOC_MMA_DEFINE)" BUILD_TYPE=Release $(TFLM_BUILD_DIR)/libtflite-micro.a
+	$(MAKE) -C $(TFLM_DIR) BUILD_DIR=$(TFLM_BUILD_DIR) USE_NMSIS_NN=$(TFLM_NMSIS_NN_ENABLE) CC=$(SOC_GCC) CXX=$(SOC_GXX) AR=$(SOC_AR) TARGET_FLAGS="$(SOC_ARCH_FLAGS) $(SOC_OPT_LEVEL) $(SOC_HW_DEFINES) $(TFLM_EXTRA_DEFINES) -DTFLM_SOC_PROGRESS $(TFLM_SOC_MMA_DEFINE)" BUILD_TYPE=Release $(TFLM_BUILD_DIR)/libtflite-micro.a
 
 $(TFLM_HOST_LIB):
-> $(MAKE) -C $(TFLM_DIR) BUILD_DIR=$(TFLM_HOST_BUILD_DIR) TARGET_FLAGS="$(HOST_OPT_LEVEL)" BUILD_TYPE=Release $(TFLM_HOST_BUILD_DIR)/libtflite-micro.a
+	$(MAKE) -C $(TFLM_DIR) BUILD_DIR=$(TFLM_HOST_BUILD_DIR) TARGET_FLAGS="$(HOST_OPT_LEVEL)" BUILD_TYPE=Release $(TFLM_HOST_BUILD_DIR)/libtflite-micro.a
 
 $(TFLM_MNIST_ACCURACY_BIN): ../tools/tflm_mnist_accuracy.cc $(TFLM_HOST_LIB)
-> $(CXX) -std=c++17 $(HOST_OPT_LEVEL) -fno-rtti -fno-exceptions -fno-threadsafe-statics -DTF_LITE_DISABLE_X86_NEON -DTF_LITE_STRIP_ERROR_STRINGS -I$(TFLM_ROOT) -I$(TFLM_GENFILES) -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/gemmlowp -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/flatbuffers/include -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/kissfft -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/ruy $< $(TFLM_HOST_LIB) -lm -o $@
+	$(CXX) -std=c++17 $(HOST_OPT_LEVEL) -fno-rtti -fno-exceptions -fno-threadsafe-statics -DTF_LITE_DISABLE_X86_NEON -DTF_LITE_STRIP_ERROR_STRINGS -I$(TFLM_ROOT) -I$(TFLM_GENFILES) -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/gemmlowp -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/flatbuffers/include -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/kissfft -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/ruy $< $(TFLM_HOST_LIB) -lm -o $@
 
 tflm_mnist_accuracy: $(TFLM_MNIST_ACCURACY_BIN)
 
 tflm_mnist_accuracy_run: $(TFLM_MNIST_ACCURACY_BIN)
-> python3 ../tools/analyze_mnist_quant_accuracy.py --runner $(TFLM_MNIST_ACCURACY_BIN) --model_dir $(TFLM_MNIST_MLP_MODEL_DIR) --count $(TFLM_MNIST_ACCURACY_COUNT) --out_dir $(TFLM_MNIST_ACCURACY_OUT)
+	python3 ../tools/analyze_mnist_quant_accuracy.py --runner $(TFLM_MNIST_ACCURACY_BIN) --model_dir $(TFLM_MNIST_MLP_MODEL_DIR) --count $(TFLM_MNIST_ACCURACY_COUNT) --out_dir $(TFLM_MNIST_ACCURACY_OUT)
 
 $(TFLM_MICRO_SPEECH_FEATURE_DUMP): ../tools/dump_micro_speech_features.cc $(TFLM_HOST_LIB) $(TFLM_MICRO_SPEECH_MODEL_DATA_CC) $(TFLM_MICRO_SPEECH_AUDIO_DATA_SRCS)
-> $(CXX) -std=c++17 $(HOST_OPT_LEVEL) -fno-rtti -fno-exceptions -fno-threadsafe-statics -DTF_LITE_DISABLE_X86_NEON -DTF_LITE_STRIP_ERROR_STRINGS -I$(TFLM_ROOT) -I$(TFLM_GENFILES) -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/gemmlowp -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/flatbuffers/include -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/kissfft -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/ruy ../tools/dump_micro_speech_features.cc $(TFLM_MICRO_SPEECH_MODEL_DATA_CC) $(TFLM_MICRO_SPEECH_AUDIO_DATA_SRCS) $(TFLM_HOST_LIB) -lm -o $@
+	$(CXX) -std=c++17 $(HOST_OPT_LEVEL) -fno-rtti -fno-exceptions -fno-threadsafe-statics -DTF_LITE_DISABLE_X86_NEON -DTF_LITE_STRIP_ERROR_STRINGS -I$(TFLM_ROOT) -I$(TFLM_GENFILES) -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/gemmlowp -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/flatbuffers/include -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/kissfft -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/ruy ../tools/dump_micro_speech_features.cc $(TFLM_MICRO_SPEECH_MODEL_DATA_CC) $(TFLM_MICRO_SPEECH_AUDIO_DATA_SRCS) $(TFLM_HOST_LIB) -lm -o $@
 
 $(TFLM_MICRO_SPEECH_FEATURES_CC): $(TFLM_MICRO_SPEECH_FEATURE_DUMP)
-> $< > $@
+	$< > $@
 
 tflm_soc_c: $(TFLM_LIB)
-> @mkdir -p $(SOC_CASE_DIR)
-> @echo "[TFLM_SOC_C] my_model -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
-> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
-> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+	@mkdir -p $(SOC_CASE_DIR)
+	@echo "[TFLM_SOC_C] my_model -> $(SOC_CASE_DIR)/cpu.mem"
+	$(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+	$(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+	python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 tflm_micro_speech_soc_c: $(TFLM_LIB) $(TFLM_MICRO_SPEECH_FEATURES_CC)
-> @mkdir -p $(SOC_CASE_DIR)
-> @echo "[TFLM_SOC_C] micro_speech -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_MICRO_SPEECH_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
-> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
-> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+	@mkdir -p $(SOC_CASE_DIR)
+	@echo "[TFLM_SOC_C] micro_speech -> $(SOC_CASE_DIR)/cpu.mem"
+	$(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_MICRO_SPEECH_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+	$(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+	python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 tflm_hello_world_soc_c: $(TFLM_LIB)
-> @mkdir -p $(SOC_CASE_DIR)
-> @echo "[TFLM_SOC_C] hello_world -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_HELLO_WORLD_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
-> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
-> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+	@mkdir -p $(SOC_CASE_DIR)
+	@echo "[TFLM_SOC_C] hello_world -> $(SOC_CASE_DIR)/cpu.mem"
+	$(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_HELLO_WORLD_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+	$(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+	python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 tflm_person_detection_soc_c: $(TFLM_LIB)
-> @mkdir -p $(SOC_CASE_DIR)
-> @echo "[TFLM_SOC_C] person_detection -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_PERSON_DETECTION_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
-> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
-> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+	@mkdir -p $(SOC_CASE_DIR)
+	@echo "[TFLM_SOC_C] person_detection -> $(SOC_CASE_DIR)/cpu.mem"
+	$(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_PERSON_DETECTION_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+	$(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+	python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 tflm_mnist_mlp_soc_c: $(TFLM_LIB) $(TFLM_MNIST_MLP_APP_SRCS)
-> @mkdir -p $(SOC_CASE_DIR)
-> @echo "[TFLM_SOC_C] mnist_mlp -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_MNIST_MLP_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
-> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
-> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+	@mkdir -p $(SOC_CASE_DIR)
+	@echo "[TFLM_SOC_C] mnist_mlp -> $(SOC_CASE_DIR)/cpu.mem"
+	$(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_MNIST_MLP_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+	$(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+	python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 tflm_mnist_mlp_int16x8_soc_c: $(TFLM_LIB) $(TFLM_MNIST_MLP_INT16X8_APP_SRCS)
-> @mkdir -p $(SOC_CASE_DIR)
-> @echo "[TFLM_SOC_C] mnist_mlp_int16x8 -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GXX) $(TFLM_CXXFLAGS) -DTFLM_MNIST_MLP_INT16X8=1 -DTFLM_MNIST_MLP_ARENA_SIZE=$(TFLM_MNIST_MLP_INT16X8_ARENA_SIZE) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_MNIST_MLP_INT16X8_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
-> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
-> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+	@mkdir -p $(SOC_CASE_DIR)
+	@echo "[TFLM_SOC_C] mnist_mlp_int16x8 -> $(SOC_CASE_DIR)/cpu.mem"
+	$(SOC_GXX) $(TFLM_CXXFLAGS) -DTFLM_MNIST_MLP_INT16X8=1 -DTFLM_MNIST_MLP_ARENA_SIZE=$(TFLM_MNIST_MLP_INT16X8_ARENA_SIZE) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_MNIST_MLP_INT16X8_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+	$(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+	python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 tflm_sensor_calibration_int16x8_soc_c: $(TFLM_LIB) $(TFLM_SENSOR_CALIBRATION_APP_SRCS)
-> @mkdir -p $(SOC_CASE_DIR)
-> @echo "[TFLM_SOC_C] sensor_calibration_int16x8 -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GXX) $(TFLM_CXXFLAGS) -DTFLM_SENSOR_CALIBRATION_ARENA_SIZE=$(TFLM_SENSOR_CALIBRATION_ARENA_SIZE) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_SENSOR_CALIBRATION_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
-> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
-> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+	@mkdir -p $(SOC_CASE_DIR)
+	@echo "[TFLM_SOC_C] sensor_calibration_int16x8 -> $(SOC_CASE_DIR)/cpu.mem"
+	$(SOC_GXX) $(TFLM_CXXFLAGS) -DTFLM_SENSOR_CALIBRATION_ARENA_SIZE=$(TFLM_SENSOR_CALIBRATION_ARENA_SIZE) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_SENSOR_CALIBRATION_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+	$(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+	python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 tflm_sensor_calibration_release_20261015_soc_c: $(TFLM_LIB) $(TFLM_SENSOR_CALIBRATION_RELEASE_SOC_APP_SRCS)
-> @mkdir -p $(SOC_CASE_DIR)
-> @echo "[TFLM_SOC_C] sensor_calibration_release_20261015 -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GXX) $(TFLM_CXXFLAGS) -I$(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_SENSOR_CALIBRATION_RELEASE_SOC_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
-> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
-> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+	@mkdir -p $(SOC_CASE_DIR)
+	@echo "[TFLM_SOC_C] sensor_calibration_release_20261015 -> $(SOC_CASE_DIR)/cpu.mem"
+	$(SOC_GXX) $(TFLM_CXXFLAGS) -I$(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_SENSOR_CALIBRATION_RELEASE_SOC_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+	$(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+	python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 tflm_sensor_calibrator_20261016_soc_c: $(TFLM_LIB) $(TFLM_SENSOR_CALIBRATOR_20261016_SOC_APP_SRCS) $(TFLM_SENSOR_CALIBRATOR_20261016_MODEL)
-> @mkdir -p $(SOC_CASE_DIR)
-> @echo "[TFLM_SOC_C] sensor_calibrator_20261016 -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) -Wa,-I$(dir $(TFLM_SENSOR_CALIBRATOR_20261016_MODEL)) $(TFLM_SENSOR_CALIBRATOR_20261016_SOC_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
-> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
-> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+	@mkdir -p $(SOC_CASE_DIR)
+	@echo "[TFLM_SOC_C] sensor_calibrator_20261016 -> $(SOC_CASE_DIR)/cpu.mem"
+	$(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) -Wa,-I$(dir $(TFLM_SENSOR_CALIBRATOR_20261016_MODEL)) $(TFLM_SENSOR_CALIBRATOR_20261016_SOC_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+	$(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+	python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 tflm_sensor_calibration_20261019_soc_c: $(TFLM_LIB) $(TFLM_SENSOR_CALIBRATION_20261019_SOC_APP_SRCS) $(TFLM_SENSOR_CALIBRATION_20261019_MODEL)
-> @mkdir -p $(SOC_CASE_DIR)
-> @echo "[TFLM_SOC_C] sensor_calibration_20261019 -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GXX) $(TFLM_CXXFLAGS) -DTFLM_SENSOR_CALIBRATION_20261019_ARENA_SIZE=$(TFLM_SENSOR_CALIBRATION_20261019_ARENA_SIZE) -nostartfiles $(SOC_LINK_FLAGS) -Wa,-I$(dir $(TFLM_SENSOR_CALIBRATION_20261019_MODEL)) $(TFLM_SENSOR_CALIBRATION_20261019_SOC_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
-> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
-> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+	@mkdir -p $(SOC_CASE_DIR)
+	@echo "[TFLM_SOC_C] sensor_calibration_20261019 -> $(SOC_CASE_DIR)/cpu.mem"
+	$(SOC_GXX) $(TFLM_CXXFLAGS) -DTFLM_SENSOR_CALIBRATION_20261019_ARENA_SIZE=$(TFLM_SENSOR_CALIBRATION_20261019_ARENA_SIZE) -nostartfiles $(SOC_LINK_FLAGS) -Wa,-I$(dir $(TFLM_SENSOR_CALIBRATION_20261019_MODEL)) $(TFLM_SENSOR_CALIBRATION_20261019_SOC_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+	$(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+	python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 tflm_mnist_cnn_soc_c: $(TFLM_LIB) $(TFLM_MNIST_CNN_APP_SRCS)
-> @mkdir -p $(SOC_CASE_DIR)
-> @echo "[TFLM_SOC_C] mnist_cnn -> $(SOC_CASE_DIR)/cpu.mem"
-> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_MNIST_CNN_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
-> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
-> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+	@mkdir -p $(SOC_CASE_DIR)
+	@echo "[TFLM_SOC_C] mnist_cnn -> $(SOC_CASE_DIR)/cpu.mem"
+	$(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_MNIST_CNN_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+	$(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+	python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
 $(SIMV): $(VCS_FILELISTS) $(VCS_SRC_DEPS) Makefile
-> @mkdir -p $(OUT_DIR)
-> @echo "[COMPILE] VCS -> $(SIMV) (DUT_MODE=$(DUT_MODE), case=$(case), seed=$(seed))"
-> $(VCS) $(VCS_OPTS) $(MMA_PARAM_OPTS) $(INCDIRS:%=-y %) $(DEFINES:%=+define+%) $(MODE_DEFINES:%=+define+%) -f $(FILELIST) -top $(TOP) -l $(COMPILE_LOG) -o $(SIMV) +vcs+initreg+random
+	@mkdir -p $(OUT_DIR)
+	@echo "[COMPILE] VCS -> $(SIMV) (DUT_MODE=$(DUT_MODE), case=$(case), seed=$(seed))"
+	$(VCS) $(VCS_OPTS) $(MMA_PARAM_OPTS) $(INCDIRS:%=-y %) $(DEFINES:%=+define+%) $(MODE_DEFINES:%=+define+%) -f $(FILELIST) -top $(TOP) -l $(COMPILE_LOG) -o $(SIMV) +vcs+initreg+random
 
 com: $(SIMV)
 
 force_com:
-> @rm -f $(SIMV)
-> @rm -f $(SIMV).daidir/.vcs.timestamp
-> @if [ "$(COV)" = "1" ] || [ "$(COV)" = "yes" ] || [ "$(COV)" = "true" ] || [ "$(COV)" = "TRUE" ]; then rm -rf "$(SIMV).daidir" "$(SIMV).csrc" "$(COV_COMPILE_DB)"; fi
-> $(MAKE) --no-print-directory com
+	@rm -f $(SIMV)
+	@rm -f $(SIMV).daidir/.vcs.timestamp
+	@if [ "$(COV)" = "1" ] || [ "$(COV)" = "yes" ] || [ "$(COV)" = "true" ] || [ "$(COV)" = "TRUE" ]; then rm -rf "$(SIMV).daidir" "$(SIMV).csrc" "$(COV_COMPILE_DB)"; fi
+	$(MAKE) --no-print-directory com
 
 sim: $(SIMV) $(RUN_DEPS)
-> @mkdir -p $(OUT_DIR)
-> @if [ "$(COV)" = "1" ] || [ "$(COV)" = "yes" ] || [ "$(COV)" = "true" ] || [ "$(COV)" = "TRUE" ]; then mkdir -p "$(COV_VDB_ROOT)"; fi
-> @echo "[SIM] $(SIM_RUNNER) $(SIM_OPTS) case=$(case) seed=$(seed) FSDB=$(FSDB)"
-> $(SIM_RUNNER) $(COV_SIM_OPTS) $(SIM_OPTS) $(SIM_ARGS) $(DUMPFSDB) +fsdbfile+$(FSDB) +UVM_TESTNAME=$(case) +case=$(case) +ntb_random_seed=$(seed) -l $(SIM_LOG) +vcs+initreg+0
+	@mkdir -p $(OUT_DIR)
+	@if [ "$(COV)" = "1" ] || [ "$(COV)" = "yes" ] || [ "$(COV)" = "true" ] || [ "$(COV)" = "TRUE" ]; then mkdir -p "$(COV_VDB_ROOT)"; fi
+	@echo "[SIM] $(SIM_RUNNER) $(SIM_OPTS) case=$(case) seed=$(seed) FSDB=$(FSDB)"
+	$(SIM_RUNNER) $(COV_SIM_OPTS) $(SIM_OPTS) $(SIM_ARGS) $(DUMPFSDB) +fsdbfile+$(FSDB) +UVM_TESTNAME=$(case) +case=$(case) +ntb_random_seed=$(seed) -l $(SIM_LOG) +vcs+initreg+0
 
 cov_report:
-> @mkdir -p $(COV_ROOT)
-> @dbs=$$(find "$(COV_VDB_ROOT)" -maxdepth 1 -type d -name '*.vdb' 2>/dev/null | sort); \
-> if [ -z "$$dbs" ]; then echo "[COV] no VDB found under $(COV_VDB_ROOT)"; exit 1; fi; \
-> echo "[COV] merging VDBs:"; printf '  %s\n' $$dbs; \
-> tmp_report="$(COV_REPORT_DIR).tmp"; \
-> rm -rf "$$tmp_report" merged.vdb; \
-> if $(URG) -full64 -metric "$(URG_METRICS)" -dir $$dbs -report "$$tmp_report" -format both -dbname merged.vdb -log "$(COV_ROOT)/urg.log"; then \
->     rm -rf "$(COV_REPORT_DIR)"; \
->     mv "$$tmp_report" "$(COV_REPORT_DIR)"; \
-> else \
->     rc=$$?; \
->     rm -rf "$$tmp_report"; \
->     if [ "$(COV_ALLOW_URG_FAIL)" = "1" ] || [ "$(COV_ALLOW_URG_FAIL)" = "yes" ] || [ "$(COV_ALLOW_URG_FAIL)" = "true" ] || [ "$(COV_ALLOW_URG_FAIL)" = "TRUE" ]; then \
->         echo "[COV] URG failed with rc=$$rc; using simulation-log functional coverage for sign-off"; \
->         rm -rf "$(COV_REPORT_DIR)"; \
->         mkdir -p "$(COV_REPORT_DIR)"; \
->         printf 'URG failed with rc=%s. Sign-off summary uses simulation-log functional coverage fallback.\n' "$$rc" > "$(COV_REPORT_DIR)/urg_fallback.txt"; \
->     else \
->         exit $$rc; \
->     fi; \
-> fi
-> @python3 ./coverage_summary.py --urg-report "$(COV_REPORT_DIR)" --sim-root . --cov-root "$(COV_ROOT)" --goal "$(COVERAGE_GOAL)" --signoff-metrics "$(COVERAGE_SIGNOFF_METRICS)" --out-md "$(COV_ROOT)/coverage_report_summary.md" --out-json "$(COV_ROOT)/coverage_report_summary.json"
+	@mkdir -p $(COV_ROOT)
+	@dbs=$$(find "$(COV_VDB_ROOT)" -maxdepth 1 -type d -name '*.vdb' 2>/dev/null | sort); \
+	if [ -z "$$dbs" ]; then echo "[COV] no VDB found under $(COV_VDB_ROOT)"; exit 1; fi; \
+	echo "[COV] merging VDBs:"; printf '  %s\n' $$dbs; \
+	tmp_report="$(COV_REPORT_DIR).tmp"; \
+	rm -rf "$$tmp_report" merged.vdb; \
+	if $(URG) -full64 -metric "$(URG_METRICS)" -dir $$dbs -report "$$tmp_report" -format both -dbname merged.vdb -log "$(COV_ROOT)/urg.log"; then \
+	    rm -rf "$(COV_REPORT_DIR)"; \
+	    mv "$$tmp_report" "$(COV_REPORT_DIR)"; \
+	else \
+	    rc=$$?; \
+	    rm -rf "$$tmp_report"; \
+	    if [ "$(COV_ALLOW_URG_FAIL)" = "1" ] || [ "$(COV_ALLOW_URG_FAIL)" = "yes" ] || [ "$(COV_ALLOW_URG_FAIL)" = "true" ] || [ "$(COV_ALLOW_URG_FAIL)" = "TRUE" ]; then \
+	        echo "[COV] URG failed with rc=$$rc; using simulation-log functional coverage for sign-off"; \
+	        rm -rf "$(COV_REPORT_DIR)"; \
+	        mkdir -p "$(COV_REPORT_DIR)"; \
+	        printf 'URG failed with rc=%s. Sign-off summary uses simulation-log functional coverage fallback.\n' "$$rc" > "$(COV_REPORT_DIR)/urg_fallback.txt"; \
+	    else \
+	        exit $$rc; \
+	    fi; \
+	fi
+	@python3 ./coverage_summary.py --urg-report "$(COV_REPORT_DIR)" --sim-root . --cov-root "$(COV_ROOT)" --goal "$(COVERAGE_GOAL)" --signoff-metrics "$(COVERAGE_SIGNOFF_METRICS)" --out-md "$(COV_ROOT)/coverage_report_summary.md" --out-json "$(COV_ROOT)/coverage_report_summary.json"
 
 cov_plan:
-> @python3 ./run_coverage_plan.py --plan ./coverage_plan.json --goal "$(COVERAGE_GOAL)" --report-target "$(COV_REPORT_TARGET)" $(COV_PLAN_ARGS)
+	@python3 ./run_coverage_plan.py --plan ./coverage_plan.json --goal "$(COVERAGE_GOAL)" --report-target "$(COV_REPORT_TARGET)" $(COV_PLAN_ARGS)
 
 cov_code_report:
-> @mkdir -p "$(COV_ROOT)" "$(COV_CODE_REPORT_ROOT)"
-> @dbs=$$(find "$(COV_VDB_ROOT)" -maxdepth 1 -type d -name '*.vdb' 2>/dev/null | sort); \
-> if [ -z "$$dbs" ]; then echo "[COV] no VDB found under $(COV_VDB_ROOT)"; exit 1; fi; \
-> report_args=""; \
-> urg_failed=0; \
-> for db in $$dbs; do \
->     name=$$(basename "$$db" .vdb); \
->     report_dir="$(COV_CODE_REPORT_ROOT)/$$name"; \
->     rm -rf "$$report_dir" "$(COV_CODE_REPORT_ROOT)/$$name.vdb"; \
->     echo "[COV_CODE] report $$name from $$db"; \
->     if $(URG) -full64 -metric "$(COV_CODE_URG_METRICS)" -dir "$$db" -report "$$report_dir" -format both -dbname "$(COV_CODE_REPORT_ROOT)/$$name.vdb" -log "$(COV_CODE_REPORT_ROOT)/$$name.urg.log"; then \
->         report_args="$$report_args --urg-report $$report_dir"; \
->     else \
->         rc=$$?; \
->         urg_failed=1; \
->         rm -rf "$$report_dir"; \
->         if [ "$(COV_ALLOW_URG_FAIL)" = "1" ] || [ "$(COV_ALLOW_URG_FAIL)" = "yes" ] || [ "$(COV_ALLOW_URG_FAIL)" = "true" ] || [ "$(COV_ALLOW_URG_FAIL)" = "TRUE" ]; then \
->             echo "[COV_CODE] URG failed for $$name with rc=$$rc; coverage_summary.py will use VCS VDB direct fallback"; \
->         else \
->             exit $$rc; \
->         fi; \
->     fi; \
-> done; \
-> if [ $$urg_failed -ne 0 ]; then echo "[COV_CODE] one or more URG reports failed; keeping VDB fallback evidence"; fi; \
-> python3 ./coverage_summary.py $$report_args --sim-root . --cov-root "$(COV_ROOT)" --goal "$(COVERAGE_GOAL)" --signoff-metrics "$(COV_CODE_SIGNOFF_METRICS)" --vdb-merge-mode "$(COV_VDB_MERGE_MODE)" $(if $(strip $(COV_LINE_EXCLUDE_FILE)),--line-exclude-file "$(COV_LINE_EXCLUDE_FILE)",) --out-md "$(COV_ROOT)/coverage_code_report_summary.md" --out-json "$(COV_ROOT)/coverage_code_report_summary.json"
+	@mkdir -p "$(COV_ROOT)" "$(COV_CODE_REPORT_ROOT)"
+	@dbs=$$(find "$(COV_VDB_ROOT)" -maxdepth 1 -type d -name '*.vdb' 2>/dev/null | sort); \
+	if [ -z "$$dbs" ]; then echo "[COV] no VDB found under $(COV_VDB_ROOT)"; exit 1; fi; \
+	report_args=""; \
+	urg_failed=0; \
+	for db in $$dbs; do \
+	    name=$$(basename "$$db" .vdb); \
+	    report_dir="$(COV_CODE_REPORT_ROOT)/$$name"; \
+	    rm -rf "$$report_dir" "$(COV_CODE_REPORT_ROOT)/$$name.vdb"; \
+	    echo "[COV_CODE] report $$name from $$db"; \
+	    if $(URG) -full64 -metric "$(COV_CODE_URG_METRICS)" -dir "$$db" -report "$$report_dir" -format both -dbname "$(COV_CODE_REPORT_ROOT)/$$name.vdb" -log "$(COV_CODE_REPORT_ROOT)/$$name.urg.log"; then \
+	        report_args="$$report_args --urg-report $$report_dir"; \
+	    else \
+	        rc=$$?; \
+	        urg_failed=1; \
+	        rm -rf "$$report_dir"; \
+	        if [ "$(COV_ALLOW_URG_FAIL)" = "1" ] || [ "$(COV_ALLOW_URG_FAIL)" = "yes" ] || [ "$(COV_ALLOW_URG_FAIL)" = "true" ] || [ "$(COV_ALLOW_URG_FAIL)" = "TRUE" ]; then \
+	            echo "[COV_CODE] URG failed for $$name with rc=$$rc; coverage_summary.py will use VCS VDB direct fallback"; \
+	        else \
+	            exit $$rc; \
+	        fi; \
+	    fi; \
+	done; \
+	if [ $$urg_failed -ne 0 ]; then echo "[COV_CODE] one or more URG reports failed; keeping VDB fallback evidence"; fi; \
+	python3 ./coverage_summary.py $$report_args --sim-root . --cov-root "$(COV_ROOT)" --goal "$(COVERAGE_GOAL)" --signoff-metrics "$(COV_CODE_SIGNOFF_METRICS)" --vdb-merge-mode "$(COV_VDB_MERGE_MODE)" $(if $(strip $(COV_LINE_EXCLUDE_FILE)),--line-exclude-file "$(COV_LINE_EXCLUDE_FILE)",) --out-md "$(COV_ROOT)/coverage_code_report_summary.md" --out-json "$(COV_ROOT)/coverage_code_report_summary.json"
 
 coverage_module:
-> $(MAKE) cov_clean COV_ROOT=$(COV_MODULE_ROOT)
-> $(MAKE) cov_plan COVERAGE_GOAL=$(COVERAGE_GOAL) COV_REPORT_TARGET=cov_code_report COV_PLAN_ARGS='$(COV_MODULE_PLAN_ARGS) --make-var COV_ROOT=$(COV_MODULE_ROOT) --make-var COV_ACCEL_SCOPE=1 --make-var COV_VDB_MERGE_MODE=definition'
+	$(MAKE) cov_clean COV_ROOT=$(COV_MODULE_ROOT)
+	$(MAKE) cov_plan COVERAGE_GOAL=$(COVERAGE_GOAL) COV_REPORT_TARGET=cov_code_report COV_PLAN_ARGS='$(COV_MODULE_PLAN_ARGS) --make-var COV_ROOT=$(COV_MODULE_ROOT) --make-var COV_ACCEL_SCOPE=1 --make-var COV_VDB_MERGE_MODE=definition'
 
 coverage_soc:
-> $(MAKE) cov_clean COV_ROOT=$(COV_SOC_ROOT)
-> $(MAKE) cov_plan COVERAGE_GOAL=$(COVERAGE_GOAL) COV_REPORT_TARGET=cov_code_report COV_PLAN_ARGS='$(COV_SOC_PLAN_ARGS) --make-var COV_ROOT=$(COV_SOC_ROOT) --make-var COV_ACCEL_SCOPE=1 --make-var COV_HIER_FILE=$(COV_SOC_HIER_FILE) --make-var COV_VDB_MERGE_MODE=definition'
+	$(MAKE) cov_clean COV_ROOT=$(COV_SOC_ROOT)
+	$(MAKE) cov_plan COVERAGE_GOAL=$(COVERAGE_GOAL) COV_REPORT_TARGET=cov_code_report COV_PLAN_ARGS='$(COV_SOC_PLAN_ARGS) --make-var COV_ROOT=$(COV_SOC_ROOT) --make-var COV_ACCEL_SCOPE=1 --make-var COV_HIER_FILE=$(COV_SOC_HIER_FILE) --make-var COV_VDB_MERGE_MODE=definition'
 
 coverage: coverage_module
 
 cov_clean:
-> rm -rf "$(COV_ROOT)"
+	rm -rf "$(COV_ROOT)"
 
 soc_regress:
-> @python3 ./run_axi_soc_c_regression.py --iterations $(SOC_REGRESS_ITERS) --start-seed $(SOC_REGRESS_START_SEED) --timeout $(SOC_REGRESS_TIMEOUT) --log-root $(SOC_REGRESS_LOG_ROOT) --sizes "$(SOC_SIZE_LIST)" --cache-blocks "$(SOC_CACHE_BLOCKS_LIST)" --ps-frame-counts "$(SOC_PS_FRAME_COUNT_LIST)" --dataflow-modes "$(SOC_DATAFLOW_MODE_LIST)" --lhs-dtypes "$(SOC_REGRESS_LHS_DTYPE_LIST)" --quant-modes "$(SOC_REGRESS_QUANT_MODE_LIST)" --dim-multiple $(SOC_REGRESS_DIM_MULTIPLE) --sim-args "$(SOC_REGRESS_SIM_ARGS)" --ddr-cmd-max-lat $(SOC_REGRESS_DDR_CMD_MAX_LAT) --ddr-w-max-lat $(SOC_REGRESS_DDR_W_MAX_LAT) --ddr-rsp-max-lat $(SOC_REGRESS_DDR_RSP_MAX_LAT) $(if $(SOC_REGRESS_SOC_TIMEOUT_CYCLES),--soc-timeout-cycles $(SOC_REGRESS_SOC_TIMEOUT_CYCLES),) $(if $(filter 1 yes true TRUE,$(SOC_REGRESS_DDR_RAND_LAT)),--ddr-rand-lat,) $(if $(filter 1 yes true TRUE,$(SOC_REGRESS_UNALIGNED_LAYOUT)),--unaligned-layout,) $(if $(SOC_MIN_DIM),--min-dim $(SOC_MIN_DIM),) $(if $(SOC_MAX_DIM),--max-dim $(SOC_MAX_DIM),)
+	@python3 ./run_axi_soc_c_regression.py --iterations $(SOC_REGRESS_ITERS) --start-seed $(SOC_REGRESS_START_SEED) --timeout $(SOC_REGRESS_TIMEOUT) --log-root $(SOC_REGRESS_LOG_ROOT) --sizes "$(SOC_SIZE_LIST)" --cache-blocks "$(SOC_CACHE_BLOCKS_LIST)" --ps-frame-counts "$(SOC_PS_FRAME_COUNT_LIST)" --dataflow-modes "$(SOC_DATAFLOW_MODE_LIST)" --lhs-dtypes "$(SOC_REGRESS_LHS_DTYPE_LIST)" --quant-modes "$(SOC_REGRESS_QUANT_MODE_LIST)" --dim-multiple $(SOC_REGRESS_DIM_MULTIPLE) --sim-args "$(SOC_REGRESS_SIM_ARGS)" --ddr-cmd-max-lat $(SOC_REGRESS_DDR_CMD_MAX_LAT) --ddr-w-max-lat $(SOC_REGRESS_DDR_W_MAX_LAT) --ddr-rsp-max-lat $(SOC_REGRESS_DDR_RSP_MAX_LAT) $(if $(SOC_REGRESS_SOC_TIMEOUT_CYCLES),--soc-timeout-cycles $(SOC_REGRESS_SOC_TIMEOUT_CYCLES),) $(if $(filter 1 yes true TRUE,$(SOC_REGRESS_DDR_RAND_LAT)),--ddr-rand-lat,) $(if $(filter 1 yes true TRUE,$(SOC_REGRESS_UNALIGNED_LAYOUT)),--unaligned-layout,) $(if $(SOC_MIN_DIM),--min-dim $(SOC_MIN_DIM),) $(if $(SOC_MAX_DIM),--max-dim $(SOC_MAX_DIM),)
 
 soc_perf_sweep:
-> @python3 ./run_axi_soc_perf_sweep.py --seed $(SOC_PERF_SEED) --timeout $(SOC_PERF_TIMEOUT) --log-root $(SOC_PERF_LOG_ROOT) --dims "$(SOC_PERF_DIMS)" --sizes "$(SOC_PERF_SIZE_LIST)" --cache-blocks "$(SOC_PERF_CACHE_BLOCKS_LIST)" --ps-frame-counts "$(SOC_PERF_PS_FRAME_COUNT_LIST)" --dataflow-modes "$(SOC_PERF_DATAFLOW_MODE_LIST)" --lhs-dtypes "$(SOC_PERF_LHS_DTYPE_LIST)" --quant-modes "$(SOC_PERF_QUANT_MODE_LIST)" --ia-reuse-list "$(SOC_PERF_IA_REUSE_LIST)" --w-reuse-list "$(SOC_PERF_W_REUSE_LIST)" --jobs $(SOC_PERF_JOBS) --sim-args "$(SOC_PERF_SIM_ARGS)" --ddr-cmd-max-lat $(SOC_PERF_DDR_CMD_MAX_LAT) --ddr-w-max-lat $(SOC_PERF_DDR_W_MAX_LAT) --ddr-rsp-max-lat $(SOC_PERF_DDR_RSP_MAX_LAT) $(if $(SOC_PERF_SOC_TIMEOUT_CYCLES),--soc-timeout-cycles $(SOC_PERF_SOC_TIMEOUT_CYCLES),) $(if $(SOC_PERF_RAM_FIXED_LAT),--ram-fixed-lat $(SOC_PERF_RAM_FIXED_LAT),) $(if $(filter 1 yes true TRUE,$(SOC_PERF_INCLUDE_AUTO)),--include-auto,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_KEEP_GOING)),--keep-going,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_FORCE_COMPILE)),--force-compile,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_DDR_RAND_LAT)),--ddr-rand-lat,)
+	@python3 ./run_axi_soc_perf_sweep.py --seed $(SOC_PERF_SEED) --timeout $(SOC_PERF_TIMEOUT) --log-root $(SOC_PERF_LOG_ROOT) --dims "$(SOC_PERF_DIMS)" --sizes "$(SOC_PERF_SIZE_LIST)" --cache-blocks "$(SOC_PERF_CACHE_BLOCKS_LIST)" --ps-frame-counts "$(SOC_PERF_PS_FRAME_COUNT_LIST)" --dataflow-modes "$(SOC_PERF_DATAFLOW_MODE_LIST)" --lhs-dtypes "$(SOC_PERF_LHS_DTYPE_LIST)" --quant-modes "$(SOC_PERF_QUANT_MODE_LIST)" --ia-reuse-list "$(SOC_PERF_IA_REUSE_LIST)" --w-reuse-list "$(SOC_PERF_W_REUSE_LIST)" --jobs $(SOC_PERF_JOBS) --sim-args "$(SOC_PERF_SIM_ARGS)" --ddr-cmd-max-lat $(SOC_PERF_DDR_CMD_MAX_LAT) --ddr-w-max-lat $(SOC_PERF_DDR_W_MAX_LAT) --ddr-rsp-max-lat $(SOC_PERF_DDR_RSP_MAX_LAT) $(if $(SOC_PERF_SOC_TIMEOUT_CYCLES),--soc-timeout-cycles $(SOC_PERF_SOC_TIMEOUT_CYCLES),) $(if $(SOC_PERF_RAM_FIXED_LAT),--ram-fixed-lat $(SOC_PERF_RAM_FIXED_LAT),) $(if $(filter 1 yes true TRUE,$(SOC_PERF_INCLUDE_AUTO)),--include-auto,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_KEEP_GOING)),--keep-going,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_FORCE_COMPILE)),--force-compile,) $(if $(filter 1 yes true TRUE,$(SOC_PERF_DDR_RAND_LAT)),--ddr-rand-lat,)
 
 npu_top_regress:
-> $(MAKE) -C ../top_regression run_random SIZE=$(TOP_REGRESS_SIZE) IA_CACHE_BLOCKS=$(TOP_REGRESS_IA_CACHE_BLOCKS) PS_FRAME_COUNT=$(TOP_REGRESS_PS_FRAME_COUNT) AXI_READ_OUTSTANDING=$(TOP_REGRESS_AXI_READ_OUTSTANDING) COUNT=$(TOP_REGRESS_COUNT) SEED=$(TOP_REGRESS_SEED) TRACE=$(TOP_REGRESS_TRACE) RANDOM_GEN_ARGS='$(TOP_REGRESS_RANDOM_GEN_ARGS)' SIM_ARGS='$(TOP_REGRESS_SIM_ARGS)'
+	$(MAKE) -C ../top_regression run_random SIZE=$(TOP_REGRESS_SIZE) IA_CACHE_BLOCKS=$(TOP_REGRESS_IA_CACHE_BLOCKS) PS_FRAME_COUNT=$(TOP_REGRESS_PS_FRAME_COUNT) AXI_READ_OUTSTANDING=$(TOP_REGRESS_AXI_READ_OUTSTANDING) COUNT=$(TOP_REGRESS_COUNT) SEED=$(TOP_REGRESS_SEED) TRACE=$(TOP_REGRESS_TRACE) RANDOM_GEN_ARGS='$(TOP_REGRESS_RANDOM_GEN_ARGS)' SIM_ARGS='$(TOP_REGRESS_SIM_ARGS)'
 
 tflm_my_model_run:
-> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm SOC_CASE=axi_soc_tflm case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MY_MODEL_TIMEOUT_CYCLES))
+	$(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm SOC_CASE=axi_soc_tflm case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MY_MODEL_TIMEOUT_CYCLES))
 
 tflm_micro_speech_run:
-> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_micro_speech SOC_CASE=axi_soc_tflm_micro_speech case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MICRO_SPEECH_TIMEOUT_CYCLES))
+	$(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_micro_speech SOC_CASE=axi_soc_tflm_micro_speech case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MICRO_SPEECH_TIMEOUT_CYCLES))
 
 tflm_hello_world_run:
-> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_hello_world SOC_CASE=axi_soc_tflm_hello_world case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_HELLO_WORLD_TIMEOUT_CYCLES))
+	$(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_hello_world SOC_CASE=axi_soc_tflm_hello_world case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_HELLO_WORLD_TIMEOUT_CYCLES))
 
 tflm_person_detection_run: DUMPOPTS = 0
 tflm_person_detection_run:
-> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_person_detection SOC_CASE=axi_soc_tflm_person_detection case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_PERSON_DETECTION_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
+	$(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_person_detection SOC_CASE=axi_soc_tflm_person_detection case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_PERSON_DETECTION_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
 
 tflm_mnist_mlp_run: DUMPOPTS = 0
 tflm_mnist_mlp_run:
-> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_mnist_mlp SOC_CASE=$(TFLM_MNIST_MLP_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MNIST_MLP_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
+	$(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_mnist_mlp SOC_CASE=$(TFLM_MNIST_MLP_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MNIST_MLP_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
 
 tflm_mnist_mlp_int16x8_run: DUMPOPTS = 0
 tflm_mnist_mlp_int16x8_run:
-> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_mnist_mlp_int16x8 SOC_CASE=$(TFLM_MNIST_MLP_INT16X8_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MNIST_MLP_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
+	$(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_mnist_mlp_int16x8 SOC_CASE=$(TFLM_MNIST_MLP_INT16X8_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MNIST_MLP_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
 
 tflm_sensor_calibration_int16x8_run: DUMPOPTS = 0
 tflm_sensor_calibration_int16x8_run:
-> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_sensor_calibration_int16x8 SOC_CASE=$(TFLM_SENSOR_CALIBRATION_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_SENSOR_CALIBRATION_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
+	$(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_sensor_calibration_int16x8 SOC_CASE=$(TFLM_SENSOR_CALIBRATION_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_SENSOR_CALIBRATION_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
 
 tflm_sensor_calibration_release_20261015_host: $(TFLM_SENSOR_CALIBRATION_RELEASE_HOST_SRCS) $(TFLM_HOST_LIB)
-> $(CXX) -std=c++17 $(HOST_OPT_LEVEL) -fno-rtti -fno-exceptions -fno-threadsafe-statics -DTF_LITE_DISABLE_X86_NEON -DTF_LITE_STRIP_ERROR_STRINGS -I$(TFLM_ROOT) -I$(TFLM_GENFILES) -I../soc_csrc -I$(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR) -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/gemmlowp -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/flatbuffers/include -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/kissfft -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/ruy ../tools/tflm_sensor_calibration_release_host.cc $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_data.cc $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_model_data.cc $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_host_test_data.cc $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_soc_test_data.cc $(TFLM_HOST_LIB) -lm -o $(TFLM_SENSOR_CALIBRATION_RELEASE_HOST_BIN)
+	$(CXX) -std=c++17 $(HOST_OPT_LEVEL) -fno-rtti -fno-exceptions -fno-threadsafe-statics -DTF_LITE_DISABLE_X86_NEON -DTF_LITE_STRIP_ERROR_STRINGS -I$(TFLM_ROOT) -I$(TFLM_GENFILES) -I../soc_csrc -I$(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR) -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/gemmlowp -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/flatbuffers/include -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/kissfft -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/ruy ../tools/tflm_sensor_calibration_release_host.cc $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_data.cc $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_model_data.cc $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_host_test_data.cc $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_soc_test_data.cc $(TFLM_HOST_LIB) -lm -o $(TFLM_SENSOR_CALIBRATION_RELEASE_HOST_BIN)
 
 tflm_sensor_calibration_release_20261015_host_run: tflm_sensor_calibration_release_20261015_host
-> $(TFLM_SENSOR_CALIBRATION_RELEASE_HOST_BIN)
+	$(TFLM_SENSOR_CALIBRATION_RELEASE_HOST_BIN)
 
 tflm_sensor_calibration_release_20261015_run: DUMPOPTS = 0
 tflm_sensor_calibration_release_20261015_run:
-> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_sensor_calibration_release_20261015 SOC_CASE=$(TFLM_SENSOR_CALIBRATION_RELEASE_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_SENSOR_CALIBRATION_RELEASE_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
+	$(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_sensor_calibration_release_20261015 SOC_CASE=$(TFLM_SENSOR_CALIBRATION_RELEASE_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_SENSOR_CALIBRATION_RELEASE_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
 
 tflm_sensor_calibrator_20261016_run: DUMPOPTS = 0
 tflm_sensor_calibrator_20261016_run:
-> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_sensor_calibrator_20261016 SOC_CASE=$(TFLM_SENSOR_CALIBRATOR_20261016_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(TFLM_SENSOR_CALIBRATOR_20261016_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_SENSOR_CALIBRATOR_20261016_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
+	$(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_sensor_calibrator_20261016 SOC_CASE=$(TFLM_SENSOR_CALIBRATOR_20261016_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(TFLM_SENSOR_CALIBRATOR_20261016_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_SENSOR_CALIBRATOR_20261016_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
 
 tflm_sensor_calibration_20261019_run: DUMPOPTS = 0
 tflm_sensor_calibration_20261019_run:
-> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_sensor_calibration_20261019 SOC_CASE=$(TFLM_SENSOR_CALIBRATION_20261019_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_SENSOR_CALIBRATION_20261019_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
+	$(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_sensor_calibration_20261019 SOC_CASE=$(TFLM_SENSOR_CALIBRATION_20261019_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_SENSOR_CALIBRATION_20261019_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
 
 tflm_mnist_cnn_run: DUMPOPTS = 0
 tflm_mnist_cnn_run:
-> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_mnist_cnn SOC_CASE=$(TFLM_MNIST_CNN_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MNIST_CNN_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
+	$(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_mnist_cnn SOC_CASE=$(TFLM_MNIST_CNN_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MNIST_CNN_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
 
 tflm_run: tflm_hello_world_run
 
 vd:
-> @echo "[VERDI] case=$(case) seed=$(seed) FSDB=$(FSDB)"
-> @if [ ! -f "$(FSDB)" ]; then echo "[ERROR] FSDB not found: $(FSDB)"; echo "        Please run: make run DUT_MODE=$(DUT_MODE) case=$(case) seed=$(seed)"; exit 1; fi
-> @echo "[VERDI] DUT_MODE=$(DUT_MODE) FILELIST=$(FILELIST)"
-> $(VERDI) -sv $(INCDIRS:%=-y %) $(DEFINES:%=+define+%) $(MODE_DEFINES:%=+define+%) -f $(FILELIST) +incdir+$(UVM_HOME)/src -top $(TOP) $(VERDI_OPTS) -ssf $(FSDB) &
+	@echo "[VERDI] case=$(case) seed=$(seed) FSDB=$(FSDB)"
+	@if [ ! -f "$(FSDB)" ]; then echo "[ERROR] FSDB not found: $(FSDB)"; echo "        Please run: make run DUT_MODE=$(DUT_MODE) case=$(case) seed=$(seed)"; exit 1; fi
+	@echo "[VERDI] DUT_MODE=$(DUT_MODE) FILELIST=$(FILELIST)"
+	$(VERDI) -sv $(INCDIRS:%=-y %) $(DEFINES:%=+define+%) $(MODE_DEFINES:%=+define+%) -f $(FILELIST) +incdir+$(UVM_HOME)/src -top $(TOP) $(VERDI_OPTS) -ssf $(FSDB) &
 
 clean:
-> rm -rf $(SIMV) simv_* csrc *.csrc simv.daidir simv_*.daidir *.log *.key novas.* verdiLog runs
+	rm -rf $(SIMV) simv_* csrc *.csrc simv.daidir simv_*.daidir *.log *.key novas.* verdiLog runs
 
 help:
-> @echo "Targets:"
-> @echo "  make run   [DUT_MODE=axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
-> @echo "             [MMA_SIZE=16] [MMA_IA_CACHE_BLOCKS=4] [MMA_PS_FRAME_COUNT=<MMA_SIZE>]"
-> @echo "             [SOC_APP=runtime|case|tflm]  # runtime reuses one O3 CPU app and reads runtime_data.mem"
-> @echo "  make com   [DUT_MODE=axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
-> @echo "  make force_com [DUT_MODE=axil|axi_soc]  # rebuild simv"
-> @echo "  make sim   [DUT_MODE=axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
-> @echo "  make soc_regress [SOC_REGRESS_ITERS=<n>] [SOC_REGRESS_START_SEED=<int>] [SOC_MIN_DIM=<n>] [SOC_MAX_DIM=<n>] [SOC_REGRESS_DIM_MULTIPLE=<n>]"
-> @echo "                   [SOC_SIZE_LIST='8 16'] [SOC_CACHE_BLOCKS_LIST='2 4'] [SOC_REGRESS_DDR_RAND_LAT=1] [SOC_REGRESS_UNALIGNED_LAYOUT=1]"
-> @echo "  make soc_perf_sweep [SOC_PERF_DIMS='32x32x32'] [SOC_PERF_SIZE_LIST='8 16'] [SOC_PERF_CACHE_BLOCKS_LIST='2 4']"
-> @echo "                      [SOC_PERF_INCLUDE_AUTO=1] [SOC_PERF_FORCE_COMPILE=1] [SOC_PERF_JOBS=4] [SOC_PERF_DDR_RAND_LAT=1]"
-> @echo "  make npu_top_regress [TOP_REGRESS_SIZE=4] [TOP_REGRESS_IA_CACHE_BLOCKS=4] [TOP_REGRESS_COUNT=20]"
-> @echo "  make run COV=1 DUT_MODE=axil case=ai_mem_gen_smoke_test seed=1  # collect VCS code coverage"
-> @echo "  make coverage COVERAGE_GOAL=95                                 # clean, run curated suite, and sign off VCS code coverage"
-> @echo "             [COV_ACCEL_SCOPE=1] limits coverage to the accelerator hierarchy"
-> @echo "  make coverage_module COVERAGE_GOAL=95                          # accelerator-module scoped coverage"
-> @echo "  make coverage_soc COVERAGE_GOAL=95                             # soc_top scoped integration coverage"
-> @echo "  make cov_plan COVERAGE_GOAL=95                                 # run curated coverage suite"
-> @echo "  make cov_report COVERAGE_GOAL=95 [URG_METRICS=group|line+branch+group]"
-> @echo "             [COVERAGE_SIGNOFF_METRICS=functional,group]         # merge VDBs and check threshold"
-> @echo "  make cov_code_report COVERAGE_GOAL=95                          # report code coverage per compile design"
-> @echo "  make cov_clean                                                  # remove runs/coverage only"
-> @echo "  make tflm_run"
-> @echo "  make tflm_hello_world_run"
-> @echo "  make tflm_micro_speech_run"
-> @echo "  make tflm_person_detection_run"
-> @echo "  make tflm_mnist_mlp_run"
-> @echo "  make tflm_mnist_mlp_int16x8_run"
-> @echo "  make tflm_sensor_calibration_int16x8_run"
-> @echo "  make tflm_sensor_calibration_release_20261015_host_run"
-> @echo "  make tflm_sensor_calibration_release_20261015_run SOC_CPU_MEM_DP=131072"
-> @echo "  make tflm_mnist_cnn_run"
-> @echo "  make tflm_my_model_run"
-> @echo "  make vd    [DUT_MODE=axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
-> @echo "  make clean"
-> @echo "  make help"
-> @echo ""
-> @echo "Output layout:"
-> @echo "  runs/<case>/seed_<seed>/compile.log"
-> @echo "  runs/<case>/seed_<seed>/sim.log"
-> @echo "  runs/<case>/seed_<seed>/tb_top.fsdb"
-> @echo ""
-> @echo "case(also UVM_TESTNAME) -> sequence mapping (from veri/test/ai_test_pkg.sv):"
-> @echo "  ai_mem_gen_smoke_test         -> ai_mem_gen_smoke_seq"
-> @echo "  ai_ral_mem_gen_on_calc_start_test -> ai_ral_mem_gen_on_calc_start_seq"
-> @echo ""
-> @echo "Common examples:"
-> @echo "  make run DUT_MODE=axil case=ai_mem_gen_smoke_test seed=20260413"
-> @echo "  make run DUT_MODE=axil case=ai_ral_mem_gen_on_calc_start_test seed=20260413"
-> @echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test SOC_K=24 SOC_N=32 SOC_M=16 SOC_LHS_DTYPE=1 SOC_QUANT_MODE=0 SOC_LHS_OFFSET=0 SOC_RHS_OFFSET=0 SOC_DST_OFFSET=0"
-> @echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test SOC_RANDOM=1 SOC_FIX_MODE=0 SOC_SEED=20260629"
-> @echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test SOC_UART_CLKDIV=8"
-> @echo "  make soc_regress SOC_REGRESS_ITERS=20 SOC_MIN_DIM=16 SOC_MAX_DIM=32"
-> @echo "  make tflm_run"
-> @echo "  make tflm_hello_world_run"
-> @echo "  make tflm_micro_speech_run"
-> @echo "  make tflm_person_detection_run"
-> @echo "  make tflm_mnist_mlp_run"
-> @echo "  make tflm_mnist_mlp_int16x8_run"
-> @echo "  make tflm_sensor_calibration_int16x8_run"
-> @echo "  make tflm_mnist_cnn_run"
-> @echo "  make tflm_my_model_run"
-> @echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test VCS_CC=gcc-4.8 VCS_CXX=g++-4.8"
-> @echo "  make vd DUT_MODE=axil case=ai_mem_gen_smoke_test seed=20260413"
+	@echo "Targets:"
+	@echo "  make run   [DUT_MODE=axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
+	@echo "             [MMA_SIZE=16] [MMA_IA_CACHE_BLOCKS=4] [MMA_PS_FRAME_COUNT=<MMA_SIZE>]"
+	@echo "             [SOC_APP=runtime|case|tflm]  # runtime reuses one O3 CPU app and reads runtime_data.mem"
+	@echo "  make com   [DUT_MODE=axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
+	@echo "  make force_com [DUT_MODE=axil|axi_soc]  # rebuild simv"
+	@echo "  make sim   [DUT_MODE=axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
+	@echo "  make soc_regress [SOC_REGRESS_ITERS=<n>] [SOC_REGRESS_START_SEED=<int>] [SOC_MIN_DIM=<n>] [SOC_MAX_DIM=<n>] [SOC_REGRESS_DIM_MULTIPLE=<n>]"
+	@echo "                   [SOC_SIZE_LIST='8 16'] [SOC_CACHE_BLOCKS_LIST='2 4'] [SOC_REGRESS_DDR_RAND_LAT=1] [SOC_REGRESS_UNALIGNED_LAYOUT=1]"
+	@echo "  make soc_perf_sweep [SOC_PERF_DIMS='32x32x32'] [SOC_PERF_SIZE_LIST='8 16'] [SOC_PERF_CACHE_BLOCKS_LIST='2 4']"
+	@echo "                      [SOC_PERF_INCLUDE_AUTO=1] [SOC_PERF_FORCE_COMPILE=1] [SOC_PERF_JOBS=4] [SOC_PERF_DDR_RAND_LAT=1]"
+	@echo "  make npu_top_regress [TOP_REGRESS_SIZE=4] [TOP_REGRESS_IA_CACHE_BLOCKS=4] [TOP_REGRESS_COUNT=20]"
+	@echo "  make run COV=1 DUT_MODE=axil case=ai_mem_gen_smoke_test seed=1  # collect VCS code coverage"
+	@echo "  make coverage COVERAGE_GOAL=95                                 # clean, run curated suite, and sign off VCS code coverage"
+	@echo "             [COV_ACCEL_SCOPE=1] limits coverage to the accelerator hierarchy"
+	@echo "  make coverage_module COVERAGE_GOAL=95                          # accelerator-module scoped coverage"
+	@echo "  make coverage_soc COVERAGE_GOAL=95                             # soc_top scoped integration coverage"
+	@echo "  make cov_plan COVERAGE_GOAL=95                                 # run curated coverage suite"
+	@echo "  make cov_report COVERAGE_GOAL=95 [URG_METRICS=group|line+branch+group]"
+	@echo "             [COVERAGE_SIGNOFF_METRICS=functional,group]         # merge VDBs and check threshold"
+	@echo "  make cov_code_report COVERAGE_GOAL=95                          # report code coverage per compile design"
+	@echo "  make cov_clean                                                  # remove runs/coverage only"
+	@echo "  make tflm_run"
+	@echo "  make tflm_hello_world_run"
+	@echo "  make tflm_micro_speech_run"
+	@echo "  make tflm_person_detection_run"
+	@echo "  make tflm_mnist_mlp_run"
+	@echo "  make tflm_mnist_mlp_int16x8_run"
+	@echo "  make tflm_sensor_calibration_int16x8_run"
+	@echo "  make tflm_sensor_calibration_release_20261015_host_run"
+	@echo "  make tflm_sensor_calibration_release_20261015_run SOC_CPU_MEM_DP=131072"
+	@echo "  make tflm_mnist_cnn_run"
+	@echo "  make tflm_my_model_run"
+	@echo "  make vd    [DUT_MODE=axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
+	@echo "  make clean"
+	@echo "  make help"
+	@echo ""
+	@echo "Output layout:"
+	@echo "  runs/<case>/seed_<seed>/compile.log"
+	@echo "  runs/<case>/seed_<seed>/sim.log"
+	@echo "  runs/<case>/seed_<seed>/tb_top.fsdb"
+	@echo ""
+	@echo "case(also UVM_TESTNAME) -> sequence mapping (from veri/test/ai_test_pkg.sv):"
+	@echo "  ai_mem_gen_smoke_test         -> ai_mem_gen_smoke_seq"
+	@echo "  ai_ral_mem_gen_on_calc_start_test -> ai_ral_mem_gen_on_calc_start_seq"
+	@echo ""
+	@echo "Common examples:"
+	@echo "  make run DUT_MODE=axil case=ai_mem_gen_smoke_test seed=20260413"
+	@echo "  make run DUT_MODE=axil case=ai_ral_mem_gen_on_calc_start_test seed=20260413"
+	@echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test SOC_K=24 SOC_N=32 SOC_M=16 SOC_LHS_DTYPE=1 SOC_QUANT_MODE=0 SOC_LHS_OFFSET=0 SOC_RHS_OFFSET=0 SOC_DST_OFFSET=0"
+	@echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test SOC_RANDOM=1 SOC_FIX_MODE=0 SOC_SEED=20260629"
+	@echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test SOC_UART_CLKDIV=8"
+	@echo "  make soc_regress SOC_REGRESS_ITERS=20 SOC_MIN_DIM=16 SOC_MAX_DIM=32"
+	@echo "  make tflm_run"
+	@echo "  make tflm_hello_world_run"
+	@echo "  make tflm_micro_speech_run"
+	@echo "  make tflm_person_detection_run"
+	@echo "  make tflm_mnist_mlp_run"
+	@echo "  make tflm_mnist_mlp_int16x8_run"
+	@echo "  make tflm_sensor_calibration_int16x8_run"
+	@echo "  make tflm_mnist_cnn_run"
+	@echo "  make tflm_my_model_run"
+	@echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test VCS_CC=gcc-4.8 VCS_CXX=g++-4.8"
+	@echo "  make vd DUT_MODE=axil case=ai_mem_gen_smoke_test seed=20260413"
 .PHONY: run soc_case soc_c soc_runtime_c tflm_soc_c tflm_micro_speech_soc_c tflm_hello_world_soc_c tflm_person_detection_soc_c tflm_mnist_mlp_soc_c tflm_mnist_mlp_int16x8_soc_c tflm_sensor_calibration_int16x8_soc_c tflm_sensor_calibration_release_20261015_soc_c tflm_sensor_calibrator_20261016_soc_c tflm_sensor_calibration_20261019_soc_c tflm_sensor_calibration_20261019_run tflm_sensor_calibration_release_20261015_host tflm_sensor_calibration_release_20261015_host_run tflm_sensor_calibration_release_20261015_run tflm_sensor_calibrator_20261016_run tflm_mnist_cnn_soc_c tflm_mnist_accuracy tflm_mnist_accuracy_run tflm_run tflm_micro_speech_run tflm_hello_world_run tflm_person_detection_run tflm_mnist_mlp_run tflm_mnist_mlp_int16x8_run tflm_sensor_calibration_int16x8_run tflm_sensor_calibrator_20261016_run tflm_mnist_cnn_run tflm_my_model_run com force_com sim cov_report cov_code_report cov_plan coverage_module coverage_soc cov_clean soc_regress vd clean help

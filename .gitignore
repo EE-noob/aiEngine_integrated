@@ -4,6 +4,7 @@ veri/work/*
 
 # But keep the Makefile and this .gitignore
 !veri/sim/Makefile
+!veri/sim/MAKE_TARGETS.md
 !veri/sim/.gitignore
 !veri/sim/*.rc
 !veri/sim/run_simv_lxc.sh

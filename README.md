@@ -2,6 +2,9 @@
 
 本仓库是 NPU 加速器的 SoC 集成、验证和软件适配工程。当前代码包含 AXI 化后的 PicoRV32 SoC、NPU AXI-Lite 配置接口、共享 AXI RAM/UART、VCS/UVM 验证平台、Verilator NPU 顶层回归、TFLM/NMSIS-NN 适配代码以及 FPGA 综合/仿真辅助脚本。
 
+仿真层级、最短运行命令和实际检查项见 [how2run 快速指南](how2run.md)。
+各 make target 的用途、原理、产物及依赖关系见 [Makefile target 详解](veri/sim/MAKE_TARGETS.md)。
+
 ## GEMPACT 配置 ABI 2（2026-11-11）
 
 分组数和尾组大小由 CPU 或模型编译器预先计算。启动前必须写入 `0x060`～`0x06c` 四个配置寄存器，RTL 不包含配置除法器或除法回退。驱动已同步更新；旧软件和旧独立仿真输入需更新。见 [寄存器与外部预计算说明](drivers/registers_v2.md)；C 计算函数在 [gempact_tiling.h](drivers/gempact_tiling.h)，仿真输入转换工具在 [host_tiling.py](veri/top_regression/host_tiling.py)。
