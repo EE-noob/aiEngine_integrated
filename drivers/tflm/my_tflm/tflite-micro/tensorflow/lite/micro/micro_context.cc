@@ -41,6 +41,18 @@ int GetTensorIndex(int index, int max_size, const int* tensor_indices) {
 
 TfLiteTensor* MicroContext::AllocateTempInputTensor(const TfLiteNode* node,
                                                     int index) {
+  if (node == nullptr || node->inputs == nullptr || index < 0 ||
+      index >= node->inputs->size || node->inputs->data[index] < 0) {
+    const int input_count =
+        node != nullptr && node->inputs != nullptr ? node->inputs->size : -1;
+    const int tensor_index =
+        input_count >= 0 && index >= 0 && index < input_count
+            ? node->inputs->data[index]
+            : -1;
+    MicroPrintf("AllocateTempInputTensor invalid: slot=%d count=%d tensor=%d",
+                index, input_count, tensor_index);
+    return nullptr;
+  }
   const int tensor_index =
       GetTensorIndex(index, node->inputs->size, node->inputs->data);
   if (tensor_index < 0) {

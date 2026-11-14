@@ -29,9 +29,10 @@ namespace {
 constexpr int kInputTensor = 0;
 constexpr int kOutputTensor = 0;
 
-void ExtractShape(const TfLiteEvalTensor* input, int32_t* output_data) {
+template <typename T>
+void ExtractShape(const TfLiteEvalTensor* input, T* output_data) {
   for (int i = 0; i < input->dims->size; ++i) {
-    output_data[i] = input->dims->data[i];
+    output_data[i] = static_cast<T>(input->dims->data[i]);
   }
 }
 
@@ -47,12 +48,17 @@ TfLiteStatus ShapeEval(TfLiteContext* context, TfLiteNode* node) {
       tflite::micro::GetEvalInput(context, node, kInputTensor);
   TfLiteEvalTensor* output =
       tflite::micro::GetEvalOutput(context, node, kOutputTensor);
-  if (output->type != kTfLiteInt32) {
-    MicroPrintf("Output type %s (%d) not supported.",
-                TfLiteTypeGetName(output->type), output->type);
-    return kTfLiteError;
-  } else {
-    ExtractShape(input, tflite::micro::GetTensorData<int32_t>(output));
+  switch (output->type) {
+    case kTfLiteInt32:
+      ExtractShape(input, tflite::micro::GetTensorData<int32_t>(output));
+      break;
+    case kTfLiteInt64:
+      ExtractShape(input, tflite::micro::GetTensorData<int64_t>(output));
+      break;
+    default:
+      MicroPrintf("Output type %s (%d) not supported.",
+                  TfLiteTypeGetName(output->type), output->type);
+      return kTfLiteError;
   }
 
   return kTfLiteOk;

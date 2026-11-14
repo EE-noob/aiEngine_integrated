@@ -40,6 +40,7 @@ struct OpData {
   int buffer_idx;
 
   int32_t* kernel_sums;
+  int32_t* int16_bias_s32;
 
   int32_t batches;
   int32_t accum_depth;
@@ -107,22 +108,28 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
   // Set buffer index to a reset value
   data->buffer_idx = -1;
   data->buffer_conv_1x1_idx = -1;
+  data->int16_bias_s32 = nullptr;
 
   TF_LITE_ENSURE_STATUS(CalculateOpDataFullyConnected(
       context, params->activation, input->type, input, filter, bias, output,
       &(data->reference_op_data)));
 
-  //  Currently only Int8 is supported for per channel quantization.
   TF_LITE_ENSURE(
       context, !data->reference_op_data.is_per_channel ||
-                   (data->reference_op_data.is_per_channel &&
-                    input->type == kTfLiteInt8 && filter->type != kTfLiteInt4));
+                   (input->type == kTfLiteInt16 && filter->type == kTfLiteInt8) ||
+                   (input->type == kTfLiteInt8 && filter->type != kTfLiteInt4));
 
   int32_t buf_size = 0;
 
   if (input->type == kTfLiteInt16) {
     TF_LITE_ENSURE_EQ(context, input->params.zero_point, 0);
     TF_LITE_ENSURE_EQ(context, output->params.zero_point, 0);
+    if (bias != nullptr && bias->type == kTfLiteInt64) {
+      data->int16_bias_s32 = static_cast<int32_t*>(
+          context->AllocatePersistentBuffer(
+              context, data->output_depth * sizeof(int32_t)));
+      TF_LITE_ENSURE(context, data->int16_bias_s32 != nullptr);
+    }
     buf_size = riscv_fully_connected_s16_get_buffer_size(&filter_dims);
   } else if (input->type == kTfLiteInt8 && filter->type != kTfLiteInt4) {
     const bool is_conv_1x1_possible =
@@ -375,18 +382,44 @@ TfLiteStatus EvalQuantizedInt16(TfLiteContext* context, TfLiteNode* node,
                                 const TfLiteEvalTensor* filter,
                                 const TfLiteEvalTensor* bias,
                                 TfLiteEvalTensor* output) {
-  nmsis_nn_per_tensor_quant_params quant_params;
+  nmsis_nn_quant_params quant_params;
   nmsis_nn_dims input_dims;
   nmsis_nn_dims filter_dims;
   nmsis_nn_dims bias_dims;
   nmsis_nn_dims output_dims;
   nmsis_nn_context ctx;
 
-  PopulateCommonParams(context, &quant_params, &input_dims, &filter_dims,
+  nmsis_nn_per_tensor_quant_params per_tensor_quant_params;
+  PopulateCommonParams(context, &per_tensor_quant_params, &input_dims, &filter_dims,
                        &bias_dims, &output_dims, &ctx, data);
+  quant_params.is_per_channel = data.reference_op_data.is_per_channel;
+  if (quant_params.is_per_channel) {
+    quant_params.multiplier =
+        data.reference_op_data.per_channel_output_multiplier;
+    quant_params.shift = data.reference_op_data.per_channel_output_shift;
+  } else {
+    quant_params.multiplier = &per_tensor_quant_params.multiplier;
+    quant_params.shift = &per_tensor_quant_params.shift;
+  }
 
-  const int64_t* bias_data =
-      tflite::micro::GetOptionalTensorData<int64_t>(bias);
+  const int32_t* bias_data = nullptr;
+  if (bias != nullptr && bias->type == kTfLiteInt64) {
+    const int64_t* bias_s64 = tflite::micro::GetTensorData<int64_t>(bias);
+    TF_LITE_ENSURE(context, data.int16_bias_s32 != nullptr);
+    for (int channel = 0; channel < data.output_depth; ++channel) {
+      const int64_t value = bias_s64[channel];
+      data.int16_bias_s32[channel] =
+          value > 2147483647LL
+              ? 2147483647
+              : (value < (-2147483647LL - 1LL)
+                     ? (-2147483647 - 1)
+                     : static_cast<int32_t>(value));
+    }
+    bias_data = data.int16_bias_s32;
+  } else if (bias != nullptr) {
+    TF_LITE_ENSURE_EQ(context, bias->type, kTfLiteInt32);
+    bias_data = tflite::micro::GetTensorData<int32_t>(bias);
+  }
 
   nmsis_nn_fc_params fc_params;
   fc_params.input_offset = -data.reference_op_data.input_zero_point;
@@ -397,7 +430,7 @@ TfLiteStatus EvalQuantizedInt16(TfLiteContext* context, TfLiteNode* node,
 
   TF_LITE_ENSURE_EQ(
       context,
-      riscv_fully_connected_s16(
+      riscv_fully_connected_s16_s32_bias_acc(
           &ctx, &fc_params, &quant_params, &input_dims,
           tflite::micro::GetTensorData<int16_t>(input), &filter_dims,
           tflite::micro::GetTensorData<int8_t>(filter), &bias_dims, bias_data,

@@ -28,7 +28,9 @@ namespace tflite {
 
 namespace {
 
-constexpr int kMaxInputNum = 10;  // Maximum number of input tensors
+// The 2026-10-16 sensor calibration graph has concatenation nodes with up to
+// 22 inputs. Keep enough fixed storage for that graph without heap allocation.
+constexpr int kMaxInputNum = 24;  // Maximum number of input tensors
 constexpr int kOutputTensor = 0;
 
 struct OpData {

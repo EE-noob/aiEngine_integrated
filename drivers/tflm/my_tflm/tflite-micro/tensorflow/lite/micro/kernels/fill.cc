@@ -119,6 +119,9 @@ TfLiteStatus FillEval(TfLiteContext* context, TfLiteNode* node) {
     case kTfLiteInt32:
       FillImpl<int32_t>(value, output);
       break;
+    case kTfLiteInt16:
+      FillImpl<int16_t>(value, output);
+      break;
     case kTfLiteInt8:
       FillImpl<int8_t>(value, output);
       break;

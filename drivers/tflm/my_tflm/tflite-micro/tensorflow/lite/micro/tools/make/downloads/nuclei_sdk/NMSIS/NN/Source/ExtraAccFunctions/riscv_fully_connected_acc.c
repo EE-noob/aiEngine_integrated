@@ -6,6 +6,65 @@
 
 #include "dsa_accel.h"
 
+#if defined(DSA_SIM_INSTRUMENT)
+volatile uint32_t dsa_sim_fc_call_count = 0;
+#endif
+
+riscv_nmsis_nn_status riscv_fully_connected_s16_s32_bias_acc(
+    const nmsis_nn_context *ctx, const nmsis_nn_fc_params *fc_params,
+    const nmsis_nn_quant_params *quant_params,
+    const nmsis_nn_dims *input_dims, const int16_t *input,
+    const nmsis_nn_dims *filter_dims, const int8_t *kernel,
+    const nmsis_nn_dims *bias_dims, const int32_t *bias,
+    const nmsis_nn_dims *output_dims, int16_t *output)
+{
+    (void)ctx;
+    (void)bias_dims;
+
+#if defined(DSA_SIM_INSTRUMENT)
+    ++dsa_sim_fc_call_count;
+#endif
+
+    dsa_matmul_config_t cfg;
+    dsa_matmul_config_init(&cfg);
+    cfg.lhs_dtype = DSA_DTYPE_S16;
+    cfg.rhs_dtype = DSA_DTYPE_S8;
+    cfg.bias_dtype = DSA_DTYPE_S32;
+    cfg.out_dtype = DSA_DTYPE_S16;
+    cfg.dataflow_mode = DSA_DATAFLOW_WS;
+
+    cfg.lhs_ptr = input;
+    cfg.rhs_ptr = kernel;
+    cfg.dst_ptr = output;
+    cfg.bias_ptr = bias;
+
+    cfg.K = (uint32_t)input_dims->n;
+    cfg.N = (uint32_t)filter_dims->n;
+    cfg.M = (uint32_t)output_dims->c;
+    cfg.lhs_row_stride = cfg.N * sizeof(int16_t);
+    cfg.rhs_row_stride = cfg.N * sizeof(int8_t);
+    cfg.dst_row_stride = cfg.M * sizeof(int16_t);
+
+    cfg.quant_mode = quant_params->is_per_channel ? DSA_QUANT_PER_CHANNEL
+                                                  : DSA_QUANT_PER_TENSOR;
+    cfg.lhs_offset = fc_params->input_offset;
+    cfg.rhs_offset = fc_params->filter_offset;
+    cfg.dst_offset = fc_params->output_offset;
+    if (quant_params->is_per_channel) {
+        cfg.dst_mult_ptr = quant_params->multiplier;
+        cfg.dst_shift_ptr = quant_params->shift;
+    } else {
+        cfg.dst_mult = *quant_params->multiplier;
+        cfg.dst_shift = *quant_params->shift;
+    }
+    cfg.act_min = fc_params->activation.min;
+    cfg.act_max = fc_params->activation.max;
+
+    return dsa_matmul_execute(&cfg) == DSA_SUCCESS
+               ? RISCV_NMSIS_NN_SUCCESS
+               : RISCV_NMSIS_NN_FAILURE;
+}
+
 riscv_nmsis_nn_status riscv_fully_connected_s8_acc(
     const nmsis_nn_context *ctx, const nmsis_nn_fc_params *fc_params,
     const nmsis_nn_per_tensor_quant_params *quant_params,
@@ -162,4 +221,3 @@ riscv_nmsis_nn_status riscv_fully_connected_wrapper_s8_acc(const nmsis_nn_contex
                                       output_data);
     }
 }
-

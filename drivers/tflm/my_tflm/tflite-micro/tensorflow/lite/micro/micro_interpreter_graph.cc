@@ -13,6 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+#include <cstdint>
+
 #include "tensorflow/lite/micro/micro_interpreter_graph.h"
 
 #include "flatbuffers/flatbuffers.h"  // from @flatbuffers
@@ -22,6 +24,11 @@ limitations under the License.
 #include "tensorflow/lite/micro/memory_helpers.h"
 #include "tensorflow/lite/micro/micro_context.h"
 #include "tensorflow/lite/micro/micro_log.h"
+
+#if defined(TFLM_SOC_PROGRESS)
+extern "C" void picosoc_uart_put_u32(uint32_t value);
+extern "C" void picosoc_uart_puts(const char* value);
+#endif
 #include "tensorflow/lite/micro/micro_profiler.h"
 #include "tensorflow/lite/schema/schema_generated.h"
 
@@ -238,6 +245,13 @@ TfLiteStatus MicroInterpreterGraph::InvokeSubgraph(int subgraph_idx) {
     allocator_->ResetTempAllocations();
 
     if (invoke_status != kTfLiteOk) {
+#if defined(TFLM_SOC_PROGRESS)
+      picosoc_uart_puts("[tflm_node_error] index=");
+      picosoc_uart_put_u32(current_operator_index_);
+      picosoc_uart_puts(" status=");
+      picosoc_uart_put_u32(static_cast<uint32_t>(invoke_status));
+      picosoc_uart_puts("\n");
+#endif
       if (invoke_status != kTfLiteAbort) {
         MicroPrintf("Node %s (number %d) failed to invoke with status %d",
                     OpNameFromRegistration(registration),

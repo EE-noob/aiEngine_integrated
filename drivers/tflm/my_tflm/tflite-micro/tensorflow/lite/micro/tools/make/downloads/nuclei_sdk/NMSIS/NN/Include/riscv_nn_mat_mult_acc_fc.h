@@ -82,6 +82,19 @@ riscv_nmsis_nn_status riscv_fully_connected_s8_acc(
     const nmsis_nn_dims *bias_dims, const int32_t *bias,
     const nmsis_nn_dims *output_dims, int8_t *output);
 
+/**
+ * TFLM 16x8 fully-connected path using an int32 bias/accumulator and int16
+ * output. Supports per-tensor and per-channel requantization. The caller must
+ * ensure that every dot product plus bias fits int32.
+ */
+riscv_nmsis_nn_status riscv_fully_connected_s16_s32_bias_acc(
+    const nmsis_nn_context *ctx, const nmsis_nn_fc_params *fc_params,
+    const nmsis_nn_quant_params *quant_params,
+    const nmsis_nn_dims *input_dims, const int16_t *input,
+    const nmsis_nn_dims *filter_dims, const int8_t *kernel,
+    const nmsis_nn_dims *bias_dims, const int32_t *bias,
+    const nmsis_nn_dims *output_dims, int16_t *output);
+
 riscv_nmsis_nn_status riscv_fully_connected_wrapper_s8_acc(
     const nmsis_nn_context *ctx, const nmsis_nn_fc_params *fc_params,
     const nmsis_nn_quant_params *quant_params, const nmsis_nn_dims *input_dims,

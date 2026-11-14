@@ -47,6 +47,7 @@ extern "C" {
 #define DSA_CTRL_PER_CHANNEL    (1u << 2)
 #define DSA_CTRL_DATAFLOW_IS    (1u << 3)
 #define DSA_CTRL_IRQ_ENABLE     (1u << 4)
+#define DSA_CTRL_CFG_16X8       (1u << 5)
 
 #define DSA_STATUS_DONE      (1u << 2)
 #define DSA_STATUS_ERR_SHIFT 3u

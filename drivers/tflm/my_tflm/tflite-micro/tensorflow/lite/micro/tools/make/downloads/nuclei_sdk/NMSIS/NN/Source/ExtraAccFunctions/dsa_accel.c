@@ -270,6 +270,12 @@ uint32_t dsa_matmul_execute(const dsa_matmul_config_t *config)
     if (cfg_local.dataflow_mode == DSA_DATAFLOW_IS) {
         ctrl |= DSA_CTRL_DATAFLOW_IS;
     }
+    if ((cfg_local.lhs_dtype == DSA_DTYPE_S16) &&
+        (cfg_local.rhs_dtype == DSA_DTYPE_S8) &&
+        (cfg_local.bias_dtype == DSA_DTYPE_S32) &&
+        (cfg_local.out_dtype == DSA_DTYPE_S16)) {
+        ctrl |= DSA_CTRL_CFG_16X8;
+    }
 
     dsa_memory_barrier();
     dsa_reg_write(NPU_REG_CTRL, ctrl);
