@@ -1,0 +1,715 @@
+{
+  "model_type": "10-input, 9-output masked multi-task calibration MLP",
+  "training_device": "/physical_device:GPU:0",
+  "input_names": [
+    "temperature_input_c",
+    "gxht45_humidity_rh",
+    "adc_voltage_1_v",
+    "adc_voltage_2_v",
+    "adc_voltage_3_v",
+    "adc_voltage_4_v",
+    "ina_current_1_a",
+    "ina_current_2_a",
+    "ina_current_3_a",
+    "ina_current_4_a"
+  ],
+  "output_names": [
+    "calibrated_humidity_rh",
+    "calibrated_voltage_1_v",
+    "calibrated_voltage_2_v",
+    "calibrated_voltage_3_v",
+    "calibrated_voltage_4_v",
+    "calibrated_current_1_a",
+    "calibrated_current_2_a",
+    "calibrated_current_3_a",
+    "calibrated_current_4_a"
+  ],
+  "temperature_input_column": "hdc3020_ref_temp_c",
+  "source_files_used": [
+    "calibration_20161013_h60(1).csv",
+    "calibration_20161013_h70.csv"
+  ],
+  "input_mean": [
+    47.25960149503742,
+    66.93198448253673,
+    0.0,
+    0.0,
+    0.0,
+    16.15152257878591,
+    0.0,
+    4.988494480190725,
+    0.0,
+    0.0
+  ],
+  "input_std": [
+    17.814772837267196,
+    9.730139615440358,
+    1.0,
+    1.0,
+    1.0,
+    9.32866014628133,
+    1.0,
+    2.9942525862612137,
+    1.0,
+    1.0
+  ],
+  "supported_outputs": {
+    "calibrated_humidity_rh": true,
+    "calibrated_voltage_1_v": false,
+    "calibrated_voltage_2_v": false,
+    "calibrated_voltage_3_v": false,
+    "calibrated_voltage_4_v": true,
+    "calibrated_current_1_a": false,
+    "calibrated_current_2_a": true,
+    "calibrated_current_3_a": false,
+    "calibrated_current_4_a": false
+  },
+  "output_offset_mean": [
+    1.1833739399407142,
+    0.0,
+    0.0,
+    0.0,
+    2.814424715456516,
+    0.0,
+    -0.00790062907403295,
+    0.0,
+    0.0
+  ],
+  "output_offset_std": [
+    1.9064203948239158,
+    1.0,
+    1.0,
+    1.0,
+    2.8513043476064213,
+    1.0,
+    0.003585826588423204,
+    1.0,
+    1.0
+  ],
+  "source_file_mappings": [
+    {
+      "file": "calibration_20161013_h60(1).csv",
+      "rows": 22784,
+      "active_voltage_input": "adc_voltage_4_v",
+      "active_current_input": "ina_current_2_a",
+      "temperature_input_source": "hdc3020_ref_temp_c",
+      "humidity_input_source": "gxht45_humidity_rh",
+      "valid_humidity_labels": 22784,
+      "valid_voltage_labels": 22682,
+      "valid_current_labels": 22743,
+      "rejected_humidity_labels": 0,
+      "rejected_voltage_labels": 102,
+      "rejected_current_labels": 41
+    },
+    {
+      "file": "calibration_20161013_h70.csv",
+      "rows": 22923,
+      "active_voltage_input": "adc_voltage_4_v",
+      "active_current_input": "ina_current_2_a",
+      "temperature_input_source": "hdc3020_ref_temp_c",
+      "humidity_input_source": "gxht45_humidity_rh",
+      "valid_humidity_labels": 22923,
+      "valid_voltage_labels": 22830,
+      "valid_current_labels": 22882,
+      "rejected_humidity_labels": 0,
+      "rejected_voltage_labels": 93,
+      "rejected_current_labels": 41
+    }
+  ],
+  "split": {
+    "train": 31883,
+    "validation": 6912,
+    "test": 6912
+  },
+  "split_method": "seeded contiguous blocks of 256 rows per source file; 15% validation and 15% test blocks",
+  "selected_architecture": {
+    "name": "voltage_residual_v4_current2_interactions",
+    "shared_widths": [
+      192,
+      128,
+      64
+    ],
+    "voltage_widths": [
+      192,
+      128,
+      64
+    ],
+    "other_widths": [
+      48,
+      24
+    ],
+    "activation": "silu",
+    "voltage_direct_features": true,
+    "voltage_residual": true,
+    "l2": 1e-05,
+    "voltage_loss_scale": "goal",
+    "source_balance_power": 0.5,
+    "voltage_interactions": [
+      [
+        0,
+        5
+      ],
+      [
+        1,
+        5
+      ],
+      [
+        5,
+        7
+      ],
+      [
+        1,
+        7
+      ]
+    ]
+  },
+  "selected_epochs": 1198,
+  "task_head_widths": {
+    "voltage": [
+      192,
+      128,
+      64
+    ],
+    "current_humidity": [
+      48,
+      24
+    ]
+  },
+  "candidate_search": [
+    {
+      "architecture": {
+        "name": "voltage_residual_v4_current2_interactions",
+        "shared_widths": [
+          192,
+          128,
+          64
+        ],
+        "voltage_widths": [
+          192,
+          128,
+          64
+        ],
+        "other_widths": [
+          48,
+          24
+        ],
+        "activation": "silu",
+        "voltage_direct_features": true,
+        "voltage_residual": true,
+        "l2": 1e-05,
+        "voltage_loss_scale": "goal",
+        "source_balance_power": 0.5,
+        "voltage_interactions": [
+          [
+            0,
+            5
+          ],
+          [
+            1,
+            5
+          ],
+          [
+            5,
+            7
+          ],
+          [
+            1,
+            7
+          ]
+        ]
+      },
+      "validation_voltage4_mae_v": 0.009136075971320295,
+      "validation_normalized_mae": 1.827215194264059,
+      "best_epoch": 1198
+    },
+    {
+      "architecture": {
+        "name": "voltage_low_range_feedback_weighted",
+        "shared_widths": [
+          192,
+          128,
+          64
+        ],
+        "voltage_widths": [
+          192,
+          128,
+          64
+        ],
+        "other_widths": [
+          48,
+          24
+        ],
+        "activation": "silu",
+        "voltage_direct_features": true,
+        "voltage_residual": true,
+        "l2": 1e-05,
+        "voltage_loss_scale": "goal",
+        "source_balance_power": 0.5,
+        "voltage_interactions": [
+          [
+            0,
+            5
+          ],
+          [
+            1,
+            5
+          ],
+          [
+            5,
+            7
+          ],
+          [
+            1,
+            7
+          ]
+        ],
+        "voltage_interval_experts": [
+          {
+            "name": "low_voltage",
+            "region": "below",
+            "threshold_v": 5.0,
+            "transition_v": 1.5,
+            "widths": [
+              32,
+              16
+            ]
+          }
+        ],
+        "voltage_range_weights": [
+          [
+            0.0,
+            5.0,
+            2.0
+          ]
+        ]
+      },
+      "validation_voltage4_mae_v": 0.010765506716567017,
+      "validation_normalized_mae": 2.1531013433134034,
+      "best_epoch": 700
+    },
+    {
+      "architecture": {
+        "name": "voltage_high_range_feedback_weighted",
+        "shared_widths": [
+          192,
+          128,
+          64
+        ],
+        "voltage_widths": [
+          192,
+          128,
+          64
+        ],
+        "other_widths": [
+          48,
+          24
+        ],
+        "activation": "silu",
+        "voltage_direct_features": true,
+        "voltage_residual": true,
+        "l2": 1e-05,
+        "voltage_loss_scale": "goal",
+        "source_balance_power": 0.5,
+        "voltage_interactions": [
+          [
+            0,
+            5
+          ],
+          [
+            1,
+            5
+          ],
+          [
+            5,
+            7
+          ],
+          [
+            1,
+            7
+          ]
+        ],
+        "voltage_interval_experts": [
+          {
+            "name": "high_voltage",
+            "region": "above",
+            "threshold_v": 25.0,
+            "transition_v": 2.0,
+            "widths": [
+              32,
+              16
+            ]
+          }
+        ],
+        "voltage_range_weights": [
+          [
+            25.0,
+            32.0,
+            2.0
+          ]
+        ]
+      },
+      "validation_voltage4_mae_v": 0.014003651512714925,
+      "validation_normalized_mae": 2.800730302542985,
+      "best_epoch": 167
+    },
+    {
+      "architecture": {
+        "name": "voltage_low_high_range_feedback_weighted",
+        "shared_widths": [
+          192,
+          128,
+          64
+        ],
+        "voltage_widths": [
+          192,
+          128,
+          64
+        ],
+        "other_widths": [
+          48,
+          24
+        ],
+        "activation": "silu",
+        "voltage_direct_features": true,
+        "voltage_residual": true,
+        "l2": 1e-05,
+        "voltage_loss_scale": "goal",
+        "source_balance_power": 0.5,
+        "voltage_interactions": [
+          [
+            0,
+            5
+          ],
+          [
+            1,
+            5
+          ],
+          [
+            5,
+            7
+          ],
+          [
+            1,
+            7
+          ]
+        ],
+        "voltage_interval_experts": [
+          {
+            "name": "low_voltage",
+            "region": "below",
+            "threshold_v": 5.0,
+            "transition_v": 1.5,
+            "widths": [
+              32,
+              16
+            ]
+          },
+          {
+            "name": "high_voltage",
+            "region": "above",
+            "threshold_v": 25.0,
+            "transition_v": 2.0,
+            "widths": [
+              32,
+              16
+            ]
+          }
+        ],
+        "voltage_range_weights": [
+          [
+            0.0,
+            5.0,
+            2.0
+          ],
+          [
+            25.0,
+            32.0,
+            2.0
+          ]
+        ]
+      },
+      "validation_voltage4_mae_v": 0.009406451669989968,
+      "validation_normalized_mae": 1.8812903339979936,
+      "best_epoch": 884
+    }
+  ],
+  "candidate_seed_strategy": "same initialization seed per ensemble member across all candidate architectures; final refit uses the same seed sequence",
+  "goals": {
+    "calibrated_humidity_rh": 0.5,
+    "calibrated_voltage_1_v": 0.005,
+    "calibrated_voltage_2_v": 0.005,
+    "calibrated_voltage_3_v": 0.005,
+    "calibrated_voltage_4_v": 0.005,
+    "calibrated_current_1_a": 0.005,
+    "calibrated_current_2_a": 0.005,
+    "calibrated_current_3_a": 0.005,
+    "calibrated_current_4_a": 0.005
+  },
+  "keras_test_metrics": {
+    "calibrated_humidity_rh": {
+      "supported": true,
+      "count": 6912,
+      "mae": 0.1818602519785917,
+      "rmse": 0.22786213850570883,
+      "max_abs_error": 1.1396306762695332,
+      "goal": 0.5,
+      "within_goal_fraction": 0.96875,
+      "goal_met": true
+    },
+    "calibrated_voltage_1_v": {
+      "supported": false,
+      "count": 0
+    },
+    "calibrated_voltage_2_v": {
+      "supported": false,
+      "count": 0
+    },
+    "calibrated_voltage_3_v": {
+      "supported": false,
+      "count": 0
+    },
+    "calibrated_voltage_4_v": {
+      "supported": true,
+      "count": 6912,
+      "mae": 0.00782175759480728,
+      "rmse": 0.014289603275944031,
+      "max_abs_error": 0.24056111846923756,
+      "goal": 0.005,
+      "within_goal_fraction": 0.4437210648148148,
+      "goal_met": false
+    },
+    "calibrated_current_1_a": {
+      "supported": false,
+      "count": 0
+    },
+    "calibrated_current_2_a": {
+      "supported": true,
+      "count": 6899,
+      "mae": 0.0011681521310313906,
+      "rmse": 0.001515209492271371,
+      "max_abs_error": 0.00713592224121129,
+      "goal": 0.005,
+      "within_goal_fraction": 0.9959414407885201,
+      "goal_met": true
+    },
+    "calibrated_current_3_a": {
+      "supported": false,
+      "count": 0
+    },
+    "calibrated_current_4_a": {
+      "supported": false,
+      "count": 0
+    }
+  },
+  "raw_test_metrics": {
+    "calibrated_humidity_rh": {
+      "mae": 2.136848668981482
+    },
+    "calibrated_voltage_1_v": {
+      "mae": 0.0
+    },
+    "calibrated_voltage_2_v": {
+      "mae": 0.0
+    },
+    "calibrated_voltage_3_v": {
+      "mae": 0.0
+    },
+    "calibrated_voltage_4_v": {
+      "mae": 2.198995838541667
+    },
+    "calibrated_current_1_a": {
+      "mae": 0.0
+    },
+    "calibrated_current_2_a": {
+      "mae": 0.0076674740832004635
+    },
+    "calibrated_current_3_a": {
+      "mae": 0.0
+    },
+    "calibrated_current_4_a": {
+      "mae": 0.0
+    }
+  },
+  "tflite_int16_test_metrics": {
+    "calibrated_humidity_rh": {
+      "supported": true,
+      "count": 6912,
+      "mae": 0.18884621838616922,
+      "rmse": 0.2366627063871898,
+      "max_abs_error": 1.1923202872499843,
+      "goal": 0.5,
+      "within_goal_fraction": 0.9613715277777778,
+      "goal_met": true
+    },
+    "calibrated_voltage_1_v": {
+      "supported": false,
+      "count": 0
+    },
+    "calibrated_voltage_2_v": {
+      "supported": false,
+      "count": 0
+    },
+    "calibrated_voltage_3_v": {
+      "supported": false,
+      "count": 0
+    },
+    "calibrated_voltage_4_v": {
+      "supported": true,
+      "count": 6912,
+      "mae": 0.00742868280910216,
+      "rmse": 0.013713472803945722,
+      "max_abs_error": 0.23801310872998016,
+      "goal": 0.005,
+      "within_goal_fraction": 0.4660011574074074,
+      "goal_met": false
+    },
+    "calibrated_current_1_a": {
+      "supported": false,
+      "count": 0
+    },
+    "calibrated_current_2_a": {
+      "supported": true,
+      "count": 6899,
+      "mae": 0.0013975645084139555,
+      "rmse": 0.0017819741786560012,
+      "max_abs_error": 0.008135899203400854,
+      "goal": 0.005,
+      "within_goal_fraction": 0.9915929844905059,
+      "goal_met": true
+    },
+    "calibrated_current_3_a": {
+      "supported": false,
+      "count": 0
+    },
+    "calibrated_current_4_a": {
+      "supported": false,
+      "count": 0
+    }
+  },
+  "tflite_voltage4_mae_by_test_source": {
+    "calibration_20161013_h60(1).csv": {
+      "count": 3328,
+      "mae_mv": 8.046099777599094
+    },
+    "calibration_20161013_h70.csv": {
+      "count": 3584,
+      "mae_mv": 6.855367052640721
+    }
+  },
+  "tflite_voltage4_mae_by_test_interval": [
+    {
+      "interval": "[-0.5, 2) V",
+      "lower_v": -0.5,
+      "upper_v": 2.0,
+      "count": 26,
+      "raw_mae_mv": 249.41130769230773,
+      "tflite_mae_mv": 4.144063929597362,
+      "source_counts": {
+        "calibration_20161013_h70.csv": 26
+      }
+    },
+    {
+      "interval": "[2, 3) V",
+      "lower_v": 2.0,
+      "upper_v": 3.0,
+      "count": 234,
+      "raw_mae_mv": 297.33850854700853,
+      "tflite_mae_mv": 3.3635546596263204,
+      "source_counts": {
+        "calibration_20161013_h60(1).csv": 120,
+        "calibration_20161013_h70.csv": 114
+      }
+    },
+    {
+      "interval": "[3, 5) V",
+      "lower_v": 3.0,
+      "upper_v": 5.0,
+      "count": 623,
+      "raw_mae_mv": 399.84840449438195,
+      "tflite_mae_mv": 5.9691250946669525,
+      "source_counts": {
+        "calibration_20161013_h60(1).csv": 414,
+        "calibration_20161013_h70.csv": 209
+      }
+    },
+    {
+      "interval": "[5, 10) V",
+      "lower_v": 5.0,
+      "upper_v": 10.0,
+      "count": 984,
+      "raw_mae_mv": 629.1309298780486,
+      "tflite_mae_mv": 7.617039510493983,
+      "source_counts": {
+        "calibration_20161013_h60(1).csv": 821,
+        "calibration_20161013_h70.csv": 163
+      }
+    },
+    {
+      "interval": "[10, 20) V",
+      "lower_v": 10.0,
+      "upper_v": 20.0,
+      "count": 2922,
+      "raw_mae_mv": 1356.0211341546885,
+      "tflite_mae_mv": 7.869897295424113,
+      "source_counts": {
+        "calibration_20161013_h60(1).csv": 1240,
+        "calibration_20161013_h70.csv": 1682
+      }
+    },
+    {
+      "interval": "[20, 25) V",
+      "lower_v": 20.0,
+      "upper_v": 25.0,
+      "count": 1099,
+      "raw_mae_mv": 2517.184492265696,
+      "tflite_mae_mv": 7.0300513497839425,
+      "source_counts": {
+        "calibration_20161013_h60(1).csv": 733,
+        "calibration_20161013_h70.csv": 366
+      }
+    },
+    {
+      "interval": "[25, 30) V",
+      "lower_v": 25.0,
+      "upper_v": 30.0,
+      "count": 1024,
+      "raw_mae_mv": 7350.143973632813,
+      "tflite_mae_mv": 8.31683591899085,
+      "source_counts": {
+        "calibration_20161013_h70.csv": 1024
+      }
+    }
+  ],
+  "architecture_search_objective": "validation V4 MAE divided by 5 mV; lower is better",
+  "checkpoint_selection": "unweighted validation V4 MAE; ReduceLROnPlateau and EarlyStopping monitor val_v4_mae",
+  "tflite_output_tensor_names": [
+    "StatefulPartitionedCall_1:0",
+    "StatefulPartitionedCall_1:1",
+    "StatefulPartitionedCall_1:1",
+    "StatefulPartitionedCall_1:1",
+    "StatefulPartitionedCall_1:4",
+    "StatefulPartitionedCall_1:1",
+    "StatefulPartitionedCall_1:6",
+    "StatefulPartitionedCall_1:1",
+    "StatefulPartitionedCall_1:1"
+  ],
+  "tflite_output_logical_order": [
+    "calibrated_humidity_rh",
+    "calibrated_voltage_1_v",
+    "calibrated_voltage_2_v",
+    "calibrated_voltage_3_v",
+    "calibrated_voltage_4_v",
+    "calibrated_current_1_a",
+    "calibrated_current_2_a",
+    "calibrated_current_3_a",
+    "calibrated_current_4_a"
+  ],
+  "tflite_input_contract": "standardize the 10 logical inputs using input_mean/input_std; then quantize to int16",
+  "preprocessing": {
+    "inactive_channels": "zero-filled according to per-file active-channel mapping",
+    "voltage_outliers": "reference-setpoint gap >0.2V; low-voltage reset target<0.3V and raw-reference gap>0.1V; out-of-range",
+    "current_outliers": "raw-reference or reference-setpoint gap >0.05A, out-of-range, or guard_accept=0",
+    "humidity_outliers": "outside 0..100%RH or raw-reference gap >10%RH",
+    "outlier_handling": "mask the affected output label and zero its invalid input; retain other valid outputs from the row"
+  }
+}

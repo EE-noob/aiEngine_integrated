@@ -1,0 +1,67 @@
+{
+  "release_root": "/home/yusen/公共的/sensor_calibration_data/calibration_release_20261015",
+  "base_model_sha256": "7afe81c541070211846f87048f7e01f6bd07239025b9e430216425d5f2381847",
+  "adapter_model_sha256": "96b4941f27dd6c66e06193dd2eacfde6d8dae7380389757928ec382d199af321",
+  "base_model_bytes": 214448,
+  "adapter_model_bytes": 2288,
+  "base_ops": {
+    "FULLY_CONNECTED": 24,
+    "ADD": 8,
+    "CONCATENATION": 1,
+    "MUL": 17,
+    "LOGISTIC": 10,
+    "QUANTIZE": 6
+  },
+  "nmsis_per_channel_int16_fc_policy": "TFLM per-channel reference fallback; per-tensor FC and residual adapter use NPU",
+  "soc_max_allowed_package_delta_uv": 2500,
+  "test_split_valid_v4_count": 6825,
+  "soc_sample_count": 3,
+  "soc_test_positions": [
+    0,
+    3412,
+    6824
+  ],
+  "source_files": [
+    "calibration_20161013_h60(1).csv",
+    "calibration_20161013_h70.csv"
+  ],
+  "package_test_v4_baseline_mae_mv": 7.432213753318136,
+  "package_test_v4_candidate_mae_mv": 4.781400620017479,
+  "tflite_base_output_map_logical_to_raw": [
+    5,
+    1,
+    1,
+    1,
+    0,
+    1,
+    8,
+    1,
+    1
+  ],
+  "base_input_quantization": [
+    8.88254216988571e-05,
+    0
+  ],
+  "adapter_input_quantization": [
+    3.0518509447574615e-05,
+    0
+  ],
+  "adapter_output_quantization": [
+    0.00030518442508764565,
+    0
+  ],
+  "soc_sources": [
+    {
+      "file": "calibration_20161013_h60(1).csv",
+      "row": 3
+    },
+    {
+      "file": "calibration_20161013_h70.csv",
+      "row": 59
+    },
+    {
+      "file": "calibration_20161013_h70.csv",
+      "row": 22922
+    }
+  ]
+}

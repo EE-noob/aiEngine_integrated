@@ -61,7 +61,7 @@ SOC_C_SRC ?= ../soc_csrc/soc_main.c
 SOC_RUNTIME_C_SRC ?= ../soc_csrc/soc_runtime_main.c
 SOC_APP ?= runtime
 SOC_UART_CLKDIV ?= 8
-SOC_TOOLCHAIN_DIR ?= /home/etc/FPGA/jichuangsai/alioth_simulator/deps/software-level/bin/gcc_open/bin
+SOC_TOOLCHAIN_DIR ?= /media/proj_tmp/alioth_simulator/deps/software-level/bin/gcc_open/bin
 SOC_GCC_FROM_PATH := $(shell command -v riscv64-unknown-elf-gcc 2>/dev/null)
 SOC_GXX_FROM_PATH := $(shell command -v riscv64-unknown-elf-g++ 2>/dev/null)
 SOC_AR_FROM_PATH := $(shell command -v riscv64-unknown-elf-ar 2>/dev/null)
@@ -76,7 +76,7 @@ SOC_BARE_LIBS ?= -lgcc
 SOC_OPT_LEVEL ?= -O3
 HOST_OPT_LEVEL ?= -O3
 SOC_RAM_BYTES ?= $(shell python3 -c 'print(int("$(SOC_CPU_MEM_DP)", 0) * 4)')
-SOC_LINK_FLAGS ?= -T ../soc_csrc/link.ld -Wl,--defsym=__ram_length=$(SOC_RAM_BYTES)
+SOC_LINK_FLAGS ?= -T ../soc_csrc/link.ld -Wl,--build-id=none -Wl,--defsym=__ram_length=$(SOC_RAM_BYTES)
 SOC_REGRESS_ITERS ?= 10
 SOC_REGRESS_START_SEED ?= 1
 SOC_REGRESS_TIMEOUT ?= 300
@@ -146,12 +146,31 @@ TFLM_LIB ?= $(TFLM_DIR)/$(TFLM_BUILD_DIR)/libtflite-micro.a
 TFLM_GENFILES ?= $(TFLM_ROOT)/gen/linux_x86_64_default/genfiles
 TFLM_HOST_BUILD_DIR ?= build-host
 TFLM_HOST_LIB ?= $(TFLM_DIR)/$(TFLM_HOST_BUILD_DIR)/libtflite-micro.a
+TFLM_MNIST_ACCURACY_BIN ?= $(TFLM_DIR)/$(TFLM_HOST_BUILD_DIR)/tflm_mnist_accuracy
+TFLM_MNIST_ACCURACY_OUT ?= runs/tflm_mnist_accuracy
+TFLM_MNIST_ACCURACY_COUNT ?= 10000
 TFLM_MNIST_MLP_SOC_CASE ?= axi_soc_tflm_mnist_mlp_$(TFLM_ACCEL_TAG)
+TFLM_MNIST_MLP_INT16X8_SOC_CASE ?= axi_soc_tflm_mnist_mlp_int16x8_$(TFLM_ACCEL_TAG)
+TFLM_SENSOR_CALIBRATION_SOC_CASE ?= axi_soc_tflm_sensor_calibration_int16x8_$(TFLM_ACCEL_TAG)
+TFLM_SENSOR_CALIBRATION_RELEASE_SOC_CASE ?= axi_soc_tflm_sensor_calibration_release_20261015_$(TFLM_ACCEL_TAG)
+TFLM_SENSOR_CALIBRATION_20261019_SOC_CASE ?= axi_soc_tflm_sensor_calibration_20261019_$(TFLM_ACCEL_TAG)
+TFLM_SENSOR_CALIBRATOR_20261016_SOC_CASE ?= axi_soc_tflm_sensor_calibrator_20261016_$(TFLM_ACCEL_TAG)
+TFLM_SENSOR_CALIBRATOR_20261016_MODEL ?= /home/etc/FPGA/BIT_PROJ_S1/Vitis/sensor_sw_v2/src/calibration/sim_20261016/sensor_calibrator_int16.tflite
+TFLM_SENSOR_CALIBRATOR_20261016_TIMEOUT_CYCLES ?= 2000000000
+TFLM_SENSOR_CALIBRATOR_20261016_MEM_DP ?= 3112960
+TFLM_SENSOR_CALIBRATION_20261019_MODEL ?= /home/etc/FPGA/BIT_PROJ_S1/Vitis/sensor_sw_v2/src/calibration/sim_20261019/sensor_calibrator_complete_int16.tflite
+TFLM_SENSOR_CALIBRATION_20261019_TIMEOUT_CYCLES ?= 2000000000
+TFLM_SENSOR_CALIBRATION_20261019_ARENA_SIZE ?= 262144
 TFLM_MNIST_CNN_SOC_CASE ?= axi_soc_tflm_mnist_cnn_$(TFLM_ACCEL_TAG)
 TFLM_MICRO_SPEECH_FEATURES_CC ?= ../soc_csrc/tflm_micro_speech_features.cc
 TFLM_MICRO_SPEECH_FEATURE_DUMP ?= $(TFLM_DIR)/$(TFLM_HOST_BUILD_DIR)/dump_micro_speech_features
 TFLM_MY_MODEL_TIMEOUT_CYCLES ?= 120000000
 TFLM_MNIST_MLP_TIMEOUT_CYCLES ?= 320000000
+TFLM_MNIST_MLP_INT16X8_ARENA_SIZE ?= 12288
+TFLM_SENSOR_CALIBRATION_TIMEOUT_CYCLES ?= 320000000
+TFLM_SENSOR_CALIBRATION_ARENA_SIZE ?= 16384
+TFLM_SENSOR_CALIBRATION_RELEASE_TIMEOUT_CYCLES ?= 640000000
+TFLM_SENSOR_CALIBRATION_RELEASE_HOST_BIN ?= $(TFLM_DIR)/$(TFLM_HOST_BUILD_DIR)/tflm_sensor_calibration_release_host
 TFLM_MNIST_CNN_TIMEOUT_CYCLES ?= 320000000
 TFLM_MICRO_SPEECH_TIMEOUT_CYCLES ?= 50000000
 TFLM_HELLO_WORLD_TIMEOUT_CYCLES ?= 5000000
@@ -162,6 +181,9 @@ TFLM_NMSIS_NN_SOURCE_DIR := $(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downlo
 TFLM_NMSIS_SRCS := $(wildcard $(TFLM_NMSIS_NN_SOURCE_DIR)/*/*.c)
 TFLM_RV32_REBUILD_DEPS := \
                 $(TFLM_DIR)/Makefile \
+                $(TFLM_ROOT)/tensorflow/lite/micro/kernels/shape.cc \
+                $(TFLM_ROOT)/tensorflow/lite/micro/kernels/fill.cc \
+                $(TFLM_ROOT)/tensorflow/lite/micro/micro_interpreter_graph.cc \
                 $(TFLM_ROOT)/tensorflow/lite/micro/kernels/conv.cc \
                 $(TFLM_ROOT)/tensorflow/lite/micro/kernels/depthwise_conv.cc \
                 $(TFLM_ROOT)/tensorflow/lite/micro/kernels/fully_connected.cc \
@@ -225,6 +247,42 @@ TFLM_MNIST_MLP_APP_SRCS = ../soc_csrc/start.S \
                           ../soc_csrc/tflm_mnist_mlp_soc_main.cc \
                           $(TFLM_MNIST_MLP_MODEL_DIR)/mnist_mlp_model_data.cc \
                           $(TFLM_MNIST_MLP_MODEL_DIR)/mnist_mlp_test_data.cc
+TFLM_MNIST_MLP_INT16X8_APP_SRCS = ../soc_csrc/start.S \
+                                  ../soc_csrc/tflm_soc_runtime.cc \
+                                  ../soc_csrc/tflm_mnist_mlp_soc_main.cc \
+                                  $(TFLM_MNIST_MLP_MODEL_DIR)/mnist_mlp_int16x8_model_data.cc \
+                                  $(TFLM_MNIST_MLP_MODEL_DIR)/mnist_mlp_int16x8_golden_data.cc \
+                                  $(TFLM_MNIST_MLP_MODEL_DIR)/mnist_mlp_test_data.cc
+TFLM_SENSOR_CALIBRATION_MODEL_DIR = $(TFLM_ROOT)/sensor_calibration
+TFLM_SENSOR_CALIBRATION_APP_SRCS = ../soc_csrc/start.S \
+                                   ../soc_csrc/tflm_soc_runtime.cc \
+                                   ../soc_csrc/tflm_sensor_calibration_soc_main.cc \
+                                   $(TFLM_SENSOR_CALIBRATION_MODEL_DIR)/sensor_calibration_model_data.cc \
+                                   $(TFLM_SENSOR_CALIBRATION_MODEL_DIR)/sensor_calibration_test_data.cc
+TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR = $(TFLM_ROOT)/sensor_calibration_20261015
+TFLM_SENSOR_CALIBRATION_RELEASE_SOC_APP_SRCS = ../soc_csrc/start.S \
+                                               ../soc_csrc/tflm_soc_runtime.cc \
+                                               ../soc_csrc/tflm_sensor_calibration_release_soc_main.cc \
+                                               $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_data.cc \
+                                               $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_model_data.cc \
+                                               $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_soc_test_data.cc
+TFLM_SENSOR_CALIBRATOR_20261016_SOC_APP_SRCS = ../soc_csrc/start.S \
+                                                ../soc_csrc/tflm_soc_runtime.cc \
+                                                ../soc_csrc/tflm_sensor_calibrator_20261016_soc_main.cc \
+                                                ../soc_csrc/tflm_sensor_calibrator_20261016_model_data.S
+TFLM_SENSOR_CALIBRATION_20261019_MODEL_DATA = ../soc_csrc/tflm_sensor_calibration_20261019_model_data.S
+TFLM_SENSOR_CALIBRATION_20261019_GOLDEN = ../soc_csrc/tflm_sensor_calibration_20261019_golden_data.cc
+TFLM_SENSOR_CALIBRATION_20261019_SOC_APP_SRCS = ../soc_csrc/start.S \
+                                                  ../soc_csrc/tflm_soc_runtime.cc \
+                                                  ../soc_csrc/tflm_sensor_calibration_20261019_soc_main.cc \
+                                                  $(TFLM_SENSOR_CALIBRATION_20261019_MODEL_DATA) \
+                                                  $(TFLM_SENSOR_CALIBRATION_20261019_GOLDEN)
+TFLM_SENSOR_CALIBRATION_RELEASE_HOST_SRCS = ../tools/tflm_sensor_calibration_release_host.cc \
+                                            ../soc_csrc/sensor_calibration_release_inference.h \
+                                            $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_data.cc \
+                                            $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_model_data.cc \
+                                            $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_host_test_data.cc \
+                                            $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_soc_test_data.cc
 TFLM_MNIST_CNN_MODEL_DIR = $(TFLM_ROOT)/mnist_cnn
 TFLM_MNIST_CNN_APP_SRCS = ../soc_csrc/start.S \
                           ../soc_csrc/tflm_soc_runtime.cc \
@@ -329,6 +387,16 @@ else ifeq ($(SOC_APP),tflm_person_detection)
 RUN_DEPS += tflm_person_detection_soc_c
 else ifeq ($(SOC_APP),tflm_mnist_mlp)
 RUN_DEPS += tflm_mnist_mlp_soc_c
+else ifeq ($(SOC_APP),tflm_mnist_mlp_int16x8)
+RUN_DEPS += tflm_mnist_mlp_int16x8_soc_c
+else ifeq ($(SOC_APP),tflm_sensor_calibration_int16x8)
+RUN_DEPS += tflm_sensor_calibration_int16x8_soc_c
+else ifeq ($(SOC_APP),tflm_sensor_calibration_release_20261015)
+RUN_DEPS += tflm_sensor_calibration_release_20261015_soc_c
+else ifeq ($(SOC_APP),tflm_sensor_calibrator_20261016)
+RUN_DEPS += tflm_sensor_calibrator_20261016_soc_c
+else ifeq ($(SOC_APP),tflm_sensor_calibration_20261019)
+RUN_DEPS += tflm_sensor_calibration_20261019_soc_c
 else ifeq ($(SOC_APP),tflm_mnist_cnn)
 RUN_DEPS += tflm_mnist_cnn_soc_c
 else ifeq ($(SOC_APP),runtime)
@@ -404,6 +472,14 @@ $(TFLM_LIB): $(TFLM_RV32_REBUILD_DEPS)
 $(TFLM_HOST_LIB):
 > $(MAKE) -C $(TFLM_DIR) BUILD_DIR=$(TFLM_HOST_BUILD_DIR) TARGET_FLAGS="$(HOST_OPT_LEVEL)" BUILD_TYPE=Release $(TFLM_HOST_BUILD_DIR)/libtflite-micro.a
 
+$(TFLM_MNIST_ACCURACY_BIN): ../tools/tflm_mnist_accuracy.cc $(TFLM_HOST_LIB)
+> $(CXX) -std=c++17 $(HOST_OPT_LEVEL) -fno-rtti -fno-exceptions -fno-threadsafe-statics -DTF_LITE_DISABLE_X86_NEON -DTF_LITE_STRIP_ERROR_STRINGS -I$(TFLM_ROOT) -I$(TFLM_GENFILES) -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/gemmlowp -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/flatbuffers/include -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/kissfft -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/ruy $< $(TFLM_HOST_LIB) -lm -o $@
+
+tflm_mnist_accuracy: $(TFLM_MNIST_ACCURACY_BIN)
+
+tflm_mnist_accuracy_run: $(TFLM_MNIST_ACCURACY_BIN)
+> python3 ../tools/analyze_mnist_quant_accuracy.py --runner $(TFLM_MNIST_ACCURACY_BIN) --model_dir $(TFLM_MNIST_MLP_MODEL_DIR) --count $(TFLM_MNIST_ACCURACY_COUNT) --out_dir $(TFLM_MNIST_ACCURACY_OUT)
+
 $(TFLM_MICRO_SPEECH_FEATURE_DUMP): ../tools/dump_micro_speech_features.cc $(TFLM_HOST_LIB) $(TFLM_MICRO_SPEECH_MODEL_DATA_CC) $(TFLM_MICRO_SPEECH_AUDIO_DATA_SRCS)
 > $(CXX) -std=c++17 $(HOST_OPT_LEVEL) -fno-rtti -fno-exceptions -fno-threadsafe-statics -DTF_LITE_DISABLE_X86_NEON -DTF_LITE_STRIP_ERROR_STRINGS -I$(TFLM_ROOT) -I$(TFLM_GENFILES) -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/gemmlowp -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/flatbuffers/include -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/kissfft -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/ruy ../tools/dump_micro_speech_features.cc $(TFLM_MICRO_SPEECH_MODEL_DATA_CC) $(TFLM_MICRO_SPEECH_AUDIO_DATA_SRCS) $(TFLM_HOST_LIB) -lm -o $@
 
@@ -442,6 +518,41 @@ tflm_mnist_mlp_soc_c: $(TFLM_LIB) $(TFLM_MNIST_MLP_APP_SRCS)
 > @mkdir -p $(SOC_CASE_DIR)
 > @echo "[TFLM_SOC_C] mnist_mlp -> $(SOC_CASE_DIR)/cpu.mem"
 > $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_MNIST_MLP_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+
+tflm_mnist_mlp_int16x8_soc_c: $(TFLM_LIB) $(TFLM_MNIST_MLP_INT16X8_APP_SRCS)
+> @mkdir -p $(SOC_CASE_DIR)
+> @echo "[TFLM_SOC_C] mnist_mlp_int16x8 -> $(SOC_CASE_DIR)/cpu.mem"
+> $(SOC_GXX) $(TFLM_CXXFLAGS) -DTFLM_MNIST_MLP_INT16X8=1 -DTFLM_MNIST_MLP_ARENA_SIZE=$(TFLM_MNIST_MLP_INT16X8_ARENA_SIZE) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_MNIST_MLP_INT16X8_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+
+tflm_sensor_calibration_int16x8_soc_c: $(TFLM_LIB) $(TFLM_SENSOR_CALIBRATION_APP_SRCS)
+> @mkdir -p $(SOC_CASE_DIR)
+> @echo "[TFLM_SOC_C] sensor_calibration_int16x8 -> $(SOC_CASE_DIR)/cpu.mem"
+> $(SOC_GXX) $(TFLM_CXXFLAGS) -DTFLM_SENSOR_CALIBRATION_ARENA_SIZE=$(TFLM_SENSOR_CALIBRATION_ARENA_SIZE) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_SENSOR_CALIBRATION_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+
+tflm_sensor_calibration_release_20261015_soc_c: $(TFLM_LIB) $(TFLM_SENSOR_CALIBRATION_RELEASE_SOC_APP_SRCS)
+> @mkdir -p $(SOC_CASE_DIR)
+> @echo "[TFLM_SOC_C] sensor_calibration_release_20261015 -> $(SOC_CASE_DIR)/cpu.mem"
+> $(SOC_GXX) $(TFLM_CXXFLAGS) -I$(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR) -nostartfiles $(SOC_LINK_FLAGS) $(TFLM_SENSOR_CALIBRATION_RELEASE_SOC_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+
+tflm_sensor_calibrator_20261016_soc_c: $(TFLM_LIB) $(TFLM_SENSOR_CALIBRATOR_20261016_SOC_APP_SRCS) $(TFLM_SENSOR_CALIBRATOR_20261016_MODEL)
+> @mkdir -p $(SOC_CASE_DIR)
+> @echo "[TFLM_SOC_C] sensor_calibrator_20261016 -> $(SOC_CASE_DIR)/cpu.mem"
+> $(SOC_GXX) $(TFLM_CXXFLAGS) -nostartfiles $(SOC_LINK_FLAGS) -Wa,-I$(dir $(TFLM_SENSOR_CALIBRATOR_20261016_MODEL)) $(TFLM_SENSOR_CALIBRATOR_20261016_SOC_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
+> $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
+> python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
+
+tflm_sensor_calibration_20261019_soc_c: $(TFLM_LIB) $(TFLM_SENSOR_CALIBRATION_20261019_SOC_APP_SRCS) $(TFLM_SENSOR_CALIBRATION_20261019_MODEL)
+> @mkdir -p $(SOC_CASE_DIR)
+> @echo "[TFLM_SOC_C] sensor_calibration_20261019 -> $(SOC_CASE_DIR)/cpu.mem"
+> $(SOC_GXX) $(TFLM_CXXFLAGS) -DTFLM_SENSOR_CALIBRATION_20261019_ARENA_SIZE=$(TFLM_SENSOR_CALIBRATION_20261019_ARENA_SIZE) -nostartfiles $(SOC_LINK_FLAGS) -Wa,-I$(dir $(TFLM_SENSOR_CALIBRATION_20261019_MODEL)) $(TFLM_SENSOR_CALIBRATION_20261019_SOC_APP_SRCS) $(TFLM_LIB) -Wl,--gc-sections -Wl,-Map=$(SOC_CASE_DIR)/cpu.map -lm -o $(SOC_CASE_DIR)/cpu.elf
 > $(SOC_OBJCOPY) -O binary $(SOC_CASE_DIR)/cpu.elf $(SOC_CASE_DIR)/cpu.bin
 > python3 ../tb/elf_to_mem.py $(SOC_CASE_DIR)/cpu.bin $(SOC_CASE_DIR)/cpu.mem --depth $(SOC_CPU_MEM_DP)
 
@@ -564,6 +675,32 @@ tflm_mnist_mlp_run: DUMPOPTS = 0
 tflm_mnist_mlp_run:
 > $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_mnist_mlp SOC_CASE=$(TFLM_MNIST_MLP_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MNIST_MLP_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
 
+tflm_mnist_mlp_int16x8_run: DUMPOPTS = 0
+tflm_mnist_mlp_int16x8_run:
+> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_mnist_mlp_int16x8 SOC_CASE=$(TFLM_MNIST_MLP_INT16X8_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MNIST_MLP_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
+
+tflm_sensor_calibration_int16x8_run: DUMPOPTS = 0
+tflm_sensor_calibration_int16x8_run:
+> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_sensor_calibration_int16x8 SOC_CASE=$(TFLM_SENSOR_CALIBRATION_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_SENSOR_CALIBRATION_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
+
+tflm_sensor_calibration_release_20261015_host: $(TFLM_SENSOR_CALIBRATION_RELEASE_HOST_SRCS) $(TFLM_HOST_LIB)
+> $(CXX) -std=c++17 $(HOST_OPT_LEVEL) -fno-rtti -fno-exceptions -fno-threadsafe-statics -DTF_LITE_DISABLE_X86_NEON -DTF_LITE_STRIP_ERROR_STRINGS -I$(TFLM_ROOT) -I$(TFLM_GENFILES) -I../soc_csrc -I$(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR) -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/gemmlowp -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/flatbuffers/include -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/kissfft -I$(TFLM_ROOT)/tensorflow/lite/micro/tools/make/downloads/ruy ../tools/tflm_sensor_calibration_release_host.cc $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_data.cc $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_model_data.cc $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_host_test_data.cc $(TFLM_SENSOR_CALIBRATION_RELEASE_MODEL_DIR)/sensor_calibration_release_soc_test_data.cc $(TFLM_HOST_LIB) -lm -o $(TFLM_SENSOR_CALIBRATION_RELEASE_HOST_BIN)
+
+tflm_sensor_calibration_release_20261015_host_run: tflm_sensor_calibration_release_20261015_host
+> $(TFLM_SENSOR_CALIBRATION_RELEASE_HOST_BIN)
+
+tflm_sensor_calibration_release_20261015_run: DUMPOPTS = 0
+tflm_sensor_calibration_release_20261015_run:
+> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_sensor_calibration_release_20261015 SOC_CASE=$(TFLM_SENSOR_CALIBRATION_RELEASE_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_SENSOR_CALIBRATION_RELEASE_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
+
+tflm_sensor_calibrator_20261016_run: DUMPOPTS = 0
+tflm_sensor_calibrator_20261016_run:
+> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_sensor_calibrator_20261016 SOC_CASE=$(TFLM_SENSOR_CALIBRATOR_20261016_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(TFLM_SENSOR_CALIBRATOR_20261016_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_SENSOR_CALIBRATOR_20261016_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
+
+tflm_sensor_calibration_20261019_run: DUMPOPTS = 0
+tflm_sensor_calibration_20261019_run:
+> $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_sensor_calibration_20261019 SOC_CASE=$(TFLM_SENSOR_CALIBRATION_20261019_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_SENSOR_CALIBRATION_20261019_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
+
 tflm_mnist_cnn_run: DUMPOPTS = 0
 tflm_mnist_cnn_run:
 > $(MAKE) run DUT_MODE=axi_soc SOC_APP=tflm_mnist_cnn SOC_CASE=$(TFLM_MNIST_CNN_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MNIST_CNN_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
@@ -607,6 +744,10 @@ help:
 > @echo "  make tflm_micro_speech_run"
 > @echo "  make tflm_person_detection_run"
 > @echo "  make tflm_mnist_mlp_run"
+> @echo "  make tflm_mnist_mlp_int16x8_run"
+> @echo "  make tflm_sensor_calibration_int16x8_run"
+> @echo "  make tflm_sensor_calibration_release_20261015_host_run"
+> @echo "  make tflm_sensor_calibration_release_20261015_run SOC_CPU_MEM_DP=131072"
 > @echo "  make tflm_mnist_cnn_run"
 > @echo "  make tflm_my_model_run"
 > @echo "  make vd    [DUT_MODE=axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
@@ -634,8 +775,10 @@ help:
 > @echo "  make tflm_micro_speech_run"
 > @echo "  make tflm_person_detection_run"
 > @echo "  make tflm_mnist_mlp_run"
+> @echo "  make tflm_mnist_mlp_int16x8_run"
+> @echo "  make tflm_sensor_calibration_int16x8_run"
 > @echo "  make tflm_mnist_cnn_run"
 > @echo "  make tflm_my_model_run"
 > @echo "  make run DUT_MODE=axi_soc case=ai_axi_soc_c_test VCS_CC=gcc-4.8 VCS_CXX=g++-4.8"
 > @echo "  make vd DUT_MODE=axil case=ai_mem_gen_smoke_test seed=20260413"
-.PHONY: run soc_case soc_c soc_runtime_c tflm_soc_c tflm_micro_speech_soc_c tflm_hello_world_soc_c tflm_person_detection_soc_c tflm_mnist_mlp_soc_c tflm_mnist_cnn_soc_c tflm_run tflm_micro_speech_run tflm_hello_world_run tflm_person_detection_run tflm_mnist_mlp_run tflm_mnist_cnn_run tflm_my_model_run com force_com sim cov_report cov_code_report cov_plan coverage_module coverage_soc coverage cov_clean soc_regress vd clean help
+.PHONY: run soc_case soc_c soc_runtime_c tflm_soc_c tflm_micro_speech_soc_c tflm_hello_world_soc_c tflm_person_detection_soc_c tflm_mnist_mlp_soc_c tflm_mnist_mlp_int16x8_soc_c tflm_sensor_calibration_int16x8_soc_c tflm_sensor_calibration_release_20261015_soc_c tflm_sensor_calibrator_20261016_soc_c tflm_sensor_calibration_20261019_soc_c tflm_sensor_calibration_20261019_run tflm_sensor_calibration_release_20261015_host tflm_sensor_calibration_release_20261015_host_run tflm_sensor_calibration_release_20261015_run tflm_sensor_calibrator_20261016_run tflm_mnist_cnn_soc_c tflm_mnist_accuracy tflm_mnist_accuracy_run tflm_run tflm_micro_speech_run tflm_hello_world_run tflm_person_detection_run tflm_mnist_mlp_run tflm_mnist_mlp_int16x8_run tflm_sensor_calibration_int16x8_run tflm_sensor_calibrator_20261016_run tflm_mnist_cnn_run tflm_my_model_run com force_com sim cov_report cov_code_report cov_plan coverage_module coverage_soc cov_clean soc_regress vd clean help

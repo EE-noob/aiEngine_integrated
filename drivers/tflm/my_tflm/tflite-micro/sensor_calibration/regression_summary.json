@@ -1,0 +1,214 @@
+{
+  "source_model": "/home/yusen/公共的/sensor_calibration_data/calibration_model_20260907_1608_humidity_candidate/sensor_offset_calibrator_int16.tflite",
+  "model_sha256": "c2e1c8cf24ca7a2760c45d3a137946f5645227bf453cf176a22cebbd9a74eb5e",
+  "model_bytes": 7664,
+  "input_elements": 494,
+  "output_order": [
+    "current_offset_a",
+    "voltage_offset_v",
+    "humidity_offset_rh"
+  ],
+  "operator_histogram": {
+    "FULLY_CONNECTED": 6,
+    "ADD": 3
+  },
+  "eligible_samples": 9756,
+  "holdout_samples": 1463,
+  "soc_test_vectors": {
+    "source_rows": [
+      7120,
+      6612,
+      9114
+    ],
+    "tflite_outputs": [
+      [
+        -11290,
+        -8183,
+        10007
+      ],
+      [
+        -10121,
+        26849,
+        5464
+      ],
+      [
+        9392,
+        13734,
+        16745
+      ]
+    ],
+    "npu_outputs": [
+      [
+        -11290,
+        -8183,
+        10007
+      ],
+      [
+        -10121,
+        26849,
+        5464
+      ],
+      [
+        9392,
+        13734,
+        16745
+      ]
+    ]
+  },
+  "tflite_int16_holdout_metrics": {
+    "voltage": {
+      "mae": 0.004930583438710399,
+      "rmse": 0.005979511496225241,
+      "max_abs_error": 0.024318832113149114,
+      "within_limit_fraction": 0.5522898154477102,
+      "limit": 0.005,
+      "passes_all_samples": false
+    },
+    "current": {
+      "mae": 0.002161739494705353,
+      "rmse": 0.002602992394324222,
+      "max_abs_error": 0.008556396347039197,
+      "within_limit_fraction": 0.9658236500341764,
+      "limit": 0.005,
+      "passes_all_samples": false
+    },
+    "humidity": {
+      "mae": 0.0521546997520068,
+      "rmse": 0.0872299900088002,
+      "max_abs_error": 0.9145028520230625,
+      "within_limit_fraction": 1.0,
+      "limit": 1.0,
+      "passes_all_samples": true
+    }
+  },
+  "npu_int16_holdout_metrics": {
+    "voltage": {
+      "mae": 0.0049305834387104,
+      "rmse": 0.005979431689112668,
+      "max_abs_error": 0.024318832113149114,
+      "within_limit_fraction": 0.5522898154477102,
+      "limit": 0.005,
+      "passes_all_samples": false
+    },
+    "current": {
+      "mae": 0.002161739277874632,
+      "rmse": 0.002602993382178714,
+      "max_abs_error": 0.008556396347039197,
+      "within_limit_fraction": 0.9658236500341764,
+      "limit": 0.005,
+      "passes_all_samples": false
+    },
+    "humidity": {
+      "mae": 0.052154372609608854,
+      "rmse": 0.08722932328345889,
+      "max_abs_error": 0.9145028520230625,
+      "within_limit_fraction": 1.0,
+      "limit": 1.0,
+      "passes_all_samples": true
+    }
+  },
+  "npu_fc_contract": {
+    "operators": [
+      {
+        "operator_index": 0,
+        "input_depth": 494,
+        "output_depth": 1,
+        "model_bias_min": 0,
+        "model_bias_max": 0,
+        "saturated_bias_elements": 0,
+        "accumulator_min": -111917,
+        "accumulator_max": 121648,
+        "accumulator_overflow_elements": 0,
+        "npu_vs_tflite_mismatch_elements": 0,
+        "npu_vs_tflite_max_abs_qdiff": 0
+      },
+      {
+        "operator_index": 1,
+        "input_depth": 494,
+        "output_depth": 1,
+        "model_bias_min": 0,
+        "model_bias_max": 0,
+        "saturated_bias_elements": 0,
+        "accumulator_min": -11450394,
+        "accumulator_max": 25915289,
+        "accumulator_overflow_elements": 0,
+        "npu_vs_tflite_mismatch_elements": 45,
+        "npu_vs_tflite_max_abs_qdiff": 1
+      },
+      {
+        "operator_index": 3,
+        "input_depth": 494,
+        "output_depth": 1,
+        "model_bias_min": 0,
+        "model_bias_max": 0,
+        "saturated_bias_elements": 0,
+        "accumulator_min": -116324,
+        "accumulator_max": 128193,
+        "accumulator_overflow_elements": 0,
+        "npu_vs_tflite_mismatch_elements": 0,
+        "npu_vs_tflite_max_abs_qdiff": 0
+      },
+      {
+        "operator_index": 4,
+        "input_depth": 494,
+        "output_depth": 1,
+        "model_bias_min": 0,
+        "model_bias_max": 0,
+        "saturated_bias_elements": 0,
+        "accumulator_min": -20338113,
+        "accumulator_max": 25413906,
+        "accumulator_overflow_elements": 0,
+        "npu_vs_tflite_mismatch_elements": 43,
+        "npu_vs_tflite_max_abs_qdiff": 1
+      },
+      {
+        "operator_index": 6,
+        "input_depth": 494,
+        "output_depth": 1,
+        "model_bias_min": 0,
+        "model_bias_max": 0,
+        "saturated_bias_elements": 0,
+        "accumulator_min": -503771,
+        "accumulator_max": 1264565,
+        "accumulator_overflow_elements": 0,
+        "npu_vs_tflite_mismatch_elements": 0,
+        "npu_vs_tflite_max_abs_qdiff": 0
+      },
+      {
+        "operator_index": 7,
+        "input_depth": 494,
+        "output_depth": 1,
+        "model_bias_min": 0,
+        "model_bias_max": 0,
+        "saturated_bias_elements": 0,
+        "accumulator_min": -31882654,
+        "accumulator_max": 25020864,
+        "accumulator_overflow_elements": 0,
+        "npu_vs_tflite_mismatch_elements": 36,
+        "npu_vs_tflite_max_abs_qdiff": 1
+      }
+    ],
+    "total_saturated_bias_elements": 0,
+    "total_accumulator_overflow_elements": 0,
+    "total_npu_vs_tflite_mismatch_elements": 124,
+    "npu_vs_tflite_max_abs_qdiff": 1,
+    "all_fc_outputs_bit_exact": false
+  },
+  "npu_vs_tflite": {
+    "final_output_mismatch_elements": 90,
+    "final_output_max_abs_qdiff": 2,
+    "final_outputs_bit_exact": false,
+    "accuracy_metric_delta": {
+      "voltage_mae": 8.673617379884035e-19,
+      "voltage_rmse": -7.980711257300765e-08,
+      "voltage_max_abs_error": 0.0,
+      "current_mae": -2.1683072091299715e-10,
+      "current_rmse": 9.878544922174715e-10,
+      "current_max_abs_error": 0.0,
+      "humidity_mae": -3.2714239794895406e-07,
+      "humidity_rmse": -6.667253413111807e-07,
+      "humidity_max_abs_error": 0.0
+    },
+    "reason": "The NPU uses the NMSIS reduced-Q15 requantizer for every INT16x8 FC; the regular TFLite kernel uses full-Q31 requantization for biasless FC nodes. ADD remains on the same TFLM software kernel."
+  }
+}
