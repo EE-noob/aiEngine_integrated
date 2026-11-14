@@ -1,5 +1,6 @@
 set script_dir [file dirname [file normalize [info script]]]
-set project_file [file join $script_dir work ram_axi_vip.xpr]
+set repo_root [file normalize [file join $script_dir ../..]]
+set project_file [file join $repo_root build ram_axi_vip ram_axi_vip.xpr]
 set tb_file [file join $script_dir uram_access_axi_vip_tb.sv]
 
 open_project $project_file

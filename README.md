@@ -61,12 +61,24 @@ aiEngine_integrated/
     flist/                     # VCS filelist
     env/ interface/ uvc/ test/ # UVM 环境、sequence、scoreboard、coverage
     top_regression/            # 直接例化 npu_top 的 Verilator 回归
-    doc/                       # 设计、验证、性能、PPA 报告
+    python_model/              # Python 仿真接口与 RTL 后端源码
+    ram_axi_vip/               # 共享 RAM 验证源码和 Vivado 仿真脚本
+    legacy/                    # 历史验证源码
+  doc/                        # 设计、验证、性能和实现报告及插图
   scripts/
-    vivado_synth_soc.tcl       # SoC 顶层 Vivado batch 综合脚本
+    fpga/                      # Vivado 综合、实现和 Vitis 部署
+    models/                    # 模型元数据与存储初始化文件生成
+    packaging/                 # 仿真代码导出与说明模板
+    maintenance/               # 临时工具日志清理
+    utils/                     # 文本格式和源码文件名转换工具
+  build/                      # 构建产物、FPGA 中间文件与实现报告
+  deliverables/               # 生成的发布包
+  paper/                      # 论文和实验工作目录，单独管理
 ```
 
 其中 `veri/sim/Makefile` 是最常用入口。VCS、TFLM、随机回归、性能扫描、覆盖率和 Verdi 打开波形都从这里调用。
+
+脚本分类和构建产物位置见 [目录与工具说明](scripts/README.md)。设计文档集中存放在 `doc/`；`paper/` 不参与项目源码提交。
 
 ## 工具环境
 
@@ -734,13 +746,17 @@ make cov_report COVERAGE_GOAL=95
 
 ```bash
 cd /media/proj_tmp/aiEngine_integrated
-vivado -mode batch -source scripts/vivado_synth_soc.tcl
+mkdir -p build/logs
+vivado -mode batch -source scripts/fpga/vivado_synth_soc.tcl \
+  -log build/logs/vivado_soc_synth.log -journal build/logs/vivado_soc_synth.jou
 ```
 
 指定输出目录：
 
 ```bash
-vivado -mode batch -source scripts/vivado_synth_soc.tcl \
+mkdir -p build/logs
+vivado -mode batch -source scripts/fpga/vivado_synth_soc.tcl \
+  -log build/logs/vivado_soc_synth.log -journal build/logs/vivado_soc_synth.jou \
   -tclargs build/vivado_soc_synth_150mhz_check
 ```
 
@@ -829,6 +845,15 @@ veri/top_regression/out/random_<seed>.log
    增大 `SOC_CPU_MEM_DP`，同时确保 link script 的 `__ram_length`、仿真顶层参数和 FPGA 顶层参数一致。
 
 ## 清理生成文件
+
+查看可清理的 EDA 临时日志和综合崩溃转储，随后执行删除：
+
+```bash
+python3 scripts/maintenance/clean_tool_outputs.py
+python3 scripts/maintenance/clean_tool_outputs.py --apply
+```
+
+清理脚本保留 Git 已跟踪的文件、仿真结果日志、设计文档、发布包及 `paper/`。
 
 VCS：
 

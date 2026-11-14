@@ -1,7 +1,7 @@
 set script_dir [file dirname [file normalize [info script]]]
 set repo_root [file normalize [file join $script_dir ../..]]
 set hw_root /home/etc/FPGA/BIT_PROJ_S1/VU3P_sensor_v2
-set work_root [file normalize [file join $script_dir work]]
+set work_root [file normalize [file join $repo_root build ram_axi_vip]]
 set test_ip_dir [file join $work_root model_ip_source]
 
 create_project -force ram_axi_vip $work_root -part xcvu3p-ffvc1517-2-i
@@ -77,7 +77,7 @@ update_compile_order -fileset sources_1
 
 set tb [file join $script_dir ram_axi_vip_tb.sv]
 add_files -fileset sim_1 -norecurse $tb
-set include_file [file join [get_property DIRECTORY [current_fileset -simset]] ram_axi_vip_tb_include.svh]
+set include_file [file join $work_root ram_axi_vip_tb_include.svh]
 set fp [open $include_file w]
 puts $fp "`ifndef RAM_AXI_VIP_TB_INCLUDE_SVH"
 puts $fp "`define RAM_AXI_VIP_TB_INCLUDE_SVH"

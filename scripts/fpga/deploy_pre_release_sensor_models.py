@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 
-WORKSPACE = Path(__file__).resolve().parents[1]
+WORKSPACE = Path(__file__).resolve().parents[2]
 CANDIDATE_ROOT = Path("/home/yusen/公共的/sensor_calibration_data/pre_release")
 PROJECT_ROOT = Path("/home/etc/FPGA/BIT_PROJ_S1/VU3P_sensor_v2")
 VITIS_ROOT = Path("/home/etc/FPGA/BIT_PROJ_S1/Vitis")
@@ -108,7 +108,7 @@ def prepare_models() -> dict[str, object]:
         flush=True,
     )
 
-    inspect = WORKSPACE / "build_artifacts/20261028/inspect_tflite_metadata"
+    inspect = WORKSPACE / "build/board_artifacts/20261028/inspect_tflite_metadata"
     if not inspect.is_file():
         raise FileNotFoundError(f"TFLite inspection utility is missing: {inspect}")
     model_paths = [str(DEPLOY_DIR / item[2]) for item in MODELS]
@@ -160,7 +160,7 @@ def main() -> None:
     run(
         [
             sys.executable,
-            str(WORKSPACE / "scripts/prepare_vu3p_sensor_models_20261108_coe.py"),
+            str(WORKSPACE / "scripts/models/prepare_vu3p_sensor_models_20261108_coe.py"),
             "--model-dir",
             str(DEPLOY_DIR),
             "--out",
@@ -175,7 +175,7 @@ def main() -> None:
             "-mode",
             "batch",
             "-source",
-            str(WORKSPACE / "scripts/update_vu3p_sensor_model_bram.tcl"),
+            str(WORKSPACE / "scripts/fpga/update_vu3p_sensor_model_bram.tcl"),
             "-tclargs",
             str(xpr),
             str(coe),
@@ -188,7 +188,7 @@ def main() -> None:
             "-mode",
             "batch",
             "-source",
-            str(WORKSPACE / "scripts/synthesize_vu3p_sensor_bmg_ip.tcl"),
+            str(WORKSPACE / "scripts/fpga/synthesize_vu3p_sensor_bmg_ip.tcl"),
         ],
         env=os.environ.copy(),
     )
@@ -201,7 +201,7 @@ def main() -> None:
             "-mode",
             "batch",
             "-source",
-            str(WORKSPACE / "scripts/implement_export_vu3p_sensor_latest.tcl"),
+            str(WORKSPACE / "scripts/fpga/implement_export_vu3p_sensor_latest.tcl"),
             "-tclargs",
             str(xsa),
         ],
@@ -213,7 +213,7 @@ def main() -> None:
     run(
         [
             str(PYTHON),
-            str(WORKSPACE / "scripts/update_vitis_sensor_platform.py"),
+            str(WORKSPACE / "scripts/fpga/update_vitis_sensor_platform.py"),
             str(VITIS_ROOT),
             str(staged_xsa),
         ],
@@ -233,7 +233,7 @@ def main() -> None:
     run(
         [
             sys.executable,
-            str(WORKSPACE / "scripts/merge_vu3p_sensor_elf.py"),
+            str(WORKSPACE / "scripts/fpga/merge_vu3p_sensor_elf.py"),
             "--elf",
             str(elf),
             "--bit",

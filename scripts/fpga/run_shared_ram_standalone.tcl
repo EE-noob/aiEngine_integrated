@@ -12,7 +12,7 @@ add_files -norecurse [list \
     $src_dir/axi_inferred_shared_ram.sv \
     $ip_dir/simulation/blk_mem_gen_v8_4.v \
     $ip_dir/sim/sensor_model_bram.v \
-    [file normalize [file join [file dirname [info script]] ram_latency_tb.sv]] \
+    [file normalize [file join [file dirname [info script]] ../../veri/ram_axi_vip/ram_latency_tb.sv]] \
     $vivado_root/data/ip/xpm/xpm_memory/hdl/xpm_memory.sv]
 set_property top ram_latency_tb [get_filesets sim_1]
 set_property top_lib xil_defaultlib [get_filesets sim_1]

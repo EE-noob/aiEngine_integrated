@@ -15,7 +15,7 @@
 | SoC/FPGA 顶层 | `rtl/axi_accelerator/soc_top.sv`、`fpga/vivado/tflm_ai_dsa_soc/rtl/fpga_top.sv` |
 | 驱动 | `drivers/dsa_accel.c`、`drivers/dsa_accel.h`、`veri/soc_csrc/dsa_accel_mmio.c`、`veri/soc_csrc/dsa_accel_mmio.h` |
 | 仿真环境 | `veri/interface/axil_if.sv`、`veri/tb/top_tb.sv`、`veri/uvc/axil/ai_axil_monitor.sv`、`veri/test/sequence/ai_mem_gen_smoke_seq.sv` |
-| Vivado 脚本 | `fpga/vivado/tflm_ai_dsa_soc/scripts/*.tcl`、`scripts/vivado_synth_soc.tcl` |
+| Vivado 脚本 | `fpga/vivado/tflm_ai_dsa_soc/scripts/*.tcl`、`scripts/fpga/vivado_synth_soc.tcl` |
 | 寄存器说明 | `drivers/registers_v2.md` |
 
 ## 2. 中断语义修改

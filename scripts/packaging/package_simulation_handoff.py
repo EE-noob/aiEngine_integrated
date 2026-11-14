@@ -11,7 +11,7 @@ import stat
 import subprocess
 import zipfile
 
-ROOT=Path(__file__).resolve().parents[1]
+ROOT=Path(__file__).resolve().parents[2]
 PM=ROOT/"veri/python_model"
 DEFAULT_LABEL="aiEngine_python_cycle_handoff_20261109"
 BAD_DIRS={".git",".svn","__pycache__","obj_dir","out","runs","CMakeFiles",
@@ -113,7 +113,7 @@ def stage(dest,resume=False):
     verilator_include=Path("/usr/local/share/verilator/include")
     source_tree(verilator_include,dest/"veri/python_model/cpp_runtime/include")
     # Current project design reports and the performance analysis with figures.
-    for rel in ["doc/详细设计报告","doc/简明设计报告","doc/throughput_analysis"]:
+    for rel in ["doc/研究所项目/详细设计报告","doc/研究所项目/简明设计报告","doc/throughput_analysis"]:
         source_tree(ROOT/rel,dest/rel)
     doc_names=[
         "DSA 设计目标.md","DSA模块设计文档.md","mma_architecture_design_report_cn.md",
@@ -127,7 +127,7 @@ def stage(dest,resume=False):
     for rel in ["doc/perf_plots","doc/rtl_verification_figs"]:
         source_tree(ROOT/rel,dest/rel)
     copy_file(ROOT/"README.md",dest/"PROJECT_README.md")
-    templates=ROOT/"scripts/handoff_templates"
+    templates=ROOT/"scripts/packaging/handoff_templates"
     for p in templates.iterdir():
         if p.is_file(): copy_file(p,dest/p.name)
     # External model binaries referenced by the existing SoC build, now local.

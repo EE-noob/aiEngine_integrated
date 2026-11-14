@@ -1,11 +1,11 @@
 # Vivado batch synthesis for the AXI SoC top.
 #
 # Usage:
-#   vivado -mode batch -source scripts/vivado_synth_soc.tcl
-#   vivado -mode batch -source scripts/vivado_synth_soc.tcl -tclargs build/my_synth
+#   vivado -mode batch -source scripts/fpga/vivado_synth_soc.tcl
+#   vivado -mode batch -source scripts/fpga/vivado_synth_soc.tcl -tclargs build/my_synth
 
 set script_dir [file dirname [file normalize [info script]]]
-set repo_root  [file normalize [file join $script_dir ..]]
+set repo_root  [file normalize [file join $script_dir ../..]]
 
 if {[llength $argv] >= 1} {
     set out_dir [file normalize [lindex $argv 0]]
