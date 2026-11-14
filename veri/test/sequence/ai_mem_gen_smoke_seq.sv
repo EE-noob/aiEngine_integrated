@@ -114,6 +114,35 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(npu_seq_item);
         end
     endtask
 
+    // Testbench acts as the external host: no divider is added to the DUT.
+    function automatic int host_floor_supported(input int value);
+        int p;
+        p=1;
+        if (value==25) return 25;
+        while ((p<<1)<=value) p<<=1;
+        return p;
+    endfunction
+    function automatic void prepare_host_tiling(input int rows,cols,mode,per_channel,
+        inout int r,w, output int rg,rt,cg,ct);
+        int unsigned size,cache,ps;
+        int tr,tc,rc,wc,wr,tmp;
+        if (!uvm_config_db#(int unsigned)::get(null,"","gempact_size",size) ||
+            !uvm_config_db#(int unsigned)::get(null,"","gempact_cache",cache) ||
+            !uvm_config_db#(int unsigned)::get(null,"","gempact_ps",ps))
+            `uvm_fatal("HOST_TILING","Missing hardware profile for external tiling")
+        if (mode!=0) begin tmp=rows;rows=cols;cols=tmp;end
+        tr=(rows+int'(size)-1)/int'(size);tc=(cols+int'(size)-1)/int'(size);
+        tmp=(cache<2)?1:int'(cache/2);
+        rc=host_floor_supported((tr<tmp)?tr:tmp);
+        wr=(tc<int'(ps))?tc:int'(ps);wc=host_floor_supported(wr);
+        r=host_floor_supported((r==0 || r>=rc)?rc:r);
+        w=host_floor_supported((w==0 || w>=wc)?wc:w);
+        if (mode!=0 && per_channel!=0 && r>wc) r=wc;
+        if (mode!=0 && w<r && wr>=r) w=r;
+        rg=(tr+r-1)/r;rt=(tr%r==0)?r:tr%r;
+        cg=(tc+w-1)/w;ct=(tc%w==0)?w:tc%w;
+    endfunction
+
     virtual task body();
         npu_seq_item tr;
         string utn_name;
@@ -134,6 +163,7 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(npu_seq_item);
         int gen_dataflow_mode;
         int gen_ia_reuse;
         int gen_w_reuse;
+        int host_rg,host_rt,host_cg,host_ct;
 
         int cfg_k;
         int cfg_n;
@@ -258,6 +288,12 @@ class ai_mem_gen_smoke_seq extends uvm_sequence#(npu_seq_item);
         write_reg(`ADDR_NPU_Q_SHIFT,  dst_shift[31:0]);
         write_reg(`ADDR_NPU_ACT_MIN,    act_min[31:0]);
         write_reg(`ADDR_NPU_ACT_MAX,    act_max[31:0]);
+        prepare_host_tiling(cfg_k,cfg_m,gen_dataflow_mode,cfg_quant_mode,
+            gen_ia_reuse,gen_w_reuse,host_rg,host_rt,host_cg,host_ct);
+        write_reg(`ADDR_NPU_ROW_GROUPS,host_rg);
+        write_reg(`ADDR_NPU_ROW_TAIL_TILES,host_rt);
+        write_reg(`ADDR_NPU_COL_GROUPS,host_cg);
+        write_reg(`ADDR_NPU_COL_TAIL_TILES,host_ct);
         write_reg(`ADDR_NPU_IA_REUSE,   gen_ia_reuse[31:0]);
         write_reg(`ADDR_NPU_W_REUSE,    gen_w_reuse[31:0]);
         write_reg(`ADDR_NPU_DATAFLOW,   gen_dataflow_mode[31:0]);

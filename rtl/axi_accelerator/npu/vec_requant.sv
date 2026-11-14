@@ -47,7 +47,9 @@ module vec_requant #(
     input  logic signed [31:0] in_vec_s32[VLEN],
     output logic               out_valid,
     output logic               out_tile_done,
-    output logic signed [ 7:0] out_vec_s8[VLEN]
+    output logic signed [ 7:0] out_vec_s8[VLEN],
+    output logic signed [31:0] quant_multiplier_lane[VLEN],
+    output logic signed [31:0] quant_shift_lane[VLEN]
 );
 
   generate
@@ -91,6 +93,10 @@ module vec_requant #(
           .out_tile_done     (out_tile_done),
           .out_vec_s8        (out_vec_s8)
       );
+      for (genvar lane = 0; lane < VLEN; lane++) begin : gen_tensor_quant
+        assign quant_multiplier_lane[lane] = multiplier_in;
+        assign quant_shift_lane[lane] = shift_in;
+      end
     end else begin : g_full
       vec_requant_full #(
           .VLEN              (VLEN),
@@ -132,7 +138,9 @@ module vec_requant #(
           .in_vec_s32        (in_vec_s32),
           .out_valid         (out_valid),
           .out_tile_done     (out_tile_done),
-          .out_vec_s8        (out_vec_s8)
+          .out_vec_s8        (out_vec_s8),
+          .quant_multiplier_lane(quant_multiplier_lane),
+          .quant_shift_lane(quant_shift_lane)
       );
     end
   endgenerate
@@ -664,7 +672,9 @@ module vec_requant_full #(
     input  logic signed [31:0] in_vec_s32[VLEN],
     output logic               out_valid,
     output logic               out_tile_done,
-    output logic signed [ 7:0] out_vec_s8[VLEN]
+    output logic signed [ 7:0] out_vec_s8[VLEN],
+    output logic signed [31:0] quant_multiplier_lane[VLEN],
+    output logic signed [31:0] quant_shift_lane[VLEN]
 );
 
   // ----------------------------
@@ -748,6 +758,7 @@ module vec_requant_full #(
   // 配置寄存
   // ----------------------------
   logic signed [31:0] pt_multiplier_r;  // per-tensor 常量
+  logic signed [31:0] pt_shift_r;
   logic [5:0]         pt_lshift_r, pt_rshift_r;
   logic signed [31:0] activation_min_r;
   logic signed [31:0] activation_max_r;
@@ -776,6 +787,7 @@ module vec_requant_full #(
   always_ff @(posedge clk) begin
     if (!rst_n) begin
       pt_multiplier_r  <= '0;
+      pt_shift_r       <= '0;
       pt_lshift_r      <= 6'd0;
       pt_rshift_r      <= 6'd0;
       activation_min_r  <= '0;
@@ -793,6 +805,7 @@ module vec_requant_full #(
       last_col_tile    <= '0;
     end else if (init_cfg) begin
       pt_multiplier_r  <= multiplier_in;
+      pt_shift_r       <= shift_in;
       pt_lshift_r      <= pt_lshift_next;
       pt_rshift_r      <= pt_rshift_next;
       activation_min_r  <= activation_min_in;
@@ -952,9 +965,11 @@ module vec_requant_full #(
   // ----------------------------
   localparam int VLEN_IDX_W = (VLEN <= 1) ? 1 : $clog2(VLEN);
   logic signed [31:0] ch_multiplier_lane_r[VLEN];
+  logic signed [31:0] ch_shift_lane_r[VLEN];
   logic [5:0]         ch_lshift_lane_r    [VLEN];
   logic [5:0]         ch_rshift_lane_r    [VLEN];
   (* ram_style = "distributed" *) logic signed [31:0] ch_multiplier_is_r[QBUF_DEPTH];
+  (* ram_style = "distributed" *) logic signed [31:0] ch_shift_is_r[QBUF_DEPTH];
   (* ram_style = "distributed" *) logic [5:0]         ch_lshift_is_r    [QBUF_DEPTH];
   (* ram_style = "distributed" *) logic [5:0]         ch_rshift_is_r    [QBUF_DEPTH];
   logic signed [31:0] quant_rsp_shift_signed;
@@ -981,6 +996,7 @@ module vec_requant_full #(
         if (load_phase == PH_MUL) begin
           ch_multiplier_is_r[quant_rsp_idx] <= dma_raw_data;
         end else begin
+          ch_shift_is_r[quant_rsp_idx] <= $signed(dma_raw_data);
           ch_lshift_is_r[quant_rsp_idx] <= quant_rsp_lshift;
           ch_rshift_is_r[quant_rsp_idx] <= quant_rsp_rshift;
         end
@@ -988,6 +1004,7 @@ module vec_requant_full #(
         if (load_phase == PH_MUL) begin
           ch_multiplier_lane_r[quant_rsp_lane_idx] <= dma_raw_data;
         end else begin
+          ch_shift_lane_r[quant_rsp_lane_idx] <= $signed(dma_raw_data);
           ch_lshift_lane_r[quant_rsp_lane_idx] <= quant_rsp_lshift;
           ch_rshift_lane_r[quant_rsp_lane_idx] <= quant_rsp_rshift;
         end
@@ -1424,6 +1441,7 @@ module vec_requant_full #(
   genvar j;
   for (j = 0; j < VLEN; j++) begin : LANE
     logic signed [31:0] mult_sel;
+    logic signed [31:0] shift_sel_raw;
     logic [5:0]         lshift_sel;
     logic [5:0]         rshift_sel;
 
@@ -1487,13 +1505,18 @@ module vec_requant_full #(
     always_comb begin
       if (cfg_per_channel_eff) begin
         mult_sel   = is_mode_r ? ch_multiplier_is_sel : ch_multiplier_lane_r[j];
+        shift_sel_raw = is_mode_r ? ch_shift_is_r[input_group_idx_cur]
+                                  : ch_shift_lane_r[j];
         lshift_sel = is_mode_r ? ch_lshift_is_sel : ch_lshift_lane_r[j];
         rshift_sel = is_mode_r ? ch_rshift_is_sel : ch_rshift_lane_r[j];
       end else begin
         mult_sel   = pt_multiplier_r;
+        shift_sel_raw = pt_shift_r;
         lshift_sel = pt_lshift_r;
         rshift_sel = pt_rshift_r;
       end
+      quant_multiplier_lane[j] = mult_sel;
+      quant_shift_lane[j] = shift_sel_raw;
     end
 
     always_comb begin

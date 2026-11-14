@@ -53,6 +53,10 @@ module ia_loader #(
     // ---- 复用控制（init_cfg 高时须稳定）----
     input logic [REG_WIDTH-1:0] ia_reuse_num,  // R
     input logic [REG_WIDTH-1:0] w_reuse_num,   // W
+    input logic [REG_WIDTH-1:0] row_groups,
+    input logic [REG_WIDTH-1:0] row_tail_tiles,
+    input logic [REG_WIDTH-1:0] col_groups,
+    input logic [REG_WIDTH-1:0] col_tail_tiles,
 
     // ---- 共享 AXI block_dma 客户端接口 ----
     output logic                                   ext_dma_start,
@@ -174,42 +178,13 @@ module ia_loader #(
 
     // 基于输入参数计算派生值
     assign vtn_tmp = (k + SIZE - 1) >> LOG2_SIZE;
-    assign ia_reuse_num_safe = (ia_reuse_num == '0) ? REG_WIDTH'(1) : ia_reuse_num;
-    assign w_reuse_num_safe  = (w_reuse_num  == '0) ? REG_WIDTH'(1) : w_reuse_num;
-    assign r_mod = vtn_tmp & (ia_reuse_num_safe - REG_WIDTH'(1));
-    assign ia_reuse_num_act_comb = (r_mod == '0) ? ia_reuse_num_safe : r_mod;
-    assign output_col_tile_num_comb = (m == '0) ? REG_WIDTH'(1) : ((m + SIZE - 1) >> LOG2_SIZE);
-    assign w_group_last_width_comb = ((output_col_tile_num_comb & (w_reuse_num_safe - REG_WIDTH'(1))) == '0)
-                                   ? w_reuse_num_safe
-                                   : (output_col_tile_num_comb & (w_reuse_num_safe - REG_WIDTH'(1)));
-
-    always_comb begin
-        l2_group_num_comb = vtn_tmp;
-        case (ia_reuse_num_safe)
-            REG_WIDTH'(1):  l2_group_num_comb = vtn_tmp;
-            REG_WIDTH'(2):  l2_group_num_comb = (vtn_tmp + REG_WIDTH'(1)) >> 1;
-            REG_WIDTH'(4):  l2_group_num_comb = (vtn_tmp + REG_WIDTH'(3)) >> 2;
-            REG_WIDTH'(8):  l2_group_num_comb = (vtn_tmp + REG_WIDTH'(7)) >> 3;
-            REG_WIDTH'(16): l2_group_num_comb = (vtn_tmp + REG_WIDTH'(15)) >> 4;
-            REG_WIDTH'(32): l2_group_num_comb = (vtn_tmp + REG_WIDTH'(31)) >> 5;
-            REG_WIDTH'(64): l2_group_num_comb = (vtn_tmp + REG_WIDTH'(63)) >> 6;
-            default:        l2_group_num_comb = vtn_tmp;
-        endcase
-    end
-
-    always_comb begin
-        w_groups_total_comb = output_col_tile_num_comb;
-        case (w_reuse_num_safe)
-            REG_WIDTH'(1):  w_groups_total_comb = output_col_tile_num_comb;
-            REG_WIDTH'(2):  w_groups_total_comb = (output_col_tile_num_comb + REG_WIDTH'(1)) >> 1;
-            REG_WIDTH'(4):  w_groups_total_comb = (output_col_tile_num_comb + REG_WIDTH'(3)) >> 2;
-            REG_WIDTH'(8):  w_groups_total_comb = (output_col_tile_num_comb + REG_WIDTH'(7)) >> 3;
-            REG_WIDTH'(16): w_groups_total_comb = (output_col_tile_num_comb + REG_WIDTH'(15)) >> 4;
-            REG_WIDTH'(32): w_groups_total_comb = (output_col_tile_num_comb + REG_WIDTH'(31)) >> 5;
-            REG_WIDTH'(64): w_groups_total_comb = (output_col_tile_num_comb + REG_WIDTH'(63)) >> 6;
-            default:        w_groups_total_comb = output_col_tile_num_comb;
-        endcase
-    end
+    assign ia_reuse_num_safe = (ia_reuse_num == 0) ? REG_WIDTH'(1) : ia_reuse_num;
+    assign w_reuse_num_safe = (w_reuse_num == 0) ? REG_WIDTH'(1) : w_reuse_num;
+    assign ia_reuse_num_act_comb = row_tail_tiles;
+    assign l2_group_num_comb = row_groups;
+    assign output_col_tile_num_comb = (m == 0) ? REG_WIDTH'(1) : ((m + SIZE - 1) >> LOG2_SIZE);
+    assign w_groups_total_comb = col_groups;
+    assign w_group_last_width_comb = col_tail_tiles;
 
     assign last_cols_comb = SIZE - ((((n + SIZE - 1) >> LOG2_SIZE) << LOG2_SIZE) - n);
     assign rsp_beats_per_row_last_comb = ((last_cols_comb << (use_16bits ? 1 : 0)) + BYTE_PER_BEAT - 1) >> LOG2_BYTE_PER_BEAT;

@@ -28,10 +28,15 @@ module npu_axil_reg_if #(
 
     output logic                        calc_start,
     output logic                        cfg_16bits_ia,
+    output logic                        cfg_16x8,
     output logic                        cfg_dataflow_mode,
     output logic                        use_per_channel,
     output logic [REG_WIDTH-1:0]        cfg_ia_reuse_num,
     output logic [REG_WIDTH-1:0]        cfg_w_reuse_num,
+    output logic [REG_WIDTH-1:0] cfg_row_groups,
+    output logic [REG_WIDTH-1:0] cfg_row_tail_tiles,
+    output logic [REG_WIDTH-1:0] cfg_col_groups,
+    output logic [REG_WIDTH-1:0] cfg_col_tail_tiles,
 
     output logic [REG_WIDTH-1:0]        lhs_base,
     output logic [REG_WIDTH-1:0]        rhs_base,
@@ -86,6 +91,11 @@ module npu_axil_reg_if #(
     localparam logic [11:0] REG_IA_REUSE     = 12'h015; // 0x054
     localparam logic [11:0] REG_W_REUSE      = 12'h016; // 0x058
     localparam logic [11:0] REG_DATAFLOW     = 12'h017; // 0x05c
+    localparam logic [11:0] REG_ROW_GROUPS = 12'h018; // 0x060
+    localparam logic [11:0] REG_ROW_TAIL_TILES = 12'h019; // 0x064
+    localparam logic [11:0] REG_COL_GROUPS = 12'h01a; // 0x068
+    localparam logic [11:0] REG_COL_TAIL_TILES = 12'h01b; // 0x06c
+    localparam logic [11:0] REG_CONFIG_ABI = 12'h01c; // 0x070, read-only
     localparam logic [11:0] REG_ID           = 12'h03f; // 0x0fc
     localparam logic [REG_WIDTH-1:0] NPU_ID  = 32'h4e50_5531;
 
@@ -154,7 +164,8 @@ module npu_axil_reg_if #(
         read_data_next = '0;
         case (rd_word_addr)
             REG_CTRL: begin
-                read_data_next[4:1] = {irq_enable, cfg_dataflow_mode, use_per_channel, cfg_16bits_ia};
+                read_data_next[5:1] = {cfg_16x8, irq_enable, cfg_dataflow_mode,
+                                       use_per_channel, cfg_16bits_ia};
             end
             REG_STATUS:       read_data_next[7:0] = status_bits[7:0];
             REG_WB_DATA:      read_data_next = last_done_data;
@@ -178,6 +189,11 @@ module npu_axil_reg_if #(
             REG_IA_REUSE:     read_data_next = cfg_ia_reuse_num;
             REG_W_REUSE:      read_data_next = cfg_w_reuse_num;
             REG_DATAFLOW:     read_data_next[0] = cfg_dataflow_mode;
+            REG_ROW_GROUPS: read_data_next = cfg_row_groups;
+            REG_ROW_TAIL_TILES: read_data_next = cfg_row_tail_tiles;
+            REG_COL_GROUPS: read_data_next = cfg_col_groups;
+            REG_COL_TAIL_TILES: read_data_next = cfg_col_tail_tiles;
+            REG_CONFIG_ABI: read_data_next = 32'd2;
             REG_ID:           read_data_next = NPU_ID;
             default: begin
             end
@@ -212,11 +228,16 @@ module npu_axil_reg_if #(
             act_min             <= '0;
             act_max             <= '0;
             cfg_16bits_ia       <= 1'b0;
+            cfg_16x8            <= 1'b0;
             cfg_dataflow_mode   <= 1'b0;
             use_per_channel     <= 1'b0;
             irq_enable          <= 1'b0;
             cfg_ia_reuse_num    <= '0;
             cfg_w_reuse_num     <= '0;
+            cfg_row_groups <= '0;
+            cfg_row_tail_tiles <= '0;
+            cfg_col_groups <= '0;
+            cfg_col_tail_tiles <= '0;
             calc_start          <= 1'b0;
             npu_busy_q          <= 1'b0;
             done_sticky         <= 1'b0;
@@ -251,6 +272,7 @@ module npu_axil_reg_if #(
                             use_per_channel   <= wr_data[2];
                             cfg_dataflow_mode <= wr_data[3];
                             irq_enable        <= wr_data[4];
+                            cfg_16x8           <= wr_data[5];
                             if (wr_data[0]) begin
                                 calc_start    <= 1'b1;
                                 npu_busy_q    <= 1'b1;
@@ -283,6 +305,10 @@ module npu_axil_reg_if #(
                     REG_ACT_MAX:      act_max <= apply_wstrb(act_max, wr_data, wr_strb);
                     REG_IA_REUSE:     cfg_ia_reuse_num <= apply_wstrb(cfg_ia_reuse_num, wr_data, wr_strb);
                     REG_W_REUSE:      cfg_w_reuse_num <= apply_wstrb(cfg_w_reuse_num, wr_data, wr_strb);
+                    REG_ROW_GROUPS: cfg_row_groups <= apply_wstrb(cfg_row_groups, wr_data, wr_strb);
+                    REG_ROW_TAIL_TILES: cfg_row_tail_tiles <= apply_wstrb(cfg_row_tail_tiles, wr_data, wr_strb);
+                    REG_COL_GROUPS: cfg_col_groups <= apply_wstrb(cfg_col_groups, wr_data, wr_strb);
+                    REG_COL_TAIL_TILES: cfg_col_tail_tiles <= apply_wstrb(cfg_col_tail_tiles, wr_data, wr_strb);
                     REG_DATAFLOW: begin
                         if (wr_strb[0]) begin
                             cfg_dataflow_mode <= wr_data[0];

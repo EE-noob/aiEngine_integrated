@@ -23,9 +23,14 @@ module npu_top #(
     //==== 外部控制接口 ====
     input wire calc_start,  // 计算开始信号
     input wire cfg_16bits_ia,  // 使用16位IA数据
+    input wire cfg_16x8,  // TFLM s16 activation x s8 weight, s32 bias, s16 output
     input wire cfg_dataflow_mode,  // 0: WS, 1: IS
-    input  logic [REG_WIDTH-1:0] cfg_ia_reuse_num,  // IA L1 组复用深度，0 表示使用参数默认值
-    input  logic [REG_WIDTH-1:0] cfg_w_reuse_num,   // W 侧复用窗口，0 表示使用参数默认值
+    input  logic [REG_WIDTH-1:0] cfg_ia_reuse_num,  // IA L1 组复用深度，ABI 2: 外部写入最终生效值，0 非法
+    input  logic [REG_WIDTH-1:0] cfg_w_reuse_num,   // W 侧复用窗口，ABI 2: 外部写入最终生效值，0 非法
+    input logic [REG_WIDTH-1:0] cfg_row_groups,
+    input logic [REG_WIDTH-1:0] cfg_row_tail_tiles,
+    input logic [REG_WIDTH-1:0] cfg_col_groups,
+    input logic [REG_WIDTH-1:0] cfg_col_tail_tiles,
     output wire sa_ready,  // 系统就绪信号
 
     //==== 完成握手接口 ====
@@ -147,9 +152,18 @@ module npu_top #(
     wire load_quant_req;
     wire load_quant_granted;
     wire quant_params_valid;
+    wire load_quant_req_s8;
+    wire quant_params_valid_s8;
     wire requant_out_valid;
     wire requant_out_tile_done;
+    wire requant_s8_valid;
+    wire requant_s8_tile_done;
+    wire requant_s16_valid;
+    wire requant_s16_tile_done;
     wire signed [7:0] requant_out[SIZE];
+    wire signed [15:0] requant_out_s16[SIZE];
+    wire signed [31:0] requant_multiplier_lane[SIZE];
+    wire signed [31:0] requant_shift_lane[SIZE];
 
     // FIFO 内部信号
     wire fifo_output_req;
@@ -161,6 +175,18 @@ module npu_top #(
     wire [3:0] fifo_output_mask;
     wire [31:0] fifo_output_data;
     wire fifo_full_flag;
+    wire fifo_s8_output_req;
+    wire fifo_s8_output_valid;
+    wire fifo_s8_output_switch_row;
+    wire [3:0] fifo_s8_output_mask;
+    wire [31:0] fifo_s8_output_data;
+    wire fifo_s8_full_flag;
+    wire fifo_s16_output_req;
+    wire fifo_s16_output_valid;
+    wire fifo_s16_output_switch_row;
+    wire [3:0] fifo_s16_output_mask;
+    wire [31:0] fifo_s16_output_data;
+    wire fifo_s16_full_flag;
 
     // OA Writer 内部信号
     wire write_oa_req;
@@ -255,34 +281,9 @@ module npu_top #(
         logic [IS_BIAS_ROW_W-1:0] is_bias_row_idx;
         wire signed [31:0] bias_group_scalar;
         wire cfg_dataflow_mode_eff = (ENABLE_IS_MODE != 0) ? cfg_dataflow_mode : 1'b0;
-        wire use_per_channel_eff = (ENABLE_PER_CHANNEL != 0) ? use_per_channel : 1'b0;
+        wire use_per_channel_eff = (ENABLE_PER_CHANNEL != 0)
+                                 ? use_per_channel : 1'b0;
         wire cfg_16bits_ia_eff = (IA_DATA_WIDTH > 8) ? cfg_16bits_ia : 1'b0;
-
-        function automatic logic [REG_WIDTH-1:0] floor_pow2_ia(input logic [IA_REUSE_W-1:0] value);
-            logic [REG_WIDTH-1:0] out;
-            begin
-                out = REG_WIDTH'(1);
-                for (int bit_i = 1; bit_i < IA_REUSE_W; bit_i++) begin
-                    if (value >= (IA_REUSE_W'(1) << bit_i)) begin
-                        out = (REG_WIDTH'(1) << bit_i);
-                    end
-                end
-                floor_pow2_ia = out;
-            end
-        endfunction
-
-        function automatic logic [REG_WIDTH-1:0] floor_pow2_w(input logic [W_REUSE_W-1:0] value);
-            logic [REG_WIDTH-1:0] out;
-            begin
-                out = REG_WIDTH'(1);
-                for (int bit_i = 1; bit_i < W_REUSE_W; bit_i++) begin
-                    if (value >= (W_REUSE_W'(1) << bit_i)) begin
-                        out = (REG_WIDTH'(1) << bit_i);
-                    end
-                end
-                floor_pow2_w = out;
-            end
-        endfunction
 
         wire ctrl_sa_ready;
         logic cfg_stage0_valid;
@@ -290,6 +291,7 @@ module npu_top #(
         logic cfg_stage2_valid;
         logic cfg_mode_s0;
         logic cfg_use16_s0;
+        logic cfg_16x8_s0;
         logic [REG_WIDTH-1:0] cfg_k_s0;
         logic [REG_WIDTH-1:0] cfg_m_s0;
         logic [REG_WIDTH-1:0] cfg_n_s0;
@@ -299,6 +301,7 @@ module npu_top #(
         logic [REG_WIDTH-1:0] cfg_w_req_s0;
         logic cfg_mode_s1;
         logic cfg_use16_s1;
+        logic cfg_16x8_s1;
         logic [REG_WIDTH-1:0] cfg_k_s1;
         logic [REG_WIDTH-1:0] cfg_m_s1;
         logic [REG_WIDTH-1:0] cfg_n_s1;
@@ -306,10 +309,9 @@ module npu_top #(
         logic [REG_WIDTH-1:0] cfg_stream_m_s1;
         logic [REG_WIDTH-1:0] cfg_ia_req_s1;
         logic [REG_WIDTH-1:0] cfg_w_req_s1;
-        logic [REG_WIDTH-1:0] cfg_ia_cap_raw_s1;
-        logic [REG_WIDTH-1:0] cfg_w_cap_raw_s1;
         logic cfg_mode_s2;
         logic cfg_use16_s2;
+        logic cfg_16x8_s2;
         logic [REG_WIDTH-1:0] cfg_k_s2;
         logic [REG_WIDTH-1:0] cfg_m_s2;
         logic [REG_WIDTH-1:0] cfg_n_s2;
@@ -324,48 +326,18 @@ module npu_top #(
         wire ctrl_calc_start = cfg_stage2_fire;
         assign sa_ready = ctrl_sa_ready && !cfg_stage0_valid && !cfg_stage1_valid && !cfg_stage2_valid;
 
-        wire cfg_is_mode_pre = cfg_mode_s0;
-        wire [REG_WIDTH-1:0] cfg_stream_k_pre = cfg_stream_k_s0;
-        wire [REG_WIDTH-1:0] cfg_stream_m_pre = cfg_stream_m_s0;
-        wire [REG_WIDTH-1:0] output_row_tile_num_pre =
-            (cfg_stream_k_pre + REG_WIDTH'(SIZE - 1)) >> SIZE_SHIFT;
-        wire [REG_WIDTH-1:0] output_col_tile_num_pre =
-            (cfg_stream_m_pre + REG_WIDTH'(SIZE - 1)) >> SIZE_SHIFT;
-        wire [REG_WIDTH-1:0] ia_reuse_capacity_limit_raw_pre =
-            ((output_row_tile_num_pre != '0) &&
-             (output_row_tile_num_pre < REG_WIDTH'(IA_REUSE_NUM_MAX)))
-                ? output_row_tile_num_pre
-                : REG_WIDTH'(IA_REUSE_NUM_MAX);
-        wire [REG_WIDTH-1:0] w_reuse_capacity_limit_raw_pre =
-            ((output_col_tile_num_pre != '0) &&
-             (output_col_tile_num_pre < REG_WIDTH'(W_REUSE_NUM_MAX)))
-                ? output_col_tile_num_pre
-                : REG_WIDTH'(W_REUSE_NUM_MAX);
-        wire [REG_WIDTH-1:0] ia_reuse_capacity_limit_s1 =
-            floor_pow2_ia(cfg_ia_cap_raw_s1[IA_REUSE_W-1:0]);
-        wire [REG_WIDTH-1:0] w_reuse_capacity_limit_s1 =
-            floor_pow2_w(cfg_w_cap_raw_s1[W_REUSE_W-1:0]);
-        wire [IA_REUSE_W-1:0] ia_reuse_cfg_small_s1 =
-            (cfg_ia_req_s1 == '0) ? ia_reuse_capacity_limit_s1[IA_REUSE_W-1:0] :
-            (cfg_ia_req_s1 >= ia_reuse_capacity_limit_s1)
-                ? ia_reuse_capacity_limit_s1[IA_REUSE_W-1:0]
-                : cfg_ia_req_s1[IA_REUSE_W-1:0];
-        wire [W_REUSE_W-1:0] w_reuse_cfg_small_s1 =
-            (cfg_w_req_s1 == '0) ? w_reuse_capacity_limit_s1[W_REUSE_W-1:0] :
-            (cfg_w_req_s1 >= w_reuse_capacity_limit_s1)
-                ? w_reuse_capacity_limit_s1[W_REUSE_W-1:0]
-                : cfg_w_req_s1[W_REUSE_W-1:0];
-        wire [REG_WIDTH-1:0] ia_reuse_num_eff_ws_s1 = floor_pow2_ia(ia_reuse_cfg_small_s1);
-        wire [REG_WIDTH-1:0] w_reuse_num_clamped_max_s1 = floor_pow2_w(w_reuse_cfg_small_s1);
-        wire [REG_WIDTH-1:0] ia_reuse_num_eff_s1 =
-            (cfg_mode_s1 && (ia_reuse_num_eff_ws_s1 > w_reuse_capacity_limit_s1))
-                ? w_reuse_capacity_limit_s1
-                : ia_reuse_num_eff_ws_s1;
-        wire [REG_WIDTH-1:0] w_reuse_num_eff_s1 =
-            (cfg_mode_s1 && (w_reuse_num_clamped_max_s1 < ia_reuse_num_eff_s1) &&
-             (cfg_w_cap_raw_s1 >= ia_reuse_num_eff_s1))
-                ? ia_reuse_num_eff_s1
-                : w_reuse_num_clamped_max_s1;
+        // ABI 2: external software provides effective, legal R/W values.
+        // There is no automatic rounding or resizing after the host computes groups.
+        wire [REG_WIDTH-1:0] ia_reuse_num_eff_s1 = cfg_ia_req_s1;
+        wire [REG_WIDTH-1:0] w_reuse_num_eff_s1 = cfg_w_req_s1;
+        wire [IA_REUSE_W-1:0] ext_r_small = cfg_ia_reuse_eff_s2[IA_REUSE_W-1:0];
+        wire [W_REUSE_W-1:0] ext_w_small = cfg_w_reuse_eff_s2[W_REUSE_W-1:0];
+        wire ext_r_legal = (cfg_ia_reuse_eff_s2 >> IA_REUSE_W)==0 && ext_r_small!=0 &&
+            ext_r_small<=IA_REUSE_W'(IA_REUSE_NUM_MAX) &&
+            (((ext_r_small & (ext_r_small-IA_REUSE_W'(1)))==0) || ext_r_small==25);
+        wire ext_w_legal = (cfg_w_reuse_eff_s2 >> W_REUSE_W)==0 && ext_w_small!=0 &&
+            ext_w_small<=W_REUSE_W'(W_REUSE_NUM_MAX) &&
+            (((ext_w_small & (ext_w_small-W_REUSE_W'(1)))==0) || ext_w_small==25);
 
         always_ff @(posedge clk or negedge rst_n) begin
             if (!rst_n) begin
@@ -374,6 +346,7 @@ module npu_top #(
                     cfg_stage2_valid <= 1'b0;
                     cfg_mode_s0 <= 1'b0;
                     cfg_use16_s0 <= 1'b0;
+                    cfg_16x8_s0 <= 1'b0;
                     cfg_k_s0 <= '0;
                     cfg_m_s0 <= '0;
                     cfg_n_s0 <= '0;
@@ -383,6 +356,7 @@ module npu_top #(
                     cfg_w_req_s0 <= '0;
                     cfg_mode_s1 <= 1'b0;
                     cfg_use16_s1 <= 1'b0;
+                    cfg_16x8_s1 <= 1'b0;
                     cfg_k_s1 <= '0;
                     cfg_m_s1 <= '0;
                     cfg_n_s1 <= '0;
@@ -390,10 +364,9 @@ module npu_top #(
                     cfg_stream_m_s1 <= '0;
                     cfg_ia_req_s1 <= '0;
                     cfg_w_req_s1 <= '0;
-                    cfg_ia_cap_raw_s1 <= REG_WIDTH'(1);
-                    cfg_w_cap_raw_s1 <= REG_WIDTH'(1);
                     cfg_mode_s2 <= 1'b0;
                     cfg_use16_s2 <= 1'b0;
+                    cfg_16x8_s2 <= 1'b0;
                     cfg_k_s2 <= '0;
                     cfg_m_s2 <= '0;
                     cfg_n_s2 <= '0;
@@ -412,6 +385,7 @@ module npu_top #(
                         cfg_stage1_valid <= 1'b0;
                         cfg_mode_s2 <= cfg_mode_s1;
                         cfg_use16_s2 <= cfg_use16_s1;
+                        cfg_16x8_s2 <= cfg_16x8_s1;
                         cfg_k_s2 <= cfg_k_s1;
                         cfg_m_s2 <= cfg_m_s1;
                         cfg_n_s2 <= cfg_n_s1;
@@ -427,6 +401,7 @@ module npu_top #(
                         cfg_stage0_valid <= 1'b0;
                     cfg_mode_s1 <= cfg_mode_s0;
                     cfg_use16_s1 <= cfg_use16_s0;
+                    cfg_16x8_s1 <= cfg_16x8_s0;
                     cfg_k_s1 <= cfg_k_s0;
                     cfg_m_s1 <= cfg_m_s0;
                         cfg_n_s1 <= cfg_n_s0;
@@ -434,14 +409,13 @@ module npu_top #(
                         cfg_stream_m_s1 <= cfg_stream_m_s0;
                         cfg_ia_req_s1 <= cfg_ia_req_s0;
                         cfg_w_req_s1 <= cfg_w_req_s0;
-                        cfg_ia_cap_raw_s1 <= ia_reuse_capacity_limit_raw_pre;
-                        cfg_w_cap_raw_s1 <= w_reuse_capacity_limit_raw_pre;
                     end
 
                     if (cfg_start_event) begin
                         cfg_stage0_valid <= 1'b1;
-                    cfg_mode_s0 <= cfg_dataflow_mode_eff;
-                    cfg_use16_s0 <= cfg_16bits_ia_eff;
+                        cfg_mode_s0 <= cfg_16x8 ? 1'b0 : cfg_dataflow_mode_eff;
+                        cfg_use16_s0 <= cfg_16bits_ia_eff | cfg_16x8;
+                        cfg_16x8_s0 <= cfg_16x8;
                     cfg_k_s0 <= k;
                     cfg_m_s0 <= m;
                         cfg_n_s0 <= n;
@@ -455,6 +429,7 @@ module npu_top #(
 
         logic run_is_mode;
         logic run_use_16bits;
+        logic run_16x8;
         logic [REG_WIDTH-1:0] run_k;
         logic [REG_WIDTH-1:0] run_m;
         logic [REG_WIDTH-1:0] run_n;
@@ -468,6 +443,7 @@ module npu_top #(
             if (!rst_n) begin
                 run_is_mode <= 1'b0;
                 run_use_16bits <= 1'b0;
+                run_16x8 <= 1'b0;
                 run_k <= '0;
                 run_m <= '0;
                 run_n <= '0;
@@ -479,6 +455,7 @@ module npu_top #(
             end else if (cfg_stage2_fire) begin
                 run_is_mode <= cfg_mode_s2;
                 run_use_16bits <= cfg_use16_s2;
+                run_16x8 <= cfg_16x8_s2;
                 run_k <= cfg_k_s2;
                 run_m <= cfg_m_s2;
                 run_n <= cfg_n_s2;
@@ -640,8 +617,12 @@ module npu_top #(
         .clk              (clk),
         .rst_n            (rst_n),
         .calc_start       (ctrl_calc_start),
-        .cfg_16bits_ia    (cfg_16bits_ia_eff),
+        .cfg_16bits_ia    (cfg_16bits_ia_eff | cfg_16x8),
         .cfg_dataflow_mode(cfg_dataflow_mode_eff),
+        .cfg_tiling_error ((!ext_r_legal) || (!ext_w_legal) || (cfg_row_groups == 0) || (cfg_col_groups == 0) ||
+            (cfg_row_tail_tiles == 0) || (cfg_col_tail_tiles == 0) ||
+            (cfg_row_tail_tiles > cfg_ia_reuse_eff_s2) || (cfg_col_tail_tiles > cfg_w_reuse_eff_s2) ||
+            ((cfg_row_groups >> DIM_COUNT_WIDTH) != 0) || ((cfg_col_groups >> DIM_COUNT_WIDTH) != 0)),
         .sa_ready         (ctrl_sa_ready),
 
         .partial_sum_calc_over(partial_sum_calc_over),
@@ -714,6 +695,10 @@ module npu_top #(
         .bias_by_row_mode(is_mode),
         .ia_reuse_num    (ia_reuse_num_eff),
             .w_reuse_num     (w_reuse_num_eff),
+        .row_groups (cfg_row_groups),
+        .row_tail_tiles (cfg_row_tail_tiles),
+        .col_groups (cfg_col_groups),
+        .col_tail_tiles (cfg_col_tail_tiles),
             .ext_dma_start(ia_dma_start),
             .ext_dma_is_write(),
             .ext_dma_linear_read_mode(ia_dma_linear_read_mode),
@@ -768,6 +753,10 @@ module npu_top #(
         .rhs_row_stride_b   (weight_stride_eff),
         .ia_reuse_num       (ia_reuse_num_eff),
         .w_reuse_num        (w_reuse_num_eff),
+        .row_groups (cfg_row_groups),
+        .row_tail_tiles (cfg_row_tail_tiles),
+        .col_groups (cfg_col_groups),
+        .col_tail_tiles (cfg_col_tail_tiles),
             .use_16bits         (weight_use_16bits_eff),
             .ext_dma_start(kernel_dma_start),
             .ext_dma_is_write(),
@@ -845,7 +834,8 @@ module npu_top #(
   wire signed [31:0] compute_bias_in[SIZE];
   logic signed [31:0] bias_data_hold[SIZE];
   logic signed [31:0] compute_bias_latched[SIZE];
-  wire capture_compute_bias = !is_mode && ia_tile_start && !bias_sleep;
+  wire capture_compute_bias = !is_mode && (bias_base != '0) &&
+                              ia_tile_start && !bias_sleep;
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -876,7 +866,8 @@ module npu_top #(
   genvar cb_i;
   generate
     for (cb_i = 0; cb_i < SIZE; cb_i = cb_i + 1) begin : gen_compute_bias_in
-      assign compute_bias_in[cb_i] = is_mode ? 32'sd0 : compute_bias_latched[cb_i];
+      assign compute_bias_in[cb_i] =
+        (is_mode || (bias_base == '0)) ? 32'sd0 : compute_bias_latched[cb_i];
     end
   endgenerate
 
@@ -947,6 +938,7 @@ module npu_top #(
     wire signed [31:0] is_bias_scalar =
       (is_mode && (bias_base != '0)) ? bias_group_scalar : 32'sd0;
     wire signed [31:0] requant_in_vec[SIZE];
+    wire signed [63:0] requant_in_vec_s64[SIZE];
 
         always_ff @(posedge clk or negedge rst_n) begin
             if (!rst_n) begin
@@ -994,8 +986,13 @@ module npu_top #(
         for (rq_i = 0; rq_i < SIZE; rq_i = rq_i + 1) begin : gen_requant_in_vec
             assign requant_in_vec[rq_i] =
           is_mode ? (acc_data_out[rq_i] + is_bias_scalar) : acc_data_out[rq_i];
+            assign requant_in_vec_s64[rq_i] =
+          {{32{acc_data_out[rq_i][31]}}, acc_data_out[rq_i]};
         end
     endgenerate
+
+    assign load_quant_req = load_quant_req_s8;
+    assign quant_params_valid = quant_params_valid_s8;
 
         vec_requant #(
             .VLEN        (SIZE),
@@ -1014,9 +1011,9 @@ module npu_top #(
         .dst_offset_in     (dst_zp),
         .multiplier_in     (q_mult_pt),
         .shift_in          (q_shift_pt),
-        .load_quant_req    (load_quant_req),
+        .load_quant_req    (load_quant_req_s8),
         .load_quant_granted(load_quant_granted),
-        .quant_params_valid(quant_params_valid),
+        .quant_params_valid(quant_params_valid_s8),
             .k                 (stream_k),
             .m                 (stream_m),
             .ia_reuse_num_in   (ia_reuse_num_eff),
@@ -1035,20 +1032,51 @@ module npu_top #(
             .in_valid          (acc_data_valid),
             .in_tile_done      (tile_calc_over),
             .in_vec_s32        (requant_in_vec),
-        .out_valid         (requant_out_valid),
-        .out_tile_done     (requant_out_tile_done),
-            .out_vec_s8        (requant_out)
+        .out_valid         (requant_s8_valid),
+        .out_tile_done     (requant_s8_tile_done),
+            .out_vec_s8        (requant_out),
+            .quant_multiplier_lane(requant_multiplier_lane),
+            .quant_shift_lane(requant_shift_lane)
         );
-    //wire signed [             7:0] requant_out                            [SIZE];
-    //TODO: check big or little endian
-    //
+
+    vec_requant_s64 #(
+        .VLEN(SIZE)
+    ) u_vec_requant_s64 (
+        .clk               (clk),
+        .rst_n             (rst_n),
+        .init_cfg          (init_cfg_requant),
+        .activation_min_in (act_min),
+        .activation_max_in (act_max),
+        .multiplier_in     (requant_multiplier_lane),
+        .shift_in          (requant_shift_lane),
+        .in_valid          (acc_data_valid && run_16x8),
+        .in_tile_done      (tile_calc_over),
+        .in_vec_s64        (requant_in_vec_s64),
+        .out_valid         (requant_s16_valid),
+        .out_tile_done     (requant_s16_tile_done),
+        .out_vec_s16       (requant_out_s16)
+    );
+
+    assign requant_out_valid = run_16x8 ? requant_s16_valid : requant_s8_valid;
+    assign requant_out_tile_done = run_16x8 ? requant_s16_tile_done : requant_s8_tile_done;
+
     wire [SIZE*8-1:0] in_vec_s8;
+    wire [SIZE*16-1:0] in_vec_s16;
     genvar i;
     generate
         for (i = 0; i < SIZE; i = i + 1) begin : gen_unpack_in_vec
             assign in_vec_s8[i*8+:8] = requant_out[i];
+            assign in_vec_s16[i*16+:16] = requant_out_s16[i];
         end
     endgenerate
+
+    assign fifo_output_req = run_16x8 ? fifo_s16_output_req : fifo_s8_output_req;
+    assign fifo_output_valid = run_16x8 ? fifo_s16_output_valid : fifo_s8_output_valid;
+    assign fifo_output_switch_row = run_16x8 ? fifo_s16_output_switch_row
+                                             : fifo_s8_output_switch_row;
+    assign fifo_output_mask = run_16x8 ? fifo_s16_output_mask : fifo_s8_output_mask;
+    assign fifo_output_data = run_16x8 ? fifo_s16_output_data : fifo_s8_output_data;
+    assign fifo_full_flag = run_16x8 ? fifo_s16_full_flag : fifo_s8_full_flag;
 
     // FIFO
     vec_s8_to_fifo #(
@@ -1058,23 +1086,40 @@ module npu_top #(
     ) u_vec_s8_to_fifo (
         .clk              (clk),
         .rst_n            (rst_n),
-        .in_valid         (requant_out_valid),
-        .in_tile_done     (requant_out_tile_done),
-        //.in_vec_s8        (requant_out),
+        .in_valid         (requant_s8_valid),
+        .in_tile_done     (requant_s8_tile_done),
         .in_vec_s8        (in_vec_s8),
-        //.output_req       (fifo_output_req),
-        .oa_fifo_req      (fifo_output_req),
+        .oa_fifo_req      (fifo_s8_output_req),
         .transpose_mode   (is_mode),
         .reserve_banks    (ia_reuse_num_eff),
         .vec_valid_num_col(fifo_vec_valid_num_col),
         .vec_valid_num_row(fifo_vec_valid_num_row),
-        .output_valid     (fifo_output_valid),
-        //.output_switch_row(fifo_output_switch_row),
-        .output_row_switch(fifo_output_switch_row),
+        .output_valid     (fifo_s8_output_valid),
+        .output_row_switch(fifo_s8_output_switch_row),
         .output_ready     (fifo_output_ready),
-        .output_mask      (fifo_output_mask),
-        .output_data      (fifo_output_data),
-        .fifo_full_flag   (fifo_full_flag)
+        .output_mask      (fifo_s8_output_mask),
+        .output_data      (fifo_s8_output_data),
+        .fifo_full_flag   (fifo_s8_full_flag)
+    );
+
+    vec_s16_to_fifo #(
+        .VLEN (SIZE),
+        .BANKS(OA_FIFO_BANKS)
+    ) u_vec_s16_to_fifo (
+        .clk              (clk),
+        .rst_n            (rst_n),
+        .in_valid         (requant_s16_valid),
+        .in_tile_done     (requant_s16_tile_done),
+        .in_vec_s16       (in_vec_s16),
+        .oa_fifo_req      (fifo_s16_output_req),
+        .reserve_banks    (ia_reuse_num_eff),
+        .vec_valid_num_col(fifo_vec_valid_num_col),
+        .output_valid     (fifo_s16_output_valid),
+        .output_ready     (fifo_output_ready),
+        .output_row_switch(fifo_s16_output_switch_row),
+        .output_mask      (fifo_s16_output_mask),
+        .output_data      (fifo_s16_output_data),
+        .fifo_full_flag   (fifo_s16_full_flag)
     );
 
     // OA Writer
@@ -1101,6 +1146,7 @@ module npu_top #(
             .m                (run_m),
         .ia_reuse_num     (ia_reuse_num_eff),
         .is_mode          (is_mode),
+        .output_16bits    (run_16x8),
         .output_valid     (fifo_output_valid),
         .switch_row       (fifo_output_switch_row),
             .output_ready     (fifo_output_ready),

@@ -25,6 +25,22 @@ make -C ../sim npu_top_regress \
   TOP_REGRESS_SEED=1000
 ```
 
+TFLM INT16×INT8、INT32 bias、INT16 输出定向回归：
+
+```bash
+make run SIZE=16 IA_CACHE_BLOCKS=4 PS_FRAME_COUNT=16 \
+  GEN_ARGS='--K 3 --N 494 --M 7 --lhs_dtype 2 --int16_output \
+  --tight_strides --ia_reuse_num 1 --w_reuse_num 1 --random_quant'
+```
+
+无 bias 的 FC 以 `bias_base=0` 编码，可用模型的 494 元素输入深度直接覆盖：
+
+```bash
+make run SIZE=16 IA_CACHE_BLOCKS=4 PS_FRAME_COUNT=16 \
+  GEN_ARGS='--K 1 --N 494 --M 1 --lhs_dtype 2 --int16_output --no_bias \
+  --tight_strides --ia_reuse_num 1 --w_reuse_num 1'
+```
+
 生成文件位于 `out/` 和 `obj_dir/`，均不进入版本库。
 
 ## 汇总输出

@@ -29,6 +29,11 @@
 | `0x054` | `0x015` | `NPU_REG_IA_REUSE` | RW | IA cache 复用深度 |
 | `0x058` | `0x016` | `NPU_REG_W_REUSE` | RW | W 侧复用窗口 |
 | `0x05c` | `0x017` | `NPU_REG_DATAFLOW` | RW | `0=WS`，`1=IS` |
+| `0x060` | `0x018` | `NPU_REG_ROW_GROUPS` | RW | 内部流行工作组总数，外部预计算 |
+| `0x064` | `0x019` | `NPU_REG_ROW_TAIL_TILES` | RW | 最后一行工作组的 tile 数，整除时写 R |
+| `0x068` | `0x01a` | `NPU_REG_COL_GROUPS` | RW | 内部流列工作组总数，外部预计算 |
+| `0x06c` | `0x01b` | `NPU_REG_COL_TAIL_TILES` | RW | 最后一列工作组的 tile 数，整除时写 W |
+| `0x070` | `0x01c` | `NPU_REG_CONFIG_ABI` | RO | 配置 ABI 版本，当前为 2 |
 | `0x0fc` | `0x03f` | `NPU_REG_ID` | RO | 固定为 `0x4e50_5531` |
 
 ## CTRL 位定义
@@ -69,3 +74,33 @@ while ((dsa_reg_read(NPU_REG_STATUS) & NPU_STATUS_DONE) == 0u) {
 
 dsa_reg_write(NPU_REG_STATUS, NPU_STATUS_DONE);
 ```
+
+## ABI 2：外部预计算分组参数
+
+本版没有内置配置除法器或硬件除法回退。CPU、模型编译器或外部调度器在 START 之前写入上述四个字段。配置参数从 START 到完成期间必须保持不变。`NPU_REG_ID` 保留设备系列标识；软件用 `NPU_REG_CONFIG_ABI == 2` 判断新配置接口。
+
+设公开 GEMM 形状为 `C[M,N] = A[M,K] × B[K,N]`。本项目旧寄存器命名为 `REG_K=M`（输出行数）、`REG_N=K`（归约维）、`REG_M=N`（输出列数）。WS 内部流行／列对应 M／N；IS 对应 N／M。计算分组时使用内部流维度以及外部计算得到的最终 R、W，包括容量裁剪、支持尺寸取整和 IS 调整。ABI 2 的 R/W 寄存器必须写入非零最终值，支持二次幂及 25，且不能超过对应硬件容量；RTL 检查合法性，不再自动修正 R/W。软件函数仍允许以 0 表示请求自动选择，然后返回非零最终值。
+
+```
+row_tiles = ceil(stream_rows / array_size)
+col_tiles = ceil(stream_cols / array_size)
+ROW_GROUPS = ceil(row_tiles / R)
+ROW_TAIL_TILES = row_tiles % R; 若为 0，则写 R
+COL_GROUPS = ceil(col_tiles / W)
+COL_TAIL_TILES = col_tiles % W; 若为 0，则写 W
+```
+
+`drivers/gempact_tiling.h` 提供独立 C 计算函数；`veri/top_regression/host_tiling.py` 提供相同的 Python 实现。驱动已在配置寄存器时调用 C 函数，写入显式 R、W 及四个字段。固定形状可以保存这些结果并直接配置，无须每次运行除法。
+
+RTL 只检查非零、尾组不超过生效 R/W，以及组数字段能否放入计数器；无效配置返回 `err_code=01`。乘积关系和完整维度一致性由外部保证，RTL 不重新做除法验证。
+
+独立 RTL 仿真的 32 字 `config.mem` 保留 word29 的原有取数模式；word30 的低／高 16 位分别为行／列组数，word31 的低／高 16 位分别为行／列尾组大小。旧输入应先通过 `host_tiling.py SOURCE DESTINATION` 转换。硬件寄存器为 32 位，当前仿真描述符及计数器配置最多支持 65535 组。
+
+论文端到端结果应单独记录 CPU 参数计算和四次新增 MMIO 写入成本；仅计 `calc_start` 到完成的 NPU 周期不含这部分时间。
+
+容量策略应先选择 R/W，再调用本计算函数。该函数检查逻辑 tile、IA 槽数及 PS 帧上限，不预测运行数据的压缩比例；它不保证任意压缩工作集都能放入物理 sector pool。压缩容量检查与异常处理仍按原设计执行。
+
+
+## v14：编码 PS 的容量准入
+
+主机新增 `gempact_plan_capacity()`，按完整 INT32、斜置填充和额外备用帧的最坏占用选择合法 R/W，再计算四个 ABI 2 分组字段。通用驱动的 `DSA_PS_POOL_BYTES=0` 对应旧非编码 PS RAM；编码实验必须指定实际 pool，当前专用驱动配置为 SIZE16/IA64/PS25/pool500736。NPU 未增加配置除法器。该主机修复不提供运行中的换出/checkpoint/恢复，绕过安全规划仍可能报原容量错误。

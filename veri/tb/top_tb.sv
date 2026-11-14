@@ -234,6 +234,9 @@ module tb_top #(
             testname = "ai_mem_gen_smoke_test";
         end
 
+        uvm_config_db#(int unsigned)::set(null,"*","gempact_size",DUT_SIZE);
+        uvm_config_db#(int unsigned)::set(null,"*","gempact_cache",DUT_IA_CACHE_BLOCKS);
+        uvm_config_db#(int unsigned)::set(null,"*","gempact_ps",DUT_PS_FRAME_COUNT);
         run_test(testname);
     end
 

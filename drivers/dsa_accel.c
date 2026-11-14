@@ -1,4 +1,5 @@
 #include "dsa_accel.h"
+#include "gempact_tiling.h"
 
 #define DSA_MATMUL_TIMEOUT 2000000u
 
@@ -211,6 +212,13 @@ void dsa_matmul_config_init(dsa_matmul_config_t *config) {
 static uint32_t configure_mmio_registers(const dsa_matmul_config_t *config,
                                          uint32_t ia_reuse_num,
                                          uint32_t w_reuse_num) {
+    gempact_tiling_t tiling;
+    int mode16x8=(config->lhs_dtype==DSA_DTYPE_S16 && config->rhs_dtype==DSA_DTYPE_S8 &&
+                  config->bias_dtype==DSA_DTYPE_S32 && config->out_dtype==DSA_DTYPE_S16);
+    if (!gempact_plan_capacity(config->K,config->M,DSA_TILE_SIZE,DSA_IA_CACHE_BLOCKS,
+        DSA_PS_FRAME_COUNT,ia_reuse_num,w_reuse_num,
+        config->dataflow_mode==DSA_DATAFLOW_IS && !mode16x8,
+        config->quant_mode==DSA_QUANT_PER_CHANNEL,DSA_PS_POOL_BYTES,&tiling,0)) return DSA_ERR_INVALID_DIM;
     if ((config->lhs_ptr == 0u) || (config->rhs_ptr == 0u) || (config->dst_ptr == 0u)) {
         return DSA_ERR_NULL_PTR;
     }
@@ -248,8 +256,12 @@ static uint32_t configure_mmio_registers(const dsa_matmul_config_t *config,
 
     dsa_reg_write(NPU_REG_ACT_MIN, (uint32_t)config->act_min);
     dsa_reg_write(NPU_REG_ACT_MAX, (uint32_t)config->act_max);
-    dsa_reg_write(NPU_REG_IA_REUSE, ia_reuse_num);
-    dsa_reg_write(NPU_REG_W_REUSE, w_reuse_num);
+    dsa_reg_write(NPU_REG_IA_REUSE, tiling.ia_reuse);
+    dsa_reg_write(NPU_REG_W_REUSE, tiling.w_reuse);
+    dsa_reg_write(NPU_REG_ROW_GROUPS, tiling.row_groups);
+    dsa_reg_write(NPU_REG_ROW_TAIL_TILES, tiling.row_tail_tiles);
+    dsa_reg_write(NPU_REG_COL_GROUPS, tiling.col_groups);
+    dsa_reg_write(NPU_REG_COL_TAIL_TILES, tiling.col_tail_tiles);
 
     return DSA_SUCCESS;
 }
@@ -269,9 +281,7 @@ uint32_t dsa_matmul_execute(const dsa_matmul_config_t *config) {
 
     ia_reuse_num = config->ia_reuse_num;
     w_reuse_num = config->w_reuse_num;
-    dsa_matmul_legalize_reuse(config->K, config->M, DSA_IA_CACHE_BLOCKS,
-                              config->dataflow_mode,
-                              &ia_reuse_num, &w_reuse_num);
+
 
     status = configure_mmio_registers(config, ia_reuse_num, w_reuse_num);
     if (status != DSA_SUCCESS) {
@@ -292,6 +302,12 @@ uint32_t dsa_matmul_execute(const dsa_matmul_config_t *config) {
     }
     if (config->dataflow_mode == DSA_DATAFLOW_IS) {
         ctrl |= NPU_CTRL_DATAFLOW_IS;
+    }
+    if ((config->lhs_dtype == DSA_DTYPE_S16) &&
+        (config->rhs_dtype == DSA_DTYPE_S8) &&
+        (config->bias_dtype == DSA_DTYPE_S32) &&
+        (config->out_dtype == DSA_DTYPE_S16)) {
+        ctrl |= NPU_CTRL_CFG_16X8;
     }
     dsa_memory_barrier();
     dsa_reg_write(NPU_REG_CTRL, ctrl);

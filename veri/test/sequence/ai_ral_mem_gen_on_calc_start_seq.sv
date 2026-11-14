@@ -102,6 +102,7 @@ class ai_ral_mem_gen_on_calc_start_seq extends ai_mem_gen_smoke_seq;
         int gen_dataflow_mode;
         int gen_ia_reuse;
         int gen_w_reuse;
+        int host_rg,host_rt,host_cg,host_ct;
 
         int cfg_k;
         int cfg_n;
@@ -214,6 +215,12 @@ class ai_ral_mem_gen_on_calc_start_seq extends ai_mem_gen_smoke_seq;
         ral_write(regmodel.npu_act_min,    act_min[31:0],           "npu_act_min");
         ral_write(regmodel.npu_act_max,    act_max[31:0],           "npu_act_max");
 `ifdef DUT_AXIL
+        prepare_host_tiling(cfg_k,cfg_m,gen_dataflow_mode,cfg_quant_mode,
+            gen_ia_reuse,gen_w_reuse,host_rg,host_rt,host_cg,host_ct);
+        ral_write(regmodel.axil_row_groups,host_rg,"axil_row_groups");
+        ral_write(regmodel.axil_row_tail_tiles,host_rt,"axil_row_tail_tiles");
+        ral_write(regmodel.axil_col_groups,host_cg,"axil_col_groups");
+        ral_write(regmodel.axil_col_tail_tiles,host_ct,"axil_col_tail_tiles");
         ral_write(regmodel.axil_ia_reuse,   gen_ia_reuse[31:0],      "axil_ia_reuse");
         ral_write(regmodel.axil_w_reuse,    gen_w_reuse[31:0],       "axil_w_reuse");
 `endif

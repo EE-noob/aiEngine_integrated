@@ -134,7 +134,9 @@ module bias_loader_ctrl #(
           end
 
           S_INIT_GEOM: begin
-            num_blocks       <= (cfg_m == '0) ? '0 :
+            // bias_base==0 means that this operation has no bias tensor.
+            // Keep the loader idle instead of reading address zero.
+            num_blocks       <= ((cfg_bias_base == '0) || (cfg_m == '0)) ? '0 :
                                 ((cfg_m + count_t'(SIZE - 1)) >> SIZE_SHIFT);
             last_block_elems <= (cfg_m == '0) ? '0 :
                                 (((cfg_m & count_t'(SIZE - 1)) == '0)

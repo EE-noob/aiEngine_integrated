@@ -68,6 +68,7 @@ module tb_npu_top;
     localparam int CFG_QSHIFT_IDX            = 25;
     localparam int CFG_ACT_MIN_IDX           = 26;
     localparam int CFG_ACT_MAX_IDX           = 27;
+    localparam int CFG_16X8_IDX              = 28;
 
     logic [31:0] case_cfg_mem[0:CFG_WORDS-1];
     logic [REGW-1:0] compare_words;
@@ -79,6 +80,7 @@ module tb_npu_top;
 
     logic                       calc_start;
     logic                       cfg_16bits_ia;
+    logic                       cfg_16x8;
     logic                       cfg_dataflow_mode;
     logic [REGW-1:0]            cfg_ia_reuse_num;
     logic [REGW-1:0]            cfg_w_reuse_num;
@@ -144,9 +146,15 @@ module tb_npu_top;
         .rst_n        (rst_n),
         .calc_start   (calc_start),
         .cfg_16bits_ia(cfg_16bits_ia),
+        .cfg_16x8(cfg_16x8),
         .cfg_dataflow_mode(cfg_dataflow_mode),
         .cfg_ia_reuse_num(cfg_ia_reuse_num),
         .cfg_w_reuse_num (cfg_w_reuse_num),
+        // Four mandatory CPU/compiler-computed fields, packed in descriptor words 30/31.
+        .cfg_row_groups({16'b0,case_cfg_mem[30][15:0]}),
+        .cfg_col_groups({16'b0,case_cfg_mem[30][31:16]}),
+        .cfg_row_tail_tiles({16'b0,case_cfg_mem[31][15:0]}),
+        .cfg_col_tail_tiles({16'b0,case_cfg_mem[31][31:16]}),
         .sa_ready     (sa_ready),
         .done_valid   (done_valid),
         .done_ready   (done_ready),
@@ -242,6 +250,7 @@ module tb_npu_top;
     initial begin
         calc_start        <= 1'b0;
         cfg_16bits_ia    <= 1'b0;
+        cfg_16x8         <= 1'b0;
         cfg_dataflow_mode <= 1'b0;
         cfg_ia_reuse_num <= '0;
         cfg_w_reuse_num  <= '0;
@@ -267,6 +276,7 @@ module tb_npu_top;
         @(posedge rst_n);
         @(posedge clk);
         cfg_16bits_ia    <= case_cfg_mem[CFG_16BITS_IA_IDX][0];
+        cfg_16x8         <= case_cfg_mem[CFG_16X8_IDX][0];
         cfg_dataflow_mode <= case_cfg_mem[CFG_DATAFLOW_MODE_IDX][0];
         cfg_ia_reuse_num <= case_cfg_mem[CFG_IA_REUSE_NUM_IDX];
         cfg_w_reuse_num  <= case_cfg_mem[CFG_W_REUSE_NUM_IDX];
@@ -327,6 +337,14 @@ module tb_npu_top;
 
     function automatic logic [7:0] golden_mem_byte(input int unsigned byte_addr);
         golden_mem_byte = pick_byte(golden_mem[byte_addr >> 2], byte_addr);
+    endfunction
+
+    function automatic logic [15:0] actual_mem_s16(input int unsigned byte_addr);
+        actual_mem_s16 = {actual_mem_byte(byte_addr + 1), actual_mem_byte(byte_addr)};
+    endfunction
+
+    function automatic logic [15:0] golden_mem_s16(input int unsigned byte_addr);
+        golden_mem_s16 = {golden_mem_byte(byte_addr + 1), golden_mem_byte(byte_addr)};
     endfunction
 
     always_ff @(posedge clk or negedge rst_n) begin
@@ -499,10 +517,11 @@ module tb_npu_top;
         compare_words = case_cfg_mem[CFG_COMPARE_WORDS_IDX];
         case_mem_words = case_cfg_mem[CFG_MEM_WORDS_IDX];
 
-        $display("[TB] CASE SIZE=%0d CACHE=%0d K=%0d N=%0d M=%0d cfg_16bits_ia=%0b mode=%s R=%0d W=%0d compare_words=%0d check=%s",
+        $display("[TB] CASE SIZE=%0d CACHE=%0d K=%0d N=%0d M=%0d cfg_16bits_ia=%0b cfg_16x8=%0b mode=%s R=%0d W=%0d compare_words=%0d check=%s",
                  SIZE, IA_CACHE_BLOCKS,
                  case_cfg_mem[CFG_K_IDX], case_cfg_mem[CFG_N_IDX], case_cfg_mem[CFG_M_IDX],
                  case_cfg_mem[CFG_16BITS_IA_IDX][0],
+                 case_cfg_mem[CFG_16X8_IDX][0],
                  case_cfg_mem[CFG_DATAFLOW_MODE_IDX][0] ? "IS" : "WS",
                  case_cfg_mem[CFG_IA_REUSE_NUM_IDX], case_cfg_mem[CFG_W_REUSE_NUM_IDX],
                  compare_words, full_mem_check ? "full" : "dst");
@@ -540,6 +559,11 @@ module tb_npu_top;
         // 等待 sa_ready 恢复为 1（计算完成）
         wait (sa_ready == 1'b1);
         $display("[TB] Computation done (sa_ready=1) at time %0t", $time);
+        if ($test$plusargs("EXPECT_CFG_ERROR")) begin
+            if (err_code == 2'b01) $display("[TB] EXPECTED_CFG_ERROR_PASS");
+            else $display("[TB] EXPECTED_CFG_ERROR_FAIL code=%0d",err_code);
+            $finish;
+        end
         if (err_code != 2'b00) begin
             $display("[TB] FAIL, err_code=%0b", err_code);
             $finish;
@@ -566,15 +590,30 @@ module tb_npu_top;
                     logic [7:0] got_byte;
                     logic [7:0] exp_byte;
                     byte_addr = case_cfg_mem[CFG_DST_BASE_IDX] +
-                                row * case_cfg_mem[CFG_DST_ROW_STRIDE_B_IDX] + col;
-                    got_byte = actual_mem_byte(byte_addr);
-                    exp_byte = golden_mem_byte(byte_addr);
-                    if (got_byte !== exp_byte) begin
-                        if (err < 32) begin
-                            $display("[TB][MISMATCH] dst[%0d,%0d] addr=%08x got=%02x exp=%02x",
-                                     row, col, byte_addr, got_byte, exp_byte);
+                                row * case_cfg_mem[CFG_DST_ROW_STRIDE_B_IDX] +
+                                (case_cfg_mem[CFG_16X8_IDX][0] ? (col << 1) : col);
+                    if (case_cfg_mem[CFG_16X8_IDX][0]) begin
+                        logic [15:0] got_s16;
+                        logic [15:0] exp_s16;
+                        got_s16 = actual_mem_s16(byte_addr);
+                        exp_s16 = golden_mem_s16(byte_addr);
+                        if (got_s16 !== exp_s16) begin
+                            if (err < 32) begin
+                                $display("[TB][MISMATCH] dst[%0d,%0d] addr=%08x got=%04x exp=%04x",
+                                         row, col, byte_addr, got_s16, exp_s16);
+                            end
+                            err++;
                         end
-                        err++;
+                    end else begin
+                        got_byte = actual_mem_byte(byte_addr);
+                        exp_byte = golden_mem_byte(byte_addr);
+                        if (got_byte !== exp_byte) begin
+                            if (err < 32) begin
+                                $display("[TB][MISMATCH] dst[%0d,%0d] addr=%08x got=%02x exp=%02x",
+                                         row, col, byte_addr, got_byte, exp_byte);
+                            end
+                            err++;
+                        end
                     end
                 end
             end

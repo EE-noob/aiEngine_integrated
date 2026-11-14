@@ -43,6 +43,10 @@ class npu_reg_block extends uvm_reg_block;
     rand npu_reg axil_ia_reuse;
     rand npu_reg axil_w_reuse;
     rand npu_reg axil_dataflow;
+    rand npu_reg axil_row_groups;
+    rand npu_reg axil_row_tail_tiles;
+    rand npu_reg axil_col_groups;
+    rand npu_reg axil_col_tail_tiles;
 `endif
 
     function new(string name = "npu_reg_block");
@@ -176,6 +180,26 @@ class npu_reg_block extends uvm_reg_block;
         axil_w_reuse.build();
         axil_w_reuse.configure(this, null, "");
         default_map.add_reg(axil_w_reuse, `ADDR_NPU_W_REUSE, "RW");
+
+        axil_row_groups = npu_reg::type_id::create("axil_row_groups",,get_full_name());
+        axil_row_groups.build();
+        axil_row_groups.configure(this, null, "");
+        default_map.add_reg(axil_row_groups, `ADDR_NPU_ROW_GROUPS, "RW");
+
+        axil_row_tail_tiles = npu_reg::type_id::create("axil_row_tail_tiles",,get_full_name());
+        axil_row_tail_tiles.build();
+        axil_row_tail_tiles.configure(this, null, "");
+        default_map.add_reg(axil_row_tail_tiles, `ADDR_NPU_ROW_TAIL_TILES, "RW");
+
+        axil_col_groups = npu_reg::type_id::create("axil_col_groups",,get_full_name());
+        axil_col_groups.build();
+        axil_col_groups.configure(this, null, "");
+        default_map.add_reg(axil_col_groups, `ADDR_NPU_COL_GROUPS, "RW");
+
+        axil_col_tail_tiles = npu_reg::type_id::create("axil_col_tail_tiles",,get_full_name());
+        axil_col_tail_tiles.build();
+        axil_col_tail_tiles.configure(this, null, "");
+        default_map.add_reg(axil_col_tail_tiles, `ADDR_NPU_COL_TAIL_TILES, "RW");
 
         axil_dataflow = npu_reg::type_id::create("axil_dataflow",,get_full_name());
         axil_dataflow.build();

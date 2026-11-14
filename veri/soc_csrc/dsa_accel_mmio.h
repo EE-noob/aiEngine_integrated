@@ -30,6 +30,11 @@
 #define NPU_REG_IA_REUSE     0x054u
 #define NPU_REG_W_REUSE      0x058u
 #define NPU_REG_DATAFLOW     0x05Cu
+#define NPU_REG_ROW_GROUPS        0x060u
+#define NPU_REG_ROW_TAIL_TILES    0x064u
+#define NPU_REG_COL_GROUPS        0x068u
+#define NPU_REG_COL_TAIL_TILES    0x06Cu
+#define NPU_REG_CONFIG_ABI    0x070u
 #define NPU_REG_ID           0x0FCu
 
 #define NPU_CTRL_START          (1u << 0)
@@ -37,6 +42,7 @@
 #define NPU_CTRL_PER_CHANNEL    (1u << 2)
 #define NPU_CTRL_DATAFLOW_IS    (1u << 3)
 #define NPU_CTRL_IRQ_ENABLE     (1u << 4)
+#define NPU_CTRL_CFG_16X8       (1u << 5)
 
 #define NPU_STATUS_DONE      (1u << 2)
 #define NPU_STATUS_ERR_SHIFT 3u
@@ -48,6 +54,11 @@
 
 #ifndef DSA_IA_CACHE_BLOCKS
 #define DSA_IA_CACHE_BLOCKS 4u
+#endif
+
+/* Sector payload pool, not total BRAM bytes; 0 = legacy raw PS RAM. */
+#ifndef DSA_PS_POOL_BYTES
+#define DSA_PS_POOL_BYTES 0u
 #endif
 
 #ifndef DSA_PS_FRAME_COUNT

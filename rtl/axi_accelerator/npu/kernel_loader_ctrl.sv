@@ -15,6 +15,10 @@ module kernel_loader_ctrl #(
     input  logic                        cfg_use_16bits,
     input  logic [REG_WIDTH-1:0]        cfg_ia_reuse_num,
     input  logic [REG_WIDTH-1:0]        cfg_w_reuse_num,
+    input logic [REG_WIDTH-1:0] cfg_row_groups,
+    input logic [REG_WIDTH-1:0] cfg_row_tail_tiles,
+    input logic [REG_WIDTH-1:0] cfg_col_groups,
+    input logic [REG_WIDTH-1:0] cfg_col_tail_tiles,
     input  logic                        load_weight_granted,
     input  logic                        send_weight_trigger,
     input  logic                        buf_weight_data_valid,
@@ -127,8 +131,8 @@ module kernel_loader_ctrl #(
     cfg_tile_rows_total        = ceil_div_pow2(cfg_n, count_t'(SIZE));
     cfg_tile_cols_total        = ceil_div_pow2(cfg_m, count_t'(SIZE));
     cfg_output_row_tiles_total = ceil_div_pow2(cfg_k, count_t'(SIZE));
-    cfg_l2_groups_total        = ceil_div_pow2(REG_WIDTH'(cfg_tile_cols_total), w_reuse_norm);
-    cfg_repeat_total           = ceil_div_pow2(REG_WIDTH'(cfg_output_row_tiles_total), ia_reuse_norm);
+    cfg_l2_groups_total = count_t'(cfg_col_groups);
+    cfg_repeat_total = count_t'(cfg_row_groups);
     if (cfg_tile_rows_total == 0) cfg_tile_rows_total = count_t'(1);
     if (cfg_tile_cols_total == 0) cfg_tile_cols_total = count_t'(1);
     if (cfg_l2_groups_total == 0) cfg_l2_groups_total = count_t'(1);
@@ -139,28 +143,8 @@ module kernel_loader_ctrl #(
     if (cfg_last_n_rows == 0) cfg_last_n_rows = count_t'(SIZE);
     if (cfg_last_m_cols == 0) cfg_last_m_cols = count_t'(SIZE);
 
-    unique case (w_reuse_norm)
-      count_t'(1):    cfg_group_tail_cols = '0;
-      count_t'(2):    cfg_group_tail_cols = cfg_tile_cols_total & count_t'(1);
-      count_t'(4):    cfg_group_tail_cols = cfg_tile_cols_total & count_t'(3);
-      count_t'(8):    cfg_group_tail_cols = cfg_tile_cols_total & count_t'(7);
-      count_t'(16):   cfg_group_tail_cols = cfg_tile_cols_total & count_t'(15);
-      count_t'(32):   cfg_group_tail_cols = cfg_tile_cols_total & count_t'(31);
-      count_t'(64):   cfg_group_tail_cols = cfg_tile_cols_total & count_t'(63);
-      count_t'(128):  cfg_group_tail_cols = cfg_tile_cols_total & count_t'(127);
-      count_t'(256):  cfg_group_tail_cols = cfg_tile_cols_total & count_t'(255);
-      count_t'(512):  cfg_group_tail_cols = cfg_tile_cols_total & count_t'(511);
-      count_t'(1024): cfg_group_tail_cols = cfg_tile_cols_total & count_t'(1023);
-      default:        cfg_group_tail_cols = '0;
-    endcase
-    if (cfg_l2_groups_total <= count_t'(1)) begin
-      cfg_last_group_width = cfg_tile_cols_total;
-    end else if (cfg_group_tail_cols == 0) begin
-      cfg_last_group_width = w_reuse_norm;
-    end else begin
-      cfg_last_group_width = cfg_group_tail_cols;
-    end
-    if (cfg_last_group_width == 0) cfg_last_group_width = count_t'(1);
+    cfg_group_tail_cols = count_t'(cfg_col_tail_tiles);
+    cfg_last_group_width = count_t'(cfg_col_tail_tiles);
 
     if (tile_cols_total < w_reuse_total) begin
       first_group_width = tile_cols_total;
@@ -190,6 +174,7 @@ module kernel_loader_ctrl #(
       count_t'(4):    cfg_group_addr_step = cfg_col_addr_step << 2;
       count_t'(8):    cfg_group_addr_step = cfg_col_addr_step << 3;
       count_t'(16):   cfg_group_addr_step = cfg_col_addr_step << 4;
+      count_t'(25):   cfg_group_addr_step = (cfg_col_addr_step << 4) + (cfg_col_addr_step << 3) + cfg_col_addr_step;
       count_t'(32):   cfg_group_addr_step = cfg_col_addr_step << 5;
       count_t'(64):   cfg_group_addr_step = cfg_col_addr_step << 6;
       count_t'(128):  cfg_group_addr_step = cfg_col_addr_step << 7;

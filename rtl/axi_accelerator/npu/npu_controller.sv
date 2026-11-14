@@ -38,6 +38,7 @@ module npu_controller #(
     input  wire rst_n,          // 异步复位，低有效
     input  wire calc_start,     // 计算开始
     input  wire cfg_16bits_ia,  // 使用16位IA数据
+    input wire cfg_tiling_error,
     input  wire cfg_dataflow_mode,  // 0: WS, 1: IS
     output wire sa_ready,       // 控制器就绪
 
@@ -179,7 +180,9 @@ module npu_controller #(
     end
 `endif
 
-	    assign bias_ready_for_compute = bias_sleep || bias_valid;
+    // A zero bias address is the architectural encoding for "no bias".
+    // In that case there is no DMA payload to wait for.
+    assign bias_ready_for_compute = (bias_base == '0) || bias_sleep || bias_valid;
 	    assign compute_tail_done = compute_tail_pending && partial_sum_calc_over;
 	    assign weight_safe_to_send = !compute_tail_pending || compute_tail_done;
 	    assign issue_weight_now = !oa_calc_over &&
@@ -210,7 +213,7 @@ module npu_controller #(
         ptr_error = (lhs_base == '0) || (rhs_base == '0) || (dst_base == '0);
 
         // 检查矩阵维度
-        dim_error = (k == '0) || (n == '0) || (m == '0);
+        dim_error = cfg_tiling_error || (k == '0) || (n == '0) || (m == '0);
 
         // 检查行步长
         stride_error = (lhs_row_stride_b == '0) || (rhs_col_stride_b == '0) || (dst_row_stride_b == '0);
@@ -233,7 +236,7 @@ module npu_controller #(
         ptr_error = (lhs_base == '0) || (rhs_base == '0) || (dst_base == '0);
 
         // 配置错误（维度、步长、量化参数）
-        config_err = (k == '0) || (n == '0) || (m == '0) ||
+        config_err = cfg_tiling_error || (k == '0) || (n == '0) || (m == '0) ||
                      (lhs_row_stride_b == '0) || (rhs_col_stride_b == '0) || (dst_row_stride_b == '0) ||
                      (use_per_channel && ((q_mult_pt == '0) || (q_shift_pt == '0)));
         mode_error = 1'b0;

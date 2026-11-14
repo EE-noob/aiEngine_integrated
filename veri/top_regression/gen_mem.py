@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from host_tiling import apply_words
 import json
 import math
 import os
@@ -23,6 +24,10 @@ def sat_s8(value):
     return max(-128, min(127, value))
 
 
+def sat_s16(value):
+    return max(-32768, min(32767, value))
+
+
 def round_divide_by_power_of_two(value, rshift):
     if rshift == 0:
         return value
@@ -44,6 +49,13 @@ def cmsis_nn_requantize(acc, multiplier, shift):
     if rshift > 0:
         result = round_divide_by_power_of_two(result, rshift)
     return result
+
+
+def nmsis_nn_requantize_s64(acc, multiplier, shift):
+    reduced_multiplier = ((multiplier + (1 << 15)) >> 16
+                          if multiplier < 0x7FFF0000 else 0x7FFF)
+    result = (acc * reduced_multiplier) >> (14 - shift)
+    return (result + 1) >> 1
 
 
 def pack_words_le(bytearr):
@@ -141,6 +153,13 @@ def choose_case(args):
     if args.random_per_channel:
         use_per_channel = bool(rng.randint(0, 1))
 
+    int16_output = bool(args.int16_output)
+    if int16_output:
+        if lhs_dtype != 2:
+            raise ValueError("--int16_output requires --lhs_dtype 2")
+        if use_per_channel or dataflow_mode != 0:
+            raise ValueError("int16 output regression currently supports per-tensor WS only")
+
     if args.random_quant:
         if use_per_channel:
             q_mult_by_col = [signed32(rng.randint(0x40000000, 0x7FFFFFFF)) for _ in range(m)]
@@ -152,17 +171,17 @@ def choose_case(args):
             q_shift = rng.randint(-3, 1)
             q_mult_by_col = []
             q_shift_by_col = []
-        dst_zp = rng.randint(-16, 16)
-        act_min = rng.randint(-128, -16)
-        act_max = rng.randint(16, 127)
+        dst_zp = 0 if int16_output else rng.randint(-16, 16)
+        act_min = rng.randint(-32768, -1024) if int16_output else rng.randint(-128, -16)
+        act_max = rng.randint(1024, 32767) if int16_output else rng.randint(16, 127)
     else:
         q_mult = 0x7FFFFFFF
         q_shift = 0
         q_mult_by_col = [signed32(q_mult) for _ in range(m)] if use_per_channel else []
         q_shift_by_col = [q_shift for _ in range(m)] if use_per_channel else []
         dst_zp = 0
-        act_min = -128
-        act_max = 127
+        act_min = -32768 if int16_output else -128
+        act_max = 32767 if int16_output else 127
 
     return {
         "seed": args.seed,
@@ -170,6 +189,8 @@ def choose_case(args):
         "n": n,
         "m": m,
         "lhs_dtype": lhs_dtype,
+        "int16_output": int16_output,
+        "no_bias": bool(args.no_bias),
         "lhs_zp": args.lhs_zp,
         "rhs_zp": args.rhs_zp,
         "dst_zp": dst_zp,
@@ -184,6 +205,7 @@ def choose_case(args):
         "w_reuse_num": w_reuse_num,
         "dataflow_mode": dataflow_mode,
         "ps_frame_count": args.ps_frame_count,
+        "ps_pool_bytes": getattr(args,"ps_pool_bytes",0),
         "ia_cache_blocks": args.ia_cache_blocks,
         "random": args.random,
         "random_quant": args.random_quant,
@@ -228,7 +250,8 @@ def compute_layout(case, args, rng):
     # transposes the writeback, so the case image must not pre-transpose LHS.
     lhs_row_stride_b = stride(n * lhs_elem_bytes)
     rhs_row_stride_b = stride(n)
-    dst_row_stride_b = stride(m)
+    dst_elem_bytes = 2 if case["int16_output"] else 1
+    dst_row_stride_b = stride(m * dst_elem_bytes)
 
     cur = 0x100
     lhs_base = cur
@@ -239,8 +262,9 @@ def compute_layout(case, args, rng):
     rhs_end = rhs_base + (m - 1) * rhs_row_stride_b + n
 
     cur = align_up(rhs_end, 0x100)
-    bias_base = cur
-    bias_end = bias_base + m * 4
+    bias_data_base = cur
+    bias_end = bias_data_base + m * 4
+    bias_base = 0 if case["no_bias"] else bias_data_base
 
     cur = align_up(bias_end, 0x100)
     if case["use_per_channel"]:
@@ -257,7 +281,7 @@ def compute_layout(case, args, rng):
         q_shift_end = bias_end
 
     dst_base = cur
-    dst_end = dst_base + (k - 1) * dst_row_stride_b + m
+    dst_end = dst_base + (k - 1) * dst_row_stride_b + m * dst_elem_bytes
 
     compare_words = align_up(max(lhs_end, rhs_end, bias_end, q_mult_end, q_shift_end, dst_end), WORD_BYTES) // WORD_BYTES + 16
     mem_words = max(args.mem_words, 4096, compare_words)
@@ -268,6 +292,7 @@ def compute_layout(case, args, rng):
         "lhs_base": lhs_base,
         "rhs_base": rhs_base,
         "bias_base": bias_base,
+        "bias_data_base": bias_data_base,
         "dst_base": dst_base,
         "q_mult_base": q_mult_base,
         "q_shift_base": q_shift_base,
@@ -300,8 +325,9 @@ def fill_images(case, layout, lhs, rhs, bias):
         for col in range(case["n"]):
             put_s8(img_init, row_base + col, rhs[col][row])
 
-    for col in range(case["m"]):
-        put_s32(img_init, layout["bias_base"] + 4 * col, bias[col])
+    if not case["no_bias"]:
+        for col in range(case["m"]):
+            put_s32(img_init, layout["bias_base"] + 4 * col, bias[col])
 
     if case["use_per_channel"]:
         for col in range(case["m"]):
@@ -313,16 +339,22 @@ def fill_images(case, layout, lhs, rhs, bias):
     for row in range(case["k"]):
         dst_row = layout["dst_base"] + row * layout["dst_row_stride_b"]
         for col in range(case["m"]):
-            acc = bias[col]
+            acc = 0 if case["no_bias"] else bias[col]
             for red in range(case["n"]):
                 acc += (lhs[row][red] + case["lhs_zp"]) * (rhs[red][col] + case["rhs_zp"])
-            if case["use_per_channel"]:
+            if case["int16_output"]:
+                out = nmsis_nn_requantize_s64(acc, case["q_mult"], case["q_shift"])
+            elif case["use_per_channel"]:
                 out = cmsis_nn_requantize(acc, case["q_mult_by_col"][col], case["q_shift_by_col"][col])
             else:
                 out = cmsis_nn_requantize(acc, case["q_mult"], case["q_shift"])
-            out += case["dst_zp"]
+            if not case["int16_output"]:
+                out += case["dst_zp"]
             out = max(case["act_min"], min(case["act_max"], out))
-            put_s8(img_golden, dst_row + col, sat_s8(out))
+            if case["int16_output"]:
+                put_s16(img_golden, dst_row + 2 * col, sat_s16(out))
+            else:
+                put_s8(img_golden, dst_row + col, sat_s8(out))
 
     return img_init, img_golden
 
@@ -403,7 +435,11 @@ def write_config_mem(path, case, layout):
     put(25, layout["q_shift_base"] if case["use_per_channel"] else case["q_shift"])
     put(26, case["act_min"])
     put(27, case["act_max"])
+    put(28, 1 if case["int16_output"] else 0)
 
+    words, host_tiling = apply_words(words,case.get("ps_pool_bytes",0))
+    case["ia_reuse_num"]=host_tiling["ia_reuse"]
+    case["w_reuse_num"]=host_tiling["w_reuse"]
     with open(path, "w", encoding="utf-8") as f:
         for word in words:
             f.write(f"{word:08x}\n")
@@ -428,6 +464,10 @@ def main():
     parser.add_argument("--M", type=int)
     parser.add_argument("--lhs_dtype", type=int, choices=[0, 1, 2], default=0,
                         help="0=random/default, 1=s8, 2=s16")
+    parser.add_argument("--int16_output", action="store_true",
+                        help="TFLM 16x8 mode: s16 lhs, s8 rhs, s32 bias, s16 output")
+    parser.add_argument("--no_bias", action="store_true",
+                        help="set bias_base to zero and use zero bias")
     parser.add_argument("--min_dim", type=int, default=1)
     parser.add_argument("--max_dim", type=int, default=32)
     parser.add_argument("--dim_multiple", type=int, default=1)
@@ -439,6 +479,7 @@ def main():
                         help="0=WS, 1=IS internal role swap with transposed writeback")
     parser.add_argument("--random_dataflow", action="store_true")
     parser.add_argument("--ps_frame_count", type=int, default=8)
+    parser.add_argument("--ps_pool_bytes", type=int, default=0, help="sector payload pool; nonzero enables guaranteed capacity planning")
     args = parser.parse_args()
 
     global SIZE
@@ -460,8 +501,8 @@ def main():
     golden_words = pack_words_le(bytes(img_golden))
     write_mem_hex(os.path.join(args.out_dir, "init.mem"), init_words, layout["mem_words"])
     write_mem_hex(os.path.join(args.out_dir, "golden.mem"), golden_words, layout["mem_words"])
-    write_params_svh(os.path.join(args.out_dir, "test_params.svh"), case, layout)
     write_config_mem(os.path.join(args.out_dir, "config.mem"), case, layout)
+    write_params_svh(os.path.join(args.out_dir, "test_params.svh"), case, layout)
 
     config = {"size": SIZE, **case, **layout}
     with open(os.path.join(args.out_dir, "config.json"), "w", encoding="utf-8") as f:
@@ -474,6 +515,8 @@ def main():
           f"SIZE={SIZE} CACHE={case['ia_cache_blocks']} "
           f"R={case['ia_reuse_num']} W={case['w_reuse_num']} "
           f"seed={case['seed']} per_channel={int(case['use_per_channel'])} "
+          f"bias={'none' if case['no_bias'] else 's32'} "
+          f"out={'s16' if case['int16_output'] else 's8'} "
           f"qmul={layout['q_mult_base'] if case['use_per_channel'] else case['q_mult']} "
           f"qshift={layout['q_shift_base'] if case['use_per_channel'] else case['q_shift']} "
           f"compare_words={layout['compare_words']}")

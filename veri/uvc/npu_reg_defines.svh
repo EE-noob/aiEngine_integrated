@@ -28,6 +28,12 @@
 `define ADDR_NPU_W_REUSE        12'h016 // W-side output-column reuse window
 `define ADDR_NPU_DATAFLOW       12'h017 // 0=WS, 1=IS
 
+`define ADDR_NPU_ROW_GROUPS         12'h018
+`define ADDR_NPU_ROW_TAIL_TILES     12'h019
+`define ADDR_NPU_COL_GROUPS         12'h01A
+`define ADDR_NPU_COL_TAIL_TILES     12'h01B
+`define ADDR_NPU_CONFIG_ABI     12'h01C
+
 // AXI-Lite Special Registers (npu_axil_top)
 `define ADDR_NPU_CTRL       12'h000
 `define ADDR_NPU_STATUS     12'h001

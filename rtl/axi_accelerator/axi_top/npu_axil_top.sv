@@ -97,10 +97,15 @@ module npu_axil_top #(
     wire signed [REG_WIDTH-1:0] act_min_reg;
     wire signed [REG_WIDTH-1:0] act_max_reg;
     wire cfg_16bits_ia_reg;
+    wire cfg_16x8_reg;
     wire cfg_dataflow_mode_reg;
     wire use_per_channel_reg;
     wire [REG_WIDTH-1:0] cfg_ia_reuse_num_reg;
     wire [REG_WIDTH-1:0] cfg_w_reuse_num_reg;
+    wire [REG_WIDTH-1:0] cfg_row_groups_reg;
+    wire [REG_WIDTH-1:0] cfg_row_tail_tiles_reg;
+    wire [REG_WIDTH-1:0] cfg_col_groups_reg;
+    wire [REG_WIDTH-1:0] cfg_col_tail_tiles_reg;
     wire calc_start_pulse;
     wire npu_sa_ready;
     wire npu_done_valid;
@@ -255,10 +260,15 @@ module npu_axil_top #(
         .s_axil_rready(s_axil_rready),
         .calc_start(calc_start_pulse),
         .cfg_16bits_ia(cfg_16bits_ia_reg),
+        .cfg_16x8(cfg_16x8_reg),
         .cfg_dataflow_mode(cfg_dataflow_mode_reg),
         .use_per_channel(use_per_channel_reg),
         .cfg_ia_reuse_num(cfg_ia_reuse_num_reg),
         .cfg_w_reuse_num(cfg_w_reuse_num_reg),
+        .cfg_row_groups(cfg_row_groups_reg),
+        .cfg_row_tail_tiles(cfg_row_tail_tiles_reg),
+        .cfg_col_groups(cfg_col_groups_reg),
+        .cfg_col_tail_tiles(cfg_col_tail_tiles_reg),
         .lhs_base(lhs_base_reg),
         .rhs_base(rhs_base_reg),
         .dst_base(dst_base_reg),
@@ -303,9 +313,14 @@ module npu_axil_top #(
         .rst_n(rst_n),
         .calc_start(npu_core_calc_start),
         .cfg_16bits_ia(cfg_16bits_ia_reg),
+        .cfg_16x8(cfg_16x8_reg),
         .cfg_dataflow_mode(cfg_dataflow_mode_reg),
         .cfg_ia_reuse_num(cfg_ia_reuse_num_reg),
         .cfg_w_reuse_num(cfg_w_reuse_num_reg),
+        .cfg_row_groups(cfg_row_groups_reg),
+        .cfg_row_tail_tiles(cfg_row_tail_tiles_reg),
+        .cfg_col_groups(cfg_col_groups_reg),
+        .cfg_col_tail_tiles(cfg_col_tail_tiles_reg),
         .sa_ready(npu_sa_ready),
         .done_valid(npu_done_valid),
         .done_ready(npu_done_ready),

@@ -59,6 +59,10 @@ static uint32_t run_reg_directed(void)
     dsa_reg_write(NPU_REG_ACT_MAX, 63u);
     dsa_reg_write(NPU_REG_IA_REUSE, 2u);
     dsa_reg_write(NPU_REG_W_REUSE, 4u);
+    dsa_reg_write(NPU_REG_ROW_GROUPS, 1u);
+    dsa_reg_write(NPU_REG_ROW_TAIL_TILES, 2u);
+    dsa_reg_write(NPU_REG_COL_GROUPS, 1u);
+    dsa_reg_write(NPU_REG_COL_TAIL_TILES, 2u);
 
     ctrl_flags = NPU_CTRL_CFG_16BITS_IA |
                  NPU_CTRL_PER_CHANNEL |
@@ -106,6 +110,16 @@ static uint32_t run_reg_directed(void)
     status = check_reg(NPU_REG_IA_REUSE, 2u);
     if (status != SOC_REG_TEST_OK) return status;
     status = check_reg(NPU_REG_W_REUSE, 4u);
+    if (status != SOC_REG_TEST_OK) return status;
+    status = check_reg(NPU_REG_CONFIG_ABI, 2u);
+    if (status != SOC_REG_TEST_OK) return status;
+    status = check_reg(NPU_REG_ROW_GROUPS, 1u);
+    if (status != SOC_REG_TEST_OK) return status;
+    status = check_reg(NPU_REG_ROW_TAIL_TILES, 2u);
+    if (status != SOC_REG_TEST_OK) return status;
+    status = check_reg(NPU_REG_COL_GROUPS, 1u);
+    if (status != SOC_REG_TEST_OK) return status;
+    status = check_reg(NPU_REG_COL_TAIL_TILES, 2u);
     if (status != SOC_REG_TEST_OK) return status;
     status = check_reg(NPU_REG_DATAFLOW, 1u);
     if (status != SOC_REG_TEST_OK) return status;

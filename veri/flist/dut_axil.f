@@ -22,6 +22,8 @@
 ../../rtl/axi_accelerator/npu/ps_buffer_fifo.sv
 ../../rtl/axi_accelerator/npu/pseudo_dual_port_ram.v
 ../../rtl/axi_accelerator/npu/vec_requant.sv
+../../rtl/axi_accelerator/npu/vec_requant_s64.sv
 ../../rtl/axi_accelerator/npu/vec_s8_to_fifo.sv
+../../rtl/axi_accelerator/npu/vec_s16_to_fifo.sv
 ../../rtl/axi_accelerator/npu/ws_systolic_array.sv
 ../../rtl/axi_accelerator/npu/ws_systolic_cell.sv

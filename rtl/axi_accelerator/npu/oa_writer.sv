@@ -19,6 +19,7 @@ module oa_writer #(
     input logic [REG_WIDTH-1:0] m,
     input logic [REG_WIDTH-1:0] ia_reuse_num,
     input logic                 is_mode,
+    input logic                 output_16bits,
 
     input  logic                    oa_fifo_req,
     output logic [$clog2(VLEN)-1:0] vec_valid_num_col,
@@ -75,6 +76,7 @@ module oa_writer #(
     count_t               cfg_ia_reuse_num;
     logic                 cfg_has_tiles;
     logic                 cfg_is_mode;
+    logic                 cfg_output_16bits;
     logic                 cfg_lat_tick;
     count_t               row_tiles_total;
     count_t               col_tiles_total;
@@ -183,7 +185,7 @@ module oa_writer #(
 
     always_comb begin
         init_reuse_num_eff = (ia_reuse_num == '0) ? count_t'(1) : count_t'(ia_reuse_num);
-        init_tile_linear_step = REG_WIDTH'(VLEN);
+        init_tile_linear_step = REG_WIDTH'(VLEN) << (output_16bits ? 1 : 0);
         init_tile_stride_step = dst_row_stride_b << VCOL_W;
         init_row_addr_step = is_mode_eff ? init_tile_linear_step : init_tile_stride_step;
         init_col_addr_step = is_mode_eff ? init_tile_stride_step : init_tile_linear_step;
@@ -193,6 +195,7 @@ module oa_writer #(
             count_t'(4):  init_group_row_addr_step = init_row_addr_step << 2;
             count_t'(8):  init_group_row_addr_step = init_row_addr_step << 3;
             count_t'(16): init_group_row_addr_step = init_row_addr_step << 4;
+            count_t'(25): init_group_row_addr_step = (init_row_addr_step << 4) + (init_row_addr_step << 3) + init_row_addr_step;
             count_t'(32): init_group_row_addr_step = init_row_addr_step << 5;
             count_t'(64): init_group_row_addr_step = init_row_addr_step << 6;
             default:        init_group_row_addr_step = init_row_addr_step;
@@ -245,7 +248,11 @@ module oa_writer #(
         cols_valid_next_calc = cfg_is_mode
                              ? (next_tile_row_is_last_cur ? m_last_valid : VLEN_COUNT)
                              : (next_tile_col_is_last_cur ? m_last_valid : VLEN_COUNT);
-        beats_per_row_calc = (cols_valid_calc + (VCOL_W + 1)'(BYTE_PER_BEAT - 1)) >> LOG2_BPB;
+        if (cfg_output_16bits) begin
+            beats_per_row_calc = (cols_valid_calc + (VCOL_W + 1)'(1)) >> 1;
+        end else begin
+            beats_per_row_calc = (cols_valid_calc + (VCOL_W + 1)'(BYTE_PER_BEAT - 1)) >> LOG2_BPB;
+        end
         vec_valid_num_col_next_w = (cols_valid_next_calc == '0) ? '0 : (cols_valid_next_calc - 1'b1);
         vec_valid_num_row_next_w = (rows_valid_next_calc == '0) ? '0 : (rows_valid_next_calc - 1'b1);
     end
@@ -265,7 +272,7 @@ module oa_writer #(
     assign dma_rows_to_read = REG_WIDTH'(rows_valid_cur_tile);
     assign dma_burst_len_m1 = (beats_per_row_cur_tile == '0) ? 8'd0 : 8'(beats_per_row_cur_tile - 1'b1);
     assign dma_slot_id = 1'b0;
-    assign dma_use_16bits = 1'b0;
+    assign dma_use_16bits = cfg_output_16bits;
     assign dma_lhs_zp = '0;
 
     assign write_done = (state == S_WRITE) && dma_done && !dma_done_q;
@@ -289,6 +296,7 @@ module oa_writer #(
             cfg_ia_reuse_num <= count_t'(1);
             cfg_has_tiles <= 1'b0;
             cfg_is_mode <= 1'b0;
+            cfg_output_16bits <= 1'b0;
             cfg_lat_tick <= 1'b0;
             row_tiles_total <= '0;
             col_tiles_total <= '0;
@@ -304,6 +312,7 @@ module oa_writer #(
             cfg_ia_reuse_num <= (ia_reuse_num == '0) ? count_t'(1) : count_t'(ia_reuse_num);
             cfg_has_tiles <= (k != '0) && (m != '0);
             cfg_is_mode <= is_mode_eff;
+            cfg_output_16bits <= output_16bits;
             cfg_lat_tick <= 1'b1;
             row_tiles_total <= row_tiles_total_pre;
             col_tiles_total <= col_tiles_total_pre;
