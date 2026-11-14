@@ -1,0 +1,247 @@
+{
+  "all_passed": true,
+  "case_count": 12,
+  "scope": "Original testbench compiled without any Python probe: golden PASS and all start/done timestamps match the instrumented reference.",
+  "testbench_sha256": "702a692d9770342d81d06d500185b08f847d479106162e4d369f2b260fdcfcf6",
+  "results": [
+    {
+      "case": "ws_int8_tail",
+      "backend": "s16_c4_p16",
+      "passed": true,
+      "phase_timestamps_identical": true,
+      "original_testbench_phases": [
+        "[TB] calc_start triggered at time 95000",
+        "[TB] Computation started (sa_ready=0) at time 95000",
+        "[TB] Computation done (sa_ready=1) at time 3785000"
+      ],
+      "command": [
+        "/media/proj_tmp/aiEngine_integrated/veri/top_regression/obj_dir/s16_c4_w16_d16_ps16_ro4_notrace/sim_npu_top",
+        "+INIT_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/ws_int8_tail/case/init.mem",
+        "+GOLDEN_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/ws_int8_tail/case/golden.mem",
+        "+CASE_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/ws_int8_tail/case/config.mem",
+        "+FULL_MEM_CHECK",
+        "+TB_TIMEOUT_CYCLES=2000000"
+      ]
+    },
+    {
+      "case": "is_s16_per_channel",
+      "backend": "s16_c4_p16",
+      "passed": true,
+      "phase_timestamps_identical": true,
+      "original_testbench_phases": [
+        "[TB] calc_start triggered at time 95000",
+        "[TB] Computation started (sa_ready=0) at time 95000",
+        "[TB] Computation done (sa_ready=1) at time 4575000"
+      ],
+      "command": [
+        "/media/proj_tmp/aiEngine_integrated/veri/top_regression/obj_dir/s16_c4_w16_d16_ps16_ro4_notrace/sim_npu_top",
+        "+INIT_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/is_s16_per_channel/case/init.mem",
+        "+GOLDEN_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/is_s16_per_channel/case/golden.mem",
+        "+CASE_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/is_s16_per_channel/case/config.mem",
+        "+FULL_MEM_CHECK",
+        "+TB_TIMEOUT_CYCLES=2000000"
+      ]
+    },
+    {
+      "case": "ws_s16_output",
+      "backend": "s16_c4_p16",
+      "passed": true,
+      "phase_timestamps_identical": true,
+      "original_testbench_phases": [
+        "[TB] calc_start triggered at time 95000",
+        "[TB] Computation started (sa_ready=0) at time 95000",
+        "[TB] Computation done (sa_ready=1) at time 31475000"
+      ],
+      "command": [
+        "/media/proj_tmp/aiEngine_integrated/veri/top_regression/obj_dir/s16_c4_w16_d16_ps16_ro4_notrace/sim_npu_top",
+        "+INIT_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/ws_s16_output/case/init.mem",
+        "+GOLDEN_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/ws_s16_output/case/golden.mem",
+        "+CASE_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/ws_s16_output/case/config.mem",
+        "+FULL_MEM_CHECK",
+        "+TB_TIMEOUT_CYCLES=2000000"
+      ]
+    },
+    {
+      "case": "ws_s16_no_bias",
+      "backend": "s16_c4_p16",
+      "passed": true,
+      "phase_timestamps_identical": true,
+      "original_testbench_phases": [
+        "[TB] calc_start triggered at time 95000",
+        "[TB] Computation started (sa_ready=0) at time 95000",
+        "[TB] Computation done (sa_ready=1) at time 18035000"
+      ],
+      "command": [
+        "/media/proj_tmp/aiEngine_integrated/veri/top_regression/obj_dir/s16_c4_w16_d16_ps16_ro4_notrace/sim_npu_top",
+        "+INIT_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/ws_s16_no_bias/case/init.mem",
+        "+GOLDEN_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/ws_s16_no_bias/case/golden.mem",
+        "+CASE_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/ws_s16_no_bias/case/config.mem",
+        "+FULL_MEM_CHECK",
+        "+TB_TIMEOUT_CYCLES=2000000"
+      ]
+    },
+    {
+      "case": "ws_reuse_groups",
+      "backend": "s16_c4_p16",
+      "passed": true,
+      "phase_timestamps_identical": true,
+      "original_testbench_phases": [
+        "[TB] calc_start triggered at time 95000",
+        "[TB] Computation started (sa_ready=0) at time 95000",
+        "[TB] Computation done (sa_ready=1) at time 43705000"
+      ],
+      "command": [
+        "/media/proj_tmp/aiEngine_integrated/veri/top_regression/obj_dir/s16_c4_w16_d16_ps16_ro4_notrace/sim_npu_top",
+        "+INIT_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/ws_reuse_groups/case/init.mem",
+        "+GOLDEN_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/ws_reuse_groups/case/golden.mem",
+        "+CASE_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/ws_reuse_groups/case/config.mem",
+        "+FULL_MEM_CHECK",
+        "+TB_TIMEOUT_CYCLES=2000000"
+      ]
+    },
+    {
+      "case": "ws_fixed_latency",
+      "backend": "s16_c4_p16",
+      "passed": true,
+      "phase_timestamps_identical": true,
+      "original_testbench_phases": [
+        "[TB] calc_start triggered at time 95000",
+        "[TB] Computation started (sa_ready=0) at time 95000",
+        "[TB] Computation done (sa_ready=1) at time 6345000"
+      ],
+      "command": [
+        "/media/proj_tmp/aiEngine_integrated/veri/top_regression/obj_dir/s16_c4_w16_d16_ps16_ro4_notrace/sim_npu_top",
+        "+INIT_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/ws_fixed_latency/case/init.mem",
+        "+GOLDEN_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/ws_fixed_latency/case/golden.mem",
+        "+CASE_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/ws_fixed_latency/case/config.mem",
+        "+FULL_MEM_CHECK",
+        "+TB_TIMEOUT_CYCLES=2000000",
+        "+RAM_FIXED_LAT=8"
+      ]
+    },
+    {
+      "case": "ws_random_latency",
+      "backend": "s16_c4_p16",
+      "passed": true,
+      "phase_timestamps_identical": true,
+      "original_testbench_phases": [
+        "[TB] calc_start triggered at time 95000",
+        "[TB] Computation started (sa_ready=0) at time 95000",
+        "[TB] Computation done (sa_ready=1) at time 19305000"
+      ],
+      "command": [
+        "/media/proj_tmp/aiEngine_integrated/veri/top_regression/obj_dir/s16_c4_w16_d16_ps16_ro4_notrace/sim_npu_top",
+        "+INIT_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/ws_random_latency/case/init.mem",
+        "+GOLDEN_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/ws_random_latency/case/golden.mem",
+        "+CASE_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/ws_random_latency/case/config.mem",
+        "+FULL_MEM_CHECK",
+        "+TB_TIMEOUT_CYCLES=2000000",
+        "+DDR_RAND_LAT=1",
+        "+DDR_CMD_MAX_LAT=3",
+        "+DDR_W_MAX_LAT=2",
+        "+DDR_RSP_MAX_LAT=8",
+        "+DDR_SEED=88400"
+      ]
+    },
+    {
+      "case": "is_random_latency",
+      "backend": "s16_c4_p16",
+      "passed": true,
+      "phase_timestamps_identical": true,
+      "original_testbench_phases": [
+        "[TB] calc_start triggered at time 95000",
+        "[TB] Computation started (sa_ready=0) at time 95000",
+        "[TB] Computation done (sa_ready=1) at time 13105000"
+      ],
+      "command": [
+        "/media/proj_tmp/aiEngine_integrated/veri/top_regression/obj_dir/s16_c4_w16_d16_ps16_ro4_notrace/sim_npu_top",
+        "+INIT_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/is_random_latency/case/init.mem",
+        "+GOLDEN_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/is_random_latency/case/golden.mem",
+        "+CASE_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/is_random_latency/case/config.mem",
+        "+FULL_MEM_CHECK",
+        "+TB_TIMEOUT_CYCLES=2000000",
+        "+DDR_RAND_LAT=1",
+        "+DDR_CMD_MAX_LAT=2",
+        "+DDR_W_MAX_LAT=2",
+        "+DDR_RSP_MAX_LAT=5",
+        "+DDR_SEED=88401"
+      ]
+    },
+    {
+      "case": "cache8_auto",
+      "backend": "s16_c8_p16",
+      "passed": true,
+      "phase_timestamps_identical": true,
+      "original_testbench_phases": [
+        "[TB] calc_start triggered at time 95000",
+        "[TB] Computation started (sa_ready=0) at time 95000",
+        "[TB] Computation done (sa_ready=1) at time 118195000"
+      ],
+      "command": [
+        "/media/proj_tmp/aiEngine_integrated/veri/top_regression/obj_dir/s16_c8_w16_d16_ps16_ro4_notrace/sim_npu_top",
+        "+INIT_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/cache8_auto/case/init.mem",
+        "+GOLDEN_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/cache8_auto/case/golden.mem",
+        "+CASE_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/cache8_auto/case/config.mem",
+        "+FULL_MEM_CHECK",
+        "+TB_TIMEOUT_CYCLES=2000000"
+      ]
+    },
+    {
+      "case": "cache16_auto",
+      "backend": "s16_c16_p16",
+      "passed": true,
+      "phase_timestamps_identical": true,
+      "original_testbench_phases": [
+        "[TB] calc_start triggered at time 95000",
+        "[TB] Computation started (sa_ready=0) at time 95000",
+        "[TB] Computation done (sa_ready=1) at time 130535000"
+      ],
+      "command": [
+        "/media/proj_tmp/aiEngine_integrated/veri/top_regression/obj_dir/s16_c16_w16_d16_ps16_ro4_notrace/sim_npu_top",
+        "+INIT_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/cache16_auto/case/init.mem",
+        "+GOLDEN_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/cache16_auto/case/golden.mem",
+        "+CASE_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/cache16_auto/case/config.mem",
+        "+FULL_MEM_CHECK",
+        "+TB_TIMEOUT_CYCLES=2000000"
+      ]
+    },
+    {
+      "case": "cache16_is_s16",
+      "backend": "s16_c16_p16",
+      "passed": true,
+      "phase_timestamps_identical": true,
+      "original_testbench_phases": [
+        "[TB] calc_start triggered at time 95000",
+        "[TB] Computation started (sa_ready=0) at time 95000",
+        "[TB] Computation done (sa_ready=1) at time 82595000"
+      ],
+      "command": [
+        "/media/proj_tmp/aiEngine_integrated/veri/top_regression/obj_dir/s16_c16_w16_d16_ps16_ro4_notrace/sim_npu_top",
+        "+INIT_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/cache16_is_s16/case/init.mem",
+        "+GOLDEN_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/cache16_is_s16/case/golden.mem",
+        "+CASE_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/cache16_is_s16/case/config.mem",
+        "+FULL_MEM_CHECK",
+        "+TB_TIMEOUT_CYCLES=2000000"
+      ]
+    },
+    {
+      "case": "cache32_auto",
+      "backend": "s16_c32_p16",
+      "passed": true,
+      "phase_timestamps_identical": true,
+      "original_testbench_phases": [
+        "[TB] calc_start triggered at time 95000",
+        "[TB] Computation started (sa_ready=0) at time 95000",
+        "[TB] Computation done (sa_ready=1) at time 251815000"
+      ],
+      "command": [
+        "/media/proj_tmp/aiEngine_integrated/veri/top_regression/obj_dir/s16_c32_w16_d16_ps16_ro4_notrace/sim_npu_top",
+        "+INIT_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/cache32_auto/case/init.mem",
+        "+GOLDEN_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/cache32_auto/case/golden.mem",
+        "+CASE_MEM=/media/proj_tmp/aiEngine_integrated/veri/python_model/validation/cache32_auto/case/config.mem",
+        "+FULL_MEM_CHECK",
+        "+TB_TIMEOUT_CYCLES=2000000"
+      ]
+    }
+  ]
+}

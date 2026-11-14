@@ -1,0 +1,13 @@
+case,backend,passed,all_cycle_signals_identical,compared_cycles,start_to_ready_cycles
+ws_int8_tail,s16_c4_p16,True,True,388,369
+is_s16_per_channel,s16_c4_p16,True,True,467,448
+ws_s16_output,s16_c4_p16,True,True,3157,3138
+ws_s16_no_bias,s16_c4_p16,True,True,1813,1794
+ws_reuse_groups,s16_c4_p16,True,True,4380,4361
+ws_fixed_latency,s16_c4_p16,True,True,644,625
+ws_random_latency,s16_c4_p16,True,True,1940,1921
+is_random_latency,s16_c4_p16,True,True,1320,1301
+cache8_auto,s16_c8_p16,True,True,11829,11810
+cache16_auto,s16_c16_p16,True,True,13063,13044
+cache16_is_s16,s16_c16_p16,True,True,8269,8250
+cache32_auto,s16_c32_p16,True,True,25191,25172

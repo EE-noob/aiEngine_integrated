@@ -1,0 +1,16 @@
+{
+  "engine": "original RTL driven by Python",
+  "backend": "s16_c4_p16",
+  "finished": true,
+  "passed": true,
+  "sampled_rising_edges": 644,
+  "start_sample_cycle": 9,
+  "ready_sample_cycle": 634,
+  "start_to_ready_cycles": 625,
+  "clock_period_ps": 10000,
+  "full_memory_compare_words": 282,
+  "memory_mismatch_count": 0,
+  "first_mismatches": [],
+  "err_code": 0,
+  "rtl_sources_sha256": "41120e2907b076246379c08508907b6aee1b7e112afbbee72e6ffa965e1a1fa5"
+}
