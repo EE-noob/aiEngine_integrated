@@ -156,4 +156,24 @@ veri/tb/axi_soc_cov_*/
 # Large source/report artifacts kept outside git
 veri/doc/*.docx
 veri/doc/*.pdf
-veri/doc/original_docx_report_md/
+
+# Paper manuscripts and experiment archives
+/paper/
+
+# Generated implementation and distribution outputs
+/VU3P_oled.gen/
+/artifacts/
+/build_artifacts/
+/deliverables/
+/beforepop*.blif
+/beforepop*.v
+/afterpop*.blif
+/afterpop*.v
+/clockInfo.txt
+/tight_setup_hold_pins.txt
+
+# Compiled Python RTL models and generated validation inputs
+/veri/python_model/backends/*/rtl_server
+/veri/python_model/backends/*/rtl_reference
+/veri/python_model/validation/*/case/
+/veri/python_model/validation/**/*.csv.gz
