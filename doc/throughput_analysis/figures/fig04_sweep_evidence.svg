@@ -1,0 +1,446 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="614.75pt" height="360.466656pt" viewBox="0 0 614.75 360.466656" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-11-07T23:51:38.612458</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.8.1, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 360.466656 
+L 614.75 360.466656 
+L 614.75 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 39.55 314.599625 
+L 569.65 314.599625 
+L 569.65 31.855625 
+L 39.55 31.855625 
+z
+" style="fill: #ffffff"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 63.645455 314.599625 
+L 141.720112 314.599625 
+L 141.720112 291.301519 
+L 63.645455 291.301519 
+z
+" clip-path="url(#p5964dc3f81)" style="fill: #80bfa1"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 198.256932 314.599625 
+L 276.33159 314.599625 
+L 276.33159 228.456953 
+L 198.256932 228.456953 
+z
+" clip-path="url(#p5964dc3f81)" style="fill: #5ca6a0"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 332.86841 314.599625 
+L 410.943068 314.599625 
+L 410.943068 84.973798 
+L 332.86841 84.973798 
+z
+" clip-path="url(#p5964dc3f81)" style="fill: #506fa8"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 467.479888 314.599625 
+L 545.554545 314.599625 
+L 545.554545 146.725087 
+L 467.479888 146.725087 
+z
+" clip-path="url(#p5964dc3f81)" style="fill: #cb7956"/>
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1">
+      <defs>
+       <path id="m0296d927e1" d="M 0 0 
+L 0 3.5 
+" style="stroke: #000000; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#m0296d927e1" x="102.682783" y="314.599625" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_1">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: middle" x="102.682783" y="329.559" transform="rotate(-0 102.682783 329.559)">S4/C256</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_2">
+      <g>
+       <use xlink:href="#m0296d927e1" x="237.294261" y="314.599625" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_2">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: middle" x="237.294261" y="329.559" transform="rotate(-0 237.294261 329.559)">S8/C64</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_3">
+      <g>
+       <use xlink:href="#m0296d927e1" x="371.905739" y="314.599625" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_3">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: middle" x="371.905739" y="329.559" transform="rotate(-0 371.905739 329.559)">S16/C16</text>
+     </g>
+    </g>
+    <g id="xtick_4">
+     <g id="line2d_4">
+      <g>
+       <use xlink:href="#m0296d927e1" x="506.517217" y="314.599625" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_4">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: middle" x="506.517217" y="329.559" transform="rotate(-0 506.517217 329.559)">S32/C4</text>
+     </g>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_5">
+      <path d="M 39.55 314.599625 
+L 569.65 314.599625 
+" clip-path="url(#p5964dc3f81)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.22; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_6">
+      <defs>
+       <path id="m30108e7adb" d="M 0 0 
+L -3.5 0 
+" style="stroke: #000000; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#m30108e7adb" x="39.55" y="314.599625" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_5">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: end" x="32.55" y="318.579312" transform="rotate(-0 32.55 318.579312)">0</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_7">
+      <path d="M 39.55 276.900425 
+L 569.65 276.900425 
+" clip-path="url(#p5964dc3f81)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.22; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_8">
+      <g>
+       <use xlink:href="#m30108e7adb" x="39.55" y="276.900425" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_6">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: end" x="32.55" y="280.880112" transform="rotate(-0 32.55 280.880112)">10</text>
+     </g>
+    </g>
+    <g id="ytick_3">
+     <g id="line2d_9">
+      <path d="M 39.55 239.201225 
+L 569.65 239.201225 
+" clip-path="url(#p5964dc3f81)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.22; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_10">
+      <g>
+       <use xlink:href="#m30108e7adb" x="39.55" y="239.201225" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_7">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: end" x="32.55" y="243.180912" transform="rotate(-0 32.55 243.180912)">20</text>
+     </g>
+    </g>
+    <g id="ytick_4">
+     <g id="line2d_11">
+      <path d="M 39.55 201.502025 
+L 569.65 201.502025 
+" clip-path="url(#p5964dc3f81)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.22; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_12">
+      <g>
+       <use xlink:href="#m30108e7adb" x="39.55" y="201.502025" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_8">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: end" x="32.55" y="205.481712" transform="rotate(-0 32.55 205.481712)">30</text>
+     </g>
+    </g>
+    <g id="ytick_5">
+     <g id="line2d_13">
+      <path d="M 39.55 163.802825 
+L 569.65 163.802825 
+" clip-path="url(#p5964dc3f81)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.22; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_14">
+      <g>
+       <use xlink:href="#m30108e7adb" x="39.55" y="163.802825" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_9">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: end" x="32.55" y="167.782512" transform="rotate(-0 32.55 167.782512)">40</text>
+     </g>
+    </g>
+    <g id="ytick_6">
+     <g id="line2d_15">
+      <path d="M 39.55 126.103625 
+L 569.65 126.103625 
+" clip-path="url(#p5964dc3f81)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.22; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_16">
+      <g>
+       <use xlink:href="#m30108e7adb" x="39.55" y="126.103625" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_10">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: end" x="32.55" y="130.083312" transform="rotate(-0 32.55 130.083312)">50</text>
+     </g>
+    </g>
+    <g id="ytick_7">
+     <g id="line2d_17">
+      <path d="M 39.55 88.404425 
+L 569.65 88.404425 
+" clip-path="url(#p5964dc3f81)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.22; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_18">
+      <g>
+       <use xlink:href="#m30108e7adb" x="39.55" y="88.404425" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_11">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: end" x="32.55" y="92.384112" transform="rotate(-0 32.55 92.384112)">60</text>
+     </g>
+    </g>
+    <g id="ytick_8">
+     <g id="line2d_19">
+      <path d="M 39.55 50.705225 
+L 569.65 50.705225 
+" clip-path="url(#p5964dc3f81)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.22; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_20">
+      <g>
+       <use xlink:href="#m30108e7adb" x="39.55" y="50.705225" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_12">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: end" x="32.55" y="54.684912" transform="rotate(-0 32.55 54.684912)">70</text>
+     </g>
+    </g>
+    <g id="text_13">
+     <text style="font: 10px 'Source Han Sans CN'; text-anchor: middle" x="15.159375" y="173.227625" transform="rotate(-90 15.159375 173.227625)">MMA active 吞吐（GOPS，200 MHz 等效）</text>
+    </g>
+   </g>
+   <g id="patch_7">
+    <path d="M 39.55 314.599625 
+L 39.55 31.855625 
+" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 569.65 314.599625 
+L 569.65 31.855625 
+" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 39.55 314.599625 
+L 569.65 314.599625 
+" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 39.55 31.855625 
+L 569.65 31.855625 
+" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="text_14">
+    <text style="font: 700 9px 'Source Han Sans CN'; text-anchor: middle" x="102.682783" y="287.531599" transform="rotate(-0 102.682783 287.531599)">6.18</text>
+   </g>
+   <g id="text_15">
+    <text style="font: 700 9px 'Source Han Sans CN'; text-anchor: middle" x="237.294261" y="224.687033" transform="rotate(-0 237.294261 224.687033)">22.85</text>
+   </g>
+   <g id="text_16">
+    <text style="font: 700 9px 'Source Han Sans CN'; text-anchor: middle" x="371.905739" y="81.203878" transform="rotate(-0 371.905739 81.203878)">60.91</text>
+   </g>
+   <g id="text_17">
+    <text style="font: 700 9px 'Source Han Sans CN'; text-anchor: middle" x="506.517217" y="142.955167" transform="rotate(-0 506.517217 142.955167)">44.53</text>
+   </g>
+   <g id="text_18">
+    <text style="font: 700 12px 'Source Han Sans CN'; text-anchor: middle" x="304.6" y="17.855625" transform="rotate(-0 304.6 17.855625)">固定约 16 KiB A/W tile 存储预算下的 512³ sweep</text>
+   </g>
+  </g>
+  <g id="axes_2">
+   <g id="matplotlib.axis_3">
+    <g id="ytick_9">
+     <g id="line2d_21">
+      <defs>
+       <path id="mab16d658cb" d="M 0 0 
+L 3.5 0 
+" style="stroke: #000000; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#mab16d658cb" x="569.65" y="314.599625" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_19">
+      <text style="fill: #a34747; font: 10px 'Source Han Sans CN'; text-anchor: start" x="576.65" y="318.579312" transform="rotate(-0 576.65 318.579312)">0</text>
+     </g>
+    </g>
+    <g id="ytick_10">
+     <g id="line2d_22">
+      <g>
+       <use xlink:href="#mab16d658cb" x="569.65" y="263.191625" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_20">
+      <text style="fill: #a34747; font: 10px 'Source Han Sans CN'; text-anchor: start" x="576.65" y="267.171312" transform="rotate(-0 576.65 267.171312)">20</text>
+     </g>
+    </g>
+    <g id="ytick_11">
+     <g id="line2d_23">
+      <g>
+       <use xlink:href="#mab16d658cb" x="569.65" y="211.783625" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_21">
+      <text style="fill: #a34747; font: 10px 'Source Han Sans CN'; text-anchor: start" x="576.65" y="215.763312" transform="rotate(-0 576.65 215.763312)">40</text>
+     </g>
+    </g>
+    <g id="ytick_12">
+     <g id="line2d_24">
+      <g>
+       <use xlink:href="#mab16d658cb" x="569.65" y="160.375625" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_22">
+      <text style="fill: #a34747; font: 10px 'Source Han Sans CN'; text-anchor: start" x="576.65" y="164.355312" transform="rotate(-0 576.65 164.355312)">60</text>
+     </g>
+    </g>
+    <g id="ytick_13">
+     <g id="line2d_25">
+      <g>
+       <use xlink:href="#mab16d658cb" x="569.65" y="108.967625" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_23">
+      <text style="fill: #a34747; font: 10px 'Source Han Sans CN'; text-anchor: start" x="576.65" y="112.947312" transform="rotate(-0 576.65 112.947312)">80</text>
+     </g>
+    </g>
+    <g id="ytick_14">
+     <g id="line2d_26">
+      <g>
+       <use xlink:href="#mab16d658cb" x="569.65" y="57.559625" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_24">
+      <text style="fill: #a34747; font: 10px 'Source Han Sans CN'; text-anchor: start" x="576.65" y="61.539312" transform="rotate(-0 576.65 61.539312)">100</text>
+     </g>
+    </g>
+    <g id="text_25">
+     <text style="fill: #a34747; font: 10px 'Source Han Sans CN'; text-anchor: middle" x="605.259375" y="173.227625" transform="rotate(-90 605.259375 173.227625)">阵列活跃利用率（%）</text>
+    </g>
+   </g>
+   <g id="line2d_27">
+    <path d="M 102.682783 66.556025 
+L 237.294261 85.165721 
+L 371.905739 161.712233 
+L 506.517217 286.659377 
+" clip-path="url(#p5964dc3f81)" style="fill: none; stroke-dasharray: 7.4,3.2; stroke-dashoffset: 0; stroke: #a34747; stroke-width: 2"/>
+    <defs>
+     <path id="meaaa8820f7" d="M -0 4.949747 
+L 4.949747 0 
+L 0 -4.949747 
+L -4.949747 -0 
+z
+" style="stroke: #a34747; stroke-linejoin: miter"/>
+    </defs>
+    <g clip-path="url(#p5964dc3f81)">
+     <use xlink:href="#meaaa8820f7" x="102.682783" y="66.556025" style="fill: #a34747; stroke: #a34747; stroke-linejoin: miter"/>
+     <use xlink:href="#meaaa8820f7" x="237.294261" y="85.165721" style="fill: #a34747; stroke: #a34747; stroke-linejoin: miter"/>
+     <use xlink:href="#meaaa8820f7" x="371.905739" y="161.712233" style="fill: #a34747; stroke: #a34747; stroke-linejoin: miter"/>
+     <use xlink:href="#meaaa8820f7" x="506.517217" y="286.659377" style="fill: #a34747; stroke: #a34747; stroke-linejoin: miter"/>
+    </g>
+   </g>
+   <g id="patch_11">
+    <path d="M 39.55 314.599625 
+L 39.55 31.855625 
+" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_12">
+    <path d="M 569.65 314.599625 
+L 569.65 31.855625 
+" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_13">
+    <path d="M 39.55 314.599625 
+L 569.65 314.599625 
+" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_14">
+    <path d="M 39.55 31.855625 
+L 569.65 31.855625 
+" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="text_26">
+    <text style="fill: #8b3434; font: 8px 'Source Han Sans CN'; text-anchor: middle" x="102.682783" y="56.274425" transform="rotate(-0 102.682783 56.274425)">96.5%</text>
+   </g>
+   <g id="text_27">
+    <text style="fill: #8b3434; font: 8px 'Source Han Sans CN'; text-anchor: middle" x="237.294261" y="74.884121" transform="rotate(-0 237.294261 74.884121)">89.3%</text>
+   </g>
+   <g id="text_28">
+    <text style="fill: #8b3434; font: 8px 'Source Han Sans CN'; text-anchor: middle" x="371.905739" y="151.430633" transform="rotate(-0 371.905739 151.430633)">59.5%</text>
+   </g>
+   <g id="text_29">
+    <text style="fill: #8b3434; font: 8px 'Source Han Sans CN'; text-anchor: middle" x="506.517217" y="276.377777" transform="rotate(-0 506.517217 276.377777)">10.9%</text>
+   </g>
+   <g id="legend_1">
+    <g id="patch_15">
+     <path d="M 460.65 55.105625 
+L 562.65 55.105625 
+Q 564.65 55.105625 564.65 53.105625 
+L 564.65 38.855625 
+Q 564.65 36.855625 562.65 36.855625 
+L 460.65 36.855625 
+Q 458.65 36.855625 458.65 38.855625 
+L 458.65 53.105625 
+Q 458.65 55.105625 460.65 55.105625 
+z
+" style="fill: #ffffff; opacity: 0.8; stroke: #cccccc; stroke-linejoin: miter"/>
+    </g>
+    <g id="line2d_28">
+     <path d="M 462.65 45.315 
+L 472.65 45.315 
+L 482.65 45.315 
+" style="fill: none; stroke-dasharray: 7.4,3.2; stroke-dashoffset: 0; stroke: #a34747; stroke-width: 2"/>
+     <g>
+      <use xlink:href="#meaaa8820f7" x="472.65" y="45.315" style="fill: #a34747; stroke: #a34747; stroke-linejoin: miter"/>
+     </g>
+    </g>
+    <g id="text_30">
+     <text style="font: 10px 'Source Han Sans CN'; text-anchor: start" x="490.65" y="48.815" transform="rotate(-0 490.65 48.815)">阵列活跃利用率</text>
+    </g>
+   </g>
+  </g>
+  <g id="text_31">
+   <text style="fill: #475467; font: 8.5px 'Source Han Sans CN'; text-anchor: middle" x="296.05" y="351.319625" transform="rotate(-0 296.05 351.319625)">数据摘自项目既有性能报告的固定容量 sweep 表；原始 perf.csv 当前未随工作树提供。</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p5964dc3f81">
+   <rect x="39.55" y="31.855625" width="530.1" height="282.744"/>
+  </clipPath>
+ </defs>
+</svg>

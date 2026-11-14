@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="785.99952pt" height="389.99952pt" viewBox="0 0 785.99952 389.99952" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-11-13T00:50:18.072110</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.8.1, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 389.99952 
+L 785.99952 389.99952 
+L 785.99952 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 66.7 347.463582 
+L 778.79952 347.463582 
+L 778.79952 7.2 
+L 66.7 7.2 
+z
+" style="fill: #ffffff"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 66.7 22.666526 
+L 551.121442 22.666526 
+L 551.121442 61.248234 
+L 66.7 61.248234 
+z
+" clip-path="url(#pa6e3c428dc)" style="fill: #f0f0f0"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 66.7 90.353732 
+L 551.121442 90.353732 
+L 551.121442 128.935439 
+L 66.7 128.935439 
+z
+" clip-path="url(#pa6e3c428dc)" style="fill: #f0f0f0"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 66.7 158.040938 
+L 551.121442 158.040938 
+L 551.121442 196.622645 
+L 66.7 196.622645 
+z
+" clip-path="url(#pa6e3c428dc)" style="fill: #f0f0f0"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 66.7 225.728143 
+L 551.121442 225.728143 
+L 551.121442 264.30985 
+L 66.7 264.30985 
+z
+" clip-path="url(#pa6e3c428dc)" style="fill: #f0f0f0"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 66.7 293.415349 
+L 551.121442 293.415349 
+L 551.121442 331.997056 
+L 66.7 331.997056 
+z
+" clip-path="url(#pa6e3c428dc)" style="fill: #f0f0f0"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 66.7 22.666526 
+L 117.661136 22.666526 
+L 117.661136 61.248234 
+L 66.7 61.248234 
+z
+" clip-path="url(#pa6e3c428dc)" style="fill: #8ac5df"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 66.7 90.353732 
+L 92.180568 90.353732 
+L 92.180568 128.935439 
+L 66.7 128.935439 
+z
+" clip-path="url(#pa6e3c428dc)" style="fill: #8ac5df"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 66.7 158.040938 
+L 528.595845 158.040938 
+L 528.595845 196.622645 
+L 66.7 196.622645 
+z
+" clip-path="url(#pa6e3c428dc)" style="fill: #f6d46c"/>
+   </g>
+   <g id="patch_11">
+    <path d="M 66.7 225.728143 
+L 551.121442 225.728143 
+L 551.121442 264.30985 
+L 66.7 264.30985 
+z
+" clip-path="url(#pa6e3c428dc)" style="fill: #93c78f"/>
+   </g>
+   <g id="patch_12">
+    <path d="M 66.7 293.415349 
+L 159.757359 293.415349 
+L 159.757359 331.997056 
+L 66.7 331.997056 
+z
+" clip-path="url(#pa6e3c428dc)" style="fill: #8ac5df"/>
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1">
+      <defs>
+       <path id="meeb6fd5688" d="M 0 0 
+L 0 3.5 
+" style="stroke: #000000; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#meeb6fd5688" x="66.7" y="347.463582" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_1">
+      <text style="font: 14px 'SimHei'; text-anchor: middle" x="66.7" y="364.088582" transform="rotate(-0 66.7 364.088582)">0</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_2">
+      <g>
+       <use xlink:href="#meeb6fd5688" x="187.805361" y="347.463582" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_2">
+      <text style="font: 14px 'SimHei'; text-anchor: middle" x="187.805361" y="364.088582" transform="rotate(-0 187.805361 364.088582)">25</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_3">
+      <g>
+       <use xlink:href="#meeb6fd5688" x="308.910721" y="347.463582" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_3">
+      <text style="font: 14px 'SimHei'; text-anchor: middle" x="308.910721" y="364.088582" transform="rotate(-0 308.910721 364.088582)">50</text>
+     </g>
+    </g>
+    <g id="xtick_4">
+     <g id="line2d_4">
+      <g>
+       <use xlink:href="#meeb6fd5688" x="430.016082" y="347.463582" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_4">
+      <text style="font: 14px 'SimHei'; text-anchor: middle" x="430.016082" y="364.088582" transform="rotate(-0 430.016082 364.088582)">75</text>
+     </g>
+    </g>
+    <g id="xtick_5">
+     <g id="line2d_5">
+      <g>
+       <use xlink:href="#meeb6fd5688" x="551.121442" y="347.463582" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_5">
+      <text style="font: 14px 'SimHei'; text-anchor: middle" x="551.121442" y="364.088582" transform="rotate(-0 551.121442 364.088582)">100</text>
+     </g>
+    </g>
+    <g id="text_6">
+     <text style="font: 14px 'SimHei'; text-anchor: middle" x="422.74976" y="381.04952" transform="rotate(-0 422.74976 381.04952)">相对于器件可用总量的使用比例 / %</text>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_6"/>
+     <g id="text_7">
+      <text style="font: 14px 'SimHei'; text-anchor: end" x="63.2" y="46.76988" transform="rotate(-0 63.2 46.76988)">LUT</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_7"/>
+     <g id="text_8">
+      <text style="font: 14px 'SimHei'; text-anchor: end" x="63.2" y="115.277398" transform="rotate(-0 63.2 115.277398)">寄存器</text>
+     </g>
+    </g>
+    <g id="ytick_3">
+     <g id="line2d_8"/>
+     <g id="text_9">
+      <text style="font: 14px 'SimHei'; text-anchor: end" x="63.2" y="182.144291" transform="rotate(-0 63.2 182.144291)">BRAM</text>
+     </g>
+    </g>
+    <g id="ytick_4">
+     <g id="line2d_9"/>
+     <g id="text_10">
+      <text style="font: 14px 'SimHei'; text-anchor: end" x="63.2" y="249.831497" transform="rotate(-0 63.2 249.831497)">UltraRAM</text>
+     </g>
+    </g>
+    <g id="ytick_5">
+     <g id="line2d_10"/>
+     <g id="text_11">
+      <text style="font: 14px 'SimHei'; text-anchor: end" x="63.2" y="317.518702" transform="rotate(-0 63.2 317.518702)">DSP</text>
+     </g>
+    </g>
+   </g>
+   <g id="text_12">
+    <text style="font: 13px 'SimHei'; text-anchor: start" x="570.4983" y="45.892927" transform="rotate(-0 570.4983 45.892927)">10.52%  (41467/394080)</text>
+   </g>
+   <g id="text_13">
+    <text style="font: 13px 'SimHei'; text-anchor: start" x="570.4983" y="113.580133" transform="rotate(-0 570.4983 113.580133)">5.26%  (41465/788160)</text>
+   </g>
+   <g id="text_14">
+    <text style="font: 13px 'SimHei'; text-anchor: start" x="570.4983" y="181.267338" transform="rotate(-0 570.4983 181.267338)">95.35%  (686.5/720)</text>
+   </g>
+   <g id="text_15">
+    <text style="font: 13px 'SimHei'; text-anchor: start" x="570.4983" y="248.954544" transform="rotate(-0 570.4983 248.954544)">100.00%  (320/320)</text>
+   </g>
+   <g id="text_16">
+    <text style="font: 13px 'SimHei'; text-anchor: start" x="570.4983" y="316.641749" transform="rotate(-0 570.4983 316.641749)">19.21%  (438/2280)</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="pa6e3c428dc">
+   <rect x="66.7" y="7.2" width="712.09952" height="340.263582"/>
+  </clipPath>
+ </defs>
+</svg>

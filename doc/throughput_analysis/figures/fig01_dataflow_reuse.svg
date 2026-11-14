@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="628.2pt" height="280.512pt" viewBox="0 0 628.2 280.512" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-11-07T23:51:37.675326</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.8.1, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 280.512 
+L 628.2 280.512 
+L 628.2 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 23.382 168.996096 
+L 116.568 168.996096 
+Q 121.032 168.996096 121.032 164.738304 
+L 121.032 107.790336 
+Q 121.032 103.532544 116.568 103.532544 
+L 23.382 103.532544 
+Q 18.918 103.532544 18.918 107.790336 
+L 18.918 164.738304 
+Q 18.918 168.996096 23.382 168.996096 
+z
+" clip-path="url(#pedcfd190e7)" style="fill: #e8eef7; stroke: #344054; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 157.302 107.790336 
+L 275.598 107.790336 
+Q 280.062 107.790336 280.062 103.532544 
+L 280.062 46.584576 
+Q 280.062 42.326784 275.598 42.326784 
+L 157.302 42.326784 
+Q 152.838 42.326784 152.838 46.584576 
+L 152.838 103.532544 
+Q 152.838 107.790336 157.302 107.790336 
+z
+" clip-path="url(#pedcfd190e7)" style="fill: #d9eee7; stroke: #344054; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 157.302 235.524096 
+L 275.598 235.524096 
+Q 280.062 235.524096 280.062 231.266304 
+L 280.062 174.318336 
+Q 280.062 170.060544 275.598 170.060544 
+L 157.302 170.060544 
+Q 152.838 170.060544 152.838 174.318336 
+L 152.838 231.266304 
+Q 152.838 235.524096 157.302 235.524096 
+z
+" clip-path="url(#pedcfd190e7)" style="fill: #f8e8ce; stroke: #344054; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 344.232 192.946176 
+L 462.528 192.946176 
+Q 466.992 192.946176 466.992 188.688384 
+L 466.992 105.129216 
+Q 466.992 100.871424 462.528 100.871424 
+L 344.232 100.871424 
+Q 339.768 100.871424 339.768 105.129216 
+L 339.768 188.688384 
+Q 339.768 192.946176 344.232 192.946176 
+z
+" clip-path="url(#pedcfd190e7)" style="fill: #e9ddf3; stroke: #344054; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 517.212 179.640576 
+L 604.818 179.640576 
+Q 609.282 179.640576 609.282 175.382784 
+L 609.282 118.434816 
+Q 609.282 114.177024 604.818 114.177024 
+L 517.212 114.177024 
+Q 512.748 114.177024 512.748 118.434816 
+L 512.748 175.382784 
+Q 512.748 179.640576 517.212 179.640576 
+z
+" clip-path="url(#pedcfd190e7)" style="fill: #f4dddd; stroke: #344054; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 120.006491 130.679281 
+Q 136.933665 108.324323 152.848459 87.30637 
+" clip-path="url(#pedcfd190e7)" style="fill: none; stroke: #344054; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 147.636574 89.882464 
+L 152.848459 87.30637 
+L 151.782203 93.021534 
+z
+" clip-path="url(#pedcfd190e7)" style="fill: #344054; stroke: #344054; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 119.851529 144.614429 
+Q 136.933046 172.186286 153.131346 198.332512 
+" clip-path="url(#pedcfd190e7)" style="fill: none; stroke: #344054; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 152.602984 192.542794 
+L 153.131346 198.332512 
+L 148.182554 195.281371 
+z
+" clip-path="url(#pedcfd190e7)" style="fill: #344054; stroke: #344054; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 279.371192 77.66738 
+Q 309.915351 103.000611 339.168667 127.263221 
+" clip-path="url(#pedcfd190e7)" style="fill: none; stroke: #26734d; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 336.826004 121.942325 
+L 339.168667 127.263221 
+L 333.506353 125.944814 
+z
+" clip-path="url(#pedcfd190e7)" style="fill: #26734d; stroke: #26734d; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 279.557232 200.458967 
+Q 309.915378 182.8337 338.823187 166.050467 
+" clip-path="url(#pedcfd190e7)" style="fill: none; stroke: #9a5b00; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 333.020714 166.412829 
+L 338.823187 166.050467 
+L 335.631592 170.909863 
+z
+" clip-path="url(#pedcfd190e7)" style="fill: #9a5b00; stroke: #9a5b00; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="patch_11">
+    <path d="M 466.761566 148.23936 
+Q 489.871628 148.23936 511.304639 148.23936 
+" clip-path="url(#pedcfd190e7)" style="fill: none; stroke: #344054; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 506.104639 145.63936 
+L 511.304639 148.23936 
+L 506.104639 150.83936 
+z
+" clip-path="url(#pedcfd190e7)" style="fill: #344054; stroke: #344054; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="text_1">
+    <text style="font: 500 11px 'Source Han Sans CN'" transform="translate(42.475 132.934929)">外部存储器</text>
+    <text style="font: 500 11px 'Source Han Sans CN'" transform="translate(37.195 145.908398)">AXI 32/64 bit</text>
+   </g>
+   <g id="text_2">
+    <text style="font: 500 11px 'Source Han Sans CN'" transform="translate(184.963359 71.729169)">IA tile cache</text>
+    <text style="font: 500 11px 'Source Han Sans CN'" transform="translate(174.540859 84.702638)">A tile 驻留并复用</text>
+   </g>
+   <g id="text_3">
+    <text style="font: 500 11px 'Source Han Sans CN'" transform="translate(184.507031 199.462929)">W tile buffer</text>
+    <text style="font: 500 11px 'Source Han Sans CN'" transform="translate(172.45 212.436398)">权重按输出列复用</text>
+   </g>
+   <g id="text_4">
+    <text style="font: 500 11px 'Source Han Sans CN'" transform="translate(382.865 137.040597)">16 × 16</text>
+    <text style="font: 500 11px 'Source Han Sans CN'" transform="translate(381.38 150.014066)">脉动阵列</text>
+    <text style="font: 500 11px 'Source Han Sans CN'" transform="translate(365.6225 163.014347)">256 MAC/cycle</text>
+   </g>
+   <g id="text_5">
+    <text style="font: 500 11px 'Source Han Sans CN'" transform="translate(541.1325 143.634409)">部分和 /</text>
+    <text style="font: 500 11px 'Source Han Sans CN'" transform="translate(539.015 156.607878)">输出缓存</text>
+   </g>
+   <g id="text_6">
+    <g id="patch_12">
+     <path d="M 113.722734 102.216132 
+L 160.147266 102.216132 
+L 160.147266 91.011132 
+L 113.722734 91.011132 
+z
+" style="fill: #ffffff; opacity: 0.85"/>
+    </g>
+    <text style="fill: #344054; font: 9px 'Source Han Sans CN'; text-anchor: middle" x="136.935" y="99.164569" transform="rotate(-0 136.935 99.164569)">每 tile 搬入</text>
+   </g>
+   <g id="text_7">
+    <g id="patch_13">
+     <path d="M 113.722734 189.500868 
+L 160.147266 189.500868 
+L 160.147266 178.295868 
+L 113.722734 178.295868 
+z
+" style="fill: #ffffff; opacity: 0.85"/>
+    </g>
+    <text style="fill: #344054; font: 9px 'Source Han Sans CN'; text-anchor: middle" x="136.935" y="186.449305" transform="rotate(-0 136.935 186.449305)">每 tile 搬入</text>
+   </g>
+   <g id="text_8">
+    <g id="patch_14">
+     <path d="M 256.966875 92.6361 
+L 362.863125 92.6361 
+L 362.863125 81.4311 
+L 256.966875 81.4311 
+z
+" style="fill: #ffffff; opacity: 0.85"/>
+    </g>
+    <text style="fill: #26734d; font: 9px 'Source Han Sans CN'; text-anchor: middle" x="309.915" y="89.584537" transform="rotate(-0 309.915 89.584537)">A：向多个输出列 tile 重放</text>
+   </g>
+   <g id="text_9">
+    <g id="patch_15">
+     <path d="M 255.751875 206.532036 
+L 364.078125 206.532036 
+L 364.078125 195.327036 
+L 255.751875 195.327036 
+z
+" style="fill: #ffffff; opacity: 0.85"/>
+    </g>
+    <text style="fill: #9a5b00; font: 9px 'Source Han Sans CN'; text-anchor: middle" x="309.915" y="203.480473" transform="rotate(-0 309.915 203.480473)">W：跨多个输出行 tile 复用</text>
+   </g>
+   <g id="text_10">
+    <g id="patch_16">
+     <path d="M 470.88 143.19738 
+L 508.86 143.19738 
+L 508.86 131.99238 
+L 470.88 131.99238 
+z
+" style="fill: #ffffff; opacity: 0.85"/>
+    </g>
+    <text style="fill: #344054; font: 9px 'Source Han Sans CN'; text-anchor: middle" x="489.87" y="140.145817" transform="rotate(-0 489.87 140.145817)">累加结果</text>
+   </g>
+   <g id="text_11">
+    <text style="font: 700 12px 'Source Han Sans CN'; text-anchor: middle" x="314.1" y="25.82784" transform="rotate(-0 314.1 25.82784)">一次外存读取，片上缓存保存 tile；调度把同一 tile 分发给多个计算 tile</text>
+   </g>
+   <g id="text_12">
+    <text style="fill: #475467; font: 9px 'Source Han Sans CN'; text-anchor: middle" x="314.1" y="260.0064" transform="rotate(-0 314.1 260.0064)">缓存降低外部搬运量；阵列内部的行/列传播完成每个操作数对 16 个 PE 的空间复用。</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="pedcfd190e7">
+   <rect x="7.2" y="7.2" width="613.8" height="266.112"/>
+  </clipPath>
+ </defs>
+</svg>

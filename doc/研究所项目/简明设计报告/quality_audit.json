@@ -1,0 +1,33 @@
+{
+  "chapters": {
+    "1": "NPU 设计",
+    "2": "SoC 设计与 FPGA 部署",
+    "3": "软件栈设计"
+  },
+  "body_han_characters": 2979,
+  "pdf_pages": 8,
+  "figures": 3,
+  "toc_entries_checked": 13,
+  "language_checks": {
+    "Markdown": "PASS",
+    "Word": "PASS",
+    "PDF": "PASS",
+    "README": "PASS",
+    "drawing_source": "PASS",
+    "figures/soc.svg": "PASS",
+    "figures/software.svg": "PASS"
+  },
+  "heading_fonts": "黑体",
+  "docx_structure": "PASS",
+  "pdf_checks": "PASS",
+  "npu_original_image": "PASS",
+  "sha256": {
+    "简明NPU与SoC设计技术报告.md": "170d34199df736668a3e0a5b55e5f7e972fee8291c5f04c3f94022162463e549",
+    "简明NPU与SoC设计技术报告.docx": "0326097ac1c19e2fe23799c95bd658eca213b7df9a295fc3e807b7bff15cacc9",
+    "简明NPU与SoC设计技术报告.pdf": "3bc71665ac985f87ada23b2a294671202c4299c9cd66eb5de8f1285857302f2b",
+    "build_report.py": "e7be95d937cf73492954e5dd2c21176f67843b38495607caff092969c17bcb13",
+    "draw_figures.py": "5eae53159a53552eccb7c656f70d2db0e55bf59db8d88a4dc07b50209fd7db79",
+    "audit_report.py": "8621796a1cbc6b73c2fc2bae4b9abc4f52842891ae5e4729126e9c80e558031c",
+    "README.md": "015098b29a525a3424ad63c3dad590d92918fe13c4b411c9d3ad4519863dd264"
+  }
+}

@@ -1,0 +1,498 @@
+{
+  "rtl": {
+    "cases": [
+      {
+        "case": "ws_int8_tail",
+        "backend": "s16_c4_p16",
+        "compared_cycles": 388,
+        "start_to_ready_cycles": 369,
+        "k": 5,
+        "n": 19,
+        "m": 7,
+        "lhs_dtype": 1,
+        "int16_output": false,
+        "use_per_channel": false,
+        "dataflow_mode": 0,
+        "ia_cache_blocks": 4
+      },
+      {
+        "case": "is_s16_per_channel",
+        "backend": "s16_c4_p16",
+        "compared_cycles": 467,
+        "start_to_ready_cycles": 448,
+        "k": 3,
+        "n": 33,
+        "m": 5,
+        "lhs_dtype": 2,
+        "int16_output": false,
+        "use_per_channel": true,
+        "dataflow_mode": 1,
+        "ia_cache_blocks": 4
+      },
+      {
+        "case": "ws_s16_output",
+        "backend": "s16_c4_p16",
+        "compared_cycles": 3157,
+        "start_to_ready_cycles": 3138,
+        "k": 3,
+        "n": 494,
+        "m": 7,
+        "lhs_dtype": 2,
+        "int16_output": true,
+        "use_per_channel": false,
+        "dataflow_mode": 0,
+        "ia_cache_blocks": 4
+      },
+      {
+        "case": "ws_s16_no_bias",
+        "backend": "s16_c4_p16",
+        "compared_cycles": 1813,
+        "start_to_ready_cycles": 1794,
+        "k": 1,
+        "n": 494,
+        "m": 1,
+        "lhs_dtype": 2,
+        "int16_output": true,
+        "use_per_channel": false,
+        "dataflow_mode": 0,
+        "ia_cache_blocks": 4
+      },
+      {
+        "case": "ws_reuse_groups",
+        "backend": "s16_c4_p16",
+        "compared_cycles": 4380,
+        "start_to_ready_cycles": 4361,
+        "k": 64,
+        "n": 32,
+        "m": 64,
+        "lhs_dtype": 1,
+        "int16_output": false,
+        "use_per_channel": false,
+        "dataflow_mode": 0,
+        "ia_cache_blocks": 4
+      },
+      {
+        "case": "ws_fixed_latency",
+        "backend": "s16_c4_p16",
+        "compared_cycles": 644,
+        "start_to_ready_cycles": 625,
+        "k": 5,
+        "n": 19,
+        "m": 7,
+        "lhs_dtype": 1,
+        "int16_output": false,
+        "use_per_channel": false,
+        "dataflow_mode": 0,
+        "ia_cache_blocks": 4
+      },
+      {
+        "case": "ws_random_latency",
+        "backend": "s16_c4_p16",
+        "compared_cycles": 1940,
+        "start_to_ready_cycles": 1921,
+        "k": 17,
+        "n": 33,
+        "m": 19,
+        "lhs_dtype": 1,
+        "int16_output": false,
+        "use_per_channel": false,
+        "dataflow_mode": 0,
+        "ia_cache_blocks": 4
+      },
+      {
+        "case": "is_random_latency",
+        "backend": "s16_c4_p16",
+        "compared_cycles": 1320,
+        "start_to_ready_cycles": 1301,
+        "k": 17,
+        "n": 31,
+        "m": 19,
+        "lhs_dtype": 1,
+        "int16_output": false,
+        "use_per_channel": true,
+        "dataflow_mode": 1,
+        "ia_cache_blocks": 4
+      },
+      {
+        "case": "cache8_auto",
+        "backend": "s16_c8_p16",
+        "compared_cycles": 11829,
+        "start_to_ready_cycles": 11810,
+        "k": 128,
+        "n": 32,
+        "m": 128,
+        "lhs_dtype": 1,
+        "int16_output": false,
+        "use_per_channel": false,
+        "dataflow_mode": 0,
+        "ia_cache_blocks": 8
+      },
+      {
+        "case": "cache16_auto",
+        "backend": "s16_c16_p16",
+        "compared_cycles": 13063,
+        "start_to_ready_cycles": 13044,
+        "k": 128,
+        "n": 32,
+        "m": 128,
+        "lhs_dtype": 1,
+        "int16_output": false,
+        "use_per_channel": false,
+        "dataflow_mode": 0,
+        "ia_cache_blocks": 16
+      },
+      {
+        "case": "cache16_is_s16",
+        "backend": "s16_c16_p16",
+        "compared_cycles": 8269,
+        "start_to_ready_cycles": 8250,
+        "k": 64,
+        "n": 33,
+        "m": 128,
+        "lhs_dtype": 2,
+        "int16_output": false,
+        "use_per_channel": true,
+        "dataflow_mode": 1,
+        "ia_cache_blocks": 16
+      },
+      {
+        "case": "cache32_auto",
+        "backend": "s16_c32_p16",
+        "compared_cycles": 25191,
+        "start_to_ready_cycles": 25172,
+        "k": 256,
+        "n": 32,
+        "m": 128,
+        "lhs_dtype": 1,
+        "int16_output": false,
+        "use_per_channel": false,
+        "dataflow_mode": 0,
+        "ia_cache_blocks": 32
+      }
+    ],
+    "case_count": 12,
+    "compared_cycles": 72461,
+    "fields_per_cycle": 98,
+    "all_passed": true
+  },
+  "multi_input_model": {
+    "actual": [
+      [
+        32450,
+        9,
+        3
+      ],
+      [
+        32694,
+        6212,
+        8291
+      ],
+      [
+        32689,
+        7365,
+        22976
+      ],
+      [
+        31839,
+        17668,
+        7175
+      ],
+      [
+        32724,
+        27984,
+        28314
+      ],
+      [
+        32719,
+        5513,
+        1889
+      ],
+      [
+        25491,
+        15828,
+        15648
+      ],
+      [
+        20062,
+        26102,
+        19820
+      ]
+    ],
+    "expected": [
+      [
+        32450,
+        9,
+        3
+      ],
+      [
+        32694,
+        6212,
+        8291
+      ],
+      [
+        32689,
+        7365,
+        22976
+      ],
+      [
+        31839,
+        17668,
+        7176
+      ],
+      [
+        32724,
+        27984,
+        28315
+      ],
+      [
+        32719,
+        5513,
+        1889
+      ],
+      [
+        25491,
+        15828,
+        15648
+      ],
+      [
+        20062,
+        26102,
+        19821
+      ]
+    ],
+    "signed_delta": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        -1
+      ],
+      [
+        0,
+        0,
+        -1
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        -1
+      ]
+    ],
+    "max_absolute_delta": [
+      0,
+      0,
+      1
+    ],
+    "tolerance_lsb": 8,
+    "arena_used_bytes": 139308,
+    "passed": true
+  },
+  "compact_model": {
+    "invoke_cycles": [
+      94170,
+      94125,
+      94102
+    ],
+    "total_cycles": 282397,
+    "mean_cycles": 94132.33333333333,
+    "simulation_clock_mhz": 100,
+    "arena_used_bytes": 7164,
+    "passed": true
+  },
+  "fpga": {
+    "device": "xcvu3p-ffvc1517-2-i",
+    "soc_clock_mhz": 125,
+    "resources": [
+      {
+        "name": "CLB LUTs",
+        "used": 41467.0,
+        "available": 394080.0,
+        "percent": 10.52
+      },
+      {
+        "name": "CLB Registers",
+        "used": 41465.0,
+        "available": 788160.0,
+        "percent": 5.26
+      },
+      {
+        "name": "Block RAM Tile",
+        "used": 686.5,
+        "available": 720.0,
+        "percent": 95.35
+      },
+      {
+        "name": "URAM",
+        "used": 320.0,
+        "available": 320.0,
+        "percent": 100.0
+      },
+      {
+        "name": "DSPs",
+        "used": 438.0,
+        "available": 2280.0,
+        "percent": 19.21
+      }
+    ],
+    "wns_ns": 0.171,
+    "tns_ns": 0.0,
+    "setup_failing_endpoints": 0,
+    "whs_ns": 0.01,
+    "ths_ns": 0.0,
+    "hold_failing_endpoints": 0,
+    "timing_met": true
+  },
+  "coverage": [
+    {
+      "scope": "模块级",
+      "line": 96.71,
+      "condition": 82.78,
+      "branch": 82.35,
+      "fsm": 57.1,
+      "toggle": 52.67
+    },
+    {
+      "scope": "SoC 级",
+      "line": 95.21,
+      "condition": 82.17,
+      "branch": 80.77,
+      "fsm": 62.72,
+      "toggle": 45.13
+    }
+  ],
+  "deployment_models": [
+    {
+      "file": "voltage_shared_channel_adapter_int16.tflite",
+      "bytes": 19600,
+      "sha256": "cbe6c26fbb31694e03e913a97e213b7ce20e8876f40e64c498dd799f34838630",
+      "input_shape": [
+        1,
+        18
+      ]
+    },
+    {
+      "file": "current_ina3_to_load_channel2_int16.tflite",
+      "bytes": 16640,
+      "sha256": "eb86bce6b7452511eba08e55c24b43b2bd08b3f2f730005cd651cb71d5528333",
+      "input_shape": [
+        1,
+        12
+      ]
+    },
+    {
+      "file": "humidity_gxht45_to_hdc3020_int16.tflite",
+      "bytes": 5376,
+      "sha256": "04e42813fd11f3818467058e2696a38a161287d91560e8d011bed4f4bc04f0a3",
+      "input_shape": [
+        1,
+        7
+      ]
+    }
+  ],
+  "source_records": [
+    {
+      "file": "veri/python_model/validation/summary.json",
+      "sha256": "3db30f04d6014c95ddf63f0f4daae7b574efce123d9f0cafa959993458934bda"
+    },
+    {
+      "file": "veri/python_model/validation/ws_int8_tail/case/config.json",
+      "sha256": "1f95bcc8b017199c47a2f229399765d5f8ea43029eeee2045cce5f30c70ce63f"
+    },
+    {
+      "file": "veri/python_model/validation/is_s16_per_channel/case/config.json",
+      "sha256": "fb962b116bc024ebb1bfac9e0ecdf626c393044324d0531b28f1dfdba1d6ff8f"
+    },
+    {
+      "file": "veri/python_model/validation/ws_s16_output/case/config.json",
+      "sha256": "4a52306c9aee991bf6ce9a805ba8b6b52bb5361ac12573c22ce0dcb09ea25db9"
+    },
+    {
+      "file": "veri/python_model/validation/ws_s16_no_bias/case/config.json",
+      "sha256": "05661d47c1aaa90fb306dcd9143fcddab7120b373d044457248ef895fda4da70"
+    },
+    {
+      "file": "veri/python_model/validation/ws_reuse_groups/case/config.json",
+      "sha256": "53b4af552254c1716f7d947bd36c35faef5daf0dafc408a450ac5971026d90b1"
+    },
+    {
+      "file": "veri/python_model/validation/ws_fixed_latency/case/config.json",
+      "sha256": "fb0d07d1ad42d174fee9ef9224e2b49c3436c236882f0b0e3c258ba7f0d07ecc"
+    },
+    {
+      "file": "veri/python_model/validation/ws_random_latency/case/config.json",
+      "sha256": "ec63bc2cb594d22bd5f86ab4d492343956d4d083a9c84010ab8eb228b91898b5"
+    },
+    {
+      "file": "veri/python_model/validation/is_random_latency/case/config.json",
+      "sha256": "18c59fb243412a93a19e7c38f0ab8425ca7a0ebe7d92a51ea8b10f746c59b4e0"
+    },
+    {
+      "file": "veri/python_model/validation/cache8_auto/case/config.json",
+      "sha256": "e9e43fe256e9f11cc46294e9b02ac59f176031457d1f9d3897f19a43ae4710e9"
+    },
+    {
+      "file": "veri/python_model/validation/cache16_auto/case/config.json",
+      "sha256": "5b68b2e172a38eea993ab9e0f835b5679203a625e4efa1359aecfb9d196ffe0f"
+    },
+    {
+      "file": "veri/python_model/validation/cache16_is_s16/case/config.json",
+      "sha256": "28266a830d0f0fbd9250c6746986a26aba31463439bc876ea53b9e251ddc3e0c"
+    },
+    {
+      "file": "veri/python_model/validation/cache32_auto/case/config.json",
+      "sha256": "b797cc6c9ef498727c698610a6a5888b62c34b656ba9f582d504b38e5d25a0ca"
+    },
+    {
+      "file": "veri/sim/runs/ai_axi_soc_c_test/seed_1/sim.log",
+      "sha256": "ef4c85276d3d1040d5a10de882b5c77d52ee67db809f24aaf50cf3a457c8d5c6"
+    },
+    {
+      "file": "veri/soc_csrc/tflm_sensor_calibration_20261019_golden_data.cc",
+      "sha256": "a21e7a10970889b360ac3a5afdfcc616cc6824f772364b4885bfc497c2e62ab7"
+    },
+    {
+      "file": "veri/sim/runs/tflm_sensor_calibration_int16x8/seed_1/sim.log",
+      "sha256": "3caf45399796869d755d79b8795e42daadaa9bc41919cea4999bcd2565034d2f"
+    },
+    {
+      "file": "bit_soc_wrapper_utilization_placed.rpt",
+      "sha256": "38343853eda0f00d506ee2668f60dca0823792bb17c0d2929ad28cb2834362e4"
+    },
+    {
+      "file": "bit_soc_wrapper_timing_summary_routed.rpt",
+      "sha256": "35a38bee6f1036279609e91509ae483eb1e64ad3b0752d8ac39e4d8893baad09"
+    },
+    {
+      "file": "deployment_manifest.json",
+      "sha256": "608395972e2e6ea65e902d539b370b4d41755b51b612faaf48087b1f866e8e44"
+    },
+    {
+      "file": "doc/coverage_report_cn.md",
+      "sha256": "68a780a23e20d798bf8e60bd0a4f3d636dbd3fcba8396f0e8814ecc4fde528c5"
+    }
+  ]
+}

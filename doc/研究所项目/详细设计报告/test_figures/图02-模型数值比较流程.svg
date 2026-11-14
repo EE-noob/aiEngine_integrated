@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="660" viewBox="0 0 1500 660">
+<title>图02-模型数值比较流程</title>
+<rect width="100%" height="100%" fill="white"/>
+<defs>
+<marker id="blue" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#C6E4F0" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+<marker id="yellow" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#FFF2CC" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+<marker id="green" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#A7D5A3" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+<marker id="red" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#FF6272" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+</defs>
+<path d="M 180 240 L 180.00 169.00 Q 180 145 204.00 145.00 L 500 145" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 180 240 L 180.00 169.00 Q 180 145 204.00 145.00 L 500 145" fill="none" stroke="#C6E4F0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#blue)"/>
+<path d="M 180 390 L 180.00 491.00 Q 180 515 204.00 515.00 L 500 515" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 180 390 L 180.00 491.00 Q 180 515 204.00 515.00 L 500 515" fill="none" stroke="#A7D5A3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#green)"/>
+<path d="M 930 145 L 1261.00 145.00 Q 1285 145 1285.00 169.00 L 1285 240" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 930 145 L 1261.00 145.00 Q 1285 145 1285.00 169.00 L 1285 240" fill="none" stroke="#C6E4F0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#blue)"/>
+<path d="M 930 515 L 1261.00 515.00 Q 1285 515 1285.00 491.00 L 1285 390" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 930 515 L 1261.00 515.00 Q 1285 515 1285.00 491.00 L 1285 390" fill="none" stroke="#A7D5A3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#green)"/>
+<rect id="samples" x="40" y="240" width="280" height="150" rx="25" fill="#C6E4F0" stroke="#191919" stroke-width="3"/>
+<rect id="dut" x="500" y="70" width="430" height="150" rx="25" fill="#FFF2CC" stroke="#191919" stroke-width="3"/>
+<rect id="expected" x="500" y="440" width="430" height="150" rx="25" fill="#A7D5A3" stroke="#191919" stroke-width="3"/>
+<rect id="compare" x="1110" y="240" width="350" height="150" rx="25" fill="#C6E4F0" stroke="#191919" stroke-width="3"/>
+<text x="180.0" y="297.6" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">固定输入样本</text>
+<text x="180.0" y="332.4" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="26">相同特征与量化参数</text>
+<text x="715.0" y="127.0" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="30">PicoRV32 + TFLM + NPU</text>
+<text x="715.0" y="163.0" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="27">执行原始 RTL 并写回输出</text>
+<text x="715.0" y="497.0" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="30">电脑端预期结果</text>
+<text x="715.0" y="533.0" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="27">预先生成量化整数输出</text>
+<text x="1285.0" y="297.0" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="30">逐样本、逐输出比较</text>
+<text x="1285.0" y="333.0" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="27">统计整数差异与最大值</text>
+</svg>

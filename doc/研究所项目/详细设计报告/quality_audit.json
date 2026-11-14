@@ -1,0 +1,292 @@
+{
+  "body_han_characters": 19274,
+  "chapters": 11,
+  "microblaze_deployment_sections": 6,
+  "pdf_pages": 31,
+  "figures": 8,
+  "tables": 2,
+  "table_cells_centered": 39,
+  "table_vertical_alignment": "CENTER",
+  "table_horizontal_alignment": "CENTER",
+  "editable_equations": 5,
+  "editable_inline_equations": 11,
+  "references": 0,
+  "citation_links": 0,
+  "toc_entries_checked": 54,
+  "image_pdf_pages": [
+    9,
+    12,
+    14,
+    17,
+    19,
+    21,
+    23,
+    29
+  ],
+  "prohibited_word_hits": 0,
+  "negative_phrase_hits": 0,
+  "visible_date_or_version": "NONE",
+  "docx_structure": "PASS",
+  "pdf_automated_checks": "PASS",
+  "visual_review": "See 审查记录.md",
+  "sha256": {
+    "/media/proj_tmp/aiEngine_integrated/doc/研究所项目/详细设计报告/NPU与传感器校准SoC详细设计技术报告.md": "22b191d6a230e5bf66112aef7a81f77117caf553a71d0615f25d9decb7a89184",
+    "/media/proj_tmp/aiEngine_integrated/doc/研究所项目/详细设计报告/NPU与传感器校准SoC详细设计技术报告.docx": "de339d4b2cb8b8facc8183198627b84ec7a992d666c06442cbf35a598e79eb97",
+    "/media/proj_tmp/aiEngine_integrated/doc/研究所项目/详细设计报告/NPU与传感器校准SoC详细设计技术报告.pdf": "1e97ae1727fd0e9fc4b05a5b95f02a58ae53f88d1827642fd263e23f1ad1a07a",
+    "/media/3/0-课题/TFLM加速器/架构设计-AXI.png": "ce5296603c697a924a06726883be60a8626b575c3d1b04cea26e7ed6f0fbf034",
+    "/media/3/工作/CKS58/md_report_to_docx.py": "3d7fb9587604e6a8626f64e475828251afa4dc3f9a26ceea5bd8279d326134a6",
+    "/media/proj_tmp/aiEngine_integrated/doc/研究所项目/详细设计报告/README.md": "5476ec8b8ac4adbf4d8f17a456febc4e1afffc91d6b43d662316f720216dbe7b",
+    "/media/proj_tmp/aiEngine_integrated/doc/研究所项目/详细设计报告/审查记录.md": "73d6a693e56a7f2d725126b4cb051bf111d57ecafd88b73d476448e33bdac853",
+    "/media/proj_tmp/aiEngine_integrated/doc/研究所项目/详细设计报告/audit_report.py": "d36d3fe1fa5b40d726860578e7b0f6355f2f3f145a823b9605c53d01db12d388",
+    "/media/proj_tmp/aiEngine_integrated/doc/研究所项目/详细设计报告/build_report.py": "8e48ace193a80db0bb271c3e1913a86dece53b5528fab7b10dfff7e4bf9b8df0",
+    "/media/proj_tmp/aiEngine_integrated/doc/研究所项目/详细设计报告/draw_figures.py": "4bf7314157452d907af6cd4feec3a52c9b8c7baf440afedb112cc6d0b809fbd8",
+    "/media/proj_tmp/aiEngine_integrated/doc/研究所项目/详细设计报告/test_report_terminology.py": "8c9198a20cb45d10662276c7797d960d8dfd2f510032d424b9224cebc67168f6",
+    "/media/proj_tmp/aiEngine_integrated/doc/研究所项目/详细设计报告/report_typography.py": "3ca30bb073b3c5c20dc0c99851c9b22e800dac61fc726a96c0d3d58ab2088422",
+    "/home/etc/FPGA/BIT_PROJ_S1/VU3P_sensor_v2/VU3P_oled.srcs/sources_1/bd/bit_soc/bit_soc.bd": "2392dd7c25003442605c05cf0094b55a12466f887cc8a82be88779a3ee300955",
+    "/home/etc/FPGA/BIT_PROJ_S1/VU3P_sensor_v2/VU3P_oled.srcs/sources_1/new/dsa_npu/npu_axil_bd_wrapper.v": "c17fdad410dbc8d4f986c4f04a7f7a9269abe03b6fc60a2720a229de61c1eb5c",
+    "/home/etc/FPGA/BIT_PROJ_S1/VU3P_sensor_v2/VU3P_oled.srcs/sources_1/new/dsa_npu/axi_inferred_shared_ram.sv": "f3c8ca7bb5522d6e723bd038ac0aac228fb17c2d0c43f45eb97629405760acc6",
+    "/home/etc/FPGA/BIT_PROJ_S1/Vitis/sensor_sw_v2/src/calibration/sensor_calibration_runtime_20261111_pre_release.cc": "c5dd3b2c293251bef1b0f35b5fa4bc84e594ade1e687728a5c872d691c337d3a",
+    "/home/etc/FPGA/BIT_PROJ_S1/Vitis/sensor_sw_v2/src/calibration/deploy_20261111_pre_release/model_data.S": "5ba6df0fa5b7eee5140bb8176cc09a1d13abf65463af2986feeab58f1d1fa1db",
+    "/home/etc/FPGA/BIT_PROJ_S1/Vitis/sensor_sw_v2/src/usr_lib/ui.c": "36ab00ade062fd5a2753691751f57963d08393f4489d5915c9cb7f7df19af973",
+    "/home/etc/FPGA/BIT_PROJ_S1/VU3P_sensor_v2/VU3P_oled.srcs/sources_1/new/dsa_npu/npu_axil_reg_if.sv": "80acc231ffc12533f3aeaaf089154b46f607cd43108515b53253d3db7562ab25",
+    "/home/etc/FPGA/BIT_PROJ_S1/VU3P_sensor_v2/VU3P_oled.srcs/sources_1/new/dsa_npu/ia_loader_cache_mgr.sv": "b76d55f421c740cc9de1026d59449e7f1910748d80b51bfbb8e1dec82ed1e01b",
+    "/home/etc/FPGA/BIT_PROJ_S1/VU3P_sensor_v2/VU3P_oled.srcs/sources_1/new/dsa_npu/ws_systolic_cell.sv": "23453fd8446aa96c3f2bec410d52087c68f84acff5f9c1b09cac02a994b09d63",
+    "/home/etc/FPGA/BIT_PROJ_S1/VU3P_sensor_v2/VU3P_oled.srcs/sources_1/new/dsa_npu/axi_block_dma_arbiter.sv": "0d5bd7978371bd5466d61af0ea4fbdd8fafc2544470c7ca1a571ef1c1f9402f5",
+    "/home/etc/FPGA/BIT_PROJ_S1/VU3P_sensor_v2/VU3P_oled.srcs/sources_1/new/dsa_npu/vec_requant_s64.sv": "8fb526214076e0f19381120fabc7ccec096a52212abf3e2682cd434df82f139c",
+    "/media/proj_tmp/aiEngine_integrated/scripts/export_sensor_hw_platform.tcl": "5c756e470230118f6a5a9e98279b6a2353747df9a7b1816cf83ddcede291eec0",
+    "/media/proj_tmp/aiEngine_integrated/scripts/update_vitis_sensor_platform.py": "5dad0ee7630ab00bc26fddb0d6484d2f6150f95ef2e18ae68e7511e647cfaaa7",
+    "/media/proj_tmp/aiEngine_integrated/scripts/merge_vu3p_sensor_elf.py": "89df4dab3c53b9bcf700b423ba65ecf348c23244e69ab754ba71b8f0f8c156b5",
+    "/media/proj_tmp/aiEngine_integrated/scripts/prepare_vu3p_sensor_models_20261108_coe.py": "59a7939917e84cdab7fdd8b92560dc508e8c8ddc689fb74edd39d9900f6455dd",
+    "/home/etc/FPGA/BIT_PROJ_S1/Vitis/sensor_sw_v2/src/CMakeLists.txt": "0180d5a9cc9613b98e1565738dfa01ebd180398c5108d48a8f9532051e0b0d97",
+    "/home/etc/FPGA/BIT_PROJ_S1/Vitis/sensor_sw_v2/src/UserConfig.cmake": "5ce3877abe5f214c922e0e2a6a4e6b0385012d0a02c6f09451572cb040916594",
+    "/home/etc/FPGA/BIT_PROJ_S1/Vitis/sensor_sw_v2/src/lscript.ld": "008635e7797adcb0c23735bb90266a1fb1d3d71844fb1ee483a5cff4cd1b71d4",
+    "/home/etc/FPGA/BIT_PROJ_S1/Vitis/sensor_sw_v2/src/main.c": "f69e5b1b2e6b2e942509eae22ff71ed2799e1c0d17266ef9c9aebf794905fa75",
+    "/home/etc/FPGA/BIT_PROJ_S1/Vitis/sensor_sw_v2/vitis-comp.json": "928cf56ef93b33c4a7f0c9a3efb803457ed1572fce0fc2c1c8b37b846b0a3ef7",
+    "/home/etc/FPGA/BIT_PROJ_S1/Vitis/sensor_sw_v2/tools/build_tflm_dsa.sh": "af2ec769a196bb976e5ef9d685b7687f15e9fb047f28548e50a962847230b27b"
+  },
+  "npu_original_image": {
+    "source": "/media/3/0-课题/TFLM加速器/架构设计-AXI.png",
+    "asset": "/media/proj_tmp/aiEngine_integrated/doc/研究所项目/详细设计报告/figures/图02-NPU总体架构.png",
+    "pixels": [
+      19750,
+      12717
+    ],
+    "docx_media": "word/media/image2.png",
+    "sha256": "ce5296603c697a924a06726883be60a8626b575c3d1b04cea26e7ed6f0fbf034",
+    "unchanged_png_in_docx": "PASS",
+    "aspect_ratio": "PASS",
+    "display_rounding_tolerance_emu": 635
+  },
+  "table_pdf_pages": [
+    10,
+    13
+  ],
+  "tables_kept_on_single_page": "PASS",
+  "terminology_checks": {
+    "user_prohibited_words": [
+      "链路",
+      "实践",
+      "口径",
+      "闭环",
+      "签核",
+      "映射",
+      "判据",
+      "令牌",
+      "历元",
+      "重定向",
+      "生产者",
+      "所有者",
+      "负载",
+      "元数据",
+      "语义",
+      "组合锥",
+      "时隙",
+      "同址",
+      "归约",
+      "根因",
+      "排程"
+    ],
+    "user_prohibited_word_count": 21,
+    "agents_prohibited_expressions": [
+      "落地",
+      "钉死",
+      "门禁",
+      "夹具",
+      "探针",
+      "基线",
+      "收掉",
+      "追溯",
+      "冒烟",
+      "烟测",
+      "全量",
+      "验收矩阵",
+      "颗粒度",
+      "证据",
+      "关键一刀",
+      "约定",
+      "合同"
+    ],
+    "hits_by_surface": {
+      "MD": 0,
+      "DOCX": 0,
+      "PDF": 0,
+      "figure_source": 0,
+      "README.md": 0,
+      "审查记录.md": 0,
+      "figures/图01-SoC总体架构.svg": 0,
+      "figures/图03-任务执行流程.svg": 0,
+      "figures/图04-加载与缓存.svg": 0,
+      "figures/图05-计算与部分和.svg": 0,
+      "figures/图06-输出处理.svg": 0,
+      "figures/图07-软件栈.svg": 0,
+      "figures/图08-验证流程.svg": 0
+    },
+    "original_npu_figure": "UNCHANGED_USER_SUPPLIED_IMAGE"
+  },
+  "restricted_term_checks": {
+    "quantization": "ALLOWED_TECHNICAL_TERM",
+    "convergence_allowed_phrase": "时序收敛",
+    "boundary_policy": "REVIEW_EXACT_CONTEXT_FOR_PHYSICAL_OR_STRUCTURAL_SEPARATION",
+    "surfaces": {
+      "MD": {
+        "quantization_occurrences": 67,
+        "quantization_examples_present": [
+          "量化误差"
+        ],
+        "timing_convergence_occurrences": 0,
+        "invalid_convergence_occurrences": 0,
+        "boundary_occurrences": 0,
+        "boundary_reviews": [],
+        "unreviewed_boundary_occurrences": 0
+      },
+      "DOCX": {
+        "quantization_occurrences": 69,
+        "quantization_examples_present": [
+          "量化误差"
+        ],
+        "timing_convergence_occurrences": 0,
+        "invalid_convergence_occurrences": 0,
+        "boundary_occurrences": 0,
+        "boundary_reviews": [],
+        "unreviewed_boundary_occurrences": 0
+      },
+      "PDF": {
+        "quantization_occurrences": 68,
+        "quantization_examples_present": [
+          "量化误差"
+        ],
+        "timing_convergence_occurrences": 0,
+        "invalid_convergence_occurrences": 0,
+        "boundary_occurrences": 0,
+        "boundary_reviews": [],
+        "unreviewed_boundary_occurrences": 0
+      },
+      "figure_source": {
+        "quantization_occurrences": 3,
+        "quantization_examples_present": [],
+        "timing_convergence_occurrences": 0,
+        "invalid_convergence_occurrences": 0,
+        "boundary_occurrences": 0,
+        "boundary_reviews": [],
+        "unreviewed_boundary_occurrences": 0
+      },
+      "README.md": {
+        "quantization_occurrences": 5,
+        "quantization_examples_present": [
+          "量化方法",
+          "量化误差",
+          "量化精度"
+        ],
+        "timing_convergence_occurrences": 0,
+        "invalid_convergence_occurrences": 0,
+        "boundary_occurrences": 0,
+        "boundary_reviews": [],
+        "unreviewed_boundary_occurrences": 0
+      },
+      "审查记录.md": {
+        "quantization_occurrences": 4,
+        "quantization_examples_present": [],
+        "timing_convergence_occurrences": 0,
+        "invalid_convergence_occurrences": 0,
+        "boundary_occurrences": 0,
+        "boundary_reviews": [],
+        "unreviewed_boundary_occurrences": 0
+      },
+      "figures/图01-SoC总体架构.svg": {
+        "quantization_occurrences": 0,
+        "quantization_examples_present": [],
+        "timing_convergence_occurrences": 0,
+        "invalid_convergence_occurrences": 0,
+        "boundary_occurrences": 0,
+        "boundary_reviews": [],
+        "unreviewed_boundary_occurrences": 0
+      },
+      "figures/图03-任务执行流程.svg": {
+        "quantization_occurrences": 0,
+        "quantization_examples_present": [],
+        "timing_convergence_occurrences": 0,
+        "invalid_convergence_occurrences": 0,
+        "boundary_occurrences": 0,
+        "boundary_reviews": [],
+        "unreviewed_boundary_occurrences": 0
+      },
+      "figures/图04-加载与缓存.svg": {
+        "quantization_occurrences": 0,
+        "quantization_examples_present": [],
+        "timing_convergence_occurrences": 0,
+        "invalid_convergence_occurrences": 0,
+        "boundary_occurrences": 0,
+        "boundary_reviews": [],
+        "unreviewed_boundary_occurrences": 0
+      },
+      "figures/图05-计算与部分和.svg": {
+        "quantization_occurrences": 1,
+        "quantization_examples_present": [],
+        "timing_convergence_occurrences": 0,
+        "invalid_convergence_occurrences": 0,
+        "boundary_occurrences": 0,
+        "boundary_reviews": [],
+        "unreviewed_boundary_occurrences": 0
+      },
+      "figures/图06-输出处理.svg": {
+        "quantization_occurrences": 0,
+        "quantization_examples_present": [],
+        "timing_convergence_occurrences": 0,
+        "invalid_convergence_occurrences": 0,
+        "boundary_occurrences": 0,
+        "boundary_reviews": [],
+        "unreviewed_boundary_occurrences": 0
+      },
+      "figures/图07-软件栈.svg": {
+        "quantization_occurrences": 2,
+        "quantization_examples_present": [],
+        "timing_convergence_occurrences": 0,
+        "invalid_convergence_occurrences": 0,
+        "boundary_occurrences": 0,
+        "boundary_reviews": [],
+        "unreviewed_boundary_occurrences": 0
+      },
+      "figures/图08-验证流程.svg": {
+        "quantization_occurrences": 0,
+        "quantization_examples_present": [],
+        "timing_convergence_occurrences": 0,
+        "invalid_convergence_occurrences": 0,
+        "boundary_occurrences": 0,
+        "boundary_reviews": [],
+        "unreviewed_boundary_occurrences": 0
+      }
+    }
+  },
+  "heading_fonts": {
+    "family": "黑体",
+    "styles_checked": 29,
+    "paragraphs_checked": 120,
+    "text_runs_checked": 368,
+    "pdf_large_heading_spans_checked": 57,
+    "pdf_caption_lines_checked": 10,
+    "pdf_toc_spans_checked": 54,
+    "theme_font_overrides": "NONE",
+    "docx_fonts": "PASS",
+    "pdf_fonts": "PASS"
+  }
+}

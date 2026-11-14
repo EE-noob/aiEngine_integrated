@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="660" viewBox="0 0 1600 660">
+<title>图08-验证流程</title>
+<rect width="100%" height="100%" fill="white"/>
+<defs>
+<marker id="blue" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#C6E4F0" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+<marker id="yellow" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#FFF2CC" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+<marker id="green" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#A7D5A3" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+<marker id="red" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#FF6272" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+</defs>
+<path d="M 200 240 L 200 450" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 200 240 L 200 450" fill="none" stroke="#A7D5A3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#green)"/>
+<path d="M 360 170 L 440 170" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 360 170 L 440 170" fill="none" stroke="#A7D5A3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#green)"/>
+<path d="M 600 240 L 600 450" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 600 240 L 600 450" fill="none" stroke="#A7D5A3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#green)"/>
+<path d="M 760 170 L 840 170" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 760 170 L 840 170" fill="none" stroke="#A7D5A3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#green)"/>
+<path d="M 1000 240 L 1000 450" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 1000 240 L 1000 450" fill="none" stroke="#A7D5A3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#green)"/>
+<path d="M 1160 170 L 1240 170" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 1160 170 L 1240 170" fill="none" stroke="#A7D5A3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#green)"/>
+<path d="M 1400 240 L 1400 450" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 1400 240 L 1400 450" fill="none" stroke="#A7D5A3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#green)"/>
+<rect id="t0" x="40" y="100" width="320" height="140" rx="25" fill="#FFF2CC" stroke="#191919" stroke-width="3"/>
+<rect id="c0" x="40" y="450" width="320" height="140" rx="25" fill="#C6E4F0" stroke="#191919" stroke-width="3"/>
+<rect id="t1" x="440" y="100" width="320" height="140" rx="25" fill="#FFF2CC" stroke="#191919" stroke-width="3"/>
+<rect id="c1" x="440" y="450" width="320" height="140" rx="25" fill="#C6E4F0" stroke="#191919" stroke-width="3"/>
+<rect id="t2" x="840" y="100" width="320" height="140" rx="25" fill="#FFF2CC" stroke="#191919" stroke-width="3"/>
+<rect id="c2" x="840" y="450" width="320" height="140" rx="25" fill="#C6E4F0" stroke="#191919" stroke-width="3"/>
+<rect id="t3" x="1240" y="100" width="320" height="140" rx="25" fill="#FFF2CC" stroke="#191919" stroke-width="3"/>
+<rect id="c3" x="1240" y="450" width="320" height="140" rx="25" fill="#C6E4F0" stroke="#191919" stroke-width="3"/>
+<text x="200.0" y="150.2" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="33">RAM 读写检查</text>
+<text x="200.0" y="189.8" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="30">地址 / 字节 / 时序</text>
+<text x="200.0" y="500.8" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="32">数据返回一致</text>
+<text x="200.0" y="539.2" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">连续读取 / 字节写入</text>
+<text x="600.0" y="150.2" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="33">NPU 单算子</text>
+<text x="600.0" y="189.8" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="30">真实硬件整数结果</text>
+<text x="600.0" y="500.8" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="32">逐元素比较</text>
+<text x="600.0" y="539.2" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">尾块 / 通道参数 / 反压</text>
+<text x="1000.0" y="150.2" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="33">处理器软件提交</text>
+<text x="1000.0" y="189.8" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="30">寄存器 / 启动 / 状态</text>
+<text x="1000.0" y="500.8" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="32">确实发生硬件调用</text>
+<text x="1000.0" y="539.2" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">DMA 访问与输出写回</text>
+<text x="1400.0" y="150.2" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="33">完整模型推理</text>
+<text x="1400.0" y="189.8" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="30">相同整数特征输入</text>
+<text x="1400.0" y="500.8" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="32">执行与校准误差</text>
+<text x="1400.0" y="539.2" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">分别统计物理量单位</text>
+<text x="800" y="35" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="30">真实硬件执行结果与离线期望值逐项比较</text>
+</svg>

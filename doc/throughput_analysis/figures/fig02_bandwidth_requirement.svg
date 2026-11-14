@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="571.92pt" height="386.171225pt" viewBox="0 0 571.92 386.171225" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-11-07T23:51:37.908785</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.8.1, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 386.171225 
+L 571.92 386.171225 
+L 571.92 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 40.2 319.063625 
+L 564.72 319.063625 
+L 564.72 30.775625 
+L 40.2 30.775625 
+z
+" style="fill: #ffffff"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 64.041818 319.063625 
+L 171.23759 319.063625 
+L 171.23759 69.733463 
+L 64.041818 69.733463 
+z
+" clip-path="url(#pa8ed95fe67)" style="fill: #6741a5"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 248.862114 319.063625 
+L 356.057886 319.063625 
+L 356.057886 287.897355 
+L 248.862114 287.897355 
+z
+" clip-path="url(#pa8ed95fe67)" style="fill: #3c78a8"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 433.68241 319.063625 
+L 540.878182 319.063625 
+L 540.878182 256.731084 
+L 433.68241 256.731084 
+z
+" clip-path="url(#pa8ed95fe67)" style="fill: #e29a34"/>
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1">
+      <defs>
+       <path id="m8d0cc14b88" d="M 0 0 
+L 0 3.5 
+" style="stroke: #000000; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#m8d0cc14b88" x="117.639704" y="319.063625" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_1">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: middle" x="117.639704" y="334.023" transform="rotate(-0 117.639704 334.023)">阵列峰值输入需求</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_2">
+      <g>
+       <use xlink:href="#m8d0cc14b88" x="302.46" y="319.063625" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_2">
+      <text style="font: 10px 'Source Han Sans CN'" transform="translate(278.319375 334.023)">32 bit 总线</text>
+      <text style="font: 10px 'Source Han Sans CN'" transform="translate(274.149063 345.864875)">1 beat/cycle</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_3">
+      <g>
+       <use xlink:href="#m8d0cc14b88" x="487.280296" y="319.063625" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_3">
+      <text style="font: 10px 'Source Han Sans CN'" transform="translate(463.139671 334.023)">64 bit 总线</text>
+      <text style="font: 10px 'Source Han Sans CN'" transform="translate(458.969358 345.864875)">1 beat/cycle</text>
+     </g>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_4">
+      <path d="M 40.2 319.063625 
+L 564.72 319.063625 
+" clip-path="url(#pa8ed95fe67)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_5">
+      <defs>
+       <path id="m884aefc421" d="M 0 0 
+L -3.5 0 
+" style="stroke: #000000; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#m884aefc421" x="40.2" y="319.063625" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_4">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: end" x="33.2" y="323.043312" transform="rotate(-0 33.2 323.043312)">0</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_6">
+      <path d="M 40.2 280.105787 
+L 564.72 280.105787 
+" clip-path="url(#pa8ed95fe67)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_7">
+      <g>
+       <use xlink:href="#m884aefc421" x="40.2" y="280.105787" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_5">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: end" x="33.2" y="284.085475" transform="rotate(-0 33.2 284.085475)">5</text>
+     </g>
+    </g>
+    <g id="ytick_3">
+     <g id="line2d_8">
+      <path d="M 40.2 241.147949 
+L 564.72 241.147949 
+" clip-path="url(#pa8ed95fe67)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_9">
+      <g>
+       <use xlink:href="#m884aefc421" x="40.2" y="241.147949" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_6">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: end" x="33.2" y="245.127637" transform="rotate(-0 33.2 245.127637)">10</text>
+     </g>
+    </g>
+    <g id="ytick_4">
+     <g id="line2d_10">
+      <path d="M 40.2 202.190111 
+L 564.72 202.190111 
+" clip-path="url(#pa8ed95fe67)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_11">
+      <g>
+       <use xlink:href="#m884aefc421" x="40.2" y="202.190111" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_7">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: end" x="33.2" y="206.169799" transform="rotate(-0 33.2 206.169799)">15</text>
+     </g>
+    </g>
+    <g id="ytick_5">
+     <g id="line2d_12">
+      <path d="M 40.2 163.232274 
+L 564.72 163.232274 
+" clip-path="url(#pa8ed95fe67)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_13">
+      <g>
+       <use xlink:href="#m884aefc421" x="40.2" y="163.232274" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_8">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: end" x="33.2" y="167.211961" transform="rotate(-0 33.2 167.211961)">20</text>
+     </g>
+    </g>
+    <g id="ytick_6">
+     <g id="line2d_14">
+      <path d="M 40.2 124.274436 
+L 564.72 124.274436 
+" clip-path="url(#pa8ed95fe67)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_15">
+      <g>
+       <use xlink:href="#m884aefc421" x="40.2" y="124.274436" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_9">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: end" x="33.2" y="128.254123" transform="rotate(-0 33.2 128.254123)">25</text>
+     </g>
+    </g>
+    <g id="ytick_7">
+     <g id="line2d_16">
+      <path d="M 40.2 85.316598 
+L 564.72 85.316598 
+" clip-path="url(#pa8ed95fe67)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_17">
+      <g>
+       <use xlink:href="#m884aefc421" x="40.2" y="85.316598" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_10">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: end" x="33.2" y="89.296285" transform="rotate(-0 33.2 89.296285)">30</text>
+     </g>
+    </g>
+    <g id="ytick_8">
+     <g id="line2d_18">
+      <path d="M 40.2 46.35876 
+L 564.72 46.35876 
+" clip-path="url(#pa8ed95fe67)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_19">
+      <g>
+       <use xlink:href="#m884aefc421" x="40.2" y="46.35876" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_11">
+      <text style="font: 10px 'Source Han Sans CN'; text-anchor: end" x="33.2" y="50.338448" transform="rotate(-0 33.2 50.338448)">35</text>
+     </g>
+    </g>
+    <g id="text_12">
+     <text style="font: 10px 'Source Han Sans CN'; text-anchor: middle" x="15.759375" y="174.919625" transform="rotate(-90 15.759375 174.919625)">外部 s8 数据需求 / 带宽（byte/cycle）</text>
+    </g>
+   </g>
+   <g id="patch_6">
+    <path d="M 40.2 319.063625 
+L 40.2 30.775625 
+" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 564.72 319.063625 
+L 564.72 30.775625 
+" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 40.2 319.063625 
+L 564.72 319.063625 
+" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 40.2 30.775625 
+L 564.72 30.775625 
+" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="text_13">
+    <text style="font: 700 10px 'Source Han Sans CN'; text-anchor: middle" x="117.639704" y="64.279366" transform="rotate(-0 117.639704 64.279366)">32 B/cycle</text>
+   </g>
+   <g id="text_14">
+    <text style="font: 700 10px 'Source Han Sans CN'; text-anchor: middle" x="302.46" y="282.443257" transform="rotate(-0 302.46 282.443257)">4 B/cycle</text>
+   </g>
+   <g id="text_15">
+    <text style="font: 700 10px 'Source Han Sans CN'; text-anchor: middle" x="487.280296" y="251.276987" transform="rotate(-0 487.280296 251.276987)">8 B/cycle</text>
+   </g>
+   <g id="text_16">
+    <text style="fill: #ffffff; font: 700 10px 'Source Han Sans CN'" transform="translate(82.34986 130.948196)">256 MAC/cycle</text>
+    <text style="fill: #ffffff; font: 700 10px 'Source Han Sans CN'" transform="translate(57.163923 142.764446)">每拍注入 16 个 A + 16 个 W</text>
+    <text style="fill: #ffffff; font: 700 10px 'Source Han Sans CN'" transform="translate(80.863923 154.585696)">= 32 byte/cycle</text>
+   </g>
+   <g id="patch_10">
+    <path d="M 302.46 231.630779 
+Q 302.46 258.762986 302.46 284.777159 
+" style="fill: none; stroke: #344054; stroke-linecap: round"/>
+    <path d="M 304.26 281.177159 
+L 302.46 284.777159 
+L 300.66 281.177159 
+" style="fill: none; stroke: #344054; stroke-linecap: round"/>
+   </g>
+   <g id="text_17">
+    <text style="font: 9px 'Source Han Sans CN'" transform="translate(266.445938 214.907127)">需要 8× 时间复用</text>
+    <text style="font: 9px 'Source Han Sans CN'" transform="translate(266.46 225.564814)">（理想总线效率）</text>
+   </g>
+   <g id="patch_11">
+    <path d="M 487.280296 200.464509 
+Q 487.280296 227.596716 487.280296 253.610889 
+" style="fill: none; stroke: #344054; stroke-linecap: round"/>
+    <path d="M 489.080296 250.010889 
+L 487.280296 253.610889 
+L 485.480296 250.010889 
+" style="fill: none; stroke: #344054; stroke-linecap: round"/>
+   </g>
+   <g id="text_18">
+    <text style="font: 9px 'Source Han Sans CN'" transform="translate(451.266233 183.740856)">需要 4× 时间复用</text>
+    <text style="font: 9px 'Source Han Sans CN'" transform="translate(451.280296 194.398544)">（理想总线效率）</text>
+   </g>
+   <g id="text_19">
+    <text style="fill: #475467; font: 9px 'Source Han Sans CN'; text-anchor: middle" x="302.46" y="376.721225" transform="rotate(-0 302.46 376.721225)">若有效传输效率为 η，需求倍率分别为 8/η 与 4/η；AXI outstanding 隐藏延迟，但不改变每拍带宽。</text>
+   </g>
+   <g id="text_20">
+    <text style="font: 700 12px 'Source Han Sans CN'; text-anchor: middle" x="302.46" y="16.775625" transform="rotate(-0 302.46 16.775625)">16×16 int8 脉动阵列的峰值供数需求与单拍总线能力</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="pa8ed95fe67">
+   <rect x="40.2" y="30.775625" width="524.52" height="288.288"/>
+  </clipPath>
+ </defs>
+</svg>

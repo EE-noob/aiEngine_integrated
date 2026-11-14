@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="690" viewBox="0 0 1500 690">
+<title>图06-输出处理</title>
+<rect width="100%" height="100%" fill="white"/>
+<defs>
+<marker id="blue" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#C6E4F0" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+<marker id="yellow" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#FFF2CC" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+<marker id="green" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#A7D5A3" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+<marker id="red" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#FF6272" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+</defs>
+<path d="M 380 285 L 416.00 285.00 Q 440 285 440.00 261.00 L 440.00 159.00 Q 440 135 464.00 135.00 L 500 135" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 380 285 L 416.00 285.00 Q 440 285 440.00 261.00 L 440.00 159.00 Q 440 135 464.00 135.00 L 500 135" fill="none" stroke="#C6E4F0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#blue)"/>
+<path d="M 380 365 L 416.00 365.00 Q 440 365 440.00 389.00 L 440.00 491.00 Q 440 515 464.00 515.00 L 500 515" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 380 365 L 416.00 365.00 Q 440 365 440.00 389.00 L 440.00 491.00 Q 440 515 464.00 515.00 L 500 515" fill="none" stroke="#C6E4F0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#blue)"/>
+<path d="M 840 135 L 896.00 135.00 Q 920 135 920.00 159.00 L 920.00 261.00 Q 920 285 944.00 285.00 L 1000 285" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 840 135 L 896.00 135.00 Q 920 135 920.00 159.00 L 920.00 261.00 Q 920 285 944.00 285.00 L 1000 285" fill="none" stroke="#C6E4F0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#blue)"/>
+<path d="M 840 515 L 896.00 515.00 Q 920 515 920.00 491.00 L 920.00 389.00 Q 920 365 944.00 365.00 L 1000 365" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 840 515 L 896.00 515.00 Q 920 515 920.00 491.00 L 920.00 389.00 Q 920 365 944.00 365.00 L 1000 365" fill="none" stroke="#C6E4F0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#blue)"/>
+<path d="M 1210 410 L 1210 540" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 1210 410 L 1210 540" fill="none" stroke="#A7D5A3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#green)"/>
+<rect id="acc" x="60" y="240" width="320" height="170" rx="25" fill="#C6E4F0" stroke="#191919" stroke-width="3"/>
+<rect id="s8" x="500" y="60" width="340" height="150" rx="25" fill="#FFF2CC" stroke="#191919" stroke-width="3"/>
+<rect id="s16" x="500" y="440" width="340" height="150" rx="25" fill="#FFF2CC" stroke="#191919" stroke-width="3"/>
+<rect id="fifo" x="1000" y="240" width="420" height="170" rx="25" fill="#C6E4F0" stroke="#191919" stroke-width="3"/>
+<rect id="writer" x="1000" y="540" width="420" height="110" rx="25" fill="#A7D5A3" stroke="#191919" stroke-width="3"/>
+<text x="220.0" y="305.8" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="32">INT32 加偏置结果</text>
+<text x="220.0" y="344.2" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">有效标志 / 分块结束</text>
+<text x="670.0" y="96.6" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="32">INT8 缩放通路</text>
+<text x="670.0" y="135.0" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">乘数 / 移位 / 输出偏移</text>
+<text x="670.0" y="173.4" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">激活与类型限幅</text>
+<text x="670.0" y="476.6" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="32">INT16 缩放通路</text>
+<text x="670.0" y="515.0" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">扩展 / 乘法 / 舍入</text>
+<text x="670.0" y="553.4" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">移位与激活限幅</text>
+<text x="1210.0" y="286.6" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="32">类型对应的输出 FIFO</text>
+<text x="1210.0" y="325.0" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">32 位打包 / WSTRB</text>
+<text x="1210.0" y="363.4" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">有效行列数</text>
+<text x="1210.0" y="575.8" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="32">OA Writer / AXI 写回</text>
+<text x="1210.0" y="614.2" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">数据写入与响应等待</text>
+</svg>

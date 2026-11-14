@@ -1,0 +1,20 @@
+{
+  "diagrams": [
+    {
+      "figure": "图01-分层测试结构",
+      "nodes": 6,
+      "arrows": 3,
+      "text_items": 13,
+      "geometry": "PASS"
+    },
+    {
+      "figure": "图02-模型数值比较流程",
+      "nodes": 4,
+      "arrows": 4,
+      "text_items": 8,
+      "geometry": "PASS"
+    }
+  ],
+  "result_plots": 3,
+  "source_data": "test_results.json"
+}

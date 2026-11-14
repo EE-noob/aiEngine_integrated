@@ -1,0 +1,113 @@
+{
+  "chapters": 7,
+  "pages": 14,
+  "figures": 5,
+  "tables": 5,
+  "editable_equations": 3,
+  "han_characters": 6297,
+  "numerical_record_checks": "PASS",
+  "terminology": "PASS",
+  "tables_centered": "PASS",
+  "heading_font": "黑体",
+  "toc_entries_checked": 32,
+  "image_pages": [
+    4,
+    5,
+    9,
+    10,
+    12
+  ],
+  "structure": "PASS",
+  "visual_review_record": "测试报告说明.md",
+  "layout_pages": [
+    {
+      "page": 1,
+      "text_characters": 22,
+      "images": 0,
+      "body_bottom_pt": 390.683837890625
+    },
+    {
+      "page": 2,
+      "text_characters": 2259,
+      "images": 0,
+      "body_bottom_pt": 799.3687744140625
+    },
+    {
+      "page": 3,
+      "text_characters": 1144,
+      "images": 0,
+      "body_bottom_pt": 799.3687744140625
+    },
+    {
+      "page": 4,
+      "text_characters": 666,
+      "images": 1,
+      "body_bottom_pt": 799.3687744140625
+    },
+    {
+      "page": 5,
+      "text_characters": 679,
+      "images": 1,
+      "body_bottom_pt": 799.3687744140625
+    },
+    {
+      "page": 6,
+      "text_characters": 928,
+      "images": 0,
+      "body_bottom_pt": 799.3687744140625
+    },
+    {
+      "page": 7,
+      "text_characters": 867,
+      "images": 0,
+      "body_bottom_pt": 799.3687744140625
+    },
+    {
+      "page": 8,
+      "text_characters": 935,
+      "images": 0,
+      "body_bottom_pt": 799.3687744140625
+    },
+    {
+      "page": 9,
+      "text_characters": 646,
+      "images": 1,
+      "body_bottom_pt": 799.3687744140625
+    },
+    {
+      "page": 10,
+      "text_characters": 673,
+      "images": 1,
+      "body_bottom_pt": 799.3687744140625
+    },
+    {
+      "page": 11,
+      "text_characters": 867,
+      "images": 0,
+      "body_bottom_pt": 799.3687744140625
+    },
+    {
+      "page": 12,
+      "text_characters": 720,
+      "images": 1,
+      "body_bottom_pt": 799.3687744140625
+    },
+    {
+      "page": 13,
+      "text_characters": 863,
+      "images": 0,
+      "body_bottom_pt": 799.3687744140625
+    },
+    {
+      "page": 14,
+      "text_characters": 657,
+      "images": 0,
+      "body_bottom_pt": 799.3687744140625
+    }
+  ],
+  "sha256": {
+    "NPU与传感器校准SoC测试验证报告.md": "aa68b534cc26cf39e2cf3534df251adeb20b6fd5f531dff40615f724528bab7a",
+    "NPU与传感器校准SoC测试验证报告.docx": "1b9e1a428a61080bc854a04c768550c4c1483267d505d424467269e4e94b0db0",
+    "NPU与传感器校准SoC测试验证报告.pdf": "21b95cefb88c6ccd55f8d2a04773fede3250b02b34780d6d5318ef32c86e0e1f"
+  }
+}

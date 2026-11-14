@@ -1,0 +1,62 @@
+[
+  {
+    "figure": "图01-SoC总体架构",
+    "nodes": 8,
+    "arrows": 8,
+    "text_items": 26,
+    "geometry": "PASS"
+  },
+  {
+    "figure": "图02-NPU总体架构",
+    "source": "/media/3/0-课题/TFLM加速器/架构设计-AXI.png",
+    "sha256": "ce5296603c697a924a06726883be60a8626b575c3d1b04cea26e7ed6f0fbf034",
+    "pixels": [
+      19750,
+      12717
+    ],
+    "integrity": "PASS",
+    "geometry": "USER_SUPPLIED_ORIGINAL_UNCHANGED"
+  },
+  {
+    "figure": "图03-任务执行流程",
+    "nodes": 8,
+    "arrows": 7,
+    "text_items": 16,
+    "geometry": "PASS"
+  },
+  {
+    "figure": "图04-加载与缓存",
+    "nodes": 7,
+    "arrows": 6,
+    "text_items": 15,
+    "geometry": "PASS"
+  },
+  {
+    "figure": "图05-计算与部分和",
+    "nodes": 5,
+    "arrows": 5,
+    "text_items": 13,
+    "geometry": "PASS"
+  },
+  {
+    "figure": "图06-输出处理",
+    "nodes": 5,
+    "arrows": 5,
+    "text_items": 13,
+    "geometry": "PASS"
+  },
+  {
+    "figure": "图07-软件栈",
+    "nodes": 8,
+    "arrows": 7,
+    "text_items": 16,
+    "geometry": "PASS"
+  },
+  {
+    "figure": "图08-验证流程",
+    "nodes": 8,
+    "arrows": 7,
+    "text_items": 17,
+    "geometry": "PASS"
+  }
+]

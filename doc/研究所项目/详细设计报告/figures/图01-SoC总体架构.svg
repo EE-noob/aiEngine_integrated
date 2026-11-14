@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1130" viewBox="0 0 1600 1130">
+<title>图01-SoC总体架构</title>
+<rect width="100%" height="100%" fill="white"/>
+<defs>
+<marker id="blue" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#C6E4F0" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+<marker id="yellow" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#FFF2CC" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+<marker id="green" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#A7D5A3" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+<marker id="red" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#FF6272" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+</defs>
+<path d="M 440 140 L 620 140" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 440 140 L 620 140" fill="none" stroke="#C6E4F0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#blue)" marker-start="url(#blue)"/>
+<path d="M 800 210 L 800 410" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 800 210 L 800 410" fill="none" stroke="#C6E4F0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#blue)"/>
+<path d="M 1270 410 L 1270 210" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 1270 410 L 1270 210" fill="none" stroke="#FF6272" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#red)"/>
+<path d="M 1400 210 L 1400 410" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 1400 210 L 1400 410" fill="none" stroke="#A7D5A3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#green)"/>
+<path d="M 265 540 L 265 750" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 265 540 L 265 750" fill="none" stroke="#C6E4F0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#blue)" marker-start="url(#blue)"/>
+<path d="M 800 540 L 800 750" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 800 540 L 800 750" fill="none" stroke="#A7D5A3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#green)" marker-start="url(#green)"/>
+<path d="M 990 830 L 1110 830" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 990 830 L 1110 830" fill="none" stroke="#A7D5A3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#green)" marker-start="url(#green)"/>
+<path d="M 265 910 L 265 1010" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 265 910 L 265 1010" fill="none" stroke="#C6E4F0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#blue)" marker-start="url(#blue)"/>
+<rect id="lmb" x="80" y="70" width="360" height="140" rx="25" fill="#C6E4F0" stroke="#191919" stroke-width="3"/>
+<rect id="cpu" x="620" y="70" width="360" height="140" rx="25" fill="#FF6272" stroke="#191919" stroke-width="3"/>
+<rect id="npu" x="1190" y="70" width="330" height="140" rx="25" fill="#FFF2CC" stroke="#191919" stroke-width="3"/>
+<rect id="axi" x="80" y="410" width="1440" height="130" rx="25" fill="#A7D5A3" stroke="#191919" stroke-width="3"/>
+<rect id="periph" x="80" y="750" width="370" height="160" rx="25" fill="#FFF2CC" stroke="#191919" stroke-width="3"/>
+<rect id="ctrl" x="610" y="750" width="380" height="160" rx="25" fill="#C6E4F0" stroke="#191919" stroke-width="3"/>
+<rect id="ram" x="1110" y="750" width="410" height="160" rx="25" fill="#FFF2CC" stroke="#191919" stroke-width="3"/>
+<rect id="io" x="80" y="1010" width="370" height="90" rx="25" fill="#C6E4F0" stroke="#191919" stroke-width="3"/>
+<text x="260.0" y="120.8" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="32">本地程序与数据 BRAM</text>
+<text x="260.0" y="159.2" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">LMB · 512 KiB</text>
+<text x="800.0" y="120.8" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="32">MicroBlaze V</text>
+<text x="800.0" y="159.2" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">RISC-V 控制处理器</text>
+<text x="1355.0" y="120.8" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="32">DSA NPU</text>
+<text x="1355.0" y="159.2" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">16×16 · INT32 累加</text>
+<text x="800.0" y="453.4" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="36">AXI Interconnect</text>
+<text x="800.0" y="496.6" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="33">2 个主设备输入 · 16 个从设备输出</text>
+<text x="265.0" y="791.6" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="32">传感器与显示外设</text>
+<text x="265.0" y="830.0" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">I²C / SPI / GPIO</text>
+<text x="265.0" y="868.4" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">UART / 定时器 / 中断</text>
+<text x="800.0" y="791.6" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="32">AXI BRAM 控制器</text>
+<text x="800.0" y="830.0" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">单控制器 · 32 位</text>
+<text x="800.0" y="868.4" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">CPU / NPU 共享访问</text>
+<text x="1315.0" y="791.6" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="32">共享 URAM / BRAM</text>
+<text x="1315.0" y="830.0" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">模型常量与运行张量</text>
+<text x="1315.0" y="868.4" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="29">统一逻辑地址</text>
+<text x="265.0" y="1055.0" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="32">实际传感器 / OLED</text>
+<text x="530" y="102" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="28">LMB</text>
+<text x="675" y="310" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="28">AXI 主访问</text>
+<text x="1140" y="310" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="28">AXI-Lite</text>
+<text x="1500" y="310" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="26">AXI4 DMA</text>
+<text x="390" y="645" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="28">外设访问</text>
+<text x="930" y="645" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="28">共享存储访问</text>
+<text x="1050" y="790" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="26">RAM</text>
+<text x="990" y="1040" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="32">推理主通路共同使用 125 MHz 时钟</text>
+</svg>

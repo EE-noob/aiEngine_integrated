@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120">
+<title>software</title>
+<rect width="100%" height="100%" fill="white"/>
+<defs>
+<marker id="blue" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#C6E4F0" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+<marker id="yellow" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#FFF2CC" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+<marker id="green" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#A7D5A3" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+<marker id="red" markerUnits="userSpaceOnUse" markerWidth="28" markerHeight="26" refX="28" refY="13" orient="auto-start-reverse"><path d="M 1 1 L 28 13 L 1 25 L 6 13 Z" fill="#FF6272" stroke="#191919" stroke-width="2" stroke-linejoin="round"/></marker>
+</defs>
+<path d="M 800 170 L 800 260" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 800 170 L 800 260" fill="none" stroke="#C6E4F0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#blue)" marker-start="url(#blue)"/>
+<path d="M 800 390 L 800 480" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 800 390 L 800 480" fill="none" stroke="#C6E4F0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#blue)" marker-start="url(#blue)"/>
+<path d="M 800 610 L 800 700" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 800 610 L 800 700" fill="none" stroke="#C6E4F0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#blue)" marker-start="url(#blue)"/>
+<path d="M 800 830 L 800 920" fill="none" stroke="#191919" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 800 830 L 800 920" fill="none" stroke="#C6E4F0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#blue)" marker-start="url(#blue)"/>
+<rect id="app" x="260" y="40" width="1080" height="130" rx="25" fill="#FFF2CC" stroke="#191919" stroke-width="3"/>
+<rect id="runtime" x="260" y="260" width="1080" height="130" rx="25" fill="#C6E4F0" stroke="#191919" stroke-width="3"/>
+<rect id="adapter" x="260" y="480" width="1080" height="130" rx="25" fill="#FFF2CC" stroke="#191919" stroke-width="3"/>
+<rect id="driver" x="260" y="700" width="1080" height="130" rx="25" fill="#C6E4F0" stroke="#191919" stroke-width="3"/>
+<rect id="hardware" x="260" y="920" width="1080" height="130" rx="25" fill="#A7D5A3" stroke="#191919" stroke-width="3"/>
+<text x="800.0" y="82.2" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="38">传感器校准应用</text>
+<text x="800.0" y="127.8" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="35">模型特征 · 推理调用 · 校准结果</text>
+<text x="800.0" y="302.2" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="38">TFLM 模型运行时</text>
+<text x="800.0" y="347.8" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="35">模型解释 · 张量与工作空间管理</text>
+<text x="800.0" y="522.2" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="38">量化算子适配</text>
+<text x="800.0" y="567.8" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="35">全连接加速 · 类型与通道量化支持</text>
+<text x="800.0" y="742.2" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="38">NPU 硬件驱动</text>
+<text x="800.0" y="787.8" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="35">硬件任务访问与状态管理</text>
+<text x="800.0" y="962.2" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="38">FPGA 推理平台</text>
+<text x="800.0" y="1007.8" text-anchor="middle" dominant-baseline="central" fill="#191919" font-family="Noto Sans CJK SC" font-weight="700" font-size="35">NPU · 模型常量 · 运行张量</text>
+</svg>
