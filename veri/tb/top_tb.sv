@@ -240,6 +240,7 @@ module tb_top #(
         run_test(testname);
     end
 
+    `ifndef SIMTOOL_MODELSIM
     initial begin
        if ($test$plusargs("dump_fsdb")) begin
             string fsdb_name;
@@ -253,6 +254,7 @@ module tb_top #(
         end
     end
 
+    `endif
 endmodule : tb_top
 
 `endif

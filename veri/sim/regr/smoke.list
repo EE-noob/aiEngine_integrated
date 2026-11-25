@@ -1,0 +1,8 @@
+# seed规则：行内 seed=N 固定；省略且未给全局seed则每次随机；下方预置seed描述仅指单例默认值。
+# 每行一个回归 case，名称与 make target 相同；# 后为注释。
+# 在 veri/sim 执行：make regr regrlist=文件名（可省略.list，也可传完整路径）。
+# 本列表仅跑功能，不自动收集覆盖率；覆盖率请用 make coverage。
+axil_reg_directed # 验证地址/尺寸/stride/offset/量化/激活/CTRL/reuse 寄存器写读、未映射地址读零；不启动运算，STATUS/WB_DATA 不作期望值比较；激励是 sequence 中固定地址/固定数据的写读事务，不随机寄存器值；预置 SV/Python seed=20260415，regr_seed 可统一覆盖（固定激励不会因换种子变随机）
+axil_mem_gen_smoke # 验证 AXI-Lite 配置、NPU 运算、golden 输出、done W1C 和 IRQ 撤销；UVM sequence/RAL 送 AXI-Lite 写事务，Python 生成矩阵/bias/golden；默认 K/N/M=24/32/16、WS、s8输入、per-tensor，矩阵固定顺序编码，bias 用 NumPy [-10000,10000) 伪随机，MEM_GEN_SEED 同下述 seed；非全随机尺寸；预置 SV/Python seed=20260413，regr_seed 可统一覆盖（固定激励不会因换种子变随机）
+axil_ral_mem_gen_start # 验证 RAL 写寄存器路径，monitor 在 calc_start 触发 Python 数据生成，再完成输出比对；UVM sequence/RAL 送 AXI-Lite 写事务，Python 生成矩阵/bias/golden；默认 K/N/M=24/32/16、WS、s8输入、per-tensor，矩阵固定顺序编码，bias 用 NumPy [-10000,10000) 伪随机，MEM_GEN_SEED 同下述 seed；非全随机尺寸；预置 SV/Python seed=20260414，regr_seed 可统一覆盖（固定激励不会因换种子变随机）
+soc_runtime_ws_int8 # WS int8 基线，验证 CPU→驱动→NPU→共享RAM 完整路径；Python 生成 case/golden，CPU runtime 固件读 runtime_data.mem 配置 NPU，检查输出与 golden；UVM 检查 finish/status/trap/超时；固定 K/N/M=16/16/16，lhs=s8, rhs=s8，WS，per-tensor；矩阵固定顺序编码(s8 展平序号/s16 行列编码)，bias 用 NumPy [-10000,10000) 伪随机；默认 AXI 延迟不随机；预置 SV/Python seed=70000，regr_seed 可统一覆盖（固定激励不会因换种子变随机）

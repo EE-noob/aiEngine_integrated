@@ -1,8 +1,10 @@
 # how2run：SoC 仿真速查
 
-按当前源码整理（2026-11-14）。主线有 **4 个层级**，另有 NPU 周期观察接口和板级 RAM 专项。下面的 check 指代码实际检查项，不表示本次重新跑过全部仿真。
+主线有 **4 个层级**，另有 NPU 周期观察接口和板级 RAM 专项。下面的 check 指代码实际检查项；本机实际验证记录见 [Windows ModelSim 指南](veri/sim/WINDOWS_MODELSIM.md)。
 
 需要了解每个 make target 的内部流程和相互关系，见 [Makefile target 详解](veri/sim/MAKE_TARGETS.md)。
+
+列表回归入口：在 `veri/sim` 执行 `make regr regrlist=smoke simtool=modelsim`。可换成 `soc`、`directed`、`tflm`、`random`、`all` 或自定义 `.list`；逐行注释、实时彩色结果、独立目录和判据配置见 [列表回归说明](veri/sim/MAKE_TARGETS.md#列表回归make-regr)。
 
 | 层级 | 仿真范围 | 实际 check |
 |---|---|---|
@@ -13,7 +15,9 @@
 
 ## 先准备环境
 
-以下命令用 **Linux/WSL 的 Bash**，需要 Python 3、GNU make；第 1 层需要 Verilator/g++，第 2～4 层需要 VCS/UVM，CPU firmware 还需要 `riscv64-unknown-elf-gcc/g++/ar/objcopy`。AXI-Lite/SoC case 生成需要 NumPy（`python3 -m pip install numpy`）。不是直接在 PowerShell 中运行。
+Windows Git Bash 下，当前 Makefile 默认 `simtool=modelsim`，下面四层均可使用本机 ModelSim，不需要 VCS/Verilator。本机工具链和 GNU make 4 已配置在忽略提交的 `windows.local.mk`，外层 GNUWin make 3.81 可继续作为入口。完整配置见 [Windows ModelSim 指南](veri/sim/WINDOWS_MODELSIM.md)。
+
+Linux/WSL Bash 下默认 `simtool=vcs`：第 1 层保留 Verilator/g++，第 2～4 层使用 VCS/UVM，CPU firmware 还需要 RISC-V GCC/G++/ar/objcopy。两种后端均需 Python 3、GNU make、NumPy。
 
 ```bash
 cd /path/to/aiEngine_integrated/veri/sim
@@ -22,9 +26,9 @@ make help
 # 默认 SIM_LAUNCHER=./run_simv_lxc.sh；本机直接执行 simv 时附加 SIM_LAUNCHER=
 ```
 
-已有模型推理不要求安装 TensorFlow；重新训练/转换模型才使用 TF 环境。`DUMPOPTS=0` 关闭波形；需要 FSDB 时配置 `NOVAS_HOME` 并用 `DUMPOPTS=1`。
+已有模型推理不要求安装 TensorFlow；重新训练/转换模型才使用 TF 环境。`DUMPOPTS=0` 关闭波形；ModelSim 的 `DUMPOPTS=1` 记录 WLF，VCS 记录 FSDB 还需配置 `NOVAS_HOME`。
 
-Windows Git Bash + GNU Make 3.81 可执行 `make help`（Makefile 已使用标准 Tab 命令前缀）。实际 VCS/Verilator 仿真仍需对应工具环境；Git Bash 本身不提供这些工具。
+可在任意命令后附加 `simtool=modelsim` 或 `simtool=vcs` 显式选择。Git Bash 本身不提供仿真器。
 
 ## 1. NPU 本体：先快速排查计算/DMA
 
@@ -43,7 +47,7 @@ make npu_top_regress TOP_REGRESS_COUNT=10 \
   TOP_REGRESS_RANDOM_GEN_ARGS='--random --random_quant --lhs_dtype 0 --min_dim 1 --max_dim 32 --dataflow_mode 1'
 ```
 
-check：默认只比输出有效元素（支持 s8/s16 输出）；`TOP_REGRESS_SIM_ARGS='+FULL_MEM_CHECK'` 可改为比较 `compare_words` 指定的完整内存区，同时会替换默认随机延迟参数。通过看 `[TB] PASS` 和 `[run_random] PASS=10 FAIL=0`；汇总在 `veri/top_regression/out/random_summary.md`。
+check：默认只比输出有效元素（支持 s8/s16 输出）；`TOP_REGRESS_SIM_ARGS='+FULL_MEM_CHECK'` 可改为比较 `compare_words` 指定的完整内存区，同时会替换默认随机延迟参数。通过看 `[TB] PASS` 和 `[run_random] PASS=10 FAIL=0`；ModelSim 汇总在 `veri/sim/runs/modelsim_npu_top/summary.json`，Verilator 汇总在 `veri/top_regression/out/random_summary.md`。
 
 ## 2. NPU AXI-Lite 外设：寄存器与运算
 

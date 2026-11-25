@@ -1,11 +1,10 @@
-runs/
-simv*
-*.daidir/
-*.csrc/
-*.vdb/
-urgReport/
-ucli.key
-*.key
-*.log
-novas.*
-verdiLog/
+# Local configuration and simulator output
+/windows.local.mk
+/modelsim.ini
+/work/
+/runs/
+/simv
+/simv_*
+/msim_*
+/*.msim/
+/main_extram.mem

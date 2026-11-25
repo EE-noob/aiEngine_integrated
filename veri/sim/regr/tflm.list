@@ -1,0 +1,15 @@
+# seed规则：行内 seed=N 固定；省略且未给全局seed则每次随机；下方预置seed描述仅指单例默认值。
+# 每行一个回归 case，名称与 make target 相同；# 后为注释。
+# 在 veri/sim 执行：make regr regrlist=文件名（可省略.list，也可传完整路径）。
+# 本列表仅跑功能，不自动收集覆盖率；覆盖率请用 make coverage。
+tflm_hello_world_run # 固定 int8 正弦模型，输入四个固定角度，检查输出趋势/符号及端点容差；验证 TFLM 初始化、算子注册、Invoke 和 CPU/NPU 联动；无随机模型/随机样本，seed 只影响仿真器随机过程；SoC入口另检查finish/status/trap/超时
+tflm_my_model_run # 仓库手势模型，固定 Z/W 图片经生成器变为 C 数组，验证推理成功及分类判据；无随机模型/随机样本，seed 只影响仿真器随机过程；SoC入口另检查finish/status/trap/超时
+tflm_micro_speech_run # 固定 micro_speech 模型和 yes/no 音频；host 特征工具生成特征 C 数组，SoC 固件检查推理/分类；无随机模型/随机样本，seed 只影响仿真器随机过程；SoC入口另检查finish/status/trap/超时
+tflm_person_detection_run # 固定 person/no_person 两张图片，检查二分类；默认 ICACHE=0、预算4亿周期，本机约21分钟；无随机模型/随机样本，seed 只影响仿真器随机过程；SoC入口另检查finish/status/trap/超时
+tflm_mnist_mlp_run # 固定 int8 MLP 与仓库 MNIST 样本，检查分类；不是全测试集精度评估；无随机模型/随机样本，seed 只影响仿真器随机过程；SoC入口另检查finish/status/trap/超时
+tflm_mnist_mlp_int16x8_run # 固定 int16x8 MLP 与样本，检查分类以及 hidden/logits/softmax 的量化 golden 一致性；无随机模型/随机样本，seed 只影响仿真器随机过程；SoC入口另检查finish/status/trap/超时
+tflm_mnist_cnn_run # 固定 int8 CNN 与仓库 MNIST 样本，检查分类，覆盖 Conv/Pool/FC 等整网调用；无随机模型/随机样本，seed 只影响仿真器随机过程；SoC入口另检查finish/status/trap/超时
+tflm_sensor_calibration_int16x8_run # 固定传感器校准模型和测试向量，检查量化输出/golden/容差，覆盖真实 INT16 输出通路；无随机模型/随机样本，seed 只影响仿真器随机过程；SoC入口另检查finish/status/trap/超时
+tflm_sensor_calibration_release_20261015_run # 固定20261015发布校准模型与SoC测试样本，检查校准输出和包内golden/容差；无随机模型/随机样本，seed 只影响仿真器随机过程；SoC入口另检查finish/status/trap/超时
+tflm_mnist_accuracy_run # host C++ TFLM执行固定MNIST测试集10000样本，统计int8/int16x8准确率；不运行RTL，不设额外准确率门限；无随机模型/随机样本，seed 只影响仿真器随机过程；SoC入口另检查finish/status/trap/超时
+tflm_sensor_calibration_release_20261015_host_run # host C++ TFLM运行固定6825条发布包样本，对照包内输出并统计MAE/RMSE；不运行RTL；无随机模型/随机样本，seed 只影响仿真器随机过程；SoC入口另检查finish/status/trap/超时

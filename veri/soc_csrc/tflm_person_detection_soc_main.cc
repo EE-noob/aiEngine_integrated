@@ -43,14 +43,14 @@ uint32_t EncodeRunError(int test_case, int error) {
 TfLiteStatus RegisterPersonDetectionOps(
     tflite::MicroMutableOpResolver<5>& op_resolver) {
   TF_LITE_ENSURE_STATUS(
-      op_resolver.AddAveragePool2D(tflite::Register_AVERAGE_POOL_2D_INT8()));
+      op_resolver.AddAveragePool2D());
   TF_LITE_ENSURE_STATUS(
       op_resolver.AddConv2D(tflite::Register_CONV_2D_INT8()));
   TF_LITE_ENSURE_STATUS(op_resolver.AddDepthwiseConv2D(
       tflite::Register_DEPTHWISE_CONV_2D_INT8()));
   TF_LITE_ENSURE_STATUS(op_resolver.AddReshape());
   TF_LITE_ENSURE_STATUS(
-      op_resolver.AddSoftmax(tflite::Register_SOFTMAX_INT8()));
+      op_resolver.AddSoftmax());
   return kTfLiteOk;
 }
 

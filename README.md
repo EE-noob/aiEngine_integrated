@@ -3,7 +3,11 @@
 本仓库是 NPU 加速器的 SoC 集成、验证和软件适配工程。当前代码包含 AXI 化后的 PicoRV32 SoC、NPU AXI-Lite 配置接口、共享 AXI RAM/UART、VCS/UVM 验证平台、Verilator NPU 顶层回归、TFLM/NMSIS-NN 适配代码以及 FPGA 综合/仿真辅助脚本。
 
 仿真层级、最短运行命令和实际检查项见 [how2run 快速指南](how2run.md)。
+
+Windows 本机 ModelSim 入口、`simtool=modelsim|vcs` 切换及实际验证范围见 [Windows ModelSim 指南](veri/sim/WINDOWS_MODELSIM.md)。
 各 make target 的用途、原理、产物及依赖关系见 [Makefile target 详解](veri/sim/MAKE_TARGETS.md)。
+
+新克隆的仓库请先在根目录执行 `git submodule update --init`，获取 SoC 仿真所需的 PicoRV32 和 UART RTL。
 
 ## GEMPACT 配置 ABI 2（2026-11-11）
 

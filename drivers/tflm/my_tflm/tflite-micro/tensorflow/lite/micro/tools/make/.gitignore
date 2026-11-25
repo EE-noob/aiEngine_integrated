@@ -1,2 +1,8 @@
-downloads
+# NMSIS-NN is vendored with project patches. Other dependencies are downloaded.
+/downloads/*
+!/downloads/nuclei_sdk/
+/downloads/nuclei_sdk/*
+!/downloads/nuclei_sdk/NMSIS/
+/downloads/nuclei_sdk/NMSIS/*
+!/downloads/nuclei_sdk/NMSIS/NN/
 

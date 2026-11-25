@@ -44,9 +44,10 @@ static uint32_t validate_generated_case(void)
 {
     uint32_t expected_size = SOC_K * SOC_M;
     uint32_t lhs_elem_bytes = (SOC_LHS_DTYPE == DSA_DTYPE_S16) ? 2u : 1u;
-    uint32_t lhs_stride = (SOC_DATAFLOW_MODE == 0u) ?
-                          (SOC_N * lhs_elem_bytes) : (SOC_K * lhs_elem_bytes);
-    uint32_t rhs_stride = (SOC_DATAFLOW_MODE == 0u) ? SOC_M : SOC_N;
+    // Both stored operands have the reduction dimension N contiguous,
+    // matching generate_test_case_complex_mem.py and runtime firmware.
+    uint32_t lhs_stride = SOC_N * lhs_elem_bytes;
+    uint32_t rhs_stride = SOC_N;
 
     if ((SOC_K == 0u) || (SOC_N == 0u) || (SOC_M == 0u)) {
         return SOC_TEST_FAIL_CONFIG | 0x01u;

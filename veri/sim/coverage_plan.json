@@ -769,6 +769,72 @@
         "SOC_DATAFLOW_MODE": 1,
         "SOC_TIMEOUT_CYCLES": 10000000
       }
+    },
+    {
+      "name": "soc_sensor_int16x8_output",
+      "target": "tflm_sensor_calibration_int16x8_run",
+      "compile_tag": "soc_sensor_s16_output",
+      "timeout": 900,
+      "vars": {
+        "DUT_MODE": "axi_soc",
+        "case": "ai_axi_soc_c_test",
+        "SOC_APP": "tflm_sensor_calibration_int16x8",
+        "SOC_CASE": "axi_soc_cov_sensor_s16_output",
+        "SOC_CPU_MEM_DP": 262144,
+        "MMA_SIZE": 16,
+        "MMA_IA_CACHE_BLOCKS": 4,
+        "MMA_PS_FRAME_COUNT": 16,
+        "TFLM_SOC_MMA_ENABLE": 1,
+        "TFLM_NMSIS_NN_ENABLE": 1
+      }
+    },
+    {
+      "name": "soc_dma_4k_boundary_ws_int16",
+      "compile_tag": "soc_dma_boundary_s16",
+      "timeout": 900,
+      "vars": {
+        "DUT_MODE": "axi_soc",
+        "case": "ai_axi_soc_c_test",
+        "SOC_APP": "runtime",
+        "SOC_CASE": "axi_soc_cov_soc_dma_4k_boundary_ws_int16",
+        "SOC_CPU_MEM_DP": 65536,
+        "MMA_SIZE": 16,
+        "MMA_IA_CACHE_BLOCKS": 4,
+        "MMA_PS_FRAME_COUNT": 16,
+        "SOC_K": 17,
+        "SOC_N": 1041,
+        "SOC_M": 19,
+        "SOC_LHS_DTYPE": 2,
+        "SOC_QUANT_MODE": 1,
+        "SOC_DATAFLOW_MODE": 0,
+        "SOC_UNALIGNED_LAYOUT": 1,
+        "SOC_TIMEOUT_CYCLES": 15000000,
+        "SIM_ARGS": "+DDR_RAND_LAT=1 +DDR_CMD_MAX_LAT=5 +DDR_W_MAX_LAT=3 +DDR_RSP_MAX_LAT=10"
+      }
+    },
+    {
+      "name": "soc_dma_long_row_ws_int8",
+      "compile_tag": "soc_dma_boundary_s16",
+      "timeout": 900,
+      "vars": {
+        "DUT_MODE": "axi_soc",
+        "case": "ai_axi_soc_c_test",
+        "SOC_APP": "runtime",
+        "SOC_CASE": "axi_soc_cov_soc_dma_long_row_ws_int8",
+        "SOC_CPU_MEM_DP": 65536,
+        "MMA_SIZE": 16,
+        "MMA_IA_CACHE_BLOCKS": 4,
+        "MMA_PS_FRAME_COUNT": 16,
+        "SOC_K": 3,
+        "SOC_N": 4097,
+        "SOC_M": 5,
+        "SOC_LHS_DTYPE": 1,
+        "SOC_QUANT_MODE": 0,
+        "SOC_DATAFLOW_MODE": 0,
+        "SOC_UNALIGNED_LAYOUT": 1,
+        "SOC_TIMEOUT_CYCLES": 15000000,
+        "SIM_ARGS": "+DDR_RAND_LAT=1 +DDR_CMD_MAX_LAT=5 +DDR_W_MAX_LAT=3 +DDR_RSP_MAX_LAT=10"
+      }
     }
   ]
 }

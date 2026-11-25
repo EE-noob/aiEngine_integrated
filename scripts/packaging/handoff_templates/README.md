@@ -44,7 +44,7 @@ Python 默认仿真包含整个 NPU、原 RAM 模型和原 testbench，范围不
 - [简明设计报告 PDF](doc/简明设计报告/简明NPU与SoC设计技术报告.pdf)、同目录 DOCX/Markdown；
 - [MMA 架构说明](doc/mma_architecture_design_report_cn.md)、[模块设计文档](doc/DSA模块设计文档.md)；
 - [吞吐量与 tile cache 分析 PDF](doc/throughput_analysis/脉动阵列吞吐量与TileCache瓶颈分析.pdf)，同目录 DOCX/Markdown、绘图脚本与 SVG/PNG；
-- `doc/原版报告_技术报告.docx`、`doc/奶龙粉丝团-30017-芯片设计及评估报告.docx` 作为已有项目报告随包提供；
+- 本地 `doc/` 中如有原版技术报告和芯片设计及评估报告的 Word 文件，打包时一并提供。
 - 既有性能、总线、覆盖率报告和图表保存在 `doc/`。
 
 报告中的理论值、旧仿真结果和本包新执行结果各有来源。需要重新检验的条件见 `MODEL_SCOPE.md`；不得直接把理论带宽倍率当成已测周期。

@@ -1,0 +1,22 @@
+{
+  "description": "Python regex; strip ANSI before matching. Nonzero exit => FAIL. Fail keywords override pass. Exit 0 without either => UNKNOWN. Timeout/interruption => UNKNOWN; regression exits nonzero.",
+  "case_sensitive": true,
+  "pass": [
+    "\\[TEST_RESULT\\]\\s+TEST PASS\\b",
+    "\\[TB\\] PASS\\b",
+    "\\[run_random\\] PASS=[1-9][0-9]* FAIL=0\\b",
+    "\\[tflm_host\\].* PASS\\b",
+    "\"accuracy\"\\s*:",
+    "pass_rate=100\\.00%",
+    "^pass:\\s+S[0-9]+_"
+  ],
+  "fail": [
+    "\\bTEST FAIL\\b",
+    "UVM_(?:ERROR|FATAL)\\s*:\\s*[1-9]",
+    "^#?\\s*UVM_(?:ERROR|FATAL)\\s+(?![:\\s])",
+    "\\*\\* (?:Error|Fatal)",
+    "\\[TB\\] (?:FAIL|FATAL)\\b",
+    "\\[run_random\\].*FAIL=[1-9]",
+    "^fail:\\s+"
+  ]
+}

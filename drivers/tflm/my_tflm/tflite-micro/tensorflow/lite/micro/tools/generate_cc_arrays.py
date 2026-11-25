@@ -29,6 +29,7 @@ from PIL import Image
 
 def generate_file(out_fname, array_name, array_type, array_contents, size):
   """Write an array of values to a CC or header file."""
+  out_fname = out_fname.replace("\\", "/")
   os.makedirs(os.path.dirname(out_fname), exist_ok=True)
   if out_fname.endswith('.cc'):
     out_cc_file = open(out_fname, 'w')
@@ -99,7 +100,7 @@ def generate_array(input_fname):
 
 def get_array_name(input_fname):
   # Normalize potential relative path to remove additional dot.
-  abs_fname = os.path.abspath(input_fname)
+  abs_fname = os.path.abspath(input_fname).replace("\\", "/")
   base_array_name = 'g_' + abs_fname.split('.')[-2].split('/')[-1]
   if input_fname.endswith('.tflite'):
     return [base_array_name + '_model_data', 'unsigned char']

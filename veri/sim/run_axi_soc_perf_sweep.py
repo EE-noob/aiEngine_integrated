@@ -370,7 +370,7 @@ def write_summary(summary_path, rows):
 
 def run_perf_job(job, sim_dir, log_root, exception_root, timeout):
     label = job["label"]
-    log_path = log_root / f"{label}.log"
+    log_path = log_root / f"{label}_seed_{job['seed']}.log"
     out_dir = log_root / "sim_out" / label
     case_name = f"axi_soc_perf_{label}"
     case_dir = f"../tb/{case_name}"
@@ -512,7 +512,7 @@ def main():
                 )
                 if compile_key not in compiled:
                     combo_name = f"perf_compile_S{size}_C{cache_blocks}_P{ps_frame_count}"
-                    build_log = log_root / f"{combo_name}.log"
+                    build_log = log_root / f"{combo_name}_seed_{args.seed}.log"
                     build_vars = make_vars(
                         args.seed, combo_name, f"../tb/{combo_name}",
                         size, cache_blocks, ps_frame_count, dims,

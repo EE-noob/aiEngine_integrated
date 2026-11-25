@@ -1,3 +1,9 @@
+# Use the shell for MSYS/native environment conversion in compiler recipes.
+SHELL := /bin/bash
+.SHELLFLAGS := -ec
+.ONESHELL:
+PYTHON ?= $(if $(filter Windows_NT,$(OS)),python,$(if $(filter MINGW% MSYS% CYGWIN%,$(shell uname -s)),python,python3))
+
 # Makefile for TensorFlow Lite Micro
 
 # TFLM 顶层目录
@@ -299,7 +305,10 @@ MICROLITE_CC_SIGNAL_KERNEL_SRCS := \
   $(TENSORFLOW_ROOT)signal/src/window.cc
 
 # TFL_CC_SRCS - 递归查找所有.cc和.c文件，排除experimental和micro目录
-TFL_CC_SRCS := $(shell find $(TENSORFLOW_ROOT)tensorflow -name "*.cc" -o -name "*.c" | grep -v "/experimental/" | grep -v "/micro/")
+TFL_CC_SRCS := $(shell $(PYTHON) ../../../veri/sim/list_tflm_sources.py $(TENSORFLOW_ROOT)tensorflow)
+ifeq ($(strip $(TFL_CC_SRCS)),)
+$(error No TFLite core sources found; check PYTHON=$(PYTHON) and TENSORFLOW_ROOT=$(TENSORFLOW_ROOT))
+endif
 
 # MICROLITE_CC_BASE_SRCS
 MICROLITE_CC_BASE_SRCS := \
@@ -337,7 +346,7 @@ MICROLITE_LIB_NAME := $(BUILD_DIR)/libtflite-micro.a
 MICROLITE_OBJS := $(patsubst %.cc,$(BUILD_DIR)/%.o,$(MICROLITE_CC_SRCS))
 MICROLITE_OBJS += $(patsubst %.c,$(BUILD_DIR)/%.o,$(filter %.c,$(MICROLITE_CC_SRCS)))
 MICROLITE_KERNEL_OBJS := $(patsubst %.cc,$(BUILD_DIR)/%.o,$(MICROLITE_CC_KERNEL_SRCS))
-MICROLITE_NMSIS_OBJS := $(patsubst %.c,$(BUILD_DIR)/%.o,$(NMSIS_NN_C_SRCS))
+MICROLITE_NMSIS_OBJS := $(patsubst $(NMSIS_NN_SOURCE_DIR)/%.c,$(BUILD_DIR)/nn/%.o,$(NMSIS_NN_C_SRCS))
 
 # 默认目标
 all: $(MICROLITE_LIB_NAME) keyword_benchmark person_detection_benchmark
@@ -360,7 +369,7 @@ $(BUILD_DIR)/%.o: %.cc | $(BUILD_DIR)
 
 # NMSIS-NN is third-party code and the CMake flow does not promote its
 # warnings to errors. Keep project code strict while allowing fallback kernels.
-$(BUILD_DIR)/$(NMSIS_NN_SOURCE_DIR)/%.o: $(NMSIS_NN_SOURCE_DIR)/%.c | $(BUILD_DIR)
+$(BUILD_DIR)/nn/%.o: $(NMSIS_NN_SOURCE_DIR)/%.c | $(BUILD_DIR)
 	@mkdir -p $(dir $@)
 	$(CC) $(NMSIS_CCFLAGS) -c $< -o $@
 
@@ -370,8 +379,15 @@ $(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
 	$(CC) $(CCFLAGS) -c $< -o $@
 
 # 创建TFLM静态库
-$(MICROLITE_LIB_NAME): $(MICROLITE_OBJS) $(MICROLITE_KERNEL_OBJS) $(MICROLITE_NMSIS_OBJS) | $(BUILD_DIR)
-	$(AR) rcs $@ $^
+$(MICROLITE_LIB_NAME): $(MICROLITE_OBJS) $(MICROLITE_KERNEL_OBJS) $(MICROLITE_NMSIS_OBJS) Makefile | $(BUILD_DIR)
+ifeq ($(filter 3.%,$(MAKE_VERSION)),)
+	$(file >$@.rsp,$(filter %.o,$^))
+	rm -f $@
+	$(AR) rcs $@ @$@.rsp
+else
+	rm -f $@
+	$(AR) rcs $@ $(filter %.o,$^)
+endif
 
 # 数据生成函数
 define generate_cc_array

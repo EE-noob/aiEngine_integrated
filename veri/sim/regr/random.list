@@ -1,0 +1,6 @@
+# seed规则：行内 seed=N 固定；省略且未给全局seed则每次随机；下方预置seed描述仅指单例默认值。
+# 每行一个回归 case，名称与 make target 相同；# 后为注释。
+# 在 veri/sim 执行：make regr regrlist=文件名（可省略.list，也可传完整路径）。
+# 本列表仅跑功能，不自动收集覆盖率；覆盖率请用 make coverage。
+npu_top_regress # NPU本体+DDR行为模型，不含CPU/AXI-Lite；Python gen_mem生成随机尺寸1..32、随机量化和s8/s16输入，WS默认；20个连续seed从TOP_REGRESS_SEED=1000开始，AXI随机延迟；检查err_code/完成/输出golden，regr_seed可改起始种子
+soc_regress # CPU+NPU随机回归；默认10轮连续seed从1开始，Python随机K/N/M各16..32、输入s8/s16、per-tensor/per-channel量化及矩阵数据和bias，固定硬件S16/C4/P16/WS；检查golden/状态/trap/超时；默认不开DDR随机延迟，regr_seed可改起始种子

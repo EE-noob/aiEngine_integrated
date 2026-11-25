@@ -61,13 +61,13 @@ def stage(dest,resume=False):
         source_tree(ROOT/rel,dest/rel)
     for folder in ["veri/sim","veri/tb"]:
         for p in (ROOT/folder).iterdir():
-            if p.is_file() and (p.suffix in {".py",".sv",".svh",".sh",".json",".hier"} or p.name=="Makefile"):
+            if p.is_file() and p.name != "windows.local.mk" and (
+                p.suffix in {".py", ".sv", ".svh", ".sh", ".json", ".hier", ".mk"}
+                or p.name in {"Makefile", "oldMakefile"}
+            ):
                 copy_file(p,dest/folder/p.name)
+    source_tree(ROOT/"veri/sim/regr", dest/"veri/sim/regr")
     source_tree(ROOT/"veri/tb/sram",dest/"veri/tb/sram")
-    for folder in ["ai_mem_gen_smoke_test","ai_ral_mem_gen_on_calc_start_test"]:
-        for p in (ROOT/"veri/tb"/folder).iterdir():
-            if p.is_file() and not p.name.startswith(("actual","debug")):
-                copy_file(p,dest/"veri/tb"/folder/p.name)
     for p in (ROOT/"drivers").iterdir():
         if p.is_file(): copy_file(p,dest/"drivers"/p.name)
     for rel in ["drivers/tflm/inc","drivers/tflm/src"]:
@@ -120,10 +120,13 @@ def stage(dest,resume=False):
         "项目设计方案.md","项目设计方案v2.md","axi_soc_readme.md",
         "performance_report_cn.md","size_cache_hw_sw_perf_report_cn.md",
         "bus_optimization_report_cn.md","coverage_report_cn.md",
-        "rtl_simulation_report.md","原版报告_技术报告.docx",
-        "奶龙粉丝团-30017-芯片设计及评估报告.docx",
+        "rtl_simulation_report.md",
     ]
     for name in doc_names: copy_file(ROOT/"doc"/name,dest/"doc"/name)
+    for name in ("原版报告_技术报告.docx", "奶龙粉丝团-30017-芯片设计及评估报告.docx"):
+        report = ROOT / "doc" / name
+        if report.is_file():
+            copy_file(report, dest / "doc" / name)
     for rel in ["doc/perf_plots","doc/rtl_verification_figs"]:
         source_tree(ROOT/rel,dest/rel)
     copy_file(ROOT/"README.md",dest/"PROJECT_README.md")

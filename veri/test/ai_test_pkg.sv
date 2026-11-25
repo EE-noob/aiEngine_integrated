@@ -35,11 +35,16 @@ class ai_base_test extends uvm_test;
         fatal_cnt = svr.get_severity_count(UVM_FATAL);
 
         if ((error_cnt == 0) && (fatal_cnt == 0)) begin
+            // Color the banner and result together; retain the text parsed by regressions.
+            $write("\033[32m");
             print_big_pass();
             `uvm_info("TEST_RESULT", "TEST PASS: no UVM_ERROR or UVM_FATAL reported", UVM_NONE)
+            $write("\033[0m");
         end else begin
+            $write("\033[31m");
             print_big_fail();
             `uvm_info("TEST_RESULT", $sformatf("TEST FAIL: UVM_ERROR=%0d UVM_FATAL=%0d", error_cnt, fatal_cnt), UVM_NONE)
+            $write("\033[0m");
         end
     endfunction
 
@@ -174,7 +179,7 @@ class ai_axi_soc_c_test extends ai_base_test;
 `ifdef DUT_AXI_SOC
         `uvm_info(get_type_name(), $sformatf("Waiting for PicoRV32 C test finish, timeout=%0d cycles", timeout_cycles), UVM_LOW)
         cycles = 0;
-        while (!$root.tb_top.soc_finish && (cycles < timeout_cycles)) begin
+        while (!$root.tb_top.soc_finish && ($root.tb_top.cpu_trap !== 1'b1) && (cycles < timeout_cycles)) begin
             @(posedge $root.tb_top.tb_clk);
             cycles++;
         end
@@ -289,6 +294,14 @@ class ai_ral_mem_gen_on_calc_start_test extends ai_base_test;
         #20us;
         phase.drop_objection(this);
     endtask
+endclass
+
+// Retain the coverage-plan legacy entry using the maintained end-to-end smoke stimulus.
+class ai_coverage_test extends ai_mem_gen_smoke_test;
+    `uvm_component_utils(ai_coverage_test)
+    function new(string name = "ai_coverage_test", uvm_component parent = null);
+        super.new(name, parent);
+    endfunction
 endclass
 
 `endif

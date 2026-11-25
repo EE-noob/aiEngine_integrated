@@ -34,6 +34,10 @@ extern "C" {
 #define NPU_REG_IA_REUSE     0x054u
 #define NPU_REG_W_REUSE      0x058u
 #define NPU_REG_DATAFLOW     0x05Cu
+#define NPU_REG_ROW_GROUPS       0x060u
+#define NPU_REG_ROW_TAIL_TILES   0x064u
+#define NPU_REG_COL_GROUPS       0x068u
+#define NPU_REG_COL_TAIL_TILES   0x06Cu
 #define NPU_REG_ID           0x0FCu
 
 #define DSA_REG_CTRL     NPU_REG_CTRL

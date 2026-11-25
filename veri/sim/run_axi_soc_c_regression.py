@@ -199,7 +199,7 @@ def main():
                         dataflow_mode, sim_args, args.soc_app,
                         args.soc_timeout_cycles,
                         lhs_dtype, quant_mode, args.unaligned_layout)
-                    build_log = log_root / f"compile_{combo_label}.log"
+                    build_log = log_root / f"compile_{combo_label}_seed_{seed}.log"
                     print(f"compile: {combo_label}")
                     compile_targets = ["com"]
                     if args.soc_app == "runtime":

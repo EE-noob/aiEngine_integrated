@@ -1,6 +1,6 @@
 # 仿真 Makefile target 详解
 
-本文对应本目录的 [Makefile](Makefile)，按 2026-11-14 的源码整理，覆盖 **47 个具名 target 和 7 个以变量表示路径的文件 target**。同一 target 的 `DUMPOPTS = 0` 行是变量设置，不重复计数。
+本文按 [oldMakefile](oldMakefile) 的流程整理，覆盖 **47 个具名 target 和 7 个以变量表示路径的文件 target**。新 [Makefile](Makefile) 保留这些 target，并增加 `simtool=modelsim|vcs` 后端选择；Windows 默认 ModelSim。本机配置、覆盖率语义和实际通过范围见 [Windows ModelSim 指南](WINDOWS_MODELSIM.md)。同一 target 的 `DUMPOPTS = 0` 行是变量设置，不重复计数。
 
 本文解释入口的用途、内部执行过程、产物和相互关系；最短运行命令见根目录 [how2run](../../how2run.md)。以下行为来自 Makefile 及其调用脚本的源码分析，不代表本次执行过所有仿真。
 
@@ -14,7 +14,7 @@
 make <target> 变量=值
 ```
 
-Git Bash + GNU Make 3.81 已能解析当前 Makefile 并执行 `make help`。实际仿真主要面向 Linux 工具环境：VCS/UVM 负责外设与 SoC 仿真；Verilator/g++ 负责 NPU 本体回归；RISC-V GCC/G++/objcopy 负责 firmware；URG 负责覆盖率报告；Verdi 负责波形。生成 SoC 数据还需要 Python/NumPy。
+Git Bash + GNU Make 3.81 已能解析当前 Makefile 并执行 `make help`。`simtool=modelsim` 下 ModelSim/UVM 负责全部 HDL 层级、UCDB 覆盖率及 WLF 波形。下文涉及 VCS/URG/Verdi/Verilator 的内部细节描述旧流程（`simtool=vcs`）：VCS/UVM 负责外设与 SoC；Verilator/g++ 负责 NPU 本体回归；URG 负责覆盖率；Verdi 负责波形。两种后端均以 RISC-V GCC/G++/objcopy 生成 firmware，SoC 数据还需要 Python/NumPy。
 
 `make` 只组织任务，不自带这些工具。执行 TFLM 已有模型的 C++ 推理也不等于调用 Python TensorFlow 训练模型。
 
@@ -515,3 +515,93 @@ make cov_clean COV_ROOT=runs/coverage_module
 | 调试失败信号 | `vd` | 先用对应运行入口生成 FSDB |
 
 源码入口：[Makefile](Makefile)、[SoC 随机脚本](run_axi_soc_c_regression.py)、[性能脚本](run_axi_soc_perf_sweep.py)、[覆盖率计划脚本](run_coverage_plan.py)、[覆盖率汇总](coverage_summary.py)、[NPU 子 Makefile](../top_regression/Makefile)。
+
+## 列表回归：make regr
+
+在 `veri/sim` 的 Git Bash 中执行：
+
+```bash
+make regr regrlist=smoke simtool=modelsim
+make regr regrlist=soc regr_seed=42
+make regr regrlist=./regr/tflm.list regr_timeout=3600
+make regr regrlist=all regr_seed=42 regr_repeat=2
+```
+
+省略 `regrlist` 时默认 [smoke.list](regr/smoke.list)，直接 `make regr` 即可。脚本是 [run_regr.py](run_regr.py)，所有列表位于 [regr/](regr/)。
+
+`regrlist=xxx` 先找当前目录的 `xxx.list`，再找 `regr/xxx.list`；也接受明确的相对/绝对路径。每行格式为 `case名 [seed=整数] # 注释`；空行和整行注释忽略。重复行按顺序再次执行。示例：
+
+```text
+axil_mem_gen_smoke seed=123 # 固定seed；AXI-Lite配置/运算/golden/IRQ检查
+soc_tail_ws_int8 # 未给seed，每次随机；CPU runtime验证WS非整tile及输出golden
+tflm_hello_world_run # 固定模型与输入，检查TFLM推理结果，不随机样本
+```
+
+case 名就是 make target 名，可单独执行 `make soc_tail_ws_int8 simtool=modelsim`。34 个场景 target 的明确参数在 [regr_cases.mk](regr_cases.mk)，底层仍复用现有 UVM 类（例如 `ai_axi_soc_c_test`），无需复制 UVM 实现。
+
+| 列表 | 内容 |
+|---|---|
+| [smoke.list](regr/smoke.list) | 4项：AXI-Lite寄存器、smoke、RAL、SoC WS基线 |
+| [soc.list](regr/soc.list) | 30项：SoC数据流/量化/reuse/尾块/offset/随机延迟/INT16输出/DMA边界 |
+| [directed.list](regr/directed.list) | 34项：现有覆盖计划的功能场景，不自动收集覆盖率 |
+| [tflm.list](regr/tflm.list) | 11项：已有模型整网及host评估，包含较慢的person detection |
+| [random.list](regr/random.list) | NPU 20种子、SoC 10轮随机回归 |
+| [all.list](regr/all.list) | 全部56个测试case入口，含别名、性能扫描和两项外部模型测试；缺模型会明确FAIL |
+| [available.list](regr/available.list) | 仓库已有资产场景47项；耗时较长 |
+| [external.list](regr/external.list) | 两个缺失原模型的专用入口，恢复原始资产后使用 |
+
+各列表的每一行均说明用途、检查项、激励产生/施加方法和随机范围。固定矩阵不等于完全不随机：部分case的bias仍按种子随机。行内 `seed=N` 固定该项种子，重复轮次仍为N；未写且未指定全局seed时，每项/每轮自动生成随机seed。全局 `seed=N` 或 `regr_seed=N` 可固定未写行内seed的项目，重复轮次依次N、N+1。优先级是行内seed > 失败复现seed > 全局seed > 随机生成。随机值写入结果和失败列表；固定模型/样本不会因种子变化变成随机输入。列表注释里的“预置seed”仅指单例默认值。
+
+每个case只在结束时打印一条 PASS/FAIL/UNKNOWN 结果，带case名、单项耗时、整轮耗时、预计剩余时间和预计总耗时；不打印START或周期性RUNNING。运行期间仍每5秒更新summary.json的当前case/耗时，`regr_interval=2` 可调整文件更新间隔。预估优先读取同列表、同工具的历史通过耗时，缺项时用本轮均值；尚无数据则显示 `--`，不是精确承诺；运行超过预估时动态延长剩余估计。
+
+判据在 [regr_keywords.json](regr_keywords.json)，`pass`/`fail` 是 Python 正则数组，可用 `regr_keywords=自己的.json` 切换。先去掉 ANSI 颜色码；非零退出码判 FAIL，fail 关键词优先于 pass；正常退出但未命中判据记 UNKNOWN，超时/中断也记 UNKNOWN 并终止该进程树。FAIL/UNKNOWN 都使整轮返回非零。默认继续跑完；`regr_fail_fast=1` 可遇到首个非通过即停。PASS绿、FAIL红、UNKNOWN黄；`regr_color=never` 关闭颜色。
+
+每轮独立目录为 `runs/regr/<列表名>_YYYYMMDD_HHMMSS_微秒_唯一ID/`，含列表/关键词快照、`progress.log`、`summary.json`、`summary.md`，逐case的 `cases/序号_case/console.log` 和仿真日志/波形，以及 `work/` 源码工作副本和私有构建缓存。所有仿真在副本内启动，固件、生成向量、仿真编译库、覆盖数据和工具临时文件均留在本轮目录。可用 `regr_out=目录` 指定保存位置。默认关闭波形，`DUMPOPTS=1` 开启。
+
+同一列表可同时启动多轮，唯一ID保证即使时间戳相同也不覆盖。单独运行也自动隔离，入口无需改变：
+
+```bash
+# 可在不同终端同时执行
+make regr                         # 默认 smoke
+make regr regrlist=smoke regr_seed=202
+make run case=ai_mem_gen_smoke_test seed=303
+make soc_tail_ws_int8 REGR_SEED=404
+make tflm_hello_world_run
+```
+
+单例保存在 `runs/cases/<caseName>_YYYYMMDD_HHMMSS_微秒_唯一ID/`，通用 `run/sim` 使用 `case=` 指定的 UVM 名，其余入口使用同名target。可用 `single_out=目录` 修改父目录。单例和回归之间不共用可写仿真库、固件/数据或工具临时目录；仅使用共同的输入工具链。单例命令行输入（如 `seed`、`SOC_K`、`SOC_APP`）通过环境无损传递。为保证隔离，不允许从外部覆盖 `OUT_DIR` 等产物路径；源码/输出路径需要在case定义中设置。源码工作副本内的子make用内部 `ISOLATED_RUN=1` 防止重复调度，不要在源工程手动设置它。查看已有波形时，将该单例目录的 `sim/` 路径传给 `make vd OUT_DIR=... seed=N`。
+
+普通 `make run`、`make sim`、`make <case名>` 由Makefile直接调用原编译/仿真配方，实时输出原生编译/UVM日志；不调用 `run_case.py` 或 `run_regr.py`，不打印 `[REGR]` 或回归计数。`run_case.py` 包装入口已移除。只有 `make regr` 使用列表调度脚本。单例只在运行前/后调用 [sim_run_common.py](sim_run_common.py) 中的文件准备/结果保存函数，这些函数不启动或调度仿真；实际子make、超时控制、日志tee都在Makefile配方内。
+
+`make run case=soc_unaligned_randlat_ws_int8 seed=72003` 与 `make soc_unaligned_randlat_ws_int8 seed=72003` 均可运行该命名场景，内部正确选用 `ai_axi_soc_c_test`，不会误把场景别名当成UVM类名。普通单例的日志/波形在该目录的 `sim/`，总控制台日志为 `console_seed_N.log`，结果为 `result_seed_N.json`，失败时仍生成可供 `make regr` 重跑的失败列表。
+
+Windows 为绕过长路径限制，在工程父目录 `.regr_paths` 临时建立唯一短 junction，仅指向本轮 `work`，完成后只移除该junction；文件实际保存在该轮目录。现有工具链/许可/依赖包仍作为输入使用，按所选case复制所需源码；TFLM场景将库缓存复制为本轮私有文件，不用硬链接。准备副本的耗时包含在整轮耗时内。为防外层 make 变量把输出重定向回源目录，子 make 不继承 MAKEFLAGS 命令行覆盖；回归场景参数由同名target定义，通用运行选项通过上述 `regr_*` 参数传入，本机输入工具/模型路径可写入 `windows.local.mk`。
+
+本机 ModelSim 已验证两轮同名 `smoke`（seed=101/202）与一个 `make run case=ai_mem_gen_smoke_test seed=303` 同时执行，分别 4/4、4/4、1/1 通过；隔离 TFLM hello_world 及 NPU 20种子也通过。并发数量仍受本机 CPU、内存及仿真器许可证席位限制，不使用全局锁串行化不同任务。
+
+`regr_dry_run=1` 只生成调度命令（DRY_RUN），不会启动仿真或创建工作副本，也不标记为PASS。脚本自身判据/超时/继续执行检查：`python -m unittest test_run_regr -v`。
+
+### 固定seed与失败重跑
+
+```bash
+make run case=ai_mem_gen_smoke_test seed=731
+make sim case=ai_mem_gen_smoke_test seed=731
+make regr regrlist=smoke seed=123
+# regr_seed=123 同样支持；重复轮次按123、124...递增
+```
+
+`seed` 同步SV仿真器、SoC/Python数据生成和AXI-Lite `MEM_GEN_SEED`；命名场景通过 `REGR_SEED` 覆盖其预置值。单例未指定时保留场景默认值，普通case默认1、NPU随机回归默认1000、性能扫描默认80000；列表回归未给行内/全局seed则每次随机。`make run case=tflm_sensor_calibrator_20261016_run seed=1` 这种“case=模型target名”的写法也支持。固定模型/固定矩阵的内容不会因seed变成随机，但随机bias、随机数据和延迟按该配置复现。
+
+单例目录包含 `_seed_731_`，每case目录包含 `_seed_731`；文件为 `console_seed_731.log`、`compile_seed_731.log`、`sim_seed_731.log`、`tb_top_seed_731.wlf/fsdb`。缓存命中不重复产生编译日志。NPU/SoC随机回归的内层日志带各迭代实际seed，不能把顶层起始seed当成每次迭代的seed。
+
+每个case结束仅打印一条彩色结果，其中包含 `seed=...`。`summary.json`/`summary.md` 均记录seed，每项还有 `reproduce_seed_N.json`，保存目标、make输入参数、工具选择、超时预算、波形开关和源码快照位置；运行中的case与seed持续更新在summary.json。
+
+发生FAIL或UNKNOWN（含超时/中断）时，本轮目录自动生成 `fail_YYYYMMDD_HHMMSS_微秒.list`，只保留异常case。完成行会打印其路径，summary.json也有 `fail_list` 字段。可直接重跑：
+
+```bash
+make regr regrlist=完整路径/fail_20261124_165809_091253.list
+```
+
+失败列表格式为 `case名 seed=N # make run case=xxx seed=N ...`，`#` 后是一整条可直接复制到Git Bash执行的命令，含工具、激励参数、超时、快照和关键词配置；不再写JSON注释。也可直接 `make regr regrlist=失败列表`，脚本会解析命令并使用原快照。旧版JSON注释仍兼容读取。现有11份JSON格式的失败列表已转换，原文备份为 `.list.bak`。**请保留原运行目录**。它可复现相同输入与参数；工具链、仿真器及外部输入文件也需保持相同版本。重跑生成新的隔离目录，不会覆盖原失败证据。
+
+已在本机验证：run/sim同seed生成的矩阵、bias、golden逐字节一致；默认smoke四项统一使用seed=123并通过；用非法K=0触发的seed=919失败能从生成的fail.list再次复现。

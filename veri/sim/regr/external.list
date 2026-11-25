@@ -1,0 +1,6 @@
+# seed规则：行内 seed=N 固定；省略且未给全局seed则每次随机；下方预置seed描述仅指单例默认值。
+# 每行一个回归 case，名称与 make target 相同；# 后为注释。
+# 在 veri/sim 执行：make regr regrlist=文件名（可省略.list，也可传完整路径）。
+# 本列表仅跑功能，不自动收集覆盖率；覆盖率请用 make coverage。
+tflm_sensor_calibrator_20261016_run # 依赖外部原始15输入9输出模型；CPU执行固定输入，逐输出对照量化golden容差16 LSB，检查张量与完成状态；不随机；当前原始模型缺失，配置TFLM_SENSOR_CALIBRATOR_20261016_MODEL后使用
+tflm_sensor_calibration_20261019_run # 依赖外部原始1354592字节模型；固定8条传感器输入，对照3类int16输出golden容差8 LSB，检查张量/完成状态；不随机；当前原始模型缺失，配置TFLM_SENSOR_CALIBRATION_20261019_MODEL后使用
