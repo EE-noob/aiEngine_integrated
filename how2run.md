@@ -1,8 +1,10 @@
-# how2run：SoC 仿真速查
+# how2run：SoC 仿真与 FPGA 运行入口
 
 主线有 **4 个层级**，另有 NPU 周期观察接口和板级 RAM 专项。下面的 check 指代码实际检查项；本机实际验证记录见 [Windows ModelSim 指南](veri/sim/WINDOWS_MODELSIM.md)。
 
 需要了解每个 make target 的内部流程和相互关系，见 [Makefile target 详解](veri/sim/MAKE_TARGETS.md)。
+
+在本机用 Vivado 跑 XC7A200T 前仿、综合和后仿，见下方 [Artix-7 FPGA 快速入口](#artix-7-fpga-快速入口)。项目结构、内存地址、换固件和上板步骤见 [FPGA 项目说明与运行指南](doc/artix7_fpga_flow_cn.md)。
 
 列表回归入口：在 `veri/sim` 执行 `make regr regrlist=smoke simtool=modelsim`。可换成 `soc`、`directed`、`tflm`、`random`、`all` 或自定义 `.list`；逐行注释、实时彩色结果、独立目录和判据配置见 [列表回归说明](veri/sim/MAKE_TARGETS.md#列表回归make-regr)。
 
@@ -132,6 +134,35 @@ make tflm_mnist_mlp_run TFLM_SOC_MMA_ENABLE=0 TFLM_NMSIS_NN_ENABLE=0 DUMPOPTS=0
 | `tflm_hello_world_run` / `tflm_person_detection_run` | 分别检查正弦输出范围、有人/无人样本判别 |
 
 通过：对应 `[tflm] ... PASS`，再满足第 3 层 SoC 判据。这里是内置样本回归；`make tflm_mnist_accuracy_run` 是 host 端精度测试，不能作为 SoC RTL 通过证据。
+
+## Artix-7 FPGA 快速入口
+
+在 Windows PowerShell 从仓库根目录执行。使用本机 Vivado/XSim 2019.2、Python 3.9 及以上和 RV32 裸机 GCC。默认器件为 `xc7a200tfbg484-3`，核心时钟 100 MHz，PicoRV32 与 16×16 NPU 共用 512 KiB BRAM。
+
+```powershell
+Set-Location 'D:/courseware/mst4/aiEngine_integrated'
+$vivadoBin = 'D:/Xilinx/Vivado/2019.2/bin'
+$tag = Get-Date -Format 'yyyyMMdd_HHmmss'
+
+# 先跑裸机冒烟前仿
+python scripts/fpga/run_a7_flow.py --vivado-bin $vivadoBin --stage rtl --out "build/a7_rtl_$tag"
+
+# 前仿、综合和综合后功能仿真
+python scripts/fpga/run_a7_flow.py --vivado-bin $vivadoBin --out "build/a7_baseline_$tag"
+
+# 完整流程，包含布局布线、路由后时序报告和路由后功能仿真
+python scripts/fpga/run_a7_flow.py --vivado-bin $vivadoBin --implement --out "build/a7_route_$tag"
+```
+
+按需要选一个入口。再次运行时刷新 `$tag`，每次使用一个新的或空的输出目录。若只比较 768 KiB 或 1 MiB 的综合资源，附加 `--stage synth --ram-kib 768` 或 `--stage synth --ram-kib 1024`，同时换一个输出目录。
+
+| 想确认的结果 | 查看位置 |
+|---|---|
+| 前仿及后仿通过 | 对应的 `rtl/`、`post_synth/`、`post_route/` 内 `simulate.log` 应有 `A7_SOC_PASS`。512 KiB 基线均在第 8,970 周期通过 |
+| 综合资源和共享主存用量 | `synth_utilization.rpt` 和 `synth_utilization_hier.rpt`。主存层级为 `u_axi_sim_ram` |
+| 路由后时序、布线和板级告警 | `route_timing_summary.rpt`、`route_status.rpt`、`route_drc.rpt` |
+
+换应用时，从现有固件目标生成与 RAM 容量一致的 `cpu.bin`，通过 `--firmware-bin` 导入，并按应用执行周期设置 `--timeout-cycles`。完整的 MNIST MLP 例子见 [替换固件](doc/artix7_fpga_flow_cn.md#替换固件)。`--implement` 输出路由 DCP 和功能仿真网表，板级 bitstream 在补齐目标板约束后生成。
 
 ## 补充入口：周期观察、覆盖率和板级 RAM
 

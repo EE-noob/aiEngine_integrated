@@ -7,6 +7,8 @@
 Windows 本机 ModelSim 入口、`simtool=modelsim|vcs` 切换及实际验证范围见 [Windows ModelSim 指南](veri/sim/WINDOWS_MODELSIM.md)。
 各 make target 的用途、原理、产物及依赖关系见 [Makefile target 详解](veri/sim/MAKE_TARGETS.md)。
 
+XC7A200T 原型的项目结构、Windows 运行命令、固件替换和片上 RAM 实测结果见 [FPGA 项目说明与运行指南](doc/artix7_fpga_flow_cn.md)。
+
 新克隆的仓库请先在根目录执行 `git submodule update --init`，获取 SoC 仿真所需的 PicoRV32 和 UART RTL。
 
 ## GEMPACT 配置 ABI 2（2026-11-11）
@@ -749,44 +751,27 @@ make cov_report COVERAGE_GOAL=95
 
 ## Vivado SoC 综合入口
 
-本仓库包含 SoC 顶层 batch 综合脚本：
+Artix-7 原型复用本仓库的 PicoRV32 + 16×16 NPU 和 SoC RTL 文件表。默认使用 `xc7a200tfbg484-3`、100 MHz 和 512 KiB 共享主存。构建入口同时生成裸机固件、Vivado 顶层和 XDC，输出检查点、资源报告和 XSim 日志。以下命令在 Windows PowerShell 的仓库根目录执行。
+
+```powershell
+$vivadoBin = 'D:/Xilinx/Vivado/2019.2/bin'
+$tag = Get-Date -Format 'yyyyMMdd_HHmmss'
+python scripts/fpga/run_a7_flow.py --vivado-bin $vivadoBin --implement --out "build/a7_route_$tag"
+```
+
+移除 `--implement` 可运行 RTL 前仿、综合和综合后功能仿真。加上 `--stage synth` 可以执行单独的综合资源检查，每次运行使用新的输出目录。各阶段产物、BRAM 容量对照和板级适配见 [FPGA 项目说明与运行指南](doc/artix7_fpga_flow_cn.md)。
+
+原有 150 MHz 单次综合入口用于复查 `soc_top` 的综合结果。它设置 `CPU_MEM_DP=65536`，综合时关闭固件初始化，附带时序路径和高扇出报告。指定输出路径的命令如下：
 
 ```bash
 cd /media/proj_tmp/aiEngine_integrated
-mkdir -p build/logs
-vivado -mode batch -source scripts/fpga/vivado_synth_soc.tcl \
-  -log build/logs/vivado_soc_synth.log -journal build/logs/vivado_soc_synth.jou
-```
-
-指定输出目录：
-
-```bash
 mkdir -p build/logs
 vivado -mode batch -source scripts/fpga/vivado_synth_soc.tcl \
   -log build/logs/vivado_soc_synth.log -journal build/logs/vivado_soc_synth.jou \
   -tclargs build/vivado_soc_synth_150mhz_check
 ```
 
-脚本默认：
-
-- Top 为 `soc_top`。
-- FPGA part 为 `xc7a200tfbg484-3`。
-- 时钟周期为 `6.667 ns`，即 150 MHz。
-- `CPU_MEM_DP=65536`。
-- 报告输出到指定 build 目录。
-
-生成报告：
-
-```text
-soc_top_utilization.rpt
-soc_top_utilization_hier.rpt
-soc_top_timing_summary.rpt
-soc_top_timing_paths.rpt
-soc_top_high_fanout.rpt
-soc_top_synth.dcp
-```
-
-FPGA 用 `cpu.mem` 可由 TFLM 章节的 `tflm_mnist_mlp_soc_c` 命令生成。生成后需要保证 RAM 深度与 FPGA 顶层 `CPU_MEM_DP` 一致，UART 分频与核心时钟一致。
+使用应用固件时，按 FPGA 顶层的 RAM 深度和时钟重新编译。100 MHz 原型的 MNIST MLP 构建与导入命令见 [替换固件](doc/artix7_fpga_flow_cn.md#替换固件)。
 
 ## 日志与调试
 

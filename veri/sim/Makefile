@@ -615,7 +615,7 @@ sim: $(SIMV) $(RUN_DEPS) $(if $(filter axil,$(DUT_MODE)),../tb/main_extram.mem)
 	@mkdir -p $(OUT_DIR)
 	@if [ "$(COV)" = "1" ] || [ "$(COV)" = "yes" ] || [ "$(COV)" = "true" ] || [ "$(COV)" = "TRUE" ]; then mkdir -p "$(COV_VDB_ROOT)"; fi
 	@echo "[SIM] $(SIM_RUNNER) $(SIM_OPTS) case=$(case) seed=$(seed) FSDB=$(FSDB)"
-	$(SIM_RUNNER) $(COV_SIM_OPTS) $(SIM_OPTS) $(SIM_ARGS) $(DUMPFSDB) +fsdbfile+$(FSDB) +UVM_TESTNAME=$(case) +case=$(case) +ntb_random_seed=$(seed) -l $(SIM_LOG) +vcs+initreg+0
+	$(if $(filter 1,$(SIM_WALL_TIME)),TIMEFORMAT='[SIM_WALL] seconds=%3R'; time ,)$(SIM_RUNNER) $(COV_SIM_OPTS) $(SIM_OPTS) $(SIM_ARGS) $(DUMPFSDB) +fsdbfile+$(FSDB) +UVM_TESTNAME=$(case) +case=$(case) +ntb_random_seed=$(seed) -l $(SIM_LOG) +vcs+initreg+0
 
 ifeq ($(simtool),modelsim)
 cov_report:
@@ -756,6 +756,20 @@ tflm_mnist_cnn_run: DUMPOPTS = 0
 tflm_mnist_cnn_run:
 	"$(MAKE)" run DUT_MODE=axi_soc SOC_APP=tflm_mnist_cnn SOC_CASE=$(TFLM_MNIST_CNN_SOC_CASE) case=ai_axi_soc_c_test SOC_CPU_MEM_DP=$(SOC_CPU_MEM_DP) SOC_TIMEOUT_CYCLES=$(if $(SOC_TIMEOUT_CYCLES),$(SOC_TIMEOUT_CYCLES),$(TFLM_MNIST_CNN_TIMEOUT_CYCLES)) DUMPOPTS=$(DUMPOPTS)
 
+MNIST_TEST_DIR := ../../../model_trainning
+MNIST_TEST_VENV_PYTHON := $(MNIST_TEST_DIR)/.venv/$(if $(HOST_WINDOWS),Scripts/python.exe,bin/python)
+MNIST_TEST_PYTHON ?= $(or $(wildcard $(MNIST_TEST_VENV_PYTHON)),$(PYTHON))
+MNIST_TEST_RAM_WORDS ?= $(if $(filter command line,$(origin SOC_CPU_MEM_DP)),$(SOC_CPU_MEM_DP),262144)
+MNIST_TEST_ARENA_BYTES ?= 65536
+
+.PHONY: mnistTest
+mnistTest:
+	"$(MNIST_TEST_PYTHON)" -B "$(MNIST_TEST_DIR)/learnTF/mnistTest.py" --soc-make "$(MAKE)" --simtool "$(simtool)" \
+		--ram-words "$(MNIST_TEST_RAM_WORDS)" --arena-bytes "$(MNIST_TEST_ARENA_BYTES)" \
+		--mma-size "$(MMA_SIZE)" --ia-cache-blocks "$(MMA_IA_CACHE_BLOCKS)" --ps-frame-count "$(MMA_PS_FRAME_COUNT)" \
+		--nmsis $(if $(TFLM_NMSIS_NN_DEFINE),1,0) --mma $(if $(TFLM_SOC_MMA_DEFINE),1,0) \
+		$(if $(MNIST_TEST_IMAGE),--image "$(MNIST_TEST_IMAGE)",)
+
 tflm_run: tflm_hello_world_run
 
 ifeq ($(simtool),modelsim)
@@ -809,6 +823,7 @@ help:
 	@echo "  make tflm_sensor_calibrator_20261016_run TFLM_SENSOR_CALIBRATOR_20261016_MODEL=<original.tflite>"
 	@echo "  make tflm_sensor_calibration_20261019_run TFLM_SENSOR_CALIBRATION_20261019_MODEL=<original.tflite>"
 	@echo "  make tflm_mnist_cnn_run"
+	@echo "  make mnistTest simtool=modelsim"
 	@echo "  make tflm_my_model_run"
 	@echo "  make vd    [DUT_MODE=axil|axi_soc] [case=<UVM_TESTNAME>] [seed=<int>]"
 	@echo "  make clean"

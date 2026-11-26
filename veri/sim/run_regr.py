@@ -1,5 +1,6 @@
 """List-driven make regression with isolated workspaces and live progress."""
 import argparse
+from contextlib import ExitStack
 import hashlib
 from datetime import datetime
 import json
@@ -16,7 +17,8 @@ import time
 import uuid
 
 from sim_run_common import (HERE, ANSI, seed_for, load_rules, classify, stop_tree,
-                            prepare_workspace, remove_alias, duration, replay_command, parse_replay_command)
+                            prepare_workspace, remove_alias, duration, replay_command, parse_replay_command,
+                            mark_run_directory, prune_run_artifacts, stop_if_running)
 REPRO_TAG = 'REPRO_JSON='
 
 
@@ -75,6 +77,11 @@ def read_cases(value):
 
 
 def main():
+    with ExitStack() as cleanup:
+        return run(cleanup)
+
+
+def run(cleanup):
     parser = argparse.ArgumentParser(description=__doc__)
     selection = parser.add_mutually_exclusive_group(required=True)
     selection.add_argument('--list')
@@ -133,6 +140,8 @@ def main():
     root = opt.out/f'{source.stem}_{run_stamp}{"_seed_"+str(initial_seed) if initial_seed is not None else ""}_{uuid.uuid4().hex[:12]}'
     root = root.resolve()
     root.mkdir(parents=True)
+    mark_run_directory(root)
+    cleanup.callback(prune_run_artifacts,root)
     if opt.case:
         (root/source.name).write_text(opt.case+' # single-case invocation\n',encoding='utf-8')
     else:
@@ -208,7 +217,7 @@ def main():
         failed = [r for r in results if r['status'] in ('FAIL','UNKNOWN')]
         if failed:
             entries = ['# Replay: make regr regrlist='+fail_list.as_posix(),
-                       '# Retain this run directory: its work/ is the source/model snapshot.']
+                       '# Uses current project sources unless an external single_snapshot is specified; retain keywords.json.']
             entries += [r['case']+f' seed={r["seed"]} # '+replay_command(r['case'],r['reproduce']) for r in failed]
             fail_list.write_text('\n'.join(entries)+'\n',encoding='utf-8')
 
@@ -218,8 +227,9 @@ def main():
     needs_tflm = needs_tflm or any(v.startswith('SOC_APP=tflm') for v in overrides)
     needs_tflm = needs_tflm or any(r.get('make_vars',{}).get('SOC_APP','').startswith('tflm') for r in replay)
     work, alias = prepare_workspace(root, include_tflm=needs_tflm, project=snapshot) if not opt.dry_run else (HERE,None)
+    cleanup.callback(remove_alias,alias)
     input_sim = snapshot/'veri/sim' if snapshot else HERE
-    manifest = {'source_snapshot':(root/'work').as_posix(),'python':sys.version,
+    manifest = {'source_project':str(snapshot.resolve() if snapshot else HERE.parents[1]),'python':sys.version,
                 'inputs_sha256':{name:hashlib.sha256((input_sim/name).read_bytes()).hexdigest()
                                  for name in ('Makefile','regr_cases.mk','modelsim_backend.py')}}
     (root/'manifest.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
@@ -263,8 +273,9 @@ def main():
             cmd = [opt.make,'--no-print-directory','-j1',target,*[f'{k}={v}' for k,v in values.items()],
                    'ISOLATED_RUN=1',f'simtool={case_tool}',f'DUMPOPTS={entry.get("dumpopts",opt.dumpopts)}',f'OUT_DIR={output.as_posix()}']
             reproduction = {'target':target,'seed':actual_seed,'make_vars':values,'simtool':case_tool,'timeout':case_timeout,
-                            'dumpopts':entry.get('dumpopts',opt.dumpopts),'snapshot':(root/'work').as_posix(),
-                            'keywords':(root/'keywords.json').as_posix()}
+                            'dumpopts':entry.get('dumpopts',opt.dumpopts),
+                            'keywords':(root/'keywords.json').as_posix(),
+                            **({'snapshot':snapshot.resolve().as_posix()} if snapshot else {})}
             (folder/f'reproduce_seed_{actual_seed}.json').write_text(json.dumps(reproduction,ensure_ascii=False,indent=2),encoding='utf-8')
             current = {'case':name,'start':time.monotonic(),'seed':actual_seed,'reproduce':reproduction}
             save()
@@ -279,6 +290,7 @@ def main():
                         stream.write(('[REPRO] '+json.dumps(reproduction,ensure_ascii=False)+'\n').encode('utf-8'))
                         stream.flush()
                         proc = subprocess.Popen(cmd,cwd=work,env=env,stdout=stream,stderr=subprocess.STDOUT,start_new_session=os.name!='nt')
+                        cleanup.callback(stop_if_running,proc)
                         while True:
                             try:
                                 rc = proc.wait(timeout=min(opt.interval,max(.01,case_timeout-(time.monotonic()-current['start']))))
@@ -303,6 +315,7 @@ def main():
                             'command':cmd,'log':str(log)})
             current = None
             save()
+            prune_run_artifacts(root,folder)
             emit(f'[REGR] {status} {len(results)}/{total} {name} | seed={actual_seed} | case {duration(results[-1]["seconds"])} | {progress_times()} | {reason}',status)
             if reason.startswith('interrupted') or opt.fail_fast and status not in ('PASS','DRY_RUN'):
                 emit(f'[REGR] summary: {root / "summary.md"}')

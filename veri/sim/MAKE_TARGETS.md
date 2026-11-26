@@ -556,7 +556,7 @@ case 名就是 make target 名，可单独执行 `make soc_tail_ws_int8 simtool=
 
 判据在 [regr_keywords.json](regr_keywords.json)，`pass`/`fail` 是 Python 正则数组，可用 `regr_keywords=自己的.json` 切换。先去掉 ANSI 颜色码；非零退出码判 FAIL，fail 关键词优先于 pass；正常退出但未命中判据记 UNKNOWN，超时/中断也记 UNKNOWN 并终止该进程树。FAIL/UNKNOWN 都使整轮返回非零。默认继续跑完；`regr_fail_fast=1` 可遇到首个非通过即停。PASS绿、FAIL红、UNKNOWN黄；`regr_color=never` 关闭颜色。
 
-每轮独立目录为 `runs/regr/<列表名>_YYYYMMDD_HHMMSS_微秒_唯一ID/`，含列表/关键词快照、`progress.log`、`summary.json`、`summary.md`，逐case的 `cases/序号_case/console.log` 和仿真日志/波形，以及 `work/` 源码工作副本和私有构建缓存。所有仿真在副本内启动，固件、生成向量、仿真编译库、覆盖数据和工具临时文件均留在本轮目录。可用 `regr_out=目录` 指定保存位置。默认关闭波形，`DUMPOPTS=1` 开启。
+每轮独立目录为 `runs/regr/<列表名>_YYYYMMDD_HHMMSS_微秒_唯一ID/`，含列表/关键词记录、`progress.log`、`summary.json`、`summary.md`，逐case的 `cases/序号_case_seed_N/console_seed_N.log` 和仿真日志/波形。运行时仍在本轮 `work/` 副本内构建和仿真；每个case结束删除其输出目录里的中间文件，整轮结束后删除复制的源码/平台、固件、向量、私有编译库和临时文件（`work/`、`libs/`、`tmp/`）。这些目录中的内层日志/波形先移至 `artifacts/`，保留相对路径。PASS、FAIL、UNKNOWN、超时和正常 Ctrl+C 收尾均执行清理，强制杀进程或断电无法保证收尾。清理统计/错误见 `cleanup.log`，只作用于本轮目录，不遍历链接目标。可用 `regr_out=目录` 指定保存位置。默认关闭波形，`DUMPOPTS=1` 开启。
 
 同一列表可同时启动多轮，唯一ID保证即使时间戳相同也不覆盖。单独运行也自动隔离，入口无需改变：
 
@@ -572,6 +572,10 @@ make tflm_hello_world_run
 单例保存在 `runs/cases/<caseName>_YYYYMMDD_HHMMSS_微秒_唯一ID/`，通用 `run/sim` 使用 `case=` 指定的 UVM 名，其余入口使用同名target。可用 `single_out=目录` 修改父目录。单例和回归之间不共用可写仿真库、固件/数据或工具临时目录；仅使用共同的输入工具链。单例命令行输入（如 `seed`、`SOC_K`、`SOC_APP`）通过环境无损传递。为保证隔离，不允许从外部覆盖 `OUT_DIR` 等产物路径；源码/输出路径需要在case定义中设置。源码工作副本内的子make用内部 `ISOLATED_RUN=1` 防止重复调度，不要在源工程手动设置它。查看已有波形时，将该单例目录的 `sim/` 路径传给 `make vd OUT_DIR=... seed=N`。
 
 普通 `make run`、`make sim`、`make <case名>` 由Makefile直接调用原编译/仿真配方，实时输出原生编译/UVM日志；不调用 `run_case.py` 或 `run_regr.py`，不打印 `[REGR]` 或回归计数。`run_case.py` 包装入口已移除。只有 `make regr` 使用列表调度脚本。单例只在运行前/后调用 [sim_run_common.py](sim_run_common.py) 中的文件准备/结果保存函数，这些函数不启动或调度仿真；实际子make、超时控制、日志tee都在Makefile配方内。
+
+单例结束也自动清理，只保留日志、波形，以及 seed/参数、结果、关键词和失败列表等少量复现记录。`sim/` 保留日志与波形；`work/`、`libs/`、`tmp/` 中的日志与波形移至 `artifacts/` 后删除原目录。不会删除原工程源码、公共输入工具链或其他正在运行的目录。新规则仅作用于新启动的运行，不自动清理历史运行目录。
+
+工程及父工作区的 `.vscode/settings.json` 将 `veri/sim/runs/`、`.regr_paths/` 和生成用 `build/` 排除出监视、搜索和 SV 索引；运行副本中的 HDL 关联为纯文本，避免 SystemVerilog 索引打开副本时又触发 Verilog 插件启动 `xvlog`，造成额外内存消耗及文件占用。原始 RTL 仍正常提供语言功能。若自定义输出位置仍在 VS Code 工作区内，应给新位置设置同样的排除规则。外部进程短暂占用文件时收尾会重试；持续占用则提示并在 `cleanup.log` 记录未删除项。
 
 `make run case=soc_unaligned_randlat_ws_int8 seed=72003` 与 `make soc_unaligned_randlat_ws_int8 seed=72003` 均可运行该命名场景，内部正确选用 `ai_axi_soc_c_test`，不会误把场景别名当成UVM类名。普通单例的日志/波形在该目录的 `sim/`，总控制台日志为 `console_seed_N.log`，结果为 `result_seed_N.json`，失败时仍生成可供 `make regr` 重跑的失败列表。
 
@@ -594,7 +598,7 @@ make regr regrlist=smoke seed=123
 
 单例目录包含 `_seed_731_`，每case目录包含 `_seed_731`；文件为 `console_seed_731.log`、`compile_seed_731.log`、`sim_seed_731.log`、`tb_top_seed_731.wlf/fsdb`。缓存命中不重复产生编译日志。NPU/SoC随机回归的内层日志带各迭代实际seed，不能把顶层起始seed当成每次迭代的seed。
 
-每个case结束仅打印一条彩色结果，其中包含 `seed=...`。`summary.json`/`summary.md` 均记录seed，每项还有 `reproduce_seed_N.json`，保存目标、make输入参数、工具选择、超时预算、波形开关和源码快照位置；运行中的case与seed持续更新在summary.json。
+每个case结束仅打印一条彩色结果，其中包含 `seed=...`。`summary.json`/`summary.md` 均记录seed，每项还有 `reproduce_seed_N.json`，保存目标、make输入参数、工具选择、超时预算和波形开关；运行中的case与seed持续更新在summary.json。默认不保留复制的源码快照；显式指定外部 `single_snapshot` 时，重跑命令保留该外部输入路径。
 
 发生FAIL或UNKNOWN（含超时/中断）时，本轮目录自动生成 `fail_YYYYMMDD_HHMMSS_微秒.list`，只保留异常case。完成行会打印其路径，summary.json也有 `fail_list` 字段。可直接重跑：
 
@@ -602,6 +606,6 @@ make regr regrlist=smoke seed=123
 make regr regrlist=完整路径/fail_20261124_165809_091253.list
 ```
 
-失败列表格式为 `case名 seed=N # make run case=xxx seed=N ...`，`#` 后是一整条可直接复制到Git Bash执行的命令，含工具、激励参数、超时、快照和关键词配置；不再写JSON注释。也可直接 `make regr regrlist=失败列表`，脚本会解析命令并使用原快照。旧版JSON注释仍兼容读取。现有11份JSON格式的失败列表已转换，原文备份为 `.list.bak`。**请保留原运行目录**。它可复现相同输入与参数；工具链、仿真器及外部输入文件也需保持相同版本。重跑生成新的隔离目录，不会覆盖原失败证据。
+失败列表格式为 `case名 seed=N # make run case=xxx seed=N ...`，`#` 后是一整条可直接复制到Git Bash执行的命令，含工具、激励参数、超时和关键词配置；不再写JSON注释，也不引用已经清理的临时 `work/`。也可直接 `make regr regrlist=失败列表`，脚本会解析命令，用当前工程源码重跑；显式指定外部快照时仍使用该外部快照。旧版JSON注释和历史运行中尚存的源码快照仍兼容读取。**请保留原运行目录的日志和复现记录**，且源码、模型、工具链、仿真器及外部输入文件需保持相同版本，才能按相同seed与参数复现。重跑生成新的隔离目录，不会覆盖原失败证据。
 
 已在本机验证：run/sim同seed生成的矩阵、bias、golden逐字节一致；默认smoke四项统一使用seed=123并通过；用非法K=0触发的seed=919失败能从生成的fail.list再次复现。

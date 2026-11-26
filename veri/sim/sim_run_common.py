@@ -13,6 +13,110 @@ from datetime import datetime
 
 HERE = Path(__file__).resolve().parent
 ANSI = re.compile(r'\x1b\[[0-9;]*m')
+WAVE_SUFFIXES = {'.wlf', '.vcd', '.fst', '.fsdb', '.vpd', '.evcd', '.wdb', '.ghw', '.lxt', '.lxt2'}
+
+
+def _artifact_operation(path, action):
+    # Windows scanners/indexers may briefly hold a just-produced file open.
+    for delay in (0, .1, .3, 1, 2):
+        if delay:
+            time.sleep(delay)
+        try:
+            return action()
+        except OSError as exc:
+            if os.name != 'nt' or getattr(exc,'winerror',None) not in (5,32,33) or delay == 2:
+                raise
+            if getattr(exc,'winerror',None) == 5 and path.is_file() and not path.is_symlink():
+                path.chmod(path.stat().st_mode | 0o200)
+
+
+def mark_run_directory(root):
+    """Authorize retention cleanup only for this newly created run directory."""
+    root = Path(root).resolve(strict=True)
+    (root/'retention.json').write_text(json.dumps({'root':str(root), 'policy':'logs-waves-metadata'},indent=2),encoding='utf-8')
+
+
+def prune_run_artifacts(root, case=None):
+    """Keep logs/waves and run records, without following directory links.
+
+    A case can be pruned while the regression's private workspace/libraries
+    remain in use. Full cleanup happens only after all child processes exit.
+    """
+    root = Path(root).absolute()
+    if root.is_symlink() or root.is_junction():
+        raise ValueError('Refusing cleanup through a linked run directory')
+    root = root.resolve(strict=True)
+    marker = root/'retention.json'
+    if marker.is_symlink() or json.loads(marker.read_text(encoding='utf-8')).get('root') != str(root):
+        raise ValueError('Run retention marker does not match its directory')
+    target = Path(case).absolute() if case else root
+    if case and (target.parent != root/'cases' or target.is_symlink() or target.is_junction()):
+        raise ValueError('Case cleanup must be directly inside this run/cases')
+    stats = {'removed_files':0, 'removed_bytes':0, 'archived_files':0}
+    errors = []
+    transient_locks = []
+
+    def prune(directory):
+        # Verify each actual deletion directory stays inside the marked run.
+        if not directory.resolve(strict=True).is_relative_to(root):
+            raise ValueError('Cleanup directory escapes this run: '+str(directory))
+        for path in list(directory.iterdir()):
+            try:
+                if path.is_junction():
+                    _artifact_operation(path,lambda: os.rmdir(path))  # Never visit its target.
+                    continue
+                if path.is_symlink():
+                    _artifact_operation(path,path.unlink)
+                    continue
+                if path.is_dir():
+                    prune(path)
+                    if not any(path.iterdir()):
+                        _artifact_operation(path,path.rmdir)
+                    continue
+                relative = path.relative_to(root)
+                artifact = path.suffix.lower() in WAVE_SUFFIXES | {'.log'} or path.name.lower() == 'transcript'
+                record = (len(relative.parts) == 1 or
+                          len(relative.parts) == 3 and relative.parts[0] == 'cases')
+                record = record and path.suffix.lower() in {'.json', '.list', '.md'}
+                if artifact and relative.parts[0] in {'work', 'libs', 'tmp'}:
+                    dest = root/'artifacts'/relative
+                    # Do not traverse an unexpected link planted in the archive.
+                    for parent in reversed(dest.parents):
+                        if parent == root or not parent.is_relative_to(root):
+                            continue
+                        if parent.is_symlink() or parent.is_junction():
+                            raise ValueError('Linked archive directory: '+str(parent))
+                    dest.parent.mkdir(parents=True,exist_ok=True)
+                    if dest.exists() or dest.is_symlink():
+                        raise ValueError('Archive destination already exists: '+str(dest))
+                    _artifact_operation(path,lambda: path.rename(dest))
+                    stats['archived_files'] += 1
+                elif not (artifact or record):
+                    size = path.stat().st_size
+                    _artifact_operation(path,path.unlink)
+                    stats['removed_files'] += 1
+                    stats['removed_bytes'] += size
+            except (OSError, ValueError) as exc:
+                errors.append(str(exc))
+                if os.name == 'nt' and getattr(exc,'winerror',None) in (32,33):
+                    transient_locks.append(path)
+
+    # Retry the remaining locked entries after the rest of the tree is gone.
+    # This also allows directories left nonempty on the first pass to vanish.
+    deadline = time.monotonic()+30
+    for delay in (0, .5, 1, 2, 4, 8):
+        if delay:
+            time.sleep(min(delay,max(0,deadline-time.monotonic())))
+        errors.clear()
+        transient_locks.clear()
+        prune(target)
+        if not transient_locks or time.monotonic() >= deadline:
+            break
+    with (root/'cleanup.log').open('a',encoding='utf-8') as stream:
+        stream.write(json.dumps({'scope':str(target.relative_to(root)), **stats, 'errors':errors},ensure_ascii=False)+'\n')
+    if errors:
+        print('[SIM] WARNING: some artifacts could not be removed; see '+str(root/'cleanup.log'),flush=True)
+    return stats
 
 
 def prepare_make_case():
@@ -43,6 +147,7 @@ def prepare_make_case():
     stamp=datetime.now().strftime('%Y%m%d_%H%M%S_%f')
     root=(Path(os.environ.get('AI_CASE_OUT','runs/cases'))/f'{name}_{stamp}_seed_{seed}_{uuid.uuid4().hex[:12]}').resolve()
     root.mkdir(parents=True)
+    mark_run_directory(root)
     timeout=float(os.environ.get('AI_CASE_TIMEOUT','3600'))
     if timeout<=0: raise ValueError('single_timeout must be positive')
     keyword=Path(os.environ.get('AI_CASE_KEYWORDS','regr_keywords.json'))
@@ -54,7 +159,8 @@ def prepare_make_case():
     work,alias=prepare_workspace(root,include_tflm=model,project=snapshot)
     repro={'target':target,'seed':seed,'make_vars':values,'simtool':os.environ.get('AI_CASE_TOOL','modelsim'),
            'dumpopts':os.environ.get('AI_CASE_DUMP','0'),'timeout':timeout,
-           'snapshot':(root/'work').as_posix(),'keywords':(root/'keywords.json').as_posix()}
+           'keywords':(root/'keywords.json').as_posix(),
+           **({'snapshot':snapshot.resolve().as_posix()} if snapshot else {})}
     (root/f'reproduce_seed_{seed}.json').write_text(json.dumps(repro,ensure_ascii=False,indent=2),encoding='utf-8')
     console=root/f'console_seed_{seed}.log'
     console.write_text('[REPRO] '+json.dumps(repro,ensure_ascii=False)+'\n',encoding='utf-8')
@@ -99,6 +205,7 @@ def finish_make_case(root, rc):
         failure=root/f'fail_{datetime.now():%Y%m%d_%H%M%S_%f}.list'
         failure.write_text(name+f' seed={seed} # '+replay_command(name,repro)+'\n',encoding='utf-8')
         print('[SIM] replay list:',failure,flush=True)
+    prune_run_artifacts(root)
     color={'PASS':32,'FAIL':31,'UNKNOWN':33}[status]
     print(f'[SIM] \033[{color}m{status}\033[0m \033[{color}m{name}\033[0m | seed={seed} | elapsed {duration(result["seconds"])}',flush=True)
     return int(status!='PASS')
@@ -209,6 +316,12 @@ def stop_tree(proc):
     else:
         os.killpg(proc.pid, signal.SIGKILL)
     proc.wait()
+
+
+def stop_if_running(proc):
+    """Exit callbacks must stop children before deleting their workspace."""
+    if proc.poll() is None:
+        stop_tree(proc)
 
 
 def prepare_workspace(root, include_tflm=True, project=None):

@@ -107,6 +107,25 @@ uint32_t RunMnistCnnTest() {
     return EncodeError(6, 0);
   }
 
+#ifdef TFLM_MNIST_CNN_GUI_INPUT
+  // The GUI provides one input in the test-data array, with no expected label.
+  memcpy(tflite::GetTensorData<int8_t>(input), g_mnist_cnn_test_images[0],
+         kMnistCnnInputSize);
+  WriteProgress(0x6e200000u);
+  const uint32_t invoke_start = soc_get_cycle();
+  if (interpreter.Invoke() != kTfLiteOk) {
+    printf("[tflm] mnist_cnn Invoke failed\n");
+    return EncodeError(7, 0);
+  }
+  const uint32_t cycles = soc_get_cycle() - invoke_start;
+  const auto* scores = tflite::GetTensorData<int8_t>(output);
+  printf("[mnist_gui] pred=%d cycles=%u scores=",
+         ArgMax(scores, kMnistCnnClassCount), cycles);
+  for (int digit = 0; digit < kMnistCnnClassCount; ++digit) {
+    printf("%s%d", digit == 0 ? "" : ",", static_cast<int>(scores[digit]));
+  }
+  printf("\n");
+#else
   constexpr int kRunSampleCount =
       (TFLM_MNIST_CNN_SAMPLE_LIMIT < kMnistCnnSampleCount)
           ? TFLM_MNIST_CNN_SAMPLE_LIMIT
@@ -150,6 +169,7 @@ uint32_t RunMnistCnnTest() {
   const uint32_t avg_cycles = total_cycles / kRunSampleCount;
   printf("[tflm_perf] mnist_cnn total_invoke_cycles=%u avg=%u min=%u max=%u samples=%d\n",
          total_cycles, avg_cycles, min_cycles, max_cycles, kRunSampleCount);
+#endif
   printf("[tflm] mnist_cnn PASS\n");
   WriteProgress(0x6e100005u);
   return 1;

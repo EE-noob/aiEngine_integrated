@@ -22,15 +22,15 @@
 
 | 目录 | 用途 | 示例 |
 |---|---|---|
-| `scripts/fpga/` | 综合、实现、硬件平台导出与部署 | `vivado -mode batch -source scripts/fpga/vivado_synth_soc.tcl` |
+| `scripts/fpga/` | Artix-7 前仿、综合、实现与后仿，以及各平台的导出和部署 | `python scripts/fpga/run_a7_flow.py --help` |
 | `scripts/models/` | 模型检查与 RAM 初始化文件生成 | `inspect_tflite_metadata.cc`、`prepare_vu3p_uram_init.py` |
 | `scripts/packaging/` | 仿真代码导出与使用说明模板 | `python3 scripts/packaging/package_simulation_handoff.py --help` |
 | `scripts/maintenance/` | 工具临时文件清理 | `python3 scripts/maintenance/clean_tool_outputs.py --apply` |
 | `scripts/utils/` | 文件格式和后缀批量转换 | `dos2unix.csh`、`flist_v2sv.csh` |
 
-Artix-7 综合入口为 `scripts/fpga/vivado_synth_soc.tcl`，默认器件为 `xc7a200tfbg484-3`，时钟周期为 6.667 ns。VU3P 相关脚本使用各自的板级工程路径。模型转换和部署脚本的具体参数由对应脚本提供。
+Artix-7 原型入口为 `run_a7_flow.py`，默认使用 `xc7a200tfbg484-3`、100 MHz 和 512 KiB 共享 RAM。它调用 `a7_flow.tcl` 运行综合与实现，使用 `a7_smoke.c` 和 `a7_smoke_tb.sv` 检查各级仿真。完整命令见 [FPGA 项目说明与运行指南](../doc/artix7_fpga_flow_cn.md)。VU3P 相关脚本使用各自的板级工程路径。
 
-将 Vivado 日志和 journal 写入构建目录：
+保留的 `vivado_synth_soc.tcl` 单独运行原 150 MHz 综合配置。可将其 Vivado 日志和 journal 写入构建目录：
 
 ```bash
 mkdir -p build/logs
@@ -44,7 +44,8 @@ vivado -mode batch -source scripts/fpga/vivado_synth_soc.tcl \
 
 | 目录 | 内容 |
 |---|---|
-| `build/vivado_soc_synth_150mhz/` | 默认 SoC 综合报告和检查点 |
+| `build/fpga_a7_<容量>k/` | Artix-7 原型默认输出目录，含固件、XSim 日志、综合或实现报告和 DCP |
+| `build/vivado_soc_synth_150mhz/` | 原 150 MHz SoC 单次综合报告和检查点 |
 | `build/board_artifacts/` | 按日期保存的板级构建产物 |
 | `build/artifacts/` | FPGA 实现分析与历史输出 |
 | `build/vivado_generated/` | 本地 Vivado IP 生成文件 |

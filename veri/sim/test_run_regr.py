@@ -162,7 +162,7 @@ class RegressionTests(unittest.TestCase):
             self.assertIn('SIM_ARGS= +MEM_GEN_SEED=303',commands[0])
             self.assertEqual(json.loads(summaries[0].read_text())['results'][0]['case'],'my_case')
 
-    def test_failure_replay_retains_seed_inputs_snapshot_and_budget(self):
+    def test_failure_replay_retains_seed_inputs_and_budget_without_deleted_snapshot(self):
         real_popen = subprocess.Popen
         import os
         import shutil
@@ -183,21 +183,20 @@ class RegressionTests(unittest.TestCase):
                      contextlib.redirect_stdout(io.StringIO()):
                     self.assertEqual(runner.main(),1)
                 first=next((root/'out').glob('*/summary.json'))
-                snap=first.parent/'work/veri/sim'
-                snap.mkdir(parents=True)
-                for name in ('Makefile','regr_cases.mk','modelsim_backend.py'):
-                    shutil.copy2(runner.HERE/name,snap/name)
+                self.assertFalse((first.parent/'work').exists())
                 failure=next(first.parent.glob('fail_*.list'))
                 args=['run_regr.py','--list',str(failure),'--simtool','modelsim','--out',str(root/'replayed'),
                       '--keywords',str(runner.HERE/'regr_keywords.json')]
                 with patch.object(sys,'argv',args), patch.object(runner,'prepare_workspace',return_value=(root,None)) as prep, \
                      patch.object(runner.subprocess,'Popen',side_effect=spawn), contextlib.redirect_stdout(io.StringIO()):
                     self.assertEqual(runner.main(),1)
-                    self.assertEqual(prep.call_args.kwargs['project'],first.parent/'work')
+                    self.assertIsNone(prep.call_args.kwargs['project'])
                 replayed=json.loads(next((root/'replayed').glob('*/summary.json')).read_text())
                 self.assertEqual(replayed['results'][0]['seed'],919)
                 self.assertEqual(replayed['results'][0]['reproduce']['timeout'],12)
                 self.assertEqual(replayed['results'][0]['target'],'run')
+                self.assertNotIn('snapshot',replayed['results'][0]['reproduce'])
+                self.assertNotIn('single_snapshot=',failure.read_text())
                 self.assertIn('case=ai_mem_gen_smoke_test',commands[1])
                 self.assertIn('SIM_ARGS=+MEM_GEN_K=0 +MEM_GEN_SEED=919',commands[1])
                 self.assertTrue(all('seed_919' in r['log'] for r in replayed['results']))

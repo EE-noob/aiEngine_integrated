@@ -2,7 +2,7 @@ module soc_axi_ram #(
     parameter int unsigned DP = 512,
     parameter int unsigned DW = 32,
     parameter int unsigned AW = 32,
-    parameter string       MEM_PATH = "",
+    parameter              MEM_PATH = "",
     parameter int unsigned INIT_EN = 0,
     parameter int unsigned READ_OUTSTANDING = 4,
     parameter int unsigned WRITE_OUTSTANDING = READ_OUTSTANDING
@@ -197,8 +197,8 @@ module soc_axi_ram #(
     wire [WORD_ADDR_BITS-1:0] rd_issue_word_addr =
         rd_pipe_cmd ? rd_pipe_cmd_word_addr :
         rd_pipe_beat ? (rd_word_addr_q + WORD_ADDR_BITS'(1)) : rd_word_addr_q;
-    wire rd_issue_oob = (WORD_ADDR_BITS > ADDR_BITS) ?
-                         |rd_issue_word_addr[WORD_ADDR_BITS-1:ADDR_BITS] : 1'b0;
+    // A non-power-of-two depth leaves unused indices inside the address width.
+    wire rd_issue_oob = {1'b0, rd_issue_word_addr} >= (WORD_ADDR_BITS+1)'(DP);
     wire rd_can_issue = rd_cmd_valid_q && (!s_axi_rvalid || rd_pipe_beat || rd_pipe_cmd) &&
                         r_rsp_delay_clear;
     wire rd_issue_any = rd_can_issue || rd_pipe_cmd;
@@ -221,8 +221,7 @@ module soc_axi_ram #(
     wire wr_b_queue_full = (wr_b_count_q == WR_CNT_W'(WR_DEPTH));
     wire wr_b_pop = b_fire;
     wire wr_has_addr_for_w = wr_cmd_valid_q;
-    wire wr_active_oob = (WORD_ADDR_BITS > ADDR_BITS) ?
-                         |wr_word_addr_q[WORD_ADDR_BITS-1:ADDR_BITS] : 1'b0;
+    wire wr_active_oob = {1'b0, wr_word_addr_q} >= (WORD_ADDR_BITS+1)'(DP);
     wire wr_last_expected = (wr_beat_q == wr_len_active_q);
 
     assign s_axi_arready = !rd_queue_full && ar_ready_delay_clear;
